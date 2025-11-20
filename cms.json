@@ -1,0 +1,125 @@
+{
+    "socialHandle": "@dosnine_media_",
+    "dashboard": {
+      "title": "Dashboard",
+      "headline": "🎉 Software is live! Now for $178USD/1yr."
+    },
+    "hero": {
+      "theme": "Ready-to-Use Website in days!",
+      "description": "Service-based business Template paired with 5+ workflow tools for common business needs. For only $178USD/1yr.(Save $321)",
+      "ctaPrimary": "Get Started Now",
+      "ctaSecondary": "Buy Now",
+      "guarantees": [
+        "30-day money-back guarantee",
+        "24/7 Support",
+        "Free Updates"
+      ]
+    },
+    "process": {
+      "title": "How to get a website in a day?",
+      "steps": [
+        {
+          "number": 1,
+          "title": "Check out a live demo",
+          "description": "See whats possible with Dosnine. Like it? Lets go!"
+        },
+        {
+          "number": 2,
+          "title": "Ready to launch?",
+          "description": "Confirm youre a service-based business that doesnt sell products online."
+        },
+        {
+          "number": 3,
+          "title": "Make Your Payment",
+          "description": "You can also opt for us to buy & configure your domain."
+        },
+        {
+          "number": 4,
+          "title": "Your Website Goes Live! 🎉",
+          "description": "Its that simple"
+        }
+      ]
+    },
+    "whyBusiness": {
+      "title": "Why Every Business Needs a Website",
+      "description": "A website isnt just an expense—its an investment that helps you attract customers and grow revenue. Dosnine.com makes it easy."
+    },
+    "pricing": {
+      "price": "$178",
+      "duration": "/1yr",
+      "savings": "Save $321 off for the first 64 customers (11 left)",
+      "features": [
+        {
+          "feature": "Service-based Business Template"
+        },
+        {
+          "feature": "Free Domain & Dashboard",
+          "save": "$100"
+        },
+        {
+          "feature": "Free Maintenance & Updates",
+          "save": "$190"
+        },
+        {
+          "feature": "50 Free Professional Emails",
+          "save": "$31"
+        },
+        {
+          "feature": "24/7 Priority Support"
+        },
+        {
+          "feature": "30-day Money-back Guarantee"
+        }
+      ]
+    },
+    "contactForm": {
+      "title": "Launch Your Online Presence",
+      "subtitle": "Get your FREE website consultation in 24 hours",
+      "fields": [
+        {
+          "name": "Name",
+          "required": true
+        },
+        {
+          "name": "Email",
+          "required": true
+        },
+        {
+          "name": "Phone Number",
+          "required": false
+        },
+        {
+          "name": "Business Name",
+          "required": false
+        },
+        {
+          "name": "How can we help you?",
+          "required": true,
+          "type": "textarea",
+          "placeholder": "Describe your business goals and target audience"
+        }
+      ],
+      "submitText": "Get My Free Consultation",
+      "privacyNote": "We respect your privacy. No spam, ever."
+    },
+    "social": {
+      "title": "Connect With Us",
+      "description": "Follow us on social media to stay updated with the latest news and updates."
+    },
+    "faq": {
+      "title": "Frequently Asked Questions",
+      "questions": [
+        "What is the cost of your website creation service?",
+        "Are there any hidden fees or additional charges?",
+        "What can the websites that we create do?",
+        "How long does it take to create and launch the website?",
+        "Can I update the content on my website myself?",
+        "Do you provide domain registration and hosting services?",
+        "How customizable are the templates?",
+        "Will my website be mobile-friendly?"
+      ]
+    },
+    "footer": {
+      "copyright": "© 2025 Powered By Dosnine™"
+    }
+  }

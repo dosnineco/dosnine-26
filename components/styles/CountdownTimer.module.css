@@ -1,0 +1,28 @@
+/* styles/CountdownTimer.module.css */
+
+.timer {
+    text-align: center;
+
+  }
+  
+  .timer h2 {
+    margin-bottom: 20px;
+    font-size: 1.5rem;
+    color: #333;
+  }
+  
+  .timer p {
+    font-size: 1.2rem;
+    color: #0f743b;
+    font-weight: bold;
+  }
+  
+  .timer span {
+    display: inline-block;
+    margin: 0 5px;
+    padding: 5px 10px;
+    background: red;
+    color: white;
+    border-radius: 5px;
+  }
+  
