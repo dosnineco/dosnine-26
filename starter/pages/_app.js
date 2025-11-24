@@ -1,0 +1,114 @@
+import { useRouter } from 'next/router';
+import { ClerkProvider, SignedIn, SignedOut, SignInButton, SignUpButton, useUser } from '@clerk/nextjs';
+import '../styles/globals.css';
+import Header from '../components/Header';
+import Footer from '../components/Footer';
+import { useEffect } from 'react';
+import { supabase } from '../lib/supabase';
+import { Toaster } from 'react-hot-toast';
+
+function MyApp({ Component, pageProps }) {
+  const router = useRouter();
+  
+  // Public routes that don't require sign-in
+  const publicRoutes = ['/', '/property'];
+  const isPublicRoute = publicRoutes.some(
+    (route) => router.pathname === route || router.pathname.startsWith(`${route}/`)
+  );
+
+  return (
+    <ClerkProvider>
+      <AppContent Component={Component} pageProps={pageProps} isPublicRoute={isPublicRoute} />
+    </ClerkProvider>
+  );
+}
+
+function AppContent({ Component, pageProps, isPublicRoute }) {
+  const { isSignedIn, user } = useUser();
+
+  // Sync Clerk user to Supabase
+  useEffect(() => {
+    const syncUser = async () => {
+      if (!isSignedIn || !user) return;
+
+      const email = user.emailAddresses?.[0]?.emailAddress;
+      if (!user.id || !email) return;
+
+      try {
+        // Check if user already exists
+        const { data: existingUser } = await supabase
+          .from('users')
+          .select('id, role')
+          .eq('clerk_id', user.id)
+          .single();
+
+        if (existingUser) {
+          // User exists, only update email and name (preserve role)
+          await supabase
+            .from('users')
+            .update({
+              email,
+              full_name: user.fullName || '',
+            })
+            .eq('clerk_id', user.id);
+        } else {
+          // New user, create with default role
+          await supabase.from('users').insert({
+            clerk_id: user.id,
+            email,
+            full_name: user.fullName || '',
+            role: 'renter',
+          });
+        }
+      } catch (err) {
+        console.error('Unexpected error syncing user:', err);
+      }
+    };
+
+    syncUser();
+  }, [isSignedIn, user]);
+
+  return (
+    <>
+      <Toaster position="top-right" />
+      <Header />
+      {isPublicRoute ? (
+        <main className="min-h-screen">
+          <Component {...pageProps} />
+        </main>
+      ) : (
+        <SignedIn>
+          <main className="min-h-screen">
+            <Component {...pageProps} />
+          </main>
+        </SignedIn>
+      )}
+
+      {!isPublicRoute && (
+        <SignedOut>
+          <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-blue-50 to-blue-100">
+            <div className="bg-white rounded-lg p-8 max-w-md w-full text-center ">
+              <h1 className="text-3xl font-bold text-gray-900 mb-4">Rentals Jamaica</h1>
+              <p className="text-lg text-gray-600 mb-6">Sign in to access your dashboard and manage properties.</p>
+              <div className="flex flex-col space-y-4">
+                <SignInButton>
+                  <button className="w-full px-6 py-3 font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-lg  transition duration-200">
+                    Sign In
+                  </button>
+                </SignInButton>
+                <SignUpButton>
+                  <button className="w-full px-6 py-3 font-bold text-blue-600 bg-white border border-blue-600 hover:bg-blue-50 rounded-lg  transition duration-200">
+                    Sign Up
+                  </button>
+                </SignUpButton>
+              </div>
+            </div>
+          </div>
+        </SignedOut>
+      )}
+      <Footer />
+    </>
+  );
+}
+
+export default MyApp;

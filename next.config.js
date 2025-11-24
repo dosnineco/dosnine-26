@@ -1,8 +1,22 @@
 const path = require('path');
-const withPWA = require('next-pwa')({
-  dest: 'public',
-  disable: process.env.NODE_ENV === 'development',
-});
+
+// Don't require next-pwa during development. Requiring it at module
+// load time pulls in workbox-related packages that can fail to resolve
+// in some environments. Only load it in production.
+let withPWA = (config) => config;
+if (process.env.NODE_ENV === 'production') {
+  try {
+    withPWA = require('next-pwa')({
+      dest: 'public',
+      disable: false,
+    });
+
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.warn('next-pwa failed to load, skipping PWA setup:', err && err.message);
+    withPWA = (config) => config;
+  }
+}
 
 const withMDX = require('@next/mdx')({
   extension: /\.mdx?$/,
