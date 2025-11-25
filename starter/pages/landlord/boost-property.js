@@ -8,7 +8,7 @@ import { Zap, TrendingUp, Eye, Clock, AlertCircle } from 'lucide-react';
 import Link from 'next/link';
 
 const MAX_ACTIVE_BOOSTS = 20;
-const BOOST_PRICE_JMD = 2500;
+const BOOST_PRICE_JMD = 1000;
 const BOOST_DURATION_DAYS = 10;
 
 export default function BoostProperty() {
