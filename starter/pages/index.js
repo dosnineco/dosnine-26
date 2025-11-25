@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
 import { supabase } from '../lib/supabase';
-
+import { Sparkle } from 'lucide-react';
 const PROPERTIES_PER_PAGE = 12;
 
 const PARISHES = [
@@ -14,8 +14,11 @@ export default function Home() {
   const [properties, setProperties] = useState([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
-  const [filters, setFilters] = useState({ parish: '', minPrice: '', maxPrice: '', location: '' });
+  const [filters, setFilters] = useState({ parish: '', minPrice: '', maxPrice: '', location: '', bedrooms: '' });
   const [totalCount, setTotalCount] = useState(0);
+  const [locationSuggestions, setLocationSuggestions] = useState([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [locationInput, setLocationInput] = useState('');
 
   useEffect(() => {
     fetchProperties();
@@ -33,6 +36,7 @@ export default function Home() {
       if (filters.parish) query = query.eq('parish', filters.parish);
       if (filters.minPrice) query = query.gte('price', Number(filters.minPrice));
       if (filters.maxPrice) query = query.lte('price', Number(filters.maxPrice));
+      if (filters.bedrooms) query = query.eq('bedrooms', filters.bedrooms);
       
       // Partial location search - matches town, address, or parish
       if (filters.location) {
@@ -67,6 +71,57 @@ export default function Home() {
 
   const totalPages = Math.ceil(totalCount / PROPERTIES_PER_PAGE);
 
+  const fetchLocationSuggestions = async (searchText) => {
+    if (!searchText || searchText.length < 2) {
+      setLocationSuggestions([]);
+      return;
+    }
+
+    try {
+      const searchTerm = `%${searchText}%`;
+      const { data, error } = await supabase
+        .from('properties')
+        .select('town, parish, address')
+        .or(`town.ilike.${searchTerm},address.ilike.${searchTerm},parish.ilike.${searchTerm}`)
+        .limit(10);
+
+      if (error) throw error;
+
+      // Extract unique locations
+      const locations = new Set();
+      data.forEach(prop => {
+        if (prop.town) locations.add(prop.town);
+        if (prop.parish) locations.add(prop.parish);
+        // Extract main area from address
+        if (prop.address) {
+          const addressParts = prop.address.split(',');
+          if (addressParts[0]) locations.add(addressParts[0].trim());
+        }
+      });
+
+      const filtered = Array.from(locations).filter(loc => 
+        loc.toLowerCase().includes(searchText.toLowerCase())
+      ).slice(0, 8);
+
+      setLocationSuggestions(filtered);
+    } catch (err) {
+      console.error('Error fetching suggestions:', err);
+    }
+  };
+
+  const handleLocationInput = (e) => {
+    const value = e.target.value;
+    setLocationInput(value);
+    setShowSuggestions(true);
+    fetchLocationSuggestions(value);
+  };
+
+  const selectSuggestion = (suggestion) => {
+    setLocationInput(suggestion);
+    setShowSuggestions(false);
+    setLocationSuggestions([]);
+  };
+
   return (
     <div>
       <Head>
@@ -92,20 +147,53 @@ export default function Home() {
               parish: fd.get('parish') || '',
               minPrice: fd.get('minPrice') || '',
               maxPrice: fd.get('maxPrice') || '',
-              location: fd.get('location') || ''
+              location: locationInput || '',
+              bedrooms: fd.get('bedrooms') || ''
             });
             setPage(1);
+            setShowSuggestions(false);
           }}
           className="bg-white p-6 rounded-lg border border-gray-200 flex gap-3 flex-wrap items-end mb-8"
         >
-          <div className="flex-1 min-w-[200px]">
+          <div className="flex-1 min-w-[200px] relative">
             <label className="block text-sm font-medium text-gray-700 mb-1">Location Search</label>
             <input
               type="text"
               name="location"
+              value={locationInput}
+              onChange={handleLocationInput}
+              onFocus={() => setShowSuggestions(true)}
+              onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
               placeholder="Enter area, town, or landmark..."
               className="w-full border border-gray-300 px-3 py-2.5 rounded-lg"
+              autoComplete="off"
             />
+            {showSuggestions && locationSuggestions.length > 0 && (
+              <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                {locationSuggestions.map((suggestion, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => selectSuggestion(suggestion)}
+                    className="w-full text-left px-4 py-2.5 hover:bg-gray-100 transition text-sm text-gray-700"
+                  >
+                    {suggestion}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="flex-1 min-w-[150px]">
+            <label className="block text-sm font-medium text-gray-700 mb-1">Bedrooms</label>
+            <select name="bedrooms" className="w-full border border-gray-300 px-3 py-2.5 rounded-lg">
+              <option value="">Any</option>
+              <option value="1">1 Bed</option>
+              <option value="2">2 Beds</option>
+              <option value="3">3 Beds</option>
+              <option value="4">4 Beds</option>
+              <option value="5">5+ Beds</option>
+            </select>
           </div>
 
           <div className="flex-1 min-w-[200px]">
@@ -170,8 +258,8 @@ export default function Home() {
                         <div className="w-full h-full flex items-center justify-center bg-gray-200 text-gray-400 text-3xl">📷</div>
                       )}
                       {prop.is_featured && (
-                        <div className="absolute top-2 right-2 bg-gray-900 text-white px-3 py-1 rounded-full text-xs font-medium">
-                          ⭐ Featured
+                        <div className="absolute top-2 right-2 items-center justify-center flex-row bg-red-400 text-white px-3 py-1 rounded-full text-xs font-medium">
+                          <Sparkle className=' inline text-yellow-400 w-4 h-4  '/> Featured
                         </div>
                       )}
                       <div className="absolute top-2 left-2 bg-gray-900/80 text-white px-2 py-1 rounded text-xs">
@@ -197,15 +285,7 @@ export default function Home() {
                         <p className="text-sm text-gray-600 line-clamp-2 mb-3">{prop.description}</p>
                       )}
 
-                      <a 
-                        href={`https://wa.me/8760000000?text=I'm%20interested%20in%20${encodeURIComponent(prop.title)}`} 
-                        target="_blank" 
-                        rel="noopener noreferrer" 
-                        className="w-full bg-gray-800 text-white text-center py-2.5 rounded-lg text-sm hover:bg-gray-700 transition flex items-center justify-center gap-2 font-medium"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        💬 WhatsApp
-                      </a>
+                     
                     </div>
                   </Link>
                 );
