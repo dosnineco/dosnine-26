@@ -129,6 +129,13 @@ export default function PropertyPage({ property, similarProperties }) {
               </div>
             )}
 
+               <div className="bg-yellow-50 border-l-4 border-yellow-600 p-4 mt-4">
+                <p className="text-gray-700 mb-2">
+                  <strong>Important:</strong> Never pay a deposit in order to view or "hold" a property
+                </p>
+              
+              </div> 
+
             {/* Property Details */}
             <div className="bg-white rounded-xl  p-6 mb-6">
               <h1 className="text-3xl font-bold mb-2">{property.title}</h1>
@@ -136,7 +143,7 @@ export default function PropertyPage({ property, similarProperties }) {
 
               <div className="flex items-center gap-6 mb-6 pb-6 border-b">
                 <div className="text-center">
-                  <div className="text-3xl font-bold text-green-600">{property.price}</div>
+                  <div className="text-2xl font-bold text-green-600">{property.price}</div>
                   <div className="text-sm text-gray-600">{property.currency} / month</div>
                 </div>
                 <div className="flex gap-8">
@@ -165,14 +172,7 @@ export default function PropertyPage({ property, similarProperties }) {
                 )}
               </div>
 
-              <div className="flex gap-3">
-                <a
-                  href={`https://wa.me/8760000000?text=I'm%20interested%20in%20${encodeURIComponent(property.title)}%20located%20at%20${encodeURIComponent(property.address)}`}
-                  className="flex-1 bg-green-500 text-white text-center py-3 rounded-lg hover:bg-green-600 transition font-semibold"
-                >
-                  💬 Contact on WhatsApp
-                </a>
-              </div>
+              
             </div>
           </div>
 
@@ -253,6 +253,8 @@ export default function PropertyPage({ property, similarProperties }) {
             </div>
           </div>
         )}
+
+         
       </div>
     </>
   );

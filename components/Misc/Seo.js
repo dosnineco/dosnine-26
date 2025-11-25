@@ -6,26 +6,25 @@ const Seo = ({ siteTitle, pageTitle, description, url, image }) => {
         <Head>
             <meta name="viewport" content="width=device-width, initial-scale=1" />
             <title>{`${pageTitle} | ${siteTitle}`}</title>
-            <meta name="description" content={`${description} Discover the best online expense software, business expense tracking tools, and travel and expense management systems.`} />
+            <meta name="description" content={description} />
             <meta name="keywords" content="
-                online expense software, 
-                expense management online, 
-                expense management software uk, 
-                business expense management software, 
-                business expense tracking software, 
-                manage expense, 
-                expense tracking software for small business, 
-                expense management software for small business - 10k, 
-                expense management program -10k, 
-                expense management tools, 
-                business expense tracking software, 
-                expense management platforms, 
-                employee expense tracking, 
-                company expense tracker, 
-                time and expense tracking software, 
-                travel and expense management system -over 100usd, 
-                time expense tracking software, 
-                best business expense tracking software
+                rental properties Jamaica, 
+                apartments for rent Jamaica, 
+                houses for rent Kingston, 
+                Montego Bay rentals, 
+                property listings Jamaica, 
+                Jamaica real estate, 
+                rent apartment Kingston, 
+                short term rentals Jamaica, 
+                long term rentals Jamaica, 
+                furnished apartments Jamaica, 
+                student housing Jamaica, 
+                commercial properties Jamaica,
+                St Andrew rentals,
+                Ocho Rios apartments,
+                property for rent Jamaica,
+                Jamaica housing,
+                rental homes Jamaica
             " />
             <meta name="robots" content="index, follow" />
 
@@ -35,7 +34,6 @@ const Seo = ({ siteTitle, pageTitle, description, url, image }) => {
             <meta property="og:url" content={url} />
             <meta property="og:description" content={description} />
             <meta property="og:image" content={image} />
-            <meta property="og:image:alt" content="Best Business Expense Tracking Software" />
             <meta property="og:site_name" content={siteTitle} />
 
             {/* Twitter Card for Twitter SEO */}
@@ -52,18 +50,20 @@ const Seo = ({ siteTitle, pageTitle, description, url, image }) => {
             <script type="application/ld+json">
                 {JSON.stringify({
                     "@context": "https://schema.org",
-                    "@type": "SoftwareApplication",
+                    "@type": "RealEstateAgent",
                     "name": siteTitle,
                     "url": url,
                     "description": description,
-                    "applicationCategory": "FinanceApplication",
-                    "operatingSystem": "Web",
-                    "offers": {
-                        "@type": "Offer",
-                        "price": "0.00",
-                        "priceCurrency": "USD"
+                    "areaServed": {
+                        "@type": "Country",
+                        "name": "Jamaica"
                     },
-                    "image": image
+                    "address": {
+                        "@type": "PostalAddress",
+                        "addressCountry": "JM"
+                    },
+                    "image": image,
+                    "priceRange": "JMD"
                 })}
             </script>
 

@@ -107,7 +107,7 @@ export default function BoostedPropertyBanner() {
     : '/placeholder-property.jpg';
 
   return (
-    <div className="bg-gradient-to-r from-yellow-400 via-yellow-500 to-orange-500 border-b-4 border-yellow-600 relative animate-fade-in">
+    <div className="bg-red-400 border-b-4 relative animate-fade-in">
       <div className="container mx-auto px-4 py-3">
         <div className="flex items-center gap-4">
           {/* Featured Badge */}
@@ -144,12 +144,7 @@ export default function BoostedPropertyBanner() {
               </p>
             </div>
 
-            {/* CTA Button */}
-            <div className="hidden md:block">
-              <span className="bg-white text-yellow-600 px-6 py-3 rounded-lg font-bold hover:bg-yellow-50 transition shadow-lg">
-                View Details →
-              </span>
-            </div>
+        
           </Link>
 
           {/* Close Button */}
@@ -177,7 +172,7 @@ export default function BoostedPropertyBanner() {
       {/* Rotation Indicator */}
       <div className="absolute bottom-0 left-0 w-full h-1 bg-white/30">
         <div
-          className="h-full bg-white animate-progress"
+          className="h-full bg-black animate-progress"
           style={{
             animation: `progress ${ROTATION_INTERVAL}ms linear`
           }}

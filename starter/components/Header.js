@@ -35,7 +35,7 @@ export default function Header() {
     <header className="bg-white border-b border-gray-200 sticky top-0 z-50 ">
       <nav className="container mx-auto px-4 py-3 flex items-center justify-between">
         <Link href="/" className="text-xl font-bold text-gray-800 hover:text-gray-600 transition flex items-center gap-2">
-          <span className="hidden sm:inline">Dosnine Rentals</span>
+          <span>Dosnine Rentals</span>
         </Link>
 
         {/* Desktop Navigation */}
@@ -83,64 +83,102 @@ export default function Header() {
           )}
         </div>
 
-        {/* Mobile Menu Button */}
-        <button 
-          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-          className="md:hidden p-2 text-gray-600 hover:bg-gray-100 rounded-lg"
-        >
-          <FiMenu size={24} />
-        </button>
+        {/* Mobile Menu Button - Only show when signed in */}
+        {isSignedIn && (
+          <button 
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            className="md:hidden p-2 text-gray-600 hover:bg-gray-100 rounded-lg"
+          >
+            <FiMenu size={24} />
+          </button>
+        )}
+        
+        {/* Mobile Post Button - Show when NOT signed in */}
+        {!isSignedIn && (
+          <Link 
+            href="/landlord/dashboard" 
+            className="md:hidden px-4 py-2 bg-gray-800 text-white rounded-lg text-sm font-medium hover:bg-gray-700 transition"
+          >
+            Post a Property
+          </Link>
+        )}
       </nav>
 
-      {/* Mobile Menu */}
+      {/* Mobile Menu Overlay */}
       {mobileMenuOpen && (
-        <div className="md:hidden bg-white border-t border-gray-200 py-2 px-4">
-          {isSignedIn ? (
-            <div className="flex flex-col gap-2">
-              <Link 
-                href="/" 
-                onClick={() => setMobileMenuOpen(false)}
-                className="px-4 py-3 rounded-lg text-gray-700 hover:bg-gray-100 font-medium"
-              >
-                Browse
-              </Link>
-              <Link 
-                href="/landlord/dashboard" 
-                onClick={() => setMobileMenuOpen(false)}
-                className="px-4 py-3 rounded-lg text-gray-700 hover:bg-gray-100 font-medium flex items-center gap-2"
-              >
-                <FiGrid size={18} />
-                My Properties
-              </Link>
-              <Link 
-                href="/landlord/new-property" 
-                onClick={() => setMobileMenuOpen(false)}
-                className="px-4 py-3 bg-gray-800 text-white rounded-lg hover:bg-gray-700 font-medium flex items-center justify-center gap-2"
-              >
-                <FiPlusCircle size={18} />
-                Post Property
-              </Link>
-              {isAdmin && (
-                <Link 
-                  href="/admin/dashboard" 
+        <>
+          {/* Backdrop */}
+          <div 
+            className="fixed inset-0 bg-black bg-opacity-50 z-40 md:hidden"
+            onClick={() => setMobileMenuOpen(false)}
+          />
+          
+          {/* Menu Panel */}
+          <div className="fixed top-0 right-0 bottom-0 w-64 bg-white shadow-2xl z-50 md:hidden overflow-y-auto">
+            <div className="flex flex-col h-full">
+              {/* Close Button */}
+              <div className="flex items-center justify-between p-4 border-b border-gray-200">
+                <span className="font-bold text-gray-800">Menu</span>
+                <button 
                   onClick={() => setMobileMenuOpen(false)}
-                  className="px-4 py-3 rounded-lg text-gray-700 hover:bg-gray-100 font-medium flex items-center gap-2"
+                  className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg"
                 >
-                  <FiSettings size={18} />
-                  Admin Dashboard
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              {/* Menu Items */}
+              <div className="flex-1 flex flex-col p-4 gap-2">
+                <Link 
+                  href="/" 
+                  onClick={() => setMobileMenuOpen(false)}
+                  className={`px-4 py-3 rounded-lg font-medium flex items-center gap-2 ${router.pathname === '/' ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50'}`}
+                >
+                  <FiHome size={18} />
+                  Browse Properties
                 </Link>
-              )}
+                
+                <Link 
+                  href="/landlord/dashboard" 
+                  onClick={() => setMobileMenuOpen(false)}
+                  className={`px-4 py-3 rounded-lg font-medium flex items-center gap-2 ${router.pathname === '/landlord/dashboard' ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50'}`}
+                >
+                  <FiGrid size={18} />
+                  My Properties
+                </Link>
+                
+                <Link 
+                  href="/landlord/new-property" 
+                  onClick={() => setMobileMenuOpen(false)}
+                  className={`px-4 py-3 rounded-lg font-medium flex items-center gap-2 ${router.pathname === '/landlord/new-property' ? 'bg-gray-800 text-white' : 'bg-gray-800 text-white hover:bg-gray-700'}`}
+                >
+                  <FiPlusCircle size={18} />
+                  Post Property
+                </Link>
+                
+                {isAdmin && (
+                  <Link 
+                    href="/admin/dashboard" 
+                    onClick={() => setMobileMenuOpen(false)}
+                    className={`px-4 py-3 rounded-lg font-medium flex items-center gap-2 ${router.pathname === '/admin/dashboard' ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50'}`}
+                  >
+                    <FiSettings size={18} />
+                    Admin Dashboard
+                  </Link>
+                )}
+              </div>
+
+              {/* User Section at Bottom */}
+              <div className="border-t border-gray-200 p-4">
+                <div className="flex items-center justify-center">
+                  <UserButton afterSignOutUrl="/" />
+                </div>
+              </div>
             </div>
-          ) : (
-            <Link 
-              href="/" 
-              onClick={() => setMobileMenuOpen(false)}
-              className="px-4 py-3 rounded-lg text-gray-700 hover:bg-gray-100 block font-medium"
-            >
-              Browse
-            </Link>
-          )}
-        </div>
+          </div>
+        </>
       )}
     </header>
   );
