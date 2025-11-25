@@ -75,10 +75,10 @@ export default function Header() {
             </>
           ) : (
             <Link 
-              href="/" 
-              className={`px-3 py-2 rounded-lg transition text-sm ${router.pathname === '/' ? 'bg-gray-200 text-gray-900 font-medium' : 'text-gray-600 hover:bg-gray-100'}`}
+              href="/landlord/dashboard" 
+              className={`px-3 py-2 rounded-lg transition text-sm ${router.pathname === '/landlord/dashboard' ? 'bg-gray-200 text-gray-900 font-medium' : 'text-gray-600 hover:bg-gray-100'}`}
             >
-              Browse
+              Post a Property
             </Link>
           )}
         </div>
