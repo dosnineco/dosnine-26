@@ -14,7 +14,7 @@ export default function Home() {
   const [properties, setProperties] = useState([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
-  const [filters, setFilters] = useState({ parish: '', minPrice: '', maxPrice: '' });
+  const [filters, setFilters] = useState({ parish: '', minPrice: '', maxPrice: '', location: '' });
   const [totalCount, setTotalCount] = useState(0);
 
   useEffect(() => {
@@ -33,6 +33,12 @@ export default function Home() {
       if (filters.parish) query = query.eq('parish', filters.parish);
       if (filters.minPrice) query = query.gte('price', Number(filters.minPrice));
       if (filters.maxPrice) query = query.lte('price', Number(filters.maxPrice));
+      
+      // Partial location search - matches town, address, or parish
+      if (filters.location) {
+        const searchTerm = `%${filters.location}%`;
+        query = query.or(`town.ilike.${searchTerm},address.ilike.${searchTerm},parish.ilike.${searchTerm}`);
+      }
 
       const { data, count, error } = await query
         .range((page - 1) * PROPERTIES_PER_PAGE, page * PROPERTIES_PER_PAGE - 1);
@@ -85,12 +91,23 @@ export default function Home() {
             setFilters({
               parish: fd.get('parish') || '',
               minPrice: fd.get('minPrice') || '',
-              maxPrice: fd.get('maxPrice') || ''
+              maxPrice: fd.get('maxPrice') || '',
+              location: fd.get('location') || ''
             });
             setPage(1);
           }}
           className="bg-white p-6 rounded-lg border border-gray-200 flex gap-3 flex-wrap items-end mb-8"
         >
+          <div className="flex-1 min-w-[200px]">
+            <label className="block text-sm font-medium text-gray-700 mb-1">Location Search</label>
+            <input
+              type="text"
+              name="location"
+              placeholder="Enter area, town, or landmark..."
+              className="w-full border border-gray-300 px-3 py-2.5 rounded-lg"
+            />
+          </div>
+
           <div className="flex-1 min-w-[200px]">
             <label className="block text-sm font-medium text-gray-700 mb-1">Parish</label>
             <select name="parish" className="w-full border border-gray-300 px-3 py-2.5 rounded-lg">

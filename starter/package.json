@@ -9,8 +9,10 @@
   },
   "dependencies": {
     "@clerk/nextjs": "^4.28.0",
+    "@paypal/react-paypal-js": "^8.9.2",
     "@supabase/supabase-js": "^2.27.0",
     "clsx": "^1.2.1",
+    "lucide-react": "^0.554.0",
     "next": "^13.4.12",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",

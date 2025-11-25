@@ -3,6 +3,7 @@ import { ClerkProvider, SignedIn, SignedOut, SignInButton, SignUpButton, useUser
 import '../styles/globals.css';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
+import BoostedPropertyBanner from '../components/BoostedPropertyBanner';
 import { useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { Toaster } from 'react-hot-toast';
@@ -70,8 +71,11 @@ function AppContent({ Component, pageProps, isPublicRoute }) {
 
   return (
     <>
-      <Toaster position="top-right" />
+      <Toaster position="top-center" />
       <Header />
+      {/* Show boost banner on all pages */}
+      <BoostedPropertyBanner />
+      
       {isPublicRoute ? (
         <main className="min-h-screen">
           <Component {...pageProps} />
