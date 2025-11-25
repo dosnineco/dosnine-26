@@ -81,6 +81,24 @@ create table tenancies (
   created_at timestamptz default now()
 );
 
+-- Property Boosts table for advertising system
+create table property_boosts (
+  id uuid primary key default gen_random_uuid(),
+  property_id uuid references properties(id) on delete cascade,
+  owner_id uuid references users(id) on delete cascade,
+  payment_id text not null,
+  amount numeric not null default 2500,
+  currency text default 'JMD',
+  boost_start_date timestamptz not null,
+  boost_end_date timestamptz not null,
+  status text default 'active', -- active | expired | cancelled
+  impressions bigint default 0,
+  clicks bigint default 0,
+  last_shown_at timestamptz,
+  rotation_count int default 0,
+  created_at timestamptz default now()
+);
+
 -- Indexes for faster searches
 create index if not exists properties_parish_idx on properties(parish);
 create index if not exists properties_price_idx on properties(price);
@@ -89,3 +107,6 @@ create index if not exists properties_is_featured_idx on properties(is_featured)
 create index if not exists properties_slug_idx on properties(slug);
 create index if not exists properties_owner_id_idx on properties(owner_id);
 create index if not exists users_clerk_id_idx on users(clerk_id);
+create index if not exists property_boosts_status_idx on property_boosts(status);
+create index if not exists property_boosts_dates_idx on property_boosts(boost_start_date, boost_end_date);
+create index if not exists property_boosts_property_id_idx on property_boosts(property_id);
