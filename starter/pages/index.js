@@ -2,7 +2,9 @@ import { useEffect, useState } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
 import { supabase } from '../lib/supabase';
-import { Sparkle } from 'lucide-react';
+import { Sparkle, Zap } from 'lucide-react';
+import { useUser } from '@clerk/nextjs';
+import { formatMoney } from '../lib/formatMoney';
 const PROPERTIES_PER_PAGE = 12;
 
 const PARISHES = [
@@ -11,6 +13,7 @@ const PARISHES = [
 ];
 
 export default function Home() {
+  const { user } = useUser();
   const [properties, setProperties] = useState([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
@@ -19,10 +22,24 @@ export default function Home() {
   const [locationSuggestions, setLocationSuggestions] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [locationInput, setLocationInput] = useState('');
+  const [userOwnerId, setUserOwnerId] = useState(null);
 
   useEffect(() => {
     fetchProperties();
   }, [filters, page]);
+
+  useEffect(() => {
+    const getUserId = async () => {
+      if (!user) return;
+      const { data } = await supabase
+        .from('users')
+        .select('id')
+        .eq('clerk_id', user.id)
+        .single();
+      if (data) setUserOwnerId(data.id);
+    };
+    getUserId();
+  }, [user]);
 
   async function fetchProperties() {
     setLoading(true);
@@ -125,7 +142,7 @@ export default function Home() {
   return (
     <div>
       <Head>
-        <title>Browse Rentals — Rentals Jamaica</title>
+        <title>Browse Rentals — Dosnine Properties</title>
         <meta name="description" content="Find rental properties in Jamaica." />
       </Head>
 
@@ -244,50 +261,62 @@ export default function Home() {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mb-8">
               {properties.map((prop) => {
                 const firstImage = prop.image_urls?.[0] || prop.property_images?.[0]?.image_url;
+                const isOwner = userOwnerId && prop.owner_id === userOwnerId;
                 
                 return (
-                  <Link key={prop.id} href={`/property/${prop.slug || prop.id}`} className="bg-white rounded-lg border border-gray-200 overflow-hidden  transition block">
-                    <div className="relative h-48 bg-gray-100">
-                      {firstImage ? (
-                        <img 
-                          src={firstImage} 
-                          alt={prop.title} 
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center bg-gray-200 text-gray-400 text-3xl">📷</div>
-                      )}
-                      {prop.is_featured && (
-                        <div className="absolute top-2 right-2 items-center justify-center flex-row bg-red-400 text-white px-3 py-1 rounded-full text-xs font-medium">
-                          <Sparkle className=' inline text-yellow-400 w-4 h-4  '/> Featured
+                  <div key={prop.id} className="bg-white rounded-lg border border-gray-200 overflow-hidden transition">
+                    <Link href={`/property/${prop.slug || prop.id}`} className="block">
+                      <div className="relative h-48 bg-gray-100">
+                        {firstImage ? (
+                          <img 
+                            src={firstImage} 
+                            alt={prop.title} 
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center bg-gray-200 text-gray-400 text-3xl">📷</div>
+                        )}
+                        {prop.is_featured && (
+                          <div className="absolute top-2 right-2 items-center justify-center flex-row bg-red-400 text-white px-3 py-1 rounded-full text-xs font-medium">
+                            <Sparkle className=' inline text-yellow-400 w-4 h-4  '/> Featured
+                          </div>
+                        )}
+                        <div className="absolute top-2 left-2 bg-gray-900/80 text-white px-2 py-1 rounded text-xs">
+                          👁️ {prop.views || 0}
                         </div>
-                      )}
-                      <div className="absolute top-2 left-2 bg-gray-900/80 text-white px-2 py-1 rounded text-xs">
-                        👁️ {prop.views || 0}
-                      </div>
-                      <div className="absolute bottom-2 left-2 bg-gray-800 text-white px-3 py-1 rounded-lg text-sm font-semibold">
-                        ${prop.price} {prop.currency}/mo
-                      </div>
-                    </div>
-
-                    <div className="p-4">
-                      <h3 className="text-lg font-bold text-gray-900 mb-1">{prop.title}</h3>
-                      <p className="text-sm text-gray-600 mb-3">
-                        📍 {prop.town}, {prop.parish}
-                      </p>
-
-                      <div className="flex items-center gap-4 text-sm text-gray-700 mb-3">
-                        <span>🛏️ {prop.bedrooms} bed</span>
-                        <span>🚿 {prop.bathrooms} bath</span>
+                        <div className="absolute bottom-2 left-2 bg-gray-800 text-white px-3 py-1 rounded-lg text-sm font-semibold">
+                          {formatMoney(prop.price)}/mo
+                        </div>
                       </div>
 
-                      {prop.description && (
-                        <p className="text-sm text-gray-600 line-clamp-2 mb-3">{prop.description}</p>
-                      )}
+                      <div className="p-4">
+                        <h3 className="text-lg font-bold text-gray-900 mb-1">{prop.title}</h3>
+                        <p className="text-sm text-gray-600 mb-3">
+                          📍 {prop.town}, {prop.parish}
+                        </p>
 
-                     
-                    </div>
-                  </Link>
+                        <div className="flex items-center gap-4 text-sm text-gray-700 mb-3">
+                          <span>🛏️ {prop.bedrooms} bed</span>
+                          <span>🚿 {prop.bathrooms} bath</span>
+                        </div>
+
+                        {prop.description && (
+                          <p className="text-sm text-gray-600 line-clamp-2 mb-3">{prop.description}</p>
+                        )}
+                      </div>
+                    </Link>
+                    
+                    {isOwner && !prop.is_featured && (
+                      <div className="px-4 pb-4">
+                        <Link 
+                          href="/landlord/boost-property"
+                          className="block w-full text-center bg-gradient-to-r from-yellow-400 to-orange-500 text-white py-2.5 rounded-lg hover:from-yellow-500 hover:to-orange-600 transition font-semibold text-sm"
+                        >
+                          <Zap className="inline w-4 h-4 mr-1" /> Boost This Property
+                        </Link>
+                      </div>
+                    )}
+                  </div>
                 );
               })}
             </div>

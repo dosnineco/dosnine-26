@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import Link from 'next/link';
 import { Zap, X } from 'lucide-react';
+import { formatMoney } from '../lib/formatMoney';
 
 const ROTATION_INTERVAL = 10 * 60 * 1000; // 10 minutes in milliseconds
 
@@ -140,7 +141,7 @@ export default function BoostedPropertyBanner() {
                 {property.parish} {property.town && `• ${property.town}`} • {property.bedrooms} bed, {property.bathrooms} bath
               </p>
               <p className="text-white font-bold text-lg mt-1">
-                JMD ${property.price?.toLocaleString()}/month
+                {formatMoney(property.price)}/month
               </p>
             </div>
 

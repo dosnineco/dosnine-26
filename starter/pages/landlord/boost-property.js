@@ -6,9 +6,10 @@ import { supabase } from '../../lib/supabase';
 import toast from 'react-hot-toast';
 import { Zap, TrendingUp, Eye, Clock, AlertCircle } from 'lucide-react';
 import Link from 'next/link';
+import { formatJMD } from '../../lib/formatMoney';
 
 const MAX_ACTIVE_BOOSTS = 20;
-const BOOST_PRICE_JMD = 1000;
+const BOOST_PRICE_JMD = 2500;
 const BOOST_DURATION_DAYS = 10;
 
 export default function BoostProperty() {
@@ -154,14 +155,14 @@ export default function BoostProperty() {
   return (
     <div className="container mx-auto px-4 py-8 max-w-5xl">
       <div className="mb-8">
-        <Link href="/landlord/dashboard" className="text-blue-600 hover:text-blue-800 mb-4 inline-block">
+        {/* <Link href="/landlord/dashboard" className="text-blue-600 hover:text-blue-800 mb-4 inline-block">
           ← Back to Dashboard
-        </Link>
+        </Link> */}
         <h1 className="text-4xl font-extrabold text-gray-800 flex items-center gap-3 mb-2">
-          <Zap className="text-yellow-500 h-10 w-10" />
+          {/* <Zap className="text-yellow-500 h-10 w-10" /> */}
           Boost Your Property
         </h1>
-        <p className="text-gray-600 text-lg">
+        <p className="text-gray-600 text-md">
           Get featured placement and 10x more visibility for 10 days
         </p>
       </div>
@@ -173,9 +174,8 @@ export default function BoostProperty() {
           <div className="flex-1">
             <h3 className="font-bold text-lg mb-2">Availability Status</h3>
             <div className="space-y-1 text-sm">
-              <p><span className="font-semibold">Maximum spots:</span> {MAX_ACTIVE_BOOSTS}</p>
               <p><span className="font-semibold">Current status:</span> {canBoost ? (
-                <span className="text-green-600 font-bold">{slotsRemaining} slots available</span>
+                <span className="text-green-600 font-bold">{slotsRemaining} slots Open </span>
               ) : (
                 <span className="text-red-600 font-bold">All spots filled</span>
               )}</p>
@@ -263,7 +263,7 @@ export default function BoostProperty() {
                     >
                       <h3 className="font-bold text-lg">{property.title}</h3>
                       <p className="text-gray-600 text-sm mt-1">
-                        {property.parish} • {property.bedrooms} bed • JMD ${property.price?.toLocaleString()}/month
+                        {property.parish} • {property.bedrooms} bed • {formatJMD(property.price)}/month
                       </p>
                       {hasActiveBoost && (
                         <span className="inline-block mt-2 bg-green-100 text-green-800 px-2 py-1 rounded text-xs font-semibold">
@@ -301,18 +301,13 @@ export default function BoostProperty() {
                 <div className="bg-gray-50 p-4 rounded-lg">
                   <h4 className="font-semibold text-lg">{selectedProperty.title}</h4>
                   <p className="text-gray-600 text-sm mt-1">
-                    {selectedProperty.parish} • {selectedProperty.bedrooms} bed • JMD ${selectedProperty.price?.toLocaleString()}/month
+                    {selectedProperty.parish} • {selectedProperty.bedrooms} bed • {formatJMD(selectedProperty.price)}/month
                   </p>
                 </div>
               </div>
 
-              <div className="bg-gradient-to-r from-yellow-50 to-orange-50 border-2 border-yellow-300 rounded-lg p-6 mb-6">
-                <div className="flex justify-between items-center mb-4">
-                  <span className="text-2xl font-bold text-gray-800">Boost Price</span>
-                  <span className="text-4xl font-extrabold text-green-600">
-                    ${(BOOST_PRICE_JMD / 100).toFixed(2)} USD
-                  </span>
-                </div>
+              <div className="bg-gradient-to-r from-yellow-50 to-orange-50  rounded-lg p-6 mb-6">
+               
                 <ul className="space-y-2 text-sm text-gray-700">
                   <li>✓ {BOOST_DURATION_DAYS} days of featured placement</li>
                   <li>✓ Rotating banner on every page</li>
@@ -320,6 +315,12 @@ export default function BoostProperty() {
                   <li>✓ Detailed analytics and performance tracking</li>
                   <li>✓ Cancel anytime (pro-rated refund available)</li>
                 </ul>
+                 <div className="flex justify-start items-center mb-4">
+                  <span className="text-2xl font-bold text-gray-800 mr-2">Boost Price:</span>
+                  <span className="text-2xl  font-bold text-green-600 ">
+                    {formatJMD(BOOST_PRICE_JMD)}
+                  </span>
+                </div>
               </div>
 
               <PayPalScriptProvider options={{ "client-id": process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID }}>
@@ -331,7 +332,7 @@ export default function BoostProperty() {
                         {
                           description: `Property Boost: ${selectedProperty.title}`,
                           amount: {
-                            value: (BOOST_PRICE_JMD / 100).toFixed(2), // Convert JMD to USD approximation
+                            value: (BOOST_PRICE_JMD / 155).toFixed(2), // Convert JMD to USD (approximate rate: 155 JMD = 1 USD)
                           },
                         },
                       ],

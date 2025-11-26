@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import clsx from 'clsx';
+import { formatMoney } from '../lib/formatMoney';
 
 export default function PropertyCard({ property }) {
   const img = property.image_urls?.[0] || property.property_images?.[0]?.image_url || '/placeholder.png';
@@ -16,7 +17,7 @@ export default function PropertyCard({ property }) {
             <div className="text-lg font-semibold">{property.title}</div>
             <div className="text-sm text-gray-500">{property.town}, {property.parish}</div>
           </div>
-          <div className="text-green-600 font-bold">{property.price} {property.currency}</div>
+          <div className="text-green-600 font-bold">{formatMoney(property.price)}</div>
         </div>
 
         <div className="mt-3 flex items-center justify-between">
