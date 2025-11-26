@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { useUser } from '@clerk/nextjs';
 import { supabase } from '../../lib/supabase';
+import { formatMoney } from '../../lib/formatMoney';
 
 export default function Dashboard() {
   const { user } = useUser();
@@ -116,7 +117,7 @@ export default function Dashboard() {
                           {prop.status}
                         </span>
                       </td>
-                      <td className="py-3 px-4">{prop.price} {prop.currency}</td>
+                      <td className="py-3 px-4">{formatMoney(prop.price)}</td>
                       <td className="py-3 px-4 text-sm text-gray-600">
                         {new Date(prop.created_at).toLocaleDateString()}
                       </td>

@@ -4,8 +4,8 @@ export default function PrivacyPolicy() {
   return (
     <>
       <Head>
-        <title>Privacy Policy | Dosnine Rentals Jamaica</title>
-        <meta name="description" content="Privacy Policy for Dosnine Rentals. Learn how we collect, use, and protect your personal information." />
+        <title>Privacy Policy | Dosnine Properties</title>
+        <meta name="description" content="Privacy Policy for Dosnine Properties. Learn how we collect, use, and protect your personal information." />
         <meta name="robots" content="index, follow" />
         <link rel="canonical" href="https://www.dosnine.com/privacy-policy" />
       </Head>
@@ -20,10 +20,10 @@ export default function PrivacyPolicy() {
               <section className="mb-8">
                 <h2 className="text-2xl font-bold text-gray-900 mb-4">1. Introduction</h2>
                 <p className="text-gray-700 mb-4">
-                  Welcome to Dosnine Rentals ("we," "our," or "us"). We are committed to protecting your privacy and ensuring the security of your personal information. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our website and services.
+                  Welcome to Dosnine Properties ("we," "our," or "us"). We are committed to protecting your privacy and ensuring the security of your personal information. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our website and services.
                 </p>
-                <p className="text-gray-700">
-                  By using Dosnine Rentals, you agree to the collection and use of information in accordance with this policy. If you do not agree with our policies and practices, please do not use our services.
+                <p className="text-gray-700 mb-6">
+                  By using Dosnine Properties, you agree to the collection and use of information in accordance with this policy. If you do not agree with our policies and practices, please do not use our services.
                 </p>
               </section>
 
@@ -203,7 +203,7 @@ export default function PrivacyPolicy() {
                   If you have questions, concerns, or requests regarding this Privacy Policy or our data practices, please contact us:
                 </p>
                 <div className="bg-gray-50 p-6 rounded-lg">
-                  <p className="text-gray-700 mb-2"><strong>Dosnine Rentals</strong></p>
+                  <p className="text-gray-700 mb-2"><strong>Dosnine Properties</strong></p>
                   <p className="text-gray-700 mb-2">Email: <a href="mailto:info@dosnine.com" className="text-blue-600 hover:underline">info@dosnine.com</a></p>
                   <p className="text-gray-700 mb-2">Phone: <a href="tel:+18765551234" className="text-blue-600 hover:underline">+1 (876) 555-1234</a></p>
                   <p className="text-gray-700">Location: Kingston, Jamaica</p>
@@ -212,7 +212,7 @@ export default function PrivacyPolicy() {
 
               <div className="bg-blue-50 border-l-4 border-blue-600 p-6 mt-8">
                 <p className="text-gray-700">
-                  <strong>Note:</strong> This Privacy Policy applies to Dosnine Rentals services only. By using our platform, you acknowledge that you have read and understood this policy.
+                  <strong>Note:</strong> This Privacy Policy applies to Dosnine Properties services only. By using our platform, you acknowledge that you have read and understood this policy.
                 </p>
               </div>
             </div>

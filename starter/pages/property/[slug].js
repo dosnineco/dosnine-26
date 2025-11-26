@@ -3,6 +3,9 @@ import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import toast from 'react-hot-toast';
+import { useUser } from '@clerk/nextjs';
+import { Zap } from 'lucide-react';
+import { formatMoney } from '../../lib/formatMoney';
 
 export async function getStaticPaths() {
   const { data } = await supabase
@@ -55,7 +58,24 @@ export async function getStaticProps({ params }) {
 }
 
 export default function PropertyPage({ property, similarProperties }) {
+  const { user } = useUser();
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [isOwner, setIsOwner] = useState(false);
+
+  useEffect(() => {
+    const checkOwner = async () => {
+      if (!user) return;
+      const { data } = await supabase
+        .from('users')
+        .select('id')
+        .eq('clerk_id', user.id)
+        .single();
+      if (data && data.id === property.owner_id) {
+        setIsOwner(true);
+      }
+    };
+    checkOwner();
+  }, [user, property.owner_id]);
 
   // Support both image_urls array and property_images table
   const imageUrls = property.image_urls || [];
@@ -74,7 +94,7 @@ export default function PropertyPage({ property, similarProperties }) {
   return (
     <>
       <Head>
-        <title>{property.title} — Rentals Jamaica</title>
+        <title>{property.title} — Dosnine Properties</title>
         <meta name="description" content={property.description} />
         <meta property="og:title" content={property.title} />
         <meta property="og:description" content={property.description} />
@@ -179,6 +199,22 @@ export default function PropertyPage({ property, similarProperties }) {
           {/* Sidebar: Contact Info */}
           <div>
             <div className="bg-white rounded-xl  p-6 sticky top-4">
+              {isOwner && !property.is_featured ? (
+                <div className="mb-6">
+                  <h3 className="text-xl font-bold mb-4">Boost Your Property</h3>
+                  <p className="text-gray-600 mb-4 text-sm">Get more visibility by featuring this property on the homepage banner!</p>
+                  <Link
+                    href="/landlord/boost-property"
+                    className="block w-full bg-gradient-to-r from-yellow-400 to-orange-500 text-white text-center py-3 rounded-lg hover:from-yellow-500 hover:to-orange-600 transition font-semibold"
+                  >
+                    <Zap className="inline w-5 h-5 mr-2" />
+                    Boost This Property
+                  </Link>
+                  <p className="text-xs text-gray-500 mt-2 text-center">Featured on rotating banner for 10 days</p>
+                  <div className="border-t mt-6 pt-6"></div>
+                </div>
+              ) : null}
+              
               <h3 className="text-xl font-bold mb-4">Contact Landlord</h3>
               
               <div className="space-y-4">
@@ -233,7 +269,7 @@ export default function PropertyPage({ property, similarProperties }) {
                         <div className="absolute top-2 right-2 bg-yellow-400 text-black px-2 py-1 rounded-full text-xs font-bold">⭐</div>
                       )}
                       <div className="absolute bottom-2 left-2 bg-green-600 text-white px-2 py-1 rounded text-sm font-semibold">
-                        {prop.price} {prop.currency}
+                        {formatMoney(prop.price)}
                       </div>
                     </div>
                     

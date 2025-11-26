@@ -35,7 +35,7 @@ export default function Header() {
     <header className="bg-white border-b border-gray-200 sticky top-0 z-50 ">
       <nav className="container mx-auto px-4 py-3 flex items-center justify-between">
         <Link href="/" className="text-xl font-bold text-gray-800 hover:text-gray-600 transition flex items-center gap-2">
-          <span>Dosnine Rentals</span>
+          <span>Dosnine Properties</span>
         </Link>
 
         {/* Desktop Navigation */}

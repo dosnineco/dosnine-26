@@ -4,8 +4,8 @@ export default function RefundPolicy() {
   return (
     <>
       <Head>
-        <title>Refund Policy | Dosnine Rentals Jamaica</title>
-        <meta name="description" content="Refund Policy for Dosnine Rentals boost advertising services. Learn about our cancellation and refund procedures." />
+        <title>Refund Policy | Dosnine Properties</title>
+        <meta name="description" content="Refund Policy for Dosnine Properties boost advertising services. Learn about our cancellation and refund procedures." />
         <meta name="robots" content="index, follow" />
         <link rel="canonical" href="https://www.dosnine.com/refund-policy" />
       </Head>
@@ -20,7 +20,7 @@ export default function RefundPolicy() {
               <section className="mb-8">
                 <h2 className="text-2xl font-bold text-gray-900 mb-4">1. Overview</h2>
                 <p className="text-gray-700 mb-4">
-                  This Refund Policy applies to paid services on Dosnine Rentals, specifically our Property Boost Advertising service. We are committed to providing fair and transparent refund procedures.
+                  This Refund Policy applies to paid services on Dosnine Properties, specifically our Property Boost Advertising service. We are committed to providing fair and transparent refund procedures.
                 </p>
                 <p className="text-gray-700">
                   Please read this policy carefully before purchasing any paid services. By making a purchase, you acknowledge that you have read and agree to this Refund Policy.
@@ -30,7 +30,7 @@ export default function RefundPolicy() {
               <section className="mb-8">
                 <h2 className="text-2xl font-bold text-gray-900 mb-4">2. Free Services</h2>
                 <p className="text-gray-700 mb-4">
-                  Basic property listings on Dosnine Rentals are completely free and do not require payment. This refund policy does not apply to free services.
+                  Basic property listings on Dosnine Properties are completely free and do not require payment. This refund policy does not apply to free services.
                 </p>
                 <p className="text-gray-700">
                   Free services include:
@@ -254,7 +254,7 @@ export default function RefundPolicy() {
                   For refund requests or questions about this policy:
                 </p>
                 <div className="bg-gray-50 p-6 rounded-lg">
-                  <p className="text-gray-700 mb-2"><strong>Dosnine Rentals - Refunds Department</strong></p>
+                  <p className="text-gray-700 mb-2"><strong>Dosnine Properties - Refunds Department</strong></p>
                   <p className="text-gray-700 mb-2">Email: <a href="mailto:info@dosnine.com" className="text-blue-600 hover:underline">info@dosnine.com</a></p>
                   <p className="text-gray-700 mb-2">Subject Line: "Refund Request - [Your Name]"</p>
                   <p className="text-gray-700 mb-2">Phone: <a href="tel:+18765551234" className="text-blue-600 hover:underline">+1 (876) 555-1234</a></p>

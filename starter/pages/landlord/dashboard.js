@@ -4,6 +4,7 @@ import { supabase } from '../../lib/supabase';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
 import { FiPlusCircle, FiEye, FiTrash2, FiMapPin, FiZap } from 'react-icons/fi';
+import { formatMoney } from '../../lib/formatMoney';
 
 export default function LandlordDashboard() {
   const { user, isLoaded } = useUser();
@@ -108,13 +109,7 @@ export default function LandlordDashboard() {
       ) : properties.length === 0 ? (
         <div className="text-center py-16 bg-white rounded-lg ">
           <p className="text-gray-600 text-lg mb-6">You haven't posted any properties yet</p>
-          <Link 
-            href="/landlord/new-property" 
-            className="inline-flex items-center gap-2 bg-gray-800 text-white px-8 py-4 rounded-lg hover:bg-gray-700 transition font-medium text-lg"
-          >
-            <FiPlusCircle size={22} />
-            Post Your First Property
-          </Link>
+         
         </div>
       ) : (
         <div className="space-y-4">
@@ -148,7 +143,7 @@ export default function LandlordDashboard() {
                           <FiMapPin size={16} />
                           {property.town}{property.parish && `, ${property.parish}`}
                         </p>
-                        <p className="text-2xl font-bold text-gray-800">${property.price} <span className="text-lg font-normal text-gray-500">/{property.currency === 'JMD' ? 'mo' : property.currency}</span></p>
+                        <p className="text-2xl font-bold text-gray-800">{formatMoney(property.price)} <span className="text-lg font-normal text-gray-500">/mo</span></p>
                       </div>
                     </div>
 

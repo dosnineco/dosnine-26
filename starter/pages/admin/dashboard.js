@@ -3,6 +3,7 @@ import { useUser } from '@clerk/nextjs';
 import { supabase } from '../../lib/supabase';
 import toast from 'react-hot-toast';
 import { FiStar, FiTrash2, FiEye, FiGrid, FiUsers, FiZap, FiDollarSign, FiClock, FiTrendingUp } from 'react-icons/fi';
+import { formatJMD, formatMoney } from '../../lib/formatMoney';
 
 export default function AdminDashboard() {
   const { user } = useUser();
@@ -230,7 +231,7 @@ export default function AdminDashboard() {
       let confirmMessage = `⚠️ PERMANENTLY DELETE PROPERTY?\n\n`;
       confirmMessage += `Title: ${property.title}\n`;
       confirmMessage += `Parish: ${property.parish || 'N/A'}\n`;
-      confirmMessage += `Price: ${property.price} ${property.currency}\n\n`;
+      confirmMessage += `Price: ${formatMoney(property.price)}\n\n`;
       confirmMessage += `This action CANNOT be undone!\n\n`;
       confirmMessage += `Will delete:\n`;
       confirmMessage += `- Property record\n`;
@@ -238,7 +239,7 @@ export default function AdminDashboard() {
       
       if (boostCount > 0) {
         const totalBoostRevenue = activeBoosts.reduce((sum, b) => sum + (Number(b.amount) || 0), 0);
-        confirmMessage += `- ${boostCount} ACTIVE BOOST(S) (JMD $${totalBoostRevenue.toLocaleString()} revenue)\n`;
+        confirmMessage += `- ${boostCount} ACTIVE BOOST(S) (${formatJMD(totalBoostRevenue)} revenue)\n`;
         confirmMessage += `\n⚠️ WARNING: This will cancel active boosts!\n`;
       }
       
@@ -346,7 +347,7 @@ export default function AdminDashboard() {
                   <span className="text-sm opacity-90">Total Revenue</span>
                 </div>
                 <div className="text-2xl font-bold">
-                  JMD ${boostStats.totalRevenue.toLocaleString()}
+                  {formatJMD(boostStats.totalRevenue)}
                 </div>
                 <div className="text-xs opacity-75 mt-1">
                   ~${(boostStats.totalRevenue / 100).toFixed(2)} USD
@@ -465,7 +466,7 @@ export default function AdminDashboard() {
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-3 pt-3 border-t border-gray-100">
                         <div>
                           <span className="text-xs text-gray-600">Revenue</span>
-                          <p className="font-bold text-gray-800">JMD ${boost.amount.toLocaleString()}</p>
+                          <p className="font-bold text-gray-800">{formatJMD(boost.amount)}</p>
                         </div>
                         <div>
                           <span className="text-xs text-gray-600">Impressions</span>
@@ -538,7 +539,7 @@ export default function AdminDashboard() {
                 <div className="flex-1 min-w-0">
                   <h3 className="font-bold text-gray-800 truncate text-lg">{prop.title || 'Untitled'}</h3>
                   <p className="text-sm text-gray-600">{prop.parish || 'No parish'}</p>
-                  <p className="text-lg font-bold text-gray-800 mt-1">{prop.price} {prop.currency}</p>
+                  <p className="text-lg font-bold text-gray-800 mt-1">{formatMoney(prop.price)}</p>
                 </div>
                 <div className="flex items-center gap-2 text-sm text-gray-600 flex-shrink-0">
                   <FiEye size={16} />
