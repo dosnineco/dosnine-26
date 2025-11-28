@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import toast from 'react-hot-toast';
 import { useUser } from '@clerk/nextjs';
-import { Zap } from 'lucide-react';
+import { Zap, Phone } from 'lucide-react';
 import { formatMoney } from '../../lib/formatMoney';
 
 export async function getStaticPaths() {
@@ -91,6 +91,30 @@ export default function PropertyPage({ property, similarProperties }) {
     setCurrentImageIndex((i) => (i === allImages.length - 1 ? 0 : i + 1));
   };
 
+  const formatPhone = (raw) => {
+    if (!raw) return '';
+    // Keep leading + if present, strip other non-digits
+    const hasPlus = raw.trim().startsWith('+');
+    const cleaned = raw.replace(/[^0-9]/g, '');
+    if (!cleaned) return raw;
+
+    // If we have a country code (1-3 digits) at start, keep it grouped
+    let cc = '';
+    let rest = cleaned;
+    if (hasPlus) {
+      // assume first 1-3 digits are country code
+      const match = cleaned.match(/^([0-9]{1,3})([0-9]*)$/);
+      if (match) {
+        cc = `+${match[1]} `;
+        rest = match[2] || '';
+      }
+    }
+
+    // Group remainder into chunks of 3 for nicer display
+    const groups = rest.match(/.{1,3}/g) || [];
+    return cc + groups.join(' ');
+  };
+
   return (
     <>
       <Head>
@@ -163,8 +187,8 @@ export default function PropertyPage({ property, similarProperties }) {
 
               <div className="flex items-center gap-6 mb-6 pb-6 border-b">
                 <div className="text-center">
-                  <div className="text-2xl font-bold text-green-600">{property.price}</div>
-                  <div className="text-sm text-gray-600">{property.currency} / month</div>
+                  <div className="text-2xl font-bold text-green-600">{formatMoney(property.price, '$')}</div>
+                  <div className="text-sm text-gray-600">{property.type === 'rent' ? '/ month' : null}</div>
                 </div>
                 <div className="flex gap-8">
                   <div className="text-center">
@@ -232,17 +256,14 @@ export default function PropertyPage({ property, similarProperties }) {
                 <div className="pt-4 border-t">
                   <p className="text-sm text-gray-500">👁️ Views: <span className="font-semibold text-gray-700">{property.views || 0}</span></p>
                 </div>
-              
 
                 <a
-                  href={`https://wa.me/${property.phone_number}?text=Hi, I'm interested in ${encodeURIComponent(property.title)} at ${encodeURIComponent(property.address)}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="block w-full bg-green-500 text-white text-center py-3 rounded-lg hover:bg-green-600 transition font-semibold"
+                  href={`tel:${property.phone_number}`}
+                  className="mt-3 flex items-center justify-center gap-3 w-full border border-gray-200 text-gray-800 text-center py-3 rounded-lg hover:bg-gray-50 transition font-semibold"
                 >
-                  ${property.phone_number}
+                  <Phone className="w-5 h-5" />
+                  <span>{formatPhone(property.phone_number) || 'Call Landlord'}</span>
                 </a>
-
               </div>
             </div>
           </div>
