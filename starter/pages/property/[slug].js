@@ -221,7 +221,7 @@ export default function PropertyPage({ property, similarProperties }) {
                 <p className="text-gray-600">Interested in this property? Get in touch directly via WhatsApp.</p>
                 
                 <a
-                  href={`https://wa.me/8760000000?text=Hi, I'm interested in ${encodeURIComponent(property.title)} at ${encodeURIComponent(property.address)}`}
+                  href={`https://wa.me/${property.phone_number}?text=Hi, I'm interested in ${encodeURIComponent(property.title)} at ${encodeURIComponent(property.address)}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="block w-full bg-green-500 text-white text-center py-3 rounded-lg hover:bg-green-600 transition font-semibold"
@@ -232,6 +232,17 @@ export default function PropertyPage({ property, similarProperties }) {
                 <div className="pt-4 border-t">
                   <p className="text-sm text-gray-500">👁️ Views: <span className="font-semibold text-gray-700">{property.views || 0}</span></p>
                 </div>
+              
+
+                <a
+                  href={`https://wa.me/${property.phone_number}?text=Hi, I'm interested in ${encodeURIComponent(property.title)} at ${encodeURIComponent(property.address)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block w-full bg-green-500 text-white text-center py-3 rounded-lg hover:bg-green-600 transition font-semibold"
+                >
+                  ${property.phone_number}
+                </a>
+
               </div>
             </div>
           </div>
