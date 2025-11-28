@@ -31,6 +31,7 @@ export default function NewProperty() {
     type: 'rent',
     status: 'available',
     available_date: '',
+    phone_number: '',
   };
 
   const [form, setForm] = useState(initialFormState);
@@ -150,7 +151,8 @@ const handleSubmit = async (e) => {
         currency: form.currency,
         type: form.type,
         status: form.status,
-        available_date: form.available_date || null
+        available_date: form.available_date || null,
+        phone_number: form.phone_number || null
       }])
       .select()
       .single();
@@ -305,6 +307,17 @@ const handleSubmit = async (e) => {
             className="w-full border rounded px-3 py-2"
             value={form.address}
             onChange={(e) => setForm({ ...form, address: e.target.value })}
+          />
+        </div>
+
+        <div className="mb-4">
+          <label className="block text-sm font-medium mb-1">Phone Number</label>
+          <input
+            type="tel"
+            placeholder="e.g., +1 876 555-1234"
+            className="w-full border rounded px-3 py-2"
+            value={form.phone_number}
+            onChange={(e) => setForm({ ...form, phone_number: e.target.value })}
           />
         </div>
 
