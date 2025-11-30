@@ -49,7 +49,7 @@ function AppContent({ Component, pageProps, isPublicRoute }) {
             .from('users')
             .update({
               email,
-              full_name: user.fullName || '',
+              full_name: user.username || '',
             })
             .eq('clerk_id', user.id);
         } else {
@@ -57,7 +57,7 @@ function AppContent({ Component, pageProps, isPublicRoute }) {
           await supabase.from('users').insert({
             clerk_id: user.id,
             email,
-            full_name: user.fullName || '',
+            full_name: user.username || '',
             role: 'renter',
           });
         }
