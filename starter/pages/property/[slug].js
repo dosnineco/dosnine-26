@@ -62,6 +62,11 @@ export default function PropertyPage({ property, similarProperties }) {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [isOwner, setIsOwner] = useState(false);
 
+  // Scroll to top when page loads
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [property.slug]);
+
   useEffect(() => {
     const checkOwner = async () => {
       if (!user) return;
@@ -115,14 +120,83 @@ export default function PropertyPage({ property, similarProperties }) {
     return cc + groups.join(' ');
   };
 
+  // Generate JSON-LD schema for SEO (Property + BreadcrumbList for Feature Snippets)
+  const jsonLdProperty = {
+    '@context': 'https://schema.org',
+    '@type': 'Residence',
+    name: property.title,
+    description: property.description,
+    address: {
+      '@type': 'PostalAddress',
+      streetAddress: property.address || '',
+      addressLocality: property.town || '',
+      addressRegion: property.parish || '',
+      addressCountry: 'JM'
+    },
+    priceRange: `$${property.price}`,
+    priceCurrency: 'JMD',
+    numberOfBedrooms: property.bedrooms || null,
+    numberOfBathrooms: property.bathrooms || null,
+    image: allImages,
+    url: `https://dosnine.com/property/${property.slug}`,
+    interactionStatistic: {
+      '@type': 'InteractionCounter',
+      interactionType: 'https://schema.org/ViewAction',
+      userInteractionCount: property.views || 0
+    },
+    isPartOf: {
+      '@type': 'WebSite',
+      name: 'Dosnine Properties'
+    }
+  };
+
+  const jsonLdBreadcrumb = {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      {
+        '@type': 'ListItem',
+        position: 1,
+        name: 'Home',
+        item: 'https://dosnine.com'
+      },
+      {
+        '@type': 'ListItem',
+        position: 2,
+        name: 'Properties',
+        item: 'https://dosnine.com/'
+      },
+      {
+        '@type': 'ListItem',
+        position: 3,
+        name: property.title,
+        item: `https://dosnine.com/property/${property.slug}`
+      }
+    ]
+  };
+
   return (
     <>
       <Head>
         <title>{property.title} — Dosnine Properties</title>
         <meta name="description" content={property.description} />
+        <meta name="keywords" content={`${property.type}, ${property.title}, ${property.town}, ${property.parish}, Jamaica, rent, property`} />
         <meta property="og:title" content={property.title} />
         <meta property="og:description" content={property.description} />
+        <meta property="og:type" content="website" />
+        <meta property="og:url" content={`https://dosnine.com/property/${property.slug}`} />
         {currentImage && <meta property="og:image" content={currentImage} />}
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content={property.title} />
+        <meta name="twitter:description" content={property.description} />
+        {currentImage && <meta name="twitter:image" content={currentImage} />}
+        <link rel="canonical" href={`https://dosnine.com/property/${property.slug}`} />
+        
+        {/* JSON-LD Schema for SEO and Feature Snippets */}
+        <script type="application/ld+json">{JSON.stringify(jsonLdProperty)}</script>
+        <script type="application/ld+json">{JSON.stringify(jsonLdBreadcrumb)}</script>
       </Head>
 
       <div className="container mx-auto px-4 py-8">

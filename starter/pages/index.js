@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
 import { supabase } from '../lib/supabase';
-import { Sparkle, Zap } from 'lucide-react';
+import { Sparkle, Zap, Search } from 'lucide-react';
 import { useUser } from '@clerk/nextjs';
 import { formatMoney } from '../lib/formatMoney';
 import BetaBanner from '../components/BetaBanner';
@@ -27,6 +27,11 @@ export default function Home() {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [locationInput, setLocationInput] = useState('');
   const [userOwnerId, setUserOwnerId] = useState(null);
+
+  // Scroll to top when properties or page changes
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [page, filters]);
 
   useEffect(() => {
     fetchProperties();
@@ -92,6 +97,9 @@ export default function Home() {
 
   const totalPages = Math.ceil(totalCount / PROPERTIES_PER_PAGE);
 
+  // Check if any filter is active
+  const hasActiveFilters = filters.parish || filters.minPrice || filters.maxPrice || filters.location || filters.bedrooms;
+
   const fetchLocationSuggestions = async (searchText) => {
     if (!searchText || searchText.length < 2) {
       setLocationSuggestions([]);
@@ -147,7 +155,8 @@ export default function Home() {
     <div>
       <Head>
         <title>Browse Rentals — Dosnine Properties</title>
-        <meta name="description" content="Find rental properties in Jamaica." />
+        <meta name="description" content="Find rental properties in Jamaica. Search by location, price, bedrooms, and more." />
+        <meta name="keywords" content="rental, property, Jamaica, houses, apartments, Kingston, buy, rent" />
       </Head>
 
       {/* Beta Banner */}
@@ -262,19 +271,41 @@ export default function Home() {
           </div>
         ) : properties.length === 0 ? (
           <div className="text-center py-12">
-            <div className="max-w-2xl mx-auto bg-purple-50 border-2 border-purple-200 rounded-xl p-8">
-              <div className="text-5xl mb-4">🚀</div>
-              <h3 className="text-2xl font-bold text-gray-800 mb-3">Be Among The First</h3>
-              <p className="text-gray-700 mb-6">
-                Early landlords get exclusive benefits including free featured listings, priority placement, and a beta tester badge.
-              </p>
-              <Link
-                href="/landlord/dashboard"
-                className="inline-block bg-gradient-to-r from-purple-600 to-pink-600 text-white px-8 py-3 rounded-lg font-bold hover:from-purple-700 hover:to-pink-700 transition shadow-lg"
-              >
-                Claim Your Spot →
-              </Link>
-            </div>
+            {hasActiveFilters ? (
+              // Show "No results" message when filters are active
+              <div className="max-w-2xl mx-auto bg-blue-50 border-2 border-blue-200 rounded-xl p-8">
+                <Search className="w-12 h-12 text-blue-600 mx-auto mb-4" />
+                <h3 className="text-2xl font-bold text-gray-800 mb-3">No Results Found</h3>
+                <p className="text-gray-700 mb-6">
+                  We couldn't find any properties matching your search criteria. Try adjusting your filters or clearing your search.
+                </p>
+                <button
+                  onClick={() => {
+                    setFilters({ parish: '', minPrice: '', maxPrice: '', location: '', bedrooms: '' });
+                    setLocationInput('');
+                    setPage(1);
+                  }}
+                  className="inline-block bg-gradient-to-r from-blue-600 to-blue-700 text-white px-8 py-3 rounded-lg font-bold hover:from-blue-700 hover:to-blue-800 transition shadow-lg"
+                >
+                  Clear All Filters
+                </button>
+              </div>
+            ) : (
+              // Show "Be Among The First" CTA when no properties in system and no filters applied
+              <div className="max-w-2xl mx-auto bg-purple-50 border-2 border-purple-200 rounded-xl p-8">
+                <div className="text-5xl mb-4">🚀</div>
+                <h3 className="text-2xl font-bold text-gray-800 mb-3">Be Among The First</h3>
+                <p className="text-gray-700 mb-6">
+                  Early landlords get exclusive benefits including free featured listings, priority placement, and a beta tester badge.
+                </p>
+                <Link
+                  href="/landlord/dashboard"
+                  className="inline-block bg-gradient-to-r from-purple-600 to-pink-600 text-white px-8 py-3 rounded-lg font-bold hover:from-purple-700 hover:to-pink-700 transition shadow-lg"
+                >
+                  Claim Your Spot →
+                </Link>
+              </div>
+            )}
           </div>
         ) : (
           <div>
