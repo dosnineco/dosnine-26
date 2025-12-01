@@ -14,28 +14,7 @@ const PARISHES = [
 ];
 
 // Fake properties to fill the grid
-const FAKE_PROPERTIES = [
-  { id: 'fake-1', title: '3 Bedroom Villa in New Kingston', parish: 'Kingston', town: 'New Kingston', bedrooms: 3, bathrooms: 2, price: 180000, image: 'https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=500' },
-  { id: 'fake-2', title: 'Modern Apartment in Liguanea', parish: 'St Andrew', town: 'Liguanea', bedrooms: 2, bathrooms: 2, price: 120000, image: 'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?w=500' },
-  { id: 'fake-3', title: 'Luxury Condo in Montego Bay', parish: 'St James', town: 'Montego Bay', bedrooms: 4, bathrooms: 3, price: 250000, image: 'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=500' },
-  { id: 'fake-4', title: 'Cozy Studio in Half Way Tree', parish: 'St Andrew', town: 'Half Way Tree', bedrooms: 1, bathrooms: 1, price: 75000, image: 'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=500' },
-  { id: 'fake-5', title: 'Family Home in Portmore', parish: 'St Catherine', town: 'Portmore', bedrooms: 3, bathrooms: 2, price: 145000, image: 'https://images.unsplash.com/photo-1580587771525-78b9dba3b914?w=500' },
-  { id: 'fake-6', title: 'Beachfront Property in Ocho Rios', parish: 'St Ann', town: 'Ocho Rios', bedrooms: 5, bathrooms: 4, price: 400000, image: 'https://images.unsplash.com/photo-1564013799919-ab600027ffc6?w=500' },
-  { id: 'fake-7', title: '2 Bedroom Flat in Mandeville', parish: 'Manchester', town: 'Mandeville', bedrooms: 2, bathrooms: 1, price: 95000, image: 'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=500' },
-  { id: 'fake-8', title: 'Townhouse in Spanish Town', parish: 'St Catherine', town: 'Spanish Town', bedrooms: 3, bathrooms: 2, price: 130000, image: 'https://images.unsplash.com/photo-1570129477492-45c003edd2be?w=500' },
-  { id: 'fake-9', title: 'Penthouse in Kingston', parish: 'Kingston', town: 'Downtown Kingston', bedrooms: 4, bathrooms: 3, price: 320000, image: 'https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=500' },
-  { id: 'fake-10', title: 'Garden Apartment in Stony Hill', parish: 'St Andrew', town: 'Stony Hill', bedrooms: 2, bathrooms: 2, price: 110000, image: 'https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?w=500' },
-  { id: 'fake-11', title: 'Duplex in May Pen', parish: 'Clarendon', town: 'May Pen', bedrooms: 3, bathrooms: 2, price: 125000, image: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=500' },
-  { id: 'fake-12', title: 'Bachelor Pad in Cross Roads', parish: 'St Andrew', town: 'Cross Roads', bedrooms: 1, bathrooms: 1, price: 68000, image: 'https://images.unsplash.com/photo-1600566753086-00f18fb6b3ea?w=500' },
-  { id: 'fake-13', title: 'Estate Home in Ironshore', parish: 'St James', town: 'Ironshore', bedrooms: 5, bathrooms: 4, price: 450000, image: 'https://images.unsplash.com/photo-1600047509807-ba8f99d2cdde?w=500' },
-  { id: 'fake-14', title: 'Cottage in Port Antonio', parish: 'Portland', town: 'Port Antonio', bedrooms: 2, bathrooms: 1, price: 85000, image: 'https://images.unsplash.com/photo-1600607687644-aac4c3eac7f4?w=500' },
-  { id: 'fake-15', title: 'Modern Loft in New Kingston', parish: 'Kingston', town: 'New Kingston', bedrooms: 2, bathrooms: 2, price: 155000, image: 'https://images.unsplash.com/photo-1600585154526-990dced4db0d?w=500' },
-  { id: 'fake-16', title: 'Bungalow in Mandeville', parish: 'Manchester', town: 'Mandeville', bedrooms: 3, bathrooms: 2, price: 115000, image: 'https://images.unsplash.com/photo-1600566753051-f0ba01efe27a?w=500' },
-  { id: 'fake-17', title: 'Seafront Villa in Negril', parish: 'Hanover', town: 'Negril', bedrooms: 4, bathrooms: 3, price: 380000, image: 'https://images.unsplash.com/photo-1600566752355-35792bedcfea?w=500' },
-  { id: 'fake-18', title: 'City Apartment in Kingston', parish: 'Kingston', town: 'Kingston', bedrooms: 2, bathrooms: 1, price: 98000, image: 'https://images.unsplash.com/photo-1600573472550-8090b5e0745e?w=500' },
-  { id: 'fake-19', title: 'Country House in St Elizabeth', parish: 'St Elizabeth', town: 'Black River', bedrooms: 4, bathrooms: 2, price: 165000, image: 'https://images.unsplash.com/photo-1600566752229-250ed79470f6?w=500' },
-  { id: 'fake-20', title: 'Hillside Home in Irish Town', parish: 'St Andrew', town: 'Irish Town', bedrooms: 3, bathrooms: 2, price: 195000, image: 'https://images.unsplash.com/photo-1600607687920-4e2a09cf159d?w=500' },
-];
+
 
 export default function Home() {
   const { user } = useUser();
@@ -276,26 +255,6 @@ export default function Home() {
           </button>
         </form>
 
-        {/* Always show landlord-focused CTA */}
-        <div className="bg-red-600 rounded-2xl p-8 text-white text-center mb-12 shadow-2xl">
-          <div className="max-w-3xl mx-auto">
-            <h2 className="text-3xl md:text-4xl font-bold mb-4">🎉 Accepting Landlords Now!</h2>
-            <p className="text-lg md:text-xl mb-6 text-white/90">
-              List your property for FREE • Get featured placement • Reach thousands of renters
-            </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-              <Link
-                href="/landlord/dashboard"
-                className="bg-white text-purple-600 px-8 py-4 rounded-lg font-bold text-lg hover:bg-gray-100 transition shadow-lg hover:shadow-xl transform hover:scale-105"
-              >
-                List Your Property Free →
-              </Link>
-              <div className="text-sm text-white/80">
-                ✓ No credit card required • ✓ Takes 5 minutes
-              </div>
-            </div>
-          </div>
-        </div>
 
         {loading ? (
           <div className="text-center py-12">
@@ -382,45 +341,7 @@ export default function Home() {
                 );
               })}
 
-              {/* Fake Properties - Blurred and Non-clickable */}
-              {properties.length < 20 && FAKE_PROPERTIES.slice(0, 20 - properties.length).map((fakeProp) => (
-                <div key={fakeProp.id} className="bg-white rounded-lg border border-gray-200 overflow-hidden transition relative">
-                  {/* Blur overlay */}
-                  <div className="absolute inset-0 backdrop-blur-sm bg-white/30 z-10 flex items-center justify-center">
-                    <div className="bg-purple-600 text-white px-4 py-2 rounded-lg font-semibold text-sm shadow-lg">
-                      🔒 List to Unlock
-                    </div>
-                  </div>
-                  
-                  <div className="pointer-events-none">
-                    <div className="relative h-48 bg-gray-100">
-                      <img 
-                        src={fakeProp.image} 
-                        alt={fakeProp.title} 
-                        className="w-full h-full object-cover"
-                      />
-                      <div className="absolute top-2 left-2 bg-gray-900/80 text-white px-2 py-1 rounded text-xs">
-                        👁️ {Math.floor(Math.random() * 500) + 100}
-                      </div>
-                      <div className="absolute bottom-2 left-2 bg-gray-800 text-white px-3 py-1 rounded-lg text-sm font-semibold">
-                        {formatMoney(fakeProp.price)}/mo
-                      </div>
-                    </div>
-
-                    <div className="p-4">
-                      <h3 className="text-lg font-bold text-gray-900 mb-1">{fakeProp.title}</h3>
-                      <p className="text-sm text-gray-600 mb-3">
-                        📍 {fakeProp.town}, {fakeProp.parish}
-                      </p>
-
-                      <div className="flex items-center gap-4 text-sm text-gray-700 mb-3">
-                        <span>🛏️ {fakeProp.bedrooms} bed</span>
-                        <span>🚿 {fakeProp.bathrooms} bath</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ))}
+             
             </div>
 
             {totalPages > 1 && (
