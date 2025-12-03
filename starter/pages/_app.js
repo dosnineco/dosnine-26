@@ -1,3 +1,5 @@
+import { useAnalyticsTracking } from '../lib/useAnalyticsTracking';
+  useAnalyticsTracking();
 import { useRouter } from 'next/router';
 import { ClerkProvider, SignedIn, SignedOut, SignInButton, SignUpButton, useUser } from '@clerk/nextjs';
 import '../styles/globals.css';
