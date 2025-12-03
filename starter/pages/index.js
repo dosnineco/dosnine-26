@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import Head from 'next/head';
+import Seo from '../components/Seo';
 import Link from 'next/link';
 import { supabase } from '../lib/supabase';
 import { Sparkle, Zap, Search } from 'lucide-react';
@@ -153,11 +154,11 @@ export default function Home() {
 
   return (
     <div>
-      <Head>
-        <title>Browse Rentals — Dosnine Properties</title>
-        <meta name="description" content="Find rental properties in Jamaica. Search by location, price, bedrooms, and more." />
-        <meta name="keywords" content="rental, property, Jamaica, houses, apartments, Kingston, buy, rent" />
-      </Head>
+      <Seo
+        title="Browse Rentals — Dosnine Properties"
+        description="Find rental properties in Jamaica. Search by location, price, bedrooms, and more."
+        url={process.env.NEXT_PUBLIC_SITE_URL + '/'}
+      />
 
       {/* Beta Banner */}
       {/* <BetaBanner propertyCount={totalCount} /> */}
@@ -166,11 +167,11 @@ export default function Home() {
         <h1 className="text-4xl font-bold text-center mb-4 text-gray-900">Find Your Perfect Rental</h1>
         <p className="text-center text-gray-600 mb-8">Browse available properties across Jamaica</p>
 
-        {!loading && (
+        {/* {!loading && (
           <div className="mb-4 text-center text-sm text-gray-500">
             Found {totalCount+20} properties
           </div>
-        )}
+        )} */}
 
         <form 
           onSubmit={(e) => {
@@ -409,9 +410,9 @@ export default function Home() {
               </nav>
             )}
 
-            <div className="text-center text-sm text-gray-600 mb-8">
+            {/* <div className="text-center text-sm text-gray-600 mb-8">
               Showing {(page - 1) * PROPERTIES_PER_PAGE + 1}-{Math.min(page * PROPERTIES_PER_PAGE, totalCount+20)} of {totalCount+20} properties
-            </div>
+            </div> */}
           </div>
         )}
       </div>
