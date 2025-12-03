@@ -1,4 +1,5 @@
 import Head from 'next/head';
+import Seo from '../../components/Seo';
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
@@ -177,27 +178,13 @@ export default function PropertyPage({ property, similarProperties }) {
 
   return (
     <>
-      <Head>
-        <title>{property.title} — Dosnine Properties</title>
-        <meta name="description" content={property.description} />
-        <meta name="keywords" content={`${property.type}, ${property.title}, ${property.town}, ${property.parish}, Jamaica, rent, property`} />
-        <meta property="og:title" content={property.title} />
-        <meta property="og:description" content={property.description} />
-        <meta property="og:type" content="website" />
-        <meta property="og:url" content={`https://dosnine.com/property/${property.slug}`} />
-        {currentImage && <meta property="og:image" content={currentImage} />}
-        <meta property="og:image:width" content="1200" />
-        <meta property="og:image:height" content="630" />
-        <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:title" content={property.title} />
-        <meta name="twitter:description" content={property.description} />
-        {currentImage && <meta name="twitter:image" content={currentImage} />}
-        <link rel="canonical" href={`https://dosnine.com/property/${property.slug}`} />
-        
-        {/* JSON-LD Schema for SEO and Feature Snippets */}
-        <script type="application/ld+json">{JSON.stringify(jsonLdProperty)}</script>
-        <script type="application/ld+json">{JSON.stringify(jsonLdBreadcrumb)}</script>
-      </Head>
+      <Seo
+        title={`${property.title} — Dosnine Properties`}
+        description={property.description}
+        image={currentImage}
+        url={`https://dosnine.com/property/${property.slug}`}
+        structuredData={[jsonLdProperty, jsonLdBreadcrumb]}
+      />
 
       <div className="container mx-auto px-4 py-8">
         {/* Breadcrumb Navigation */}
