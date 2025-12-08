@@ -1,6 +1,6 @@
 import { supabase } from '../lib/supabase';
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://dosnine.co';
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://dosnine.com';
 
 function toXml(urls) {
   return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls

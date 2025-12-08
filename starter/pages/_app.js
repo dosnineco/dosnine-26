@@ -8,6 +8,7 @@ import Seo from '../components/Seo';
 import { useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { Toaster } from 'react-hot-toast';
+import { useAnalyticsTracking } from '../lib/useAnalyticsTracking';
 
 function MyApp({ Component, pageProps }) {
   const router = useRouter();
@@ -24,9 +25,11 @@ function MyApp({ Component, pageProps }) {
     </ClerkProvider>
   );
 }
-
 function AppContent({ Component, pageProps, isPublicRoute }) {
   const { isSignedIn, user } = useUser();
+  
+  // Initialize analytics tracking on all pages
+  useAnalyticsTracking();
 
   // Sync Clerk user to Supabase
   useEffect(() => {
