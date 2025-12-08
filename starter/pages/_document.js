@@ -1,5 +1,5 @@
 import Document, { Html, Head, Main, NextScript } from 'next/document';
-const gtag= 'G-9PZEXD5SEW';
+const gtag= 'G-SC64X5RNW0';
 
 class MyDocument extends Document {
 
@@ -14,7 +14,7 @@ class MyDocument extends Document {
           <meta name="theme-color" content="#ffffff"/>
           <script
             async
-            src={`https://www.googletagmanager.com/gtag/js?id=G-9PZEXD5SEW`}
+            src={`https://www.googletagmanager.com/gtag/js?id=${gtag}`}
           />           
           <script
             dangerouslySetInnerHTML={{
@@ -22,7 +22,7 @@ class MyDocument extends Document {
                 window.dataLayer = window.dataLayer || [];
                 function gtag(){dataLayer.push(arguments);}
                 gtag('js', new Date());
-                gtag('config', 'G-9PZEXD5SEW', {
+                gtag('config', '${gtag}', {
                   page_path: window.location.pathname,
                 });
             `,
@@ -33,13 +33,6 @@ class MyDocument extends Document {
         <meta name="yandex-verification" content="ff59d7507fd2396e" />
 
 
-   {/* adsense */}
-        <script
-          async
-          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-2046215299064356"
-          crossOrigin="anonymous"
-        ></script>
-        <meta name="google-adsense-account" content="ca-pub-2046215299064356" />
 
 
         </Head>     
