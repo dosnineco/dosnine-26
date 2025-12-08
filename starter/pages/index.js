@@ -7,7 +7,7 @@ import { Sparkle, Zap, Search } from 'lucide-react';
 import { useUser } from '@clerk/nextjs';
 import { formatMoney } from '../lib/formatMoney';
 import BetaBanner from '../components/BetaBanner';
-const PROPERTIES_PER_PAGE = 30;
+const PROPERTIES_PER_PAGE = 15;
 
 const PARISHES = [
   'Kingston', 'St Andrew', 'St Catherine', 'St James', 'Clarendon',
