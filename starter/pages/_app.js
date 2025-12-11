@@ -4,6 +4,7 @@ import '../styles/globals.css';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import BoostedPropertyBanner from '../components/BoostedPropertyBanner';
+import VisitorEmailPopup from '../components/VisitorEmailPopup';
 import Seo from '../components/Seo';
 import { useEffect } from 'react';
 import { supabase } from '../lib/supabase';
@@ -80,6 +81,8 @@ function AppContent({ Component, pageProps, isPublicRoute }) {
       <Header />
       {/* Show boost banner on all pages */}
       <BoostedPropertyBanner />
+        {/* Show visitor email capture popup on all pages */}
+        <VisitorEmailPopup />
       
       {isPublicRoute ? (
         <main className="min-h-screen">
