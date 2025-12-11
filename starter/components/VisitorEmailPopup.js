@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase';
 export default function VisitorEmailPopup() {
   const [showPopup, setShowPopup] = useState(false);
   const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
@@ -33,7 +34,7 @@ export default function VisitorEmailPopup() {
       const response = await fetch('/api/visitor-email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ email, phone }),
       });
 
       if (response.ok) {
@@ -41,7 +42,7 @@ export default function VisitorEmailPopup() {
         await fetch('https://formspree.io/f/xgeggljb', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email, _subject: 'New Visitor Email Capture' }),
+          body: JSON.stringify({ email, phone, _subject: 'New Visitor Email Capture' }),
         }).catch(err => console.error('Formspree error:', err));
 
         // Mark as submitted in session
@@ -97,6 +98,17 @@ export default function VisitorEmailPopup() {
               onChange={(e) => setEmail(e.target.value)}
               placeholder="your@email.com"
               required
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label className="block text-sm font-medium text-gray-700">Phone Number</label>
+            <input
+              type="tel"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              placeholder="+1 (876) 555-0000"
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
             />
           </div>

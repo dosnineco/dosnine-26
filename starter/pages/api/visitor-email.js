@@ -5,7 +5,7 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { email } = req.body;
+  const { email, phone } = req.body;
 
   if (!email || !email.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) {
     return res.status(400).json({ error: 'Invalid email' });
@@ -17,6 +17,7 @@ export default async function handler(req, res) {
       .from('visitor_emails')
       .insert({
         email,
+        phone: phone || null,
         user_agent: req.headers['user-agent'] || null,
         ip_address: req.headers['x-forwarded-for']?.split(',')[0] || req.socket.remoteAddress || null,
         referrer: req.headers.referer || null,

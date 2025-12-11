@@ -12,6 +12,7 @@ export default function AdminDashboard() {
   const [properties, setProperties] = useState([]);
   const [users, setUsers] = useState([]);
   const [boosts, setBoosts] = useState([]);
+  const [visitorEmails, setVisitorEmails] = useState([]);
   const [boostStats, setBoostStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
@@ -46,6 +47,36 @@ export default function AdminDashboard() {
       console.error('Error checking admin access:', err);
       setIsAdmin(false);
     }
+  };
+
+  const exportEmailsCSV = () => {
+    if (visitorEmails.length === 0) {
+      toast.error('No emails to export');
+      return;
+    }
+
+    const headers = ['Email', 'Phone', 'Source', 'Date'];
+    const rows = visitorEmails.map(item => [
+      item.email,
+      item.phone || '',
+      item.referrer ? new URL(item.referrer).hostname : 'Direct',
+      new Date(item.created_at).toLocaleDateString(),
+    ]);
+
+    const csv = [headers, ...rows]
+      .map(row => row.map(cell => `"${cell}"`).join(','))
+      .join('\n');
+
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `visitor-emails-${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast.success('Emails exported successfully!');
   };
 
   const fetchData = async () => {
@@ -105,6 +136,13 @@ export default function AdminDashboard() {
           expiringSoon: expiringSoon.length,
           avgCTR: totalImpressions > 0 ? ((totalClicks / totalImpressions) * 100).toFixed(2) : 0
         });
+      } else if (activeTab === 'emails') {
+        const { data } = await supabase
+          .from('visitor_emails')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .limit(1000);
+        setVisitorEmails(data || []);
       }
     } catch (err) {
       toast.error('Failed to fetch data');
@@ -343,10 +381,87 @@ export default function AdminDashboard() {
           <FiUsers size={18} />
           Users
         </button>
+        <button
+          onClick={() => setActiveTab('emails')}
+          className={`px-6 py-3 rounded-lg font-medium flex items-center gap-2 whitespace-nowrap ${
+            activeTab === 'emails'
+              ? 'bg-blue-600 text-white'
+              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+          }`}
+        >
+          📧 Emails
+          {visitorEmails.length > 0 && (
+            <span className="bg-blue-700 text-white px-2 py-0.5 rounded-full text-xs">
+              {visitorEmails.length}
+            </span>
+          )}
+        </button>
       </div>
 
       {loading ? (
         <div className="text-center py-12 text-gray-500">Loading...</div>
+      ) : activeTab === 'emails' ? (
+        /* Visitor Emails */
+        <div>
+          <div className="flex justify-between items-center mb-6">
+            <div>
+              <h2 className="text-2xl font-bold text-gray-900">Visitor Emails</h2>
+              <p className="text-gray-600 text-sm mt-1">Total captured: {visitorEmails.length}</p>
+            </div>
+            <button
+              onClick={exportEmailsCSV}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium flex items-center gap-2"
+            >
+              📥 Export CSV
+            </button>
+          </div>
+
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+            <h3 className="font-semibold text-blue-900 mb-2">💰 Monetization Ideas</h3>
+            <ul className="text-sm text-blue-800 space-y-1">
+              <li>✓ Sell targeted email list to property management companies (JMD 50,000+)</li>
+              <li>✓ Partner with real estate investors for lead generation (JMD 500-1,000 per lead)</li>
+              <li>✓ Send sponsored weekly newsletters (JMD 10,000 per sponsor)</li>
+              <li>✓ Create premium alert service for serious renters (JMD 2,000/month)</li>
+              <li>✓ Sell bulk data to platforms (JMD 100,000+ for 5,000+ emails)</li>
+            </ul>
+          </div>
+
+          {visitorEmails.length === 0 ? (
+            <div className="text-center py-8 bg-white rounded-lg border border-gray-200">
+              <p className="text-gray-600">No visitor emails captured yet. The popup captures emails from new visitors.</p>
+            </div>
+          ) : (
+            <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-100 border-b border-gray-200">
+                    <tr>
+                      <th className="px-4 py-3 text-left font-semibold text-gray-700">Email</th>
+                      <th className="px-4 py-3 text-left font-semibold text-gray-700">Phone</th>
+                      <th className="px-4 py-3 text-left font-semibold text-gray-700">Source</th>
+                      <th className="px-4 py-3 text-left font-semibold text-gray-700">Date</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {visitorEmails.map((item, idx) => (
+                      <tr key={idx} className="border-b border-gray-100 hover:bg-gray-50 transition">
+                        <td className="px-4 py-3 text-gray-900 font-medium truncate">{item.email}</td>
+                        <td className="px-4 py-3 text-gray-600 text-sm">{item.phone || '—'}</td>
+                        <td className="px-4 py-3 text-gray-600 text-xs truncate">
+                          {item.referrer ? new URL(item.referrer).hostname : 'Direct'}
+                        </td>
+                        <td className="px-4 py-3 text-gray-600 text-xs">
+                          {new Date(item.created_at).toLocaleDateString()}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+        </div>
       ) : activeTab === 'boosts' ? (
         /* Boost Analytics & Management */
         <div>

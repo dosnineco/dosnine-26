@@ -2,6 +2,7 @@
 CREATE TABLE IF NOT EXISTS visitor_emails (
   id BIGSERIAL PRIMARY KEY,
   email VARCHAR(255) NOT NULL,
+  phone VARCHAR(20),
   user_agent TEXT,
   ip_address VARCHAR(45),
   referrer TEXT,
