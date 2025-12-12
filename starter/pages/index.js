@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef, lazy, Suspense } from 'react';
+const PropertyCard = lazy(() => import('../components/PropertyCard'));
 import Head from 'next/head';
 import Seo from '../components/Seo';
 import Link from 'next/link';
@@ -29,14 +30,54 @@ export default function Home() {
   const [locationInput, setLocationInput] = useState('');
   const [userOwnerId, setUserOwnerId] = useState(null);
 
-  // Scroll to top when properties or page changes
+  // Restore list state if present (page, filters, scroll position)
+  const [restoring, setRestoring] = useState(false);
+  const restoreRef = useRef(null);
+
   useEffect(() => {
-    window.scrollTo(0, 0);
-  }, [page, filters]);
+    try {
+      const raw = sessionStorage.getItem('dosnine_list_state');
+      if (!raw) return;
+      const state = JSON.parse(raw);
+      if (!state) return;
+      // Apply saved filters and page, mark restoring so we don't scroll to top
+      if (state.filters) setFilters(state.filters);
+      if (state.page) setPage(state.page);
+      restoreRef.current = state;
+      setRestoring(true);
+      // remove stored state to avoid repeated restores
+      sessionStorage.removeItem('dosnine_list_state');
+    } catch (err) {
+      console.error('Failed to restore list state', err);
+    }
+  }, []);
 
   useEffect(() => {
     fetchProperties();
   }, [filters, page]);
+
+  // After properties load, if we're restoring from a saved state, scroll to saved position
+  useEffect(() => {
+    if (!restoring) return;
+    if (loading) return;
+    try {
+      const state = restoreRef.current;
+      if (state) {
+        // Try to scroll to the exact card, else restore scrollY
+        const el = document.querySelector(`[data-list-index="${state.index}"]`);
+        if (el) {
+          el.scrollIntoView({ behavior: 'auto', block: 'center' });
+        } else if (typeof state.scrollY === 'number') {
+          window.scrollTo(0, state.scrollY);
+        }
+      }
+    } catch (err) {
+      console.error('Error restoring scroll position', err);
+    } finally {
+      setRestoring(false);
+      restoreRef.current = null;
+    }
+  }, [properties, loading, restoring]);
 
   useEffect(() => {
     const getUserId = async () => {
@@ -97,6 +138,16 @@ export default function Home() {
   }
 
   const totalPages = Math.ceil(totalCount / PROPERTIES_PER_PAGE);
+
+  // Save list state before navigating to a property
+  const saveListState = (index) => {
+    try {
+      const state = { page, filters, scrollY: window.scrollY, index };
+      sessionStorage.setItem('dosnine_list_state', JSON.stringify(state));
+    } catch (err) {
+      console.error('Failed to save list state', err);
+    }
+  };
 
   // Check if any filter is active
   const hasActiveFilters = filters.parish || filters.minPrice || filters.maxPrice || filters.location || filters.bedrooms;
@@ -261,7 +312,7 @@ export default function Home() {
           </div>
 
           <button type="submit" className="bg-gray-800 text-white px-6 py-2.5 rounded-lg hover:bg-gray-700 transition font-medium">
-            Apply Filters
+            Update Results
           </button>
         </form>
 
@@ -312,64 +363,14 @@ export default function Home() {
           <div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mb-8">
               {/* Real Properties - Clickable */}
-              {properties.map((prop) => {
-                const firstImage = prop.image_urls?.[0] || prop.property_images?.[0]?.image_url;
+              {properties.map((prop, idx) => {
                 const isOwner = userOwnerId && prop.owner_id === userOwnerId;
-                
                 return (
-                  <div key={prop.id} className="bg-white rounded-lg border border-gray-200 overflow-hidden transition">
-                    <Link href={`/property/${prop.slug || prop.id}`} className="block">
-                      <div className="relative h-48 bg-gray-100">
-                        {firstImage ? (
-                          <img 
-                            src={firstImage} 
-                            alt={prop.title} 
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center bg-gray-200 text-gray-400 text-3xl">📷</div>
-                        )}
-                        {prop.is_featured && (
-                          <div className="absolute top-2 right-2 items-center justify-center flex-row bg-red-400 text-white px-3 py-1 rounded-full text-xs font-medium">
-                            <Sparkle className=' inline text-yellow-400 w-4 h-4  '/> Featured
-                          </div>
-                        )}
-                        <div className="absolute top-2 left-2 bg-gray-900/80 text-white px-2 py-1 rounded text-xs">
-                          👁️ {prop.views || 0}
-                        </div>
-                        <div className="absolute bottom-2 left-2 bg-gray-800 text-white px-3 py-1 rounded-lg text-sm font-semibold">
-                          {formatMoney(prop.price)}/mo
-                        </div>
-                      </div>
-
-                      <div className="p-4">
-                        <h3 className="text-lg font-bold text-gray-900 mb-1">{prop.title}</h3>
-                        <p className="text-sm text-gray-600 mb-3">
-                          📍 {prop.town}, {prop.parish}
-                        </p>
-
-                        <div className="flex items-center gap-4 text-sm text-gray-700 mb-3">
-                          <span>🛏️ {prop.bedrooms} bed</span>
-                          <span>🚿 {prop.bathrooms} bath</span>
-                        </div>
-
-                        {prop.description && (
-                          <p className="text-sm text-gray-600 line-clamp-2 mb-3">{prop.description}</p>
-                        )}
-                      </div>
-                    </Link>
-                    
-                    {isOwner && !prop.is_featured && (
-                      <div className="px-4 pb-4">
-                        <Link 
-                          href="/landlord/boost-property"
-                          className="block w-full text-center bg-gradient-to-r from-yellow-400 to-orange-500 text-white py-2.5 rounded-lg hover:from-yellow-500 hover:to-orange-600 transition font-semibold text-sm"
-                        >
-                          <Zap className="inline w-4 h-4 mr-1" /> Boost This Property
-                        </Link>
-                      </div>
-                    )}
-                  </div>
+                  <Suspense key={prop.id} fallback={<div className="bg-white rounded-lg border p-4 h-48" />}>
+                    <div onClick={() => saveListState(idx)}>
+                      <PropertyCard property={prop} isOwner={isOwner} index={idx} />
+                    </div>
+                  </Suspense>
                 );
               })}
 
