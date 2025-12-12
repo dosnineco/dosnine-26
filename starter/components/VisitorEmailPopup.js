@@ -26,7 +26,7 @@ export default function VisitorEmailPopup() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!email.trim()) return;
+    if (!email.trim() || !phone.trim()) return;
 
     setLoading(true);
     try {
@@ -71,24 +71,24 @@ export default function VisitorEmailPopup() {
     <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-40 p-4">
       <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full relative overflow-hidden animate-in fade-in slide-in-from-bottom-4">
         {/* Close Button */}
-        {/* <button
-          onClick={handleDismiss}
-          className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 z-10 p-1"
-        >
-          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        </button> */}
 
-        {/* Header */}
-        <div className="bg-gradient-to-r from-green-600 to-green-700 p-6 text-white">
-          <h2 className="text-2xl font-bold">Don't Miss Out!</h2>
-          <p className="text-green-100 text-sm mt-1">Get exclusive property listings & deals </p>
+        {/* Header with Santa Image */}
+        <div className="bg-gradient-to-r from-orange-600 to-orange-700 p-6 text-white relative">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <h2 className="text-2xl font-bold">Don't Miss Out!</h2>
+              <p className="text-orange-100 text-sm mt-1">Get exclusive property listings & deals</p>
+            </div>
+            <img 
+              src="/santa-claus.png" 
+              alt="Santa Mascot" 
+              className="w-20 h-20 flex-shrink-0"
+            />
+          </div>
         </div>
 
         {/* Content */}
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
-        
 
           <div className="space-y-2">
             <label className="block text-sm font-medium text-gray-700">Email Address</label>
@@ -98,7 +98,7 @@ export default function VisitorEmailPopup() {
               onChange={(e) => setEmail(e.target.value)}
               placeholder="your@email.com"
               required
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
             />
           </div>
 
@@ -109,14 +109,15 @@ export default function VisitorEmailPopup() {
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
               placeholder="+1 (876) 555-0000"
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+              required
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
             />
           </div>
 
           <button
             type="submit"
             disabled={loading}
-            className="w-full px-4 py-2 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
+            className="w-full px-4 py-2 bg-orange-600 text-white font-semibold rounded-lg hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
           >
             {loading ? 'Saving...' : 'Get Property Alerts'}
           </button>
