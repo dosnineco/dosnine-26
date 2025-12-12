@@ -8,14 +8,12 @@ import { Sparkle, Zap, Search } from 'lucide-react';
 import { useUser } from '@clerk/nextjs';
 import { formatMoney } from '../lib/formatMoney';
 import BetaBanner from '../components/BetaBanner';
-const PROPERTIES_PER_PAGE = 15;
+const PROPERTIES_PER_PAGE = 20;
 
 const PARISHES = [
   'Kingston', 'St Andrew', 'St Catherine', 'St James', 'Clarendon',
   'Manchester', 'St Ann', 'Portland', 'St Thomas', 'St Elizabeth', 'Trelawny', 'Hanover'
 ];
-
-// Fake properties to fill the grid
 
 
 export default function Home() {
@@ -112,8 +110,11 @@ export default function Home() {
         query = query.or(`town.ilike.${searchTerm},address.ilike.${searchTerm},parish.ilike.${searchTerm}`);
       }
 
-      const { data, count, error } = await query
-        .range((page - 1) * PROPERTIES_PER_PAGE, page * PROPERTIES_PER_PAGE - 1);
+      // Supabase range uses inclusive end index. For page p with size n:
+      // start = (p - 1) * n, end = start + n - 1
+      const start = (page - 1) * PROPERTIES_PER_PAGE;
+      const end = start + PROPERTIES_PER_PAGE - 1;
+      const { data, count, error } = await query.range(start, end);
 
       if (error) {
         console.error('Error fetching properties:', error);
@@ -137,7 +138,7 @@ export default function Home() {
     }
   }
 
-  const totalPages = Math.ceil(totalCount / PROPERTIES_PER_PAGE);
+  const totalPages =  PROPERTIES_PER_PAGE > 0 ? Math.ceil(totalCount / PROPERTIES_PER_PAGE) : 0;
 
   // Save list state before navigating to a property
   const saveListState = (index) => {
@@ -381,7 +382,6 @@ export default function Home() {
               <nav className="flex justify-center items-center gap-2 mb-8">
                 <button
                   onClick={() => setPage(Math.max(1, page - 1))}
-                  disabled={page === 1}
                   className="px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-700 disabled:opacity-50 transition"
                 >
                   ← Prev
