@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
 import { supabase } from '../../lib/supabase';
-import { formatMoney } from '../../lib/formatMoney';
+// formatMoney not used here
 import PropertyCard from '../../components/PropertyCard';
 import { useUser } from '@clerk/nextjs';
 
@@ -94,21 +94,24 @@ export default function SearchLandingPage({ slug, properties: initialProperties,
         <link rel="canonical" href={`https://dosnine.com/search/${(slug || []).join('/')}`} />
 
         {/* Schema.org Structured Data */}
-        <script type="application/ld+json">
-          {JSON.stringify({
-            '@context': 'https://schema.org',
-            '@type': 'SearchResultsPage',
-            name: pageTitle,
-            description: pageDescription,
-            url: `https://dosnine.com/search/${(slug || []).join('/')}`,
-            mainEntity: {
-              '@type': 'LocalBusiness',
-              name: 'Dosnine Properties',
-              description: 'Property listing marketplace in Jamaica',
-              url: 'https://dosnine.com',
-            },
-          })}
-        </script>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              '@context': 'https://schema.org',
+              '@type': 'SearchResultsPage',
+              name: pageTitle,
+              description: pageDescription,
+              url: `https://dosnine.com/search/${(slug || []).join('/')}`,
+              mainEntity: {
+                '@type': 'LocalBusiness',
+                name: 'Dosnine Properties',
+                description: 'Property listing marketplace in Jamaica',
+                url: 'https://dosnine.com',
+              },
+            }),
+          }}
+        />
       </Head>
 
       <div className="container mx-auto px-4 py-8">

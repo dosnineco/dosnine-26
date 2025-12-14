@@ -2,3 +2,5 @@ User-agent: *
 Allow: /
 
 Sitemap: https://dosnine.co/sitemap.xml
+# Sitemap location for faster discovery
+Sitemap: https://dosnine.com/sitemap.xml

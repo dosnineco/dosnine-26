@@ -76,6 +76,11 @@ export default function Footer() {
                   Refund Policy
                 </a>
               </li>
+              <li>
+                <a href="/sitemap.xml" className="text-gray-600 hover:text-blue-600 transition">
+                  Sitemap
+                </a>
+              </li>
             </ul>
           </div>
 

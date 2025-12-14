@@ -8,12 +8,10 @@ function toXml(urls) {
     .join('\n')}\n</urlset>`;
 }
 
-export default async function handler(req, res) {
+export async function getServerSideProps({ res }) {
   try {
-    // static pages
     const staticPages = ['/', '/property', '/blog', '/landlord', '/landlord/dashboard', '/landlord/new-property', '/contact', '/privacy-policy', '/terms-of-service'];
 
-    // fetch properties to include dynamic property pages
     const { data: properties, error } = await supabase.from('properties').select('slug, updated_at').limit(1000);
     const urls = [];
 
@@ -35,6 +33,13 @@ export default async function handler(req, res) {
     res.end();
   } catch (err) {
     console.error('Sitemap generation error:', err);
-    res.status(500).end();
+    res.statusCode = 500;
+    res.end();
   }
+
+  return { props: {} };
+}
+
+export default function Sitemap() {
+  return null;
 }
