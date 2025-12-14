@@ -76,7 +76,7 @@ export default function ContactPage() {
                     </div>
                     <div>
                       <h3 className="font-semibold text-gray-900">Email</h3>
-                      <a href="mailto:info@dosnine.com" className="text-blue-600 hover:underline">
+                        <a href="mailto:info@dosnine.com" className="text-accent hover:underline">
                         info@dosnine.com
                       </a>
                       <p className="text-sm text-gray-600 mt-1">
@@ -92,7 +92,7 @@ export default function ContactPage() {
                     </div>
                     <div>
                       <h3 className="font-semibold text-gray-900">Phone</h3>
-                      <a href="tel:+18765551234" className="text-blue-600 hover:underline">
+                        <a href="tel:+18765551234" className="text-accent hover:underline">
                         +1 (876) 555-1234
                       </a>
                       <p className="text-sm text-gray-600 mt-1">
@@ -137,22 +137,22 @@ export default function ContactPage() {
                 <h3 className="font-bold text-gray-900 mb-4">Quick Links</h3>
                 <ul className="space-y-2">
                   <li>
-                    <a href="/privacy-policy" className="text-blue-600 hover:underline">
+                      <a href="/privacy-policy" className="text-accent hover:underline">
                       Privacy Policy
                     </a>
                   </li>
                   <li>
-                    <a href="/terms-of-service" className="text-blue-600 hover:underline">
+                      <a href="/terms-of-service" className="text-accent hover:underline">
                       Terms of Service
                     </a>
                   </li>
                   <li>
-                    <a href="/refund-policy" className="text-blue-600 hover:underline">
+                      <a href="/refund-policy" className="text-accent hover:underline">
                       Refund Policy
                     </a>
                   </li>
                   <li>
-                    <a href="/landlord/boost-property" className="text-blue-600 hover:underline">
+                      <a href="/landlord/boost-property" className="text-accent hover:underline">
                       Boost Your Property
                     </a>
                   </li>
@@ -248,7 +248,7 @@ export default function ContactPage() {
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                  className="w-full py-3 rounded-lg font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition btn-accent"
                 >
                   {submitting ? 'Sending...' : 'Send Message'}
                 </button>

@@ -25,7 +25,7 @@ export default function PropertyCard({ property, isOwner = false, index = 0 }) {
         <div className="mt-auto pt-2 border-t">
           <div className="flex items-center justify-between">
             <div className="text-sm text-gray-600">{property.bedrooms} bed • {property.bathrooms} bath</div>
-            <div className="text-green-600 font-bold text-sm">{formatMoney(property.price)}</div>
+            <div className="text-accent font-bold text-sm">{formatMoney(property.price)}</div>
           </div>
         </div>
       </div>

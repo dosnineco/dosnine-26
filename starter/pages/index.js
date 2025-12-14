@@ -99,14 +99,21 @@ export default function Home() {
         .order('is_featured', { ascending: false })
         .order('created_at', { ascending: false });
 
-      if (filters.parish) query = query.eq('parish', filters.parish);
-      if (filters.minPrice) query = query.gte('price', Number(filters.minPrice));
-      if (filters.maxPrice) query = query.lte('price', Number(filters.maxPrice));
-      if (filters.bedrooms) query = query.eq('bedrooms', filters.bedrooms);
+      const parishFilter = (filters.parish || '').trim();
+      const minPriceFilter = filters.minPrice ? Number(filters.minPrice) : null;
+      const maxPriceFilter = filters.maxPrice ? Number(filters.maxPrice) : null;
+      const bedroomsFilter = filters.bedrooms ? Number(filters.bedrooms) : null;
+      const locationFilter = (filters.location || '').trim();
+
+      // Apply all filters with AND logic (all must match if active)
+      if (parishFilter) query = query.eq('parish', parishFilter);
+      if (minPriceFilter !== null && !Number.isNaN(minPriceFilter)) query = query.gte('price', minPriceFilter);
+      if (maxPriceFilter !== null && !Number.isNaN(maxPriceFilter)) query = query.lte('price', maxPriceFilter);
+      if (bedroomsFilter !== null && !Number.isNaN(bedroomsFilter)) query = query.eq('bedrooms', bedroomsFilter);
       
-      // Partial location search - matches town, address, or parish
-      if (filters.location) {
-        const searchTerm = `%${filters.location}%`;
+      // Location search - matches town, address, or parish (only if location filter is active AND no parish filter)
+      if (locationFilter && !parishFilter) {
+        const searchTerm = `%${locationFilter}%`;
         query = query.or(`town.ilike.${searchTerm},address.ilike.${searchTerm},parish.ilike.${searchTerm}`);
       }
 
@@ -215,7 +222,7 @@ export default function Home() {
       {/* Beta Banner */}
       {/* <BetaBanner propertyCount={totalCount} /> */}
 
-      <div className="container mx-auto px-4 py-8">
+      <div className="container  mx-auto px-4 py-8">
         <h1 className="text-4xl font-bold text-center mb-4 text-gray-900">Find Your Perfect Rental</h1>
         <p className="text-center text-gray-600 mb-8">Browse available properties across Jamaica</p>
 
@@ -312,7 +319,7 @@ export default function Home() {
             />
           </div>
 
-          <button type="submit" className="bg-gray-800 text-white px-6 py-2.5 rounded-lg hover:bg-gray-700 transition font-medium">
+          <button type="submit" className="btn-accent px-6 py-2.5 font-medium rounded-lg">
             Update Results
           </button>
         </form>
@@ -338,7 +345,7 @@ export default function Home() {
                     setLocationInput('');
                     setPage(1);
                   }}
-                  className="inline-block bg-gradient-to-r from-blue-600 to-blue-700 text-white px-8 py-3 rounded-lg font-bold hover:from-blue-700 hover:to-blue-800 transition shadow-lg"
+                  className="btn-accent px-8 py-3 font-bold rounded-lg"
                 >
                   Clear All Filters
                 </button>
@@ -353,7 +360,7 @@ export default function Home() {
                 </p>
                 <Link
                   href="/landlord/dashboard"
-                  className="inline-block bg-gradient-to-r from-purple-600 to-pink-600 text-white px-8 py-3 rounded-lg font-bold hover:from-purple-700 hover:to-pink-700 transition shadow-lg"
+                  className="btn-accent px-8 py-3 font-bold rounded-lg inline-block"
                 >
                   Claim Your Spot →
                 </Link>
@@ -382,7 +389,7 @@ export default function Home() {
               <nav className="flex justify-center items-center gap-2 mb-8">
                 <button
                   onClick={() => setPage(Math.max(1, page - 1))}
-                  className="px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-700 disabled:opacity-50 transition"
+                  className="btn-accent px-4 py-2 rounded-lg disabled:opacity-50"
                 >
                   ← Prev
                 </button>
@@ -394,7 +401,7 @@ export default function Home() {
                     <button
                       key={pageNum}
                       onClick={() => setPage(pageNum)}
-                      className={`px-4 py-2 rounded-lg transition ${page === pageNum ? 'bg-gray-900 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
+                      className={`px-4 py-2 rounded-lg transition ${page === pageNum ? 'btn-accent' : 'btn-accent-outline'}`}
                     >
                       {pageNum}
                     </button>
@@ -404,7 +411,7 @@ export default function Home() {
                 <button
                   onClick={() => setPage(Math.min(totalPages, page + 1))}
                   disabled={page === totalPages}
-                  className="px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-700 disabled:opacity-50 transition"
+                  className="btn-accent px-4 py-2 rounded-lg disabled:opacity-50"
                 >
                   Next →
                 </button>

@@ -6,6 +6,47 @@ html, body, #__next {
   height: 100%;
 }
 
+/* Accent color system */
+:root {
+  --accent-color: #F55353;
+  --accent-color-hover: #d14a4a;
+  --accent-ring: rgba(245, 83, 83, 0.35);
+}
+
+/* Accent helpers */
+.text-accent { color: var(--accent-color); }
+.bg-accent { background-color: var(--accent-color); }
+.border-accent { border-color: var(--accent-color); }
+
+/* Primary button using accent color */
+.btn-accent {
+  background-color: var(--accent-color);
+  color: #fff;
+  border-radius: 0.5rem;
+  padding: 0.625rem 1rem;
+  font-weight: 600;
+  transition: background-color 150ms, box-shadow 150ms, transform 150ms;
+}
+.btn-accent:hover { background-color: var(--accent-color-hover); }
+.btn-accent:focus { box-shadow: 0 0 0 3px var(--accent-ring); }
+.btn-accent:disabled { opacity: 0.6; cursor: not-allowed; }
+
+/* Outline button variant */
+.btn-accent-outline {
+  background-color: transparent;
+  color: var(--accent-color);
+  border: 2px solid var(--accent-color);
+  border-radius: 0.5rem;
+  padding: 0.5625rem 1rem;
+  font-weight: 600;
+  transition: color 150ms, border-color 150ms, background-color 150ms;
+}
+.btn-accent-outline:hover {
+  background-color: var(--accent-color);
+  color: #fff;
+}
+.btn-accent-outline:focus { box-shadow: 0 0 0 3px var(--accent-ring); }
+
 html,
 body {
   padding: 0;

@@ -28,8 +28,8 @@ export default function Footer() {
                 </a>
               </li>
               <li>
-                <a href="/blog" className="text-gray-600 hover:text-blue-600 transition">
-                  Blog
+                <a href="https://www.expensegoose.com" rel="dofollow" className="text-gray-600 hover:text-blue-600 transition">
+                  Expensegoose.com
                 </a>
               </li>
             </ul>
@@ -37,7 +37,7 @@ export default function Footer() {
 
           {/* For Landlords */}
           <div>
-            <h3 className="font-bold text-gray-900 mb-3">For Landlords</h3>
+            <h3 className="font-bold text-gray-900 mb-3">For Property Owners</h3>
             <ul className="space-y-2 text-sm">
               <li>
                 <a href="/landlord/dashboard" className="text-gray-600 hover:text-blue-600 transition">
@@ -84,13 +84,13 @@ export default function Footer() {
             <h3 className="font-bold text-gray-900 mb-3">Contact</h3>
             <ul className="space-y-2 text-sm text-gray-600">
               <li>
-                <a href="mailto:info@dosnine.com" className="hover:text-blue-600 transition">
-                  info@dosnine.com
+                <a href="mailto:dosnineco@gmail.com" className="hover:text-blue-600 transition">
+                  dosnineco@gmail.com
                 </a>
               </li>
               <li>
-                <a href="tel:+18765551234" className="hover:text-blue-600 transition">
-                  +1 (876) 555-1234
+                <a href="tel:+18763369045" className="hover:text-blue-600 transition">
+                  +1 (876) 336-9045
                 </a>
               </li>
               <li>Kingston, Jamaica</li>

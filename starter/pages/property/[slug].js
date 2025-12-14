@@ -188,8 +188,8 @@ export default function PropertyPage({ property, similarProperties }) {
 
       <div className="container mx-auto px-4 py-8">
         {/* Breadcrumb Navigation */}
-        <div className="mb-4">
-          <Link href="/" className="text-blue-600 hover:underline">← Back to Browse</Link>
+        <div className="mb-4 ">
+          <Link href="/" className="btn-accent">← Back to Browse</Link>
         </div>
         
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -283,14 +283,14 @@ export default function PropertyPage({ property, similarProperties }) {
 
           {/* Sidebar: Contact Info */}
           <div>
-            <div className="bg-white rounded-xl  p-6 sticky top-4">
+            <div className="bg-white rounded-xl  p-6 relative top-4">
               {isOwner && !property.is_featured ? (
                 <div className="mb-6">
                   <h3 className="text-xl font-bold mb-4">Boost Your Property</h3>
                   <p className="text-gray-600 mb-4 text-sm">Get more visibility by featuring this property on the homepage banner!</p>
                   <Link
                     href="/landlord/boost-property"
-                    className="block w-full bg-gradient-to-r from-yellow-400 to-orange-500 text-white text-center py-3 rounded-lg hover:from-yellow-500 hover:to-orange-600 transition font-semibold"
+                    className="block w-full btn-accent text-center py-3 rounded-lg font-semibold"
                   >
                     <Zap className="inline w-5 h-5 mr-2" />
                     Boost This Property
@@ -309,9 +309,9 @@ export default function PropertyPage({ property, similarProperties }) {
                   href={`https://wa.me/${property.phone_number}?text=Hi, I'm interested in ${encodeURIComponent(property.title)} at ${encodeURIComponent(property.address)}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="block w-full bg-green-500 text-white text-center py-3 rounded-lg hover:bg-green-600 transition font-semibold"
+                  className="block w-full btn-accent text-center py-3 rounded-lg font-semibold"
                 >
-                  💬 Message on WhatsApp
+                  WhatsApp
                 </a>
                 
                 <div className="pt-4 border-t">
@@ -320,7 +320,7 @@ export default function PropertyPage({ property, similarProperties }) {
 
                 <a
                   href={`tel:${property.phone_number}`}
-                  className="mt-3 flex items-center justify-center gap-3 w-full border border-gray-200 text-gray-800 text-center py-3 rounded-lg hover:bg-gray-50 transition font-semibold"
+                  className="mt-3 flex items-center justify-center gap-3 w-full btn-accent-outline text-center py-3 rounded-lg font-semibold"
                 >
                   <Phone className="w-5 h-5" />
                   <span>{formatPhone(property.phone_number) || 'Call Landlord'}</span>
@@ -361,7 +361,7 @@ export default function PropertyPage({ property, similarProperties }) {
                       {prop.is_featured && (
                         <div className="absolute top-2 right-2 bg-yellow-400 text-black px-2 py-1 rounded-full text-xs font-bold">⭐</div>
                       )}
-                      <div className="absolute bottom-2 left-2 bg-green-600 text-white px-2 py-1 rounded text-sm font-semibold">
+                      <div className="absolute bottom-2 left-2 bg-accent text-white px-2 py-1 rounded text-sm font-semibold">
                         {formatMoney(prop.price)}
                       </div>
                     </div>
@@ -371,8 +371,8 @@ export default function PropertyPage({ property, similarProperties }) {
                       <p className="text-sm text-gray-600 mb-2">{prop.town}, {prop.parish}</p>
                       
                       <div className="flex gap-3 text-sm text-gray-700">
-                        <span>🛏️ {prop.bedrooms}</span>
-                        <span>🚿 {prop.bathrooms}</span>
+                        <span>{prop.bedrooms} bed</span>
+                        <span>{prop.bathrooms} bath</span>
                         <span className="ml-auto text-xs">👁️ {prop.views || 0}</span>
                       </div>
                     </div>

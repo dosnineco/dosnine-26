@@ -113,12 +113,12 @@ function AppContent({ Component, pageProps, isPublicRoute }) {
               <p className="text-lg text-gray-600 mb-8">Sign in to access your dashboard and manage properties.</p>
               <div className="flex flex-col space-y-4">
                 <SignInButton>
-                  <button className="w-full px-6 py-3 font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-lg hover:shadow-xl transition duration-200 transform hover:scale-105">
+                  <button className="w-full px-6 py-3 font-bold rounded-lg shadow-lg hover:shadow-xl transition duration-200 transform hover:scale-105 btn-accent">
                     Sign In
                   </button>
                 </SignInButton>
                 <SignUpButton>
-                  <button className="w-full px-6 py-3 font-bold text-blue-600 bg-white border-2 border-blue-600 hover:bg-blue-50 rounded-lg shadow-md hover:shadow-lg transition duration-200 transform hover:scale-105">
+                  <button className="w-full px-6 py-3 font-bold rounded-lg shadow-md hover:shadow-lg transition duration-200 transform hover:scale-105 btn-accent-outline">
                     Sign Up
                   </button>
                 </SignUpButton>

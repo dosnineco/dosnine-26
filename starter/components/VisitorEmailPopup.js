@@ -117,7 +117,7 @@ export default function VisitorEmailPopup() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full px-4 py-2 bg-orange-600 text-white font-semibold rounded-lg hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
+            className="w-full px-4 py-2 font-semibold rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition btn-accent"
           >
             {loading ? 'Saving...' : 'Get Property Alerts'}
           </button>
@@ -125,7 +125,7 @@ export default function VisitorEmailPopup() {
           <button
             type="button"
             onClick={handleDismiss}
-            className="w-full px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition text-sm"
+            className="w-full px-4 py-2 rounded-lg transition text-sm btn-accent-outline"
           >
             Maybe Later
           </button>

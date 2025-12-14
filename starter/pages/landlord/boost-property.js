@@ -236,7 +236,7 @@ export default function BoostProperty() {
               Next available spot: {new Date(nextAvailableDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
             </p>
           )}
-          <Link href="/landlord/dashboard" className="inline-block mt-6 px-6 py-3 bg-gray-700 text-white rounded-lg hover:bg-gray-800">
+          <Link href="/landlord/dashboard" className="inline-block mt-6 px-6 py-3 rounded-lg btn-accent">
             Back to Dashboard
           </Link>
         </div>
@@ -280,7 +280,7 @@ export default function BoostProperty() {
           {properties.length === 0 && (
             <div className="bg-gray-50 border-2 border-gray-200 rounded-lg p-8 text-center">
               <p className="text-gray-600 mb-4">You don't have any available properties to boost.</p>
-              <Link href="/landlord/new-property" className="inline-block px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+              <Link href="/landlord/new-property" className="inline-block px-6 py-3 rounded-lg btn-accent">
                 Post a Property
               </Link>
             </div>
@@ -291,7 +291,7 @@ export default function BoostProperty() {
             <div className="bg-white border-2 border-gray-200 rounded-lg p-8">
               <button
                 onClick={() => setSelectedProperty(null)}
-                className="text-blue-600 hover:text-blue-800 mb-4"
+                className="text-accent hover:underline mb-4"
               >
                 ← Change Property
               </button>
