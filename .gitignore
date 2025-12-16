@@ -1,33 +1,49 @@
 # dependencies
-node_modules
-starter/node_modules
+node_modules/
+starter/node_modules/
 .pnp
 .pnp.js
+yarn.lock
+package-lock.json
 
 # testing
-coverage
+coverage/
+.nyc_output/
+*.lcov
 
 # next.js
 .next/
 starter/.next/
 out/
-build
+build/
+dist/
+.cache/
 
 # production
-build
+build/
 
 # misc
 .DS_Store
 *.pem
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
 
 # debug
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+.pnpm-debug.log*
+lerna-debug.log*
 
 # local env files
-.env*.local
 .env
+.env*.local
+.env.development.local
+.env.test.local
+.env.production.local
 
 # vercel
 .vercel
@@ -35,3 +51,28 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# turbo
+.turbo
+
+# testing
+*.test.js.snap
+__snapshots__/
+
+# OS files
+Thumbs.db
+Desktop.ini
+
+# IDEs
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+*.code-workspace
+
+# temporary files
+*.tmp
+*.temp
+.temp/
+.tmp/
