@@ -10,7 +10,7 @@ function toXml(urls) {
 
 export async function getServerSideProps({ res }) {
   try {
-    const staticPages = ['/', '/property', '/blog', '/landlord', '/landlord/dashboard', '/landlord/new-property', '/contact', '/privacy-policy', '/terms-of-service'];
+    const staticPages = ['/', '/property', '/blog', '/properties/my-listings', '/properties/new', '/contact', '/privacy-policy', '/terms-of-service'];
 
     const { data: properties, error } = await supabase.from('properties').select('slug, updated_at').limit(1000);
     const urls = [];

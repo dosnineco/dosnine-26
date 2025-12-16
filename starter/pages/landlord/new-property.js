@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { useUser } from '@clerk/nextjs';
 import { useRouter } from 'next/router';
 import { supabase } from '../../lib/supabase';
+import axios from 'axios';
 import toast from 'react-hot-toast';
 
 const PARISHES = [
@@ -94,6 +95,33 @@ const handleSubmit = async (e) => {
     toast.error("You must be logged in");
     return;
   }
+
+  // Check property limit before allowing submission
+  try {
+    const { data: limitCheck } = await axios.get('/api/properties/check-limit', {
+      params: { clerkId: user.id }
+    });
+
+    if (!limitCheck.canPost) {
+      if (limitCheck.reason === 'verification_required') {
+        toast.error('Agent verification required. Please complete your agent profile.');
+        router.push('/agent/signup');
+        return;
+      } else if (limitCheck.reason === 'payment_required') {
+        toast.error('Payment required to access agent features.');
+        router.push('/agent/payment');
+        return;
+      } else if (limitCheck.reason === 'limit_reached') {
+        toast.error('Property limit reached. Regular users can post 1 property. Become a verified agent for unlimited postings!');
+        return;
+      }
+    }
+  } catch (limitError) {
+    console.error('Failed to check property limit:', limitError);
+    toast.error('Unable to verify posting permissions');
+    return;
+  }
+
   if (images.length === 0) {
     toast.error('Please upload at least one image');
     return;

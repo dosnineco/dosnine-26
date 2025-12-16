@@ -152,7 +152,7 @@ export default function ContactPage() {
                     </a>
                   </li>
                   <li>
-                      <a href="/landlord/boost-property" className="text-accent hover:underline">
+                      <a href="/properties/boost-property" className="text-accent hover:underline">
                       Boost Your Property
                     </a>
                   </li>

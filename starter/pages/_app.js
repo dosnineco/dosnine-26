@@ -6,6 +6,7 @@ import Footer from '../components/Footer';
 import BoostedPropertyBanner from '../components/BoostedPropertyBanner';
 import VisitorEmailPopup from '../components/VisitorEmailPopup';
 import Seo from '../components/Seo';
+import SiteProtection from '../components/SiteProtection';
 import { useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { Toaster } from 'react-hot-toast';
@@ -77,6 +78,7 @@ function AppContent({ Component, pageProps, isPublicRoute }) {
   return (
     <>
       <Seo />
+      <SiteProtection />
       <Toaster position="top-center" />
       <Header />
       {/* Show boost banner on all pages */}

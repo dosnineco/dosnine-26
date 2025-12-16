@@ -1,15 +1,18 @@
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { UserButton, useUser } from '@clerk/nextjs';
-import { FiHome, FiGrid, FiPlusCircle, FiMenu, FiSettings } from 'react-icons/fi';
+import { FiHome, FiGrid, FiPlusCircle, FiMenu, FiSettings, FiUser } from 'react-icons/fi';
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
+import RequestAgentPopup from './RequestAgentPopup';
 
 export default function Header() {
   const router = useRouter();
   const { isSignedIn, user } = useUser();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isVerifiedAgent, setIsVerifiedAgent] = useState(false);
+  const [showRequestPopup, setShowRequestPopup] = useState(false);
 
   useEffect(() => {
     const checkAdmin = async () => {
@@ -17,19 +20,41 @@ export default function Header() {
       
       const { data, error } = await supabase
         .from('users')
-        .select('role')
+        .select('role, agent:agents(verification_status, payment_status)')
         .eq('clerk_id', user.id)
         .single();
       
-      console.log('Admin check - Clerk ID:', user.id);
-      console.log('Admin check - User data:', data);
-      console.log('Admin check - Error:', error);
-      console.log('Admin check - Is Admin:', data?.role === 'admin');
-      
       setIsAdmin(data?.role === 'admin');
+      
+      // Check if user is verified and paid agent
+      if (data?.agent?.verification_status === 'approved' && 
+          data?.agent?.payment_status === 'paid') {
+        setIsVerifiedAgent(true);
+      }
     };
     checkAdmin();
   }, [user]);
+
+  // Auto-popup Request Agent modal for visitors on homepage
+  useEffect(() => {
+    // Only show on homepage
+    if (router.pathname !== '/') return;
+    
+    // Don't show if user is signed in
+    if (isSignedIn) return;
+    
+    // Check if popup was already shown this session
+    const hasShownPopup = sessionStorage.getItem('hasShownRequestAgentPopup');
+    if (hasShownPopup) return;
+    
+    // Show popup after 3 seconds
+    const timer = setTimeout(() => {
+      setShowRequestPopup(true);
+      sessionStorage.setItem('hasShownRequestAgentPopup', 'true');
+    }, 3000);
+    
+    return () => clearTimeout(timer);
+  }, [router.pathname, isSignedIn]);
 
   return (
     <header className="bg-white border-b border-gray-200 sticky top-0 z-50 ">
@@ -48,20 +73,28 @@ export default function Header() {
               >
                 Browse
               </Link>
-              <Link 
-                href="/landlord/dashboard" 
-                className={`px-3 py-2 rounded-lg transition text-sm flex items-center gap-1 ${router.pathname === '/landlord/dashboard' ? ' text-gray-900 font-medium' : 'text-gray-600 hover:bg-gray-100'}`}
+              <button
+                onClick={() => setShowRequestPopup(true)}
+                className="px-3 py-2 rounded-lg transition text-sm text-accent hover:bg-accent/10 font-medium"
               >
-                <FiGrid size={16} />
-                Properties
-              </Link>
+                Find Agent
+              </button>
               <Link 
-                href="/landlord/new-property" 
-                className="px-3 py-2 rounded-lg hover:bg-gray-100 transition text-sm flex items-center flex items-center gap-1"
+                href="/dashboard" 
+                className={`px-3 py-2 rounded-lg transition text-sm flex items-center gap-1 ${router.pathname === '/dashboard' ? 'bg-accent text-white' : 'text-gray-600 hover:bg-gray-100'}`}
               >
-                <FiPlusCircle size={16} />
-                Post
+                <FiHome size={16} />
+                Dashboard
               </Link>
+              {isVerifiedAgent && (
+                <Link 
+                  href="/agent/dashboard" 
+                  className={`px-3 py-2 rounded-lg transition text-sm flex items-center gap-1 ${router.pathname === '/agent/dashboard' ? 'bg-accent text-white' : 'text-gray-600 hover:bg-gray-100'}`}
+                >
+                  <FiUser size={16} />
+                  Agent Dashboard
+                </Link>
+              )}
               {isAdmin && (
                 <Link 
                   href="/admin/dashboard" 
@@ -74,12 +107,26 @@ export default function Header() {
               <UserButton afterSignOutUrl="/" />
             </>
           ) : (
-            <Link 
-              href="/landlord/dashboard" 
-              className={`px-3 py-2 rounded-lg transition text-sm ${router.pathname === '/landlord/dashboard' ? 'bg-gray-200 text-gray-900 font-medium' : 'text-gray-600 hover:bg-gray-100'}`}
-            >
-              Post a Property
-            </Link>
+            <>
+              <Link 
+                href="/" 
+                className={`px-3 py-2 rounded-lg transition text-sm ${router.pathname === '/' ? ' text-gray-900 font-medium' : 'text-gray-600 hover:bg-gray-100'}`}
+              >
+                Browse
+              </Link>
+              <button
+                onClick={() => setShowRequestPopup(true)}
+                className="px-3 py-2 rounded-lg transition text-sm text-white bg-accent hover:bg-accent/90 font-medium"
+              >
+                Find Agent
+              </button>
+              <Link 
+                href="/dashboard" 
+                className={`px-3 py-2 rounded-lg transition text-sm ${router.pathname === '/dashboard' ? 'bg-gray-200 text-gray-900 font-medium' : 'text-gray-600 hover:bg-gray-100'}`}
+              >
+                Sign In
+              </Link>
+            </>
           )}
         </div>
 
@@ -96,7 +143,7 @@ export default function Header() {
         {/* Mobile Post Button - Show when NOT signed in */}
         {!isSignedIn && (
           <Link 
-            href="/landlord/dashboard" 
+            href="/properties/new" 
             className="md:hidden px-4 py-2 bg-gray-800 text-white rounded-lg text-sm font-medium hover:bg-gray-700 transition"
           >
             Post a Property
@@ -141,22 +188,24 @@ export default function Header() {
                 </Link>
                 
                 <Link 
-                  href="/landlord/dashboard" 
+                  href="/dashboard" 
                   onClick={() => setMobileMenuOpen(false)}
-                  className={`px-4 py-3 rounded-lg font-medium flex items-center gap-2 ${router.pathname === '/landlord/dashboard' ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50'}`}
+                  className={`px-4 py-3 rounded-lg font-medium flex items-center gap-2 ${router.pathname === '/dashboard' ? 'bg-accent text-white' : 'text-gray-700 hover:bg-gray-50'}`}
                 >
-                  <FiGrid size={18} />
-                  My Properties
+                  <FiHome size={18} />
+                  Dashboard
                 </Link>
-                
-                <Link 
-                  href="/landlord/new-property" 
-                  onClick={() => setMobileMenuOpen(false)}
-                  className={`px-4 py-3 rounded-lg font-medium flex items-center gap-2 ${router.pathname === '/landlord/new-property' ? 'bg-gray-800 text-white' : 'bg-gray-800 text-white hover:bg-gray-700'}`}
-                >
-                  <FiPlusCircle size={18} />
-                  Post Property
-                </Link>
+
+                {isVerifiedAgent && (
+                  <Link 
+                    href="/agent/dashboard" 
+                    onClick={() => setMobileMenuOpen(false)}
+                    className={`px-4 py-3 rounded-lg font-medium flex items-center gap-2 ${router.pathname === '/agent/dashboard' ? 'bg-accent text-white' : 'text-gray-700 hover:bg-gray-50'}`}
+                  >
+                    <FiUser size={18} />
+                    Agent Dashboard
+                  </Link>
+                )}
                 
                 {isAdmin && (
                   <Link 
@@ -180,6 +229,12 @@ export default function Header() {
           </div>
         </>
       )}
+
+      {/* Request Agent Popup */}
+      <RequestAgentPopup 
+        isOpen={showRequestPopup} 
+        onClose={() => setShowRequestPopup(false)} 
+      />
     </header>
   );
 }

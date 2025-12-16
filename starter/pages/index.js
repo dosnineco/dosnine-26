@@ -359,7 +359,7 @@ export default function Home() {
                   Early landlords get exclusive benefits including free featured listings, priority placement, and a beta tester badge.
                 </p>
                 <Link
-                  href="/landlord/dashboard"
+                  href="/properties/my-listings"
                   className="btn-accent px-8 py-3 font-bold rounded-lg inline-block"
                 >
                   Claim Your Spot →

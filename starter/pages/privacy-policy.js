@@ -14,9 +14,65 @@ export default function PrivacyPolicy() {
         <div className="container mx-auto px-4 max-w-4xl">
           <div className="bg-white rounded-lg shadow-sm p-8">
             <h1 className="text-4xl font-bold text-gray-900 mb-4">Privacy Policy</h1>
-            <p className="text-gray-600 mb-8">Last Updated: November 25, 2025</p>
+            <p className="text-gray-600 mb-8">Last Updated: December 15, 2025</p>
 
             <div className="prose prose-lg max-w-none">
+              
+              {/* CRITICAL DATA SHARING NOTICE */}
+              <section className="mb-8 bg-red-50 border-4 border-red-600 rounded-lg p-6">
+                <h2 className="text-3xl font-bold text-red-900 mb-4">⚠️ IMPORTANT: Agent and Client Data Sharing Notice</h2>
+                
+                <div className="mb-6 bg-white p-4 rounded border-2 border-red-400">
+                  <h3 className="text-xl font-semibold text-red-900 mb-3">For Verified Real Estate Agents:</h3>
+                  <p className="text-gray-900 mb-4 font-semibold">
+                    By registering as a verified agent on our platform, you EXPLICITLY AND IRREVOCABLY CONSENT to the following data sharing:
+                  </p>
+                  <ul className="list-disc pl-6 mb-4 text-gray-900 space-y-2">
+                    <li><strong>Your full name, business name, phone number, and email address</strong> will be visible to clients who request your services</li>
+                    <li><strong>Your professional information</strong> (years of experience, specializations, license number, service areas) will be displayed publicly to potential clients</li>
+                    <li><strong>Clients can and will directly contact you</strong> via phone or email once they submit a service request to you</li>
+                    <li><strong>You will receive notifications</strong> containing complete client contact information including name, phone, email, and detailed property requirements</li>
+                    <li><strong>Your uploaded verification documents</strong> (agent license, business registration) will be reviewed by administrators and may be retained for compliance purposes</li>
+                  </ul>
+                  <p className="text-red-900 font-bold text-sm mt-4">
+                    ⚠️ YOU CANNOT WITHDRAW THIS CONSENT ONCE SUBMITTED. If you wish to stop receiving client requests, you must deactivate your agent account.
+                  </p>
+                </div>
+
+                <div className="mb-6 bg-white p-4 rounded border-2 border-red-400">
+                  <h3 className="text-xl font-semibold text-red-900 mb-3">For Premium Service Request Clients:</h3>
+                  <p className="text-gray-900 mb-4 font-semibold">
+                    By submitting a premium service request ($49.99), you EXPLICITLY AND IRREVOCABLY CONSENT to the following data sharing:
+                  </p>
+                  <ul className="list-disc pl-6 mb-4 text-gray-900 space-y-2">
+                    <li><strong>Your full name, phone number, and email address</strong> will be immediately shared with the verified agent you select</li>
+                    <li><strong>Your complete property requirements</strong> (property type, location, budget range, bedrooms, bathrooms, timeline, and all special requirements) will be visible to the selected agent</li>
+                    <li><strong>The agent can and will directly contact you</strong> via phone or email to assist with your property search</li>
+                    <li><strong>Your contact information will be retained</strong> in the agent's notification dashboard for the duration of your service period (30 days minimum)</li>
+                  </ul>
+                  <p className="text-red-900 font-bold text-sm mt-4">
+                    ⚠️ ONCE SUBMITTED, YOUR INFORMATION IS IMMEDIATELY SHARED WITH THE AGENT. This cannot be undone. The agent will have permanent access to the information you provided in your service request.
+                  </p>
+                </div>
+
+                <div className="bg-yellow-100 border-2 border-yellow-600 p-4 rounded mt-4">
+                  <p className="text-gray-900 font-bold mb-2">Legal Protection and Disclaimer:</p>
+                  <p className="text-sm text-gray-800">
+                    Dosnine Properties acts solely as a platform connecting agents and clients. We are NOT responsible for:
+                  </p>
+                  <ul className="list-disc pl-6 text-sm text-gray-800 space-y-1 mt-2">
+                    <li>How agents use client contact information</li>
+                    <li>The quality, legality, or outcome of agent-client communications</li>
+                    <li>Any disputes, damages, or issues arising from agent-client interactions</li>
+                    <li>Verification of agent credentials beyond document review</li>
+                    <li>Misuse of shared data by either party</li>
+                  </ul>
+                  <p className="text-sm text-gray-800 font-semibold mt-3">
+                    BY USING THIS PLATFORM, YOU RELEASE DOSNINE PROPERTIES FROM ANY AND ALL LIABILITY RELATED TO DATA SHARING BETWEEN AGENTS AND CLIENTS.
+                  </p>
+                </div>
+              </section>
+
               <section className="mb-8">
                 <h2 className="text-2xl font-bold text-gray-900 mb-4">1. Introduction</h2>
                 <p className="text-gray-700 mb-4">

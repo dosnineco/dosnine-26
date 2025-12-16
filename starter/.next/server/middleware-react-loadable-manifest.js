@@ -1,0 +1,1 @@
+self.__REACT_LOADABLE_MANIFEST="{\"index.js -> ../components/PropertyCard\":{\"id\":\"index.js -> ../components/PropertyCard\",\"files\":[\"static/chunks/components_PropertyCard_js.js\"]}}"

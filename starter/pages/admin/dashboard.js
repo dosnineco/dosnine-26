@@ -370,6 +370,20 @@ export default function AdminDashboard() {
           <FiTrendingUp size={18} />
           Analytics
         </button>
+        <Link
+          href="/admin/agents"
+          className="px-6 py-3 rounded-lg font-medium flex items-center gap-2 whitespace-nowrap bg-blue-600 text-white hover:bg-blue-700"
+        >
+          <FiUsers size={18} />
+          Agent Management
+        </Link>
+        <Link
+          href="/admin/allocation"
+          className="px-6 py-3 rounded-lg font-medium flex items-center gap-2 whitespace-nowrap bg-green-600 text-white hover:bg-green-700"
+        >
+          <FiTrendingUp size={18} />
+          Request Allocation
+        </Link>
         <button
           onClick={() => setActiveTab('users')}
           className={`px-6 py-3 rounded-lg font-medium flex items-center gap-2 whitespace-nowrap ${

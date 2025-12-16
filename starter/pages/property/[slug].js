@@ -289,7 +289,7 @@ export default function PropertyPage({ property, similarProperties }) {
                   <h3 className="text-xl font-bold mb-4">Boost Your Property</h3>
                   <p className="text-gray-600 mb-4 text-sm">Get more visibility by featuring this property on the homepage banner!</p>
                   <Link
-                    href="/landlord/boost-property"
+                    href="/properties/boost-property"
                     className="block w-full btn-accent text-center py-3 rounded-lg font-semibold"
                   >
                     <Zap className="inline w-5 h-5 mr-2" />
