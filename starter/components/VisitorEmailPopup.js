@@ -1,14 +1,36 @@
 import React, { useState, useEffect } from 'react';
+import { useUser } from '@clerk/nextjs';
 import { supabase } from '../lib/supabase';
 
 export default function VisitorEmailPopup() {
+  const { isSignedIn, user } = useUser();
   const [showPopup, setShowPopup] = useState(false);
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [isAgent, setIsAgent] = useState(false);
 
   useEffect(() => {
+    // Check if user is an agent
+    const checkAgent = async () => {
+      if (!user) return;
+      const { data } = await supabase
+        .from('agents')
+        .select('id')
+        .eq('clerk_id', user.id)
+        .single();
+      if (data) setIsAgent(true);
+    };
+    if (isSignedIn) {
+      checkAgent();
+    }
+  }, [isSignedIn, user]);
+
+  useEffect(() => {
+    // Don't show popup if user is signed in or is an agent
+    if (isSignedIn || isAgent) return;
+    
     // Check if user has already submitted email this session
     const hasSubmitted = sessionStorage.getItem('visitor-email-submitted');
     if (hasSubmitted) {
@@ -22,7 +44,7 @@ export default function VisitorEmailPopup() {
     }, 5000);
 
     return () => clearTimeout(timer);
-  }, []);
+  }, [isSignedIn, isAgent]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();

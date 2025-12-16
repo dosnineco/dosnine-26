@@ -9,7 +9,7 @@ import { useRoleProtection } from '../../lib/useRoleProtection';
 import { isVerifiedAgent, needsAgentPayment } from '../../lib/rbac';
 
 const PAYPAL_CLIENT_ID = process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID || "test";
-const UNLOCK_FEE = 50.00; // $50 one-time fee
+const UNLOCK_FEE = 0.01; // $50 one-time fee
 
 export default function AgentPayment() {
   // Protect route - only verified agents who need payment
@@ -42,8 +42,20 @@ export default function AgentPayment() {
         amount: {
           value: UNLOCK_FEE.toFixed(2),
           currency_code: 'USD'
+        },
+        shipping: {
+          address: {
+            address_line_1: 'Kingston',
+            admin_area_2: 'Kingston',
+            admin_area_1: 'Kingston',
+            postal_code: '00000',
+            country_code: 'JM'
+          }
         }
-      }]
+      }],
+      application_context: {
+        shipping_preference: 'NO_SHIPPING'
+      }
     });
   };
 
@@ -151,17 +163,25 @@ export default function AgentPayment() {
               {!processing ? (
                 <PayPalScriptProvider options={{ 
                   "client-id": PAYPAL_CLIENT_ID,
-                  currency: "USD"
+                  currency: "USD",
+                  locale: "en_US",
+                  components: "buttons,card-fields",
+                  "disable-funding": "paylater,venmo",
+                  "enable-funding": "card",
+                  "buyer-country": "JM"
                 }}>
                   <PayPalButtons
                     createOrder={createOrder}
                     onApprove={onApprove}
                     onError={onError}
+                    forceReRender={[UNLOCK_FEE]}
+                    fundingSource="card"
                     style={{
                       layout: 'vertical',
-                      color: 'gold',
+                      color: 'black',
                       shape: 'rect',
-                      label: 'pay'
+                      label: 'pay',
+                      height: 48
                     }}
                   />
                 </PayPalScriptProvider>
@@ -174,8 +194,9 @@ export default function AgentPayment() {
 
               {/* Security Note */}
               <div className="mt-6 text-center text-sm text-gray-500">
-                <p>🔒 Secure payment powered by PayPal</p>
-                <p className="mt-1">Your payment information is never stored on our servers</p>
+                <p>🔒 Secure card payment powered by PayPal</p>
+                <p className="mt-1">Pay directly with your debit or credit card</p>
+                <p className="mt-1 text-xs">No PayPal account required • Jamaica-friendly checkout</p>
               </div>
             </div>
           </div>
@@ -194,7 +215,7 @@ export default function AgentPayment() {
               </div>
               <div>
                 <p className="font-medium text-gray-900">What payment methods are accepted?</p>
-                <p className="text-gray-600 mt-1">Credit card, debit card, and PayPal balance via PayPal checkout.</p>
+                <p className="text-gray-600 mt-1">Credit and debit cards (Visa, Mastercard, Discover, Amex) - optimized for Jamaica.</p>
               </div>
             </div>
           </div>

@@ -4,7 +4,7 @@ import Head from 'next/head';
 import Seo from '../components/Seo';
 import Link from 'next/link';
 import { supabase } from '../lib/supabase';
-import { Sparkle, Zap, Search } from 'lucide-react';
+import { FiSearch } from 'react-icons/fi';
 import { useUser } from '@clerk/nextjs';
 import { formatMoney } from '../lib/formatMoney';
 import BetaBanner from '../components/BetaBanner';
@@ -334,7 +334,7 @@ export default function Home() {
             {hasActiveFilters ? (
               // Show "No results" message when filters are active
               <div className="max-w-2xl mx-auto bg-blue-50 border-2 border-blue-200 rounded-xl p-8">
-                <Search className="w-12 h-12 text-blue-600 mx-auto mb-4" />
+                <FiSearch className="w-12 h-12 text-blue-600 mx-auto mb-4" />
                 <h3 className="text-2xl font-bold text-gray-800 mb-3">No Results Found</h3>
                 <p className="text-gray-700 mb-6">
                   We couldn't find any properties matching your search criteria. Try adjusting your filters or clearing your search.

@@ -12,7 +12,7 @@ import { isVerifiedAgent } from '../../lib/rbac';
 import { 
   Home, Users, Mail, Phone, MapPin, DollarSign, 
   Bed, Bath, Calendar, Filter, CheckCircle, XCircle,
-  AlertCircle, Clock, Plus
+  AlertCircle, Clock, Plus, RotateCcw, Trash2
 } from 'lucide-react';
 
 export default function AgentDashboard() {
@@ -31,6 +31,7 @@ export default function AgentDashboard() {
   const [filterStatus, setFilterStatus] = useState('all');
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [showPaymentRequired, setShowPaymentRequired] = useState(false);
+  const [actionLoading, setActionLoading] = useState(false);
 
   useEffect(() => {
     if (initialUserData) {
@@ -80,6 +81,42 @@ export default function AgentDashboard() {
       }
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleRequestAction(requestId, action) {
+    if (!user?.id) return;
+    
+    const actionLabels = {
+      complete: 'Mark as Complete',
+      release: 'Release to Next Agent',
+      remove: 'Remove from Dashboard',
+    };
+
+    if (!confirm(`Are you sure you want to ${actionLabels[action]}?`)) {
+      return;
+    }
+
+    setActionLoading(true);
+    try {
+      const response = await axios.post('/api/agent/update-request', {
+        clerkId: user.id,
+        requestId,
+        action,
+      });
+
+      toast.success(response.data.message);
+      
+      // Refresh requests list
+      await fetchRequests();
+      
+      // Close modal if open
+      setSelectedRequest(null);
+    } catch (error) {
+      console.error('Failed to update request:', error);
+      toast.error(error.response?.data?.error || 'Failed to update request');
+    } finally {
+      setActionLoading(false);
     }
   }
 
@@ -270,7 +307,7 @@ export default function AgentDashboard() {
                   onClick={() => setFilterStatus(status)}
                   className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
                     filterStatus === status
-                      ? 'bg-blue-600 text-white'
+                      ? 'bg-accent text-white'
                       : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                   }`}
                 >
@@ -372,13 +409,41 @@ export default function AgentDashboard() {
                         </div>
                       </div>
 
-                      <div className="ml-4">
+                      <div className="ml-4 flex flex-col gap-2">
                         <button
                           onClick={() => setSelectedRequest(request)}
-                          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm"
+                          className="px-4 py-2 bg-accent text-white rounded-lg hover:bg-accent/90 text-sm whitespace-nowrap"
                         >
                           View Details
                         </button>
+                        {request.status !== 'completed' && (
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => handleRequestAction(request.id, 'complete')}
+                              disabled={actionLoading}
+                              className="px-3 py-1.5 bg-green-600 text-white rounded text-xs hover:bg-green-700 disabled:opacity-50 flex items-center gap-1"
+                              title="Mark as Complete"
+                            >
+                              <CheckCircle className="w-3 h-3" />
+                            </button>
+                            <button
+                              onClick={() => handleRequestAction(request.id, 'release')}
+                              disabled={actionLoading}
+                              className="px-3 py-1.5 bg-orange-600 text-white rounded text-xs hover:bg-orange-700 disabled:opacity-50 flex items-center gap-1"
+                              title="Release to Next Agent"
+                            >
+                              <RotateCcw className="w-3 h-3" />
+                            </button>
+                            <button
+                              onClick={() => handleRequestAction(request.id, 'remove')}
+                              disabled={actionLoading}
+                              className="px-3 py-1.5 bg-red-600 text-white rounded text-xs hover:bg-red-700 disabled:opacity-50 flex items-center gap-1"
+                              title="Remove from Dashboard"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </button>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -443,10 +508,38 @@ export default function AgentDashboard() {
                 </div>
               )}
 
-              <div className="pt-4 border-t">
+              <div className="pt-4 border-t flex gap-3">
+                {selectedRequest.status !== 'completed' && (
+                  <>
+                    <button
+                      onClick={() => handleRequestAction(selectedRequest.id, 'complete')}
+                      disabled={actionLoading}
+                      className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 flex items-center justify-center gap-2"
+                    >
+                      <CheckCircle className="w-4 h-4" />
+                      Mark Complete
+                    </button>
+                    <button
+                      onClick={() => handleRequestAction(selectedRequest.id, 'release')}
+                      disabled={actionLoading}
+                      className="flex-1 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:opacity-50 flex items-center justify-center gap-2"
+                    >
+                      <RotateCcw className="w-4 h-4" />
+                      Release
+                    </button>
+                    <button
+                      onClick={() => handleRequestAction(selectedRequest.id, 'remove')}
+                      disabled={actionLoading}
+                      className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 flex items-center justify-center gap-2"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                      Remove
+                    </button>
+                  </>
+                )}
                 <button
                   onClick={() => setSelectedRequest(null)}
-                  className="w-full px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300"
+                  className="flex-1 px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300"
                 >
                   Close
                 </button>

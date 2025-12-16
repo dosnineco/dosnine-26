@@ -290,7 +290,7 @@ export default function RequestAgentPopup({ isOpen, onClose }) {
                     <div className="grid grid-cols-2 gap-4 mb-4">
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Budget Min (USD)
+                          Budget Min
                         </label>
                         <input
                           type="number"
@@ -303,7 +303,7 @@ export default function RequestAgentPopup({ isOpen, onClose }) {
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Budget Max (USD)
+                          Budget Max 
                         </label>
                         <input
                           type="number"

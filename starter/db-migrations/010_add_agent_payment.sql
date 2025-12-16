@@ -30,10 +30,10 @@ CREATE POLICY "Paid agents can view requests"
 CREATE OR REPLACE FUNCTION increment_property_count()
 RETURNS TRIGGER AS $$
 BEGIN
-  IF NEW.landlord_user_id IS NOT NULL THEN
+  IF NEW.owner_id IS NOT NULL THEN
     UPDATE public.users 
     SET property_count = property_count + 1
-    WHERE id = NEW.landlord_user_id;
+    WHERE id = NEW.owner_id;
   END IF;
   RETURN NEW;
 END;
@@ -43,10 +43,10 @@ $$ LANGUAGE plpgsql;
 CREATE OR REPLACE FUNCTION decrement_property_count()
 RETURNS TRIGGER AS $$
 BEGIN
-  IF OLD.landlord_user_id IS NOT NULL THEN
+  IF OLD.owner_id IS NOT NULL THEN
     UPDATE public.users 
     SET property_count = GREATEST(property_count - 1, 0)
-    WHERE id = OLD.landlord_user_id;
+    WHERE id = OLD.owner_id;
   END IF;
   RETURN OLD;
 END;

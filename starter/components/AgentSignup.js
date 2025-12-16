@@ -206,18 +206,18 @@ export default function AgentSignup() {
 
   if (signupComplete) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-50 p-4 flex items-center">
-        <div className="max-w-md mx-auto bg-white rounded-lg shadow-2xl p-8 text-center">
+      <div className="min-h-screen bg-gray-50 p-4 flex items-center">
+        <div className="max-w-md mx-auto bg-white rounded-lg shadow-lg p-8 text-center">
           <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
-          <h1 className="text-2xl font-bold text-gray-800 mb-2">Application Submitted!</h1>
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">Application Submitted!</h1>
           <p className="text-gray-600 mb-6">
             Thank you for applying to become a verified agent. Our team will review your application within 24-48 hours and notify you via email.
           </p>
-          <div className="bg-blue-50 p-4 rounded-lg mb-6">
-            <p className="text-sm text-gray-700">
-              <strong>What happens next:</strong>
+          <div className="bg-accent/10 border border-accent/20 p-4 rounded-lg mb-6">
+            <p className="text-sm text-gray-900 font-semibold">
+              What happens next:
             </p>
-            <ul className="text-sm text-gray-600 space-y-2 mt-3">
+            <ul className="text-sm text-gray-700 space-y-2 mt-3 text-left">
               <li>✓ Document verification</li>
               <li>✓ License confirmation</li>
               <li>✓ Profile approval</li>
@@ -226,7 +226,7 @@ export default function AgentSignup() {
           </div>
           <a
             href="/"
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded font-semibold transition"
+            className="inline-block w-full btn-accent px-4 py-2 rounded-lg font-semibold transition"
           >
             Back to Home
           </a>
@@ -246,7 +246,7 @@ export default function AgentSignup() {
                 <div
                   className={`w-10 h-10 rounded-full flex items-center justify-center font-semibold transition ${
                     s <= step
-                      ? 'bg-blue-600 text-white'
+                      ? 'bg-accent text-white'
                       : 'bg-gray-300 text-gray-600'
                   }`}
                 >
@@ -255,7 +255,7 @@ export default function AgentSignup() {
                 {s < 3 && (
                   <div
                     className={`flex-1 h-1 mx-2 transition ${
-                      s < step ? 'bg-blue-600' : 'bg-gray-300'
+                      s < step ? 'bg-accent' : 'bg-gray-300'
                     }`}
                   />
                 )}
@@ -273,7 +273,7 @@ export default function AgentSignup() {
           {/* Step 1: Basic Information */}
           {step === 1 && (
             <div className="space-y-6">
-              <h2 className="text-2xl font-bold text-gray-800">Agent Registration</h2>
+              <h2 className="text-2xl font-bold text-gray-900">Agent Registration</h2>
               <p className="text-gray-600">Let's start with your basic information</p>
 
               {/* Full Name */}
@@ -285,7 +285,7 @@ export default function AgentSignup() {
                   type="text"
                   value={formData.fullName}
                   onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-600 outline-none"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-accent outline-none"
                   placeholder="Your full name"
                   required
                 />
@@ -314,7 +314,7 @@ export default function AgentSignup() {
                   type="tel"
                   value={formData.phone}
                   onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-600 outline-none"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-accent outline-none"
                   placeholder="+1 (555) 123-4567"
                   required
                 />
@@ -329,7 +329,7 @@ export default function AgentSignup() {
                   type="text"
                   value={formData.businessName}
                   onChange={(e) => setFormData({ ...formData, businessName: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-600 outline-none"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-accent outline-none"
                   placeholder="Your business name"
                   required
                 />
@@ -343,7 +343,7 @@ export default function AgentSignup() {
                 <select
                   value={formData.yearsExperience}
                   onChange={(e) => setFormData({ ...formData, yearsExperience: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-600 outline-none"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-accent outline-none"
                   required
                 >
                   <option value="">Select years</option>
@@ -368,7 +368,7 @@ export default function AgentSignup() {
                       onClick={() => handleSpecializationToggle(spec)}
                       className={`px-3 py-2 rounded-lg text-sm font-medium transition ${
                         formData.specializations.includes(spec)
-                          ? 'bg-blue-600 text-white'
+                          ? 'bg-accent text-white'
                           : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                       }`}
                     >
@@ -387,9 +387,12 @@ export default function AgentSignup() {
                   type="text"
                   value={formData.licenseNumber}
                   onChange={(e) => setFormData({ ...formData, licenseNumber: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-600 outline-none"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-accent outline-none"
                   placeholder="Your license number"
                 />
+                <p className="text-xs text-gray-500 mt-1">
+                  Verify at <a href="https://reb.gov.jm/search-public-register/dealer" target="_blank" rel="noopener noreferrer" className="text-accent hover:underline">Jamaica Real Estate Board</a>
+                </p>
               </div>
 
               {/* Service Areas */}
@@ -401,7 +404,7 @@ export default function AgentSignup() {
                   type="text"
                   value={formData.serviceAreas}
                   onChange={(e) => setFormData({ ...formData, serviceAreas: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-600 outline-none"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-accent outline-none"
                   placeholder="e.g., Kingston, St. Andrew, St. Catherine"
                 />
                 <p className="text-xs text-gray-500 mt-1">Comma-separated list</p>
@@ -415,7 +418,7 @@ export default function AgentSignup() {
                 <textarea
                   value={formData.aboutMe}
                   onChange={(e) => setFormData({ ...formData, aboutMe: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-600 outline-none"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-accent outline-none"
                   placeholder="Tell us about yourself and your experience..."
                   rows={4}
                 />
@@ -430,7 +433,7 @@ export default function AgentSignup() {
                   type="number"
                   value={formData.dealsClosedCount}
                   onChange={(e) => setFormData({ ...formData, dealsClosedCount: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-600 outline-none"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-accent outline-none"
                   placeholder="0"
                   min="0"
                 />
@@ -441,12 +444,12 @@ export default function AgentSignup() {
           {/* Step 2: Verification Documents */}
           {step === 2 && (
             <div className="space-y-6">
-              <h2 className="text-2xl font-bold text-gray-800">Document Verification</h2>
+              <h2 className="text-2xl font-bold text-gray-900">Document Verification</h2>
               <p className="text-gray-600">Please upload documents to verify your credentials</p>
 
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-start">
-                <AlertCircle className="w-5 h-5 text-blue-600 mr-3 mt-0.5 flex-shrink-0" />
-                <p className="text-sm text-blue-700">
+              <div className="bg-accent/10 border border-accent/20 rounded-lg p-4 flex items-start">
+                <AlertCircle className="w-5 h-5 text-accent mr-3 mt-0.5 flex-shrink-0" />
+                <p className="text-sm text-gray-700">
                   Upload clear images of your agent license and business registration (or government ID if no company). Files must be JPG or PNG and under 5MB.
                 </p>
               </div>
@@ -511,7 +514,7 @@ export default function AgentSignup() {
                     type="checkbox"
                     checked={verification.agreeToTerms}
                     onChange={(e) => setVerification({ ...verification, agreeToTerms: e.target.checked })}
-                    className="mt-1 w-4 h-4 border-gray-300 rounded focus:ring-blue-600 cursor-pointer"
+                    className="mt-1 w-4 h-4 border-gray-300 rounded focus:ring-accent cursor-pointer"
                   />
                   <label htmlFor="agree-terms" className="ml-3 text-sm text-gray-700">
                     I agree to the <a href="/terms-of-service" target="_blank" className="text-blue-600 hover:underline">Agent Terms and Conditions</a> *
@@ -524,7 +527,7 @@ export default function AgentSignup() {
                     type="checkbox"
                     checked={verification.dataConsent}
                     onChange={(e) => setVerification({ ...verification, dataConsent: e.target.checked })}
-                    className="mt-1 w-4 h-4 border-gray-300 rounded focus:ring-blue-600 cursor-pointer"
+                    className="mt-1 w-4 h-4 border-gray-300 rounded focus:ring-accent cursor-pointer"
                   />
                   <label htmlFor="data-consent" className="ml-3 text-sm text-gray-700">
                     <strong className="text-red-600">* REQUIRED:</strong> I consent to sharing my contact information (name, phone, email) and business details with clients who request my services through this platform. I understand that clients will be able to contact me directly. Read our full <a href="/privacy-policy" target="_blank" className="text-blue-600 hover:underline">Privacy Policy</a> for details on how your data is used and shared. *
@@ -537,7 +540,7 @@ export default function AgentSignup() {
           {/* Step 3: Review */}
           {step === 3 && (
             <div className="space-y-6">
-              <h2 className="text-2xl font-bold text-gray-800">Review Your Application</h2>
+              <h2 className="text-2xl font-bold text-gray-900">Review Your Application</h2>
               <p className="text-gray-600">Please review your information before submitting</p>
 
               <div className="space-y-4 bg-gray-50 p-4 rounded-lg">
@@ -565,7 +568,7 @@ export default function AgentSignup() {
                   <p className="text-xs uppercase font-semibold text-gray-500">Specializations</p>
                   <div className="flex flex-wrap gap-2 mt-1">
                     {formData.specializations.map(spec => (
-                      <span key={spec} className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded">
+                      <span key={spec} className="bg-accent/20 text-accent text-xs px-2 py-1 rounded">
                         {spec}
                       </span>
                     ))}
@@ -602,7 +605,7 @@ export default function AgentSignup() {
               className={`flex-1 text-white px-6 py-3 rounded-lg font-semibold transition ${
                 loading
                   ? 'bg-gray-400 cursor-not-allowed'
-                  : 'bg-blue-600 hover:bg-blue-700'
+                  : 'btn-accent'
               }`}
             >
               {loading ? 'Processing...' : step === 3 ? 'Submit Application' : 'Next'}

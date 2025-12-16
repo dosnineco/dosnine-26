@@ -1,4 +1,4 @@
-import { Sparkles, Clock } from 'lucide-react';
+import { FiStar, FiClock } from 'react-icons/fi';
 import Link from 'next/link';
 
 export default function BetaBanner({ propertyCount }) {
@@ -12,7 +12,7 @@ export default function BetaBanner({ propertyCount }) {
       <div className="container mx-auto">
         <div className="flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-3 text-center md:text-left">
-            <Sparkles className="w-6 h-6 animate-pulse" />
+            <FiStar className="w-6 h-6 animate-pulse" />
             <div>
               <h3 className="text-xl font-bold">🎉 Private Beta Now Open</h3>
               <p className="text-sm text-white/90">
@@ -24,7 +24,7 @@ export default function BetaBanner({ propertyCount }) {
           <div className="flex flex-col sm:flex-row items-center gap-3">
             <div className="bg-white/20 backdrop-blur-sm px-4 py-2 rounded-lg">
               <div className="flex items-center gap-2">
-                <Clock className="w-4 h-4" />
+                <FiClock className="w-4 h-4" />
                 <span className="font-semibold text-sm">
                   Only {spotsLeft} spots left for early adopters
                 </span>

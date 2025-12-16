@@ -14,6 +14,8 @@ export default function Header() {
   const [isVerifiedAgent, setIsVerifiedAgent] = useState(false);
   const [showRequestPopup, setShowRequestPopup] = useState(false);
 
+  const [isAgent, setIsAgent] = useState(false);
+
   useEffect(() => {
     const checkAdmin = async () => {
       if (!user) return;
@@ -25,6 +27,11 @@ export default function Header() {
         .single();
       
       setIsAdmin(data?.role === 'admin');
+      
+      // Check if user is any agent (approved or pending)
+      if (data?.agent) {
+        setIsAgent(true);
+      }
       
       // Check if user is verified and paid agent
       if (data?.agent?.verification_status === 'approved' && 
@@ -43,6 +50,9 @@ export default function Header() {
     // Don't show if user is signed in
     if (isSignedIn) return;
     
+    // Don't show if user is an agent
+    if (isAgent) return;
+    
     // Check if popup was already shown this session
     const hasShownPopup = sessionStorage.getItem('hasShownRequestAgentPopup');
     if (hasShownPopup) return;
@@ -54,7 +64,7 @@ export default function Header() {
     }, 3000);
     
     return () => clearTimeout(timer);
-  }, [router.pathname, isSignedIn]);
+  }, [router.pathname, isSignedIn, isAgent]);
 
   return (
     <header className="bg-white border-b border-gray-200 sticky top-0 z-50 ">
@@ -69,38 +79,37 @@ export default function Header() {
             <>
               <Link 
                 href="/" 
-                className={`px-3 py-2 rounded-lg hover:bg-gray-100 transition text-sm flex items-center ${router.pathname === '/' ? ' text-gray-900 font-medium' : 'text-gray-600 hover:bg-gray-100'}`}
+                className={`px-3 py-2 rounded-lg hover:bg-gray-100 transition text-sm ${router.pathname === '/' ? ' text-gray-900 font-medium' : 'text-gray-600 hover:bg-gray-100'}`}
               >
                 Browse
               </Link>
-              <button
-                onClick={() => setShowRequestPopup(true)}
-                className="px-3 py-2 rounded-lg transition text-sm text-accent hover:bg-accent/10 font-medium"
-              >
-                Find Agent
-              </button>
+              {!isAgent && (
+                <button
+                  onClick={() => setShowRequestPopup(true)}
+                  className="px-3 py-2 rounded-lg transition text-sm text-accent hover:bg-accent/10 font-medium"
+                >
+                  Find Agent
+                </button>
+              )}
               <Link 
                 href="/dashboard" 
-                className={`px-3 py-2 rounded-lg transition text-sm flex items-center gap-1 ${router.pathname === '/dashboard' ? 'bg-accent text-white' : 'text-gray-600 hover:bg-gray-100'}`}
+                className={`px-3 py-2 rounded-lg transition text-sm ${router.pathname === '/dashboard' ? 'bg-accent text-white' : 'text-gray-600 hover:bg-gray-100'}`}
               >
-                <FiHome size={16} />
                 Dashboard
               </Link>
               {isVerifiedAgent && (
                 <Link 
                   href="/agent/dashboard" 
-                  className={`px-3 py-2 rounded-lg transition text-sm flex items-center gap-1 ${router.pathname === '/agent/dashboard' ? 'bg-accent text-white' : 'text-gray-600 hover:bg-gray-100'}`}
+                  className={`px-3 py-2 rounded-lg transition text-sm ${router.pathname === '/agent/dashboard' ? 'bg-accent text-white' : 'text-gray-600 hover:bg-gray-100'}`}
                 >
-                  <FiUser size={16} />
                   Agent Dashboard
                 </Link>
               )}
               {isAdmin && (
                 <Link 
                   href="/admin/dashboard" 
-                  className={`px-3 py-2 rounded-lg transition text-sm flex items-center gap-1 ${router.pathname === '/admin/dashboard' ? 'bg-gray-200 text-gray-900 font-medium' : 'text-gray-600 hover:bg-gray-100'}`}
+                  className={`px-3 py-2 rounded-lg transition text-sm ${router.pathname === '/admin/dashboard' ? 'bg-gray-200 text-gray-900 font-medium' : 'text-gray-600 hover:bg-gray-100'}`}
                 >
-                  <FiSettings size={16} />
                   Admin
                 </Link>
               )}
@@ -181,18 +190,16 @@ export default function Header() {
                 <Link 
                   href="/" 
                   onClick={() => setMobileMenuOpen(false)}
-                  className={`px-4 py-3 rounded-lg font-medium flex items-center gap-2 ${router.pathname === '/' ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50'}`}
+                  className={`px-4 py-3 rounded-lg font-medium ${router.pathname === '/' ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50'}`}
                 >
-                  <FiHome size={18} />
                   Browse Properties
                 </Link>
                 
                 <Link 
                   href="/dashboard" 
                   onClick={() => setMobileMenuOpen(false)}
-                  className={`px-4 py-3 rounded-lg font-medium flex items-center gap-2 ${router.pathname === '/dashboard' ? 'bg-accent text-white' : 'text-gray-700 hover:bg-gray-50'}`}
+                  className={`px-4 py-3 rounded-lg font-medium ${router.pathname === '/dashboard' ? 'bg-accent text-white' : 'text-gray-700 hover:bg-gray-50'}`}
                 >
-                  <FiHome size={18} />
                   Dashboard
                 </Link>
 
@@ -200,9 +207,8 @@ export default function Header() {
                   <Link 
                     href="/agent/dashboard" 
                     onClick={() => setMobileMenuOpen(false)}
-                    className={`px-4 py-3 rounded-lg font-medium flex items-center gap-2 ${router.pathname === '/agent/dashboard' ? 'bg-accent text-white' : 'text-gray-700 hover:bg-gray-50'}`}
+                    className={`px-4 py-3 rounded-lg font-medium ${router.pathname === '/agent/dashboard' ? 'bg-accent text-white' : 'text-gray-700 hover:bg-gray-50'}`}
                   >
-                    <FiUser size={18} />
                     Agent Dashboard
                   </Link>
                 )}
@@ -211,9 +217,8 @@ export default function Header() {
                   <Link 
                     href="/admin/dashboard" 
                     onClick={() => setMobileMenuOpen(false)}
-                    className={`px-4 py-3 rounded-lg font-medium flex items-center gap-2 ${router.pathname === '/admin/dashboard' ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50'}`}
+                    className={`px-4 py-3 rounded-lg font-medium ${router.pathname === '/admin/dashboard' ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50'}`}
                   >
-                    <FiSettings size={18} />
                     Admin Dashboard
                   </Link>
                 )}

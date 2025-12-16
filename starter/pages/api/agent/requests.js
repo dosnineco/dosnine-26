@@ -34,17 +34,22 @@ export default async function handler(req, res) {
       return res.status(403).json({ error: 'Agent not verified' });
     }
 
-    // Build query - show open requests + assigned to this agent
+    // Build query based on status filter
     let query = supabase
       .from('service_requests')
-      .select('*')
-      .or(`status.eq.open,assigned_agent_id.eq.${agent.id}`)
-      .order('created_at', { ascending: false });
+      .select('*');
 
-    // Filter by status if provided
     if (status && status !== 'all') {
-      query = query.eq('status', status);
+      // Filter by specific status and assigned to this agent
+      query = query
+        .eq('status', status)
+        .eq('assigned_agent_id', agent.id);
+    } else {
+      // Show all requests assigned to this agent
+      query = query.eq('assigned_agent_id', agent.id);
     }
+
+    query = query.order('created_at', { ascending: false });
 
     const { data: requests, error } = await query;
 

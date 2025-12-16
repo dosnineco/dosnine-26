@@ -84,7 +84,7 @@ function AppContent({ Component, pageProps, isPublicRoute }) {
       {/* Show boost banner on all pages */}
       <BoostedPropertyBanner />
         {/* Show visitor email capture popup on all pages */}
-        <VisitorEmailPopup />
+        {/* <VisitorEmailPopup /> */}
       
       {isPublicRoute ? (
         <main className="min-h-screen">

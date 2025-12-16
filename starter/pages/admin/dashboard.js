@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
+import Head from 'next/head';
 import Link from 'next/link';
 import { useUser } from '@clerk/nextjs';
 import { supabase } from '../../lib/supabase';
 import toast from 'react-hot-toast';
-import { FiStar, FiTrash2, FiEye, FiGrid, FiUsers, FiZap, FiDollarSign, FiClock, FiTrendingUp } from 'react-icons/fi';
+import { FiStar, FiTrash2, FiEye, FiGrid, FiUsers, FiZap, FiDollarSign, FiClock, FiTrendingUp, FiMail } from 'react-icons/fi';
 import { formatJMD, formatMoney } from '../../lib/formatMoney';
 
 export default function AdminDashboard() {
@@ -14,6 +15,9 @@ export default function AdminDashboard() {
   const [boosts, setBoosts] = useState([]);
   const [visitorEmails, setVisitorEmails] = useState([]);
   const [boostStats, setBoostStats] = useState(null);
+  const [requests, setRequests] = useState([]);
+  const [agents, setAgents] = useState([]);
+  const [assignLoading, setAssignLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
 
@@ -77,6 +81,41 @@ export default function AdminDashboard() {
     link.click();
     document.body.removeChild(link);
     toast.success('Emails exported successfully!');
+  };
+
+  const handleManualAssign = async (requestId, agentId) => {
+    setAssignLoading(true);
+    try {
+      const now = new Date().toISOString();
+      
+      // Update request
+      const { error: updateError } = await supabase
+        .from('service_requests')
+        .update({
+          assigned_agent_id: agentId,
+          status: agentId ? 'assigned' : 'open',
+          assigned_at: agentId ? now : null,
+        })
+        .eq('id', requestId);
+
+      if (updateError) throw updateError;
+
+      // Update agent timestamp if assigning
+      if (agentId) {
+        await supabase
+          .from('agents')
+          .update({ last_request_assigned_at: now })
+          .eq('id', agentId);
+      }
+
+      toast.success(agentId ? 'Request assigned successfully' : 'Request unassigned');
+      fetchData(); // Refresh data
+    } catch (err) {
+      console.error('Assignment error:', err);
+      toast.error('Failed to update request');
+    } finally {
+      setAssignLoading(false);
+    }
   };
 
   const fetchData = async () => {
@@ -143,6 +182,24 @@ export default function AdminDashboard() {
           .order('created_at', { ascending: false })
           .limit(1000);
         setVisitorEmails(data || []);
+      } else if (activeTab === 'requests') {
+        const { data: requestData } = await supabase
+          .from('service_requests')
+          .select(`
+            *,
+            agent:agents(id, full_name, email)
+          `)
+          .order('created_at', { ascending: false });
+        setRequests(requestData || []);
+
+        // Fetch all paid agents for assignment dropdown
+        const { data: agentData } = await supabase
+          .from('agents')
+          .select('id, full_name, email, last_request_assigned_at')
+          .eq('verification_status', 'approved')
+          .eq('payment_status', 'paid')
+          .order('last_request_assigned_at', { ascending: true, nullsFirst: true });
+        setAgents(agentData || []);
       }
     } catch (err) {
       toast.error('Failed to fetch data');
@@ -329,14 +386,19 @@ export default function AdminDashboard() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-6 max-w-7xl">
+    <>
+      <Head>
+        <title>Admin Dashboard — Dosnine Properties</title>
+      </Head>
+      
+      <div className="container mx-auto px-4 py-6 max-w-7xl">
       {/* Simple Tabs */}
       <div className="flex gap-2 mb-6 overflow-x-auto">
         <button
           onClick={() => setActiveTab('properties')}
           className={`px-6 py-3 rounded-lg font-medium flex items-center gap-2 whitespace-nowrap ${
             activeTab === 'properties'
-              ? 'bg-gray-800 text-white'
+              ? 'bg-accent text-white'
               : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
           }`}
         >
@@ -359,36 +421,41 @@ export default function AdminDashboard() {
             </span>
           )}
         </button>
-        <button
-          onClick={() => setActiveTab('analytics')}
-          className={`px-6 py-3 rounded-lg font-medium flex items-center gap-2 whitespace-nowrap ${
-            activeTab === 'analytics'
-              ? 'bg-gray-800 text-white'
-              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-          }`}
-        >
-          <FiTrendingUp size={18} />
-          Analytics
-        </button>
         <Link
           href="/admin/agents"
-          className="px-6 py-3 rounded-lg font-medium flex items-center gap-2 whitespace-nowrap bg-blue-600 text-white hover:bg-blue-700"
+          className="px-6 py-3 rounded-lg font-medium flex items-center gap-2 whitespace-nowrap bg-accent text-white hover:bg-accent/90"
         >
           <FiUsers size={18} />
           Agent Management
         </Link>
         <Link
           href="/admin/allocation"
-          className="px-6 py-3 rounded-lg font-medium flex items-center gap-2 whitespace-nowrap bg-green-600 text-white hover:bg-green-700"
+          className="px-6 py-3 rounded-lg font-medium flex items-center gap-2 whitespace-nowrap bg-accent text-white hover:bg-accent/90"
         >
           <FiTrendingUp size={18} />
           Request Allocation
         </Link>
         <button
+          onClick={() => setActiveTab('requests')}
+          className={`px-6 py-3 rounded-lg font-medium flex items-center gap-2 whitespace-nowrap ${
+            activeTab === 'requests'
+              ? 'bg-accent text-white'
+              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+          }`}
+        >
+          <FiGrid size={18} />
+          Service Requests
+          {requests.filter(r => r.status === 'open').length > 0 && (
+            <span className="bg-red-500 text-white px-2 py-0.5 rounded-full text-xs">
+              {requests.filter(r => r.status === 'open').length}
+            </span>
+          )}
+        </button>
+        <button
           onClick={() => setActiveTab('users')}
           className={`px-6 py-3 rounded-lg font-medium flex items-center gap-2 whitespace-nowrap ${
             activeTab === 'users'
-              ? 'bg-gray-800 text-white'
+              ? 'bg-accent text-white'
               : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
           }`}
         >
@@ -399,11 +466,12 @@ export default function AdminDashboard() {
           onClick={() => setActiveTab('emails')}
           className={`px-6 py-3 rounded-lg font-medium flex items-center gap-2 whitespace-nowrap ${
             activeTab === 'emails'
-              ? 'bg-blue-600 text-white'
+              ? 'bg-accent text-white'
               : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
           }`}
         >
-          📧 Emails
+          <FiMail size={18} />
+          Emails
           {visitorEmails.length > 0 && (
             <span className="bg-blue-700 text-white px-2 py-0.5 rounded-full text-xs">
               {visitorEmails.length}
@@ -424,9 +492,10 @@ export default function AdminDashboard() {
             </div>
             <button
               onClick={exportEmailsCSV}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium flex items-center gap-2"
+              className="px-4 py-2 bg-accent text-white rounded-lg hover:bg-accent/90 font-medium flex items-center gap-2"
             >
-              📥 Export CSV
+              <FiGrid size={16} />
+              Export CSV
             </button>
           </div>
 
@@ -671,17 +740,156 @@ export default function AdminDashboard() {
             )}
           </div>
         </div>
-      ) : activeTab === 'analytics' ? (
-        <div className="text-center py-12">
-          <div className="max-w-xl mx-auto bg-white rounded-lg shadow-sm p-6">
-            <h3 className="font-bold text-lg mb-2">Site Analytics</h3>
-            <p className="text-sm text-gray-600 mb-4">View detailed page-click analytics and exports.</p>
-              <div className="flex justify-center">
-              <Link href="/admin/analytics" className="px-6 py-2 bg-gray-800 text-white rounded-lg">Open Analytics</Link>
+      ) : activeTab === 'requests' ? (
+        /* Service Requests Management */
+        <div>
+          <div className="mb-6">
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">Service Requests</h2>
+            <p className="text-gray-600">All submitted client requests with agent assignments and reassignment options</p>
+          </div>
+
+          {/* Stats */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+            <div className="bg-white rounded-lg shadow p-4">
+              <p className="text-sm text-gray-600 mb-1">Total Requests</p>
+              <p className="text-2xl font-bold text-gray-900">{requests.length}</p>
+            </div>
+            <div className="bg-white rounded-lg shadow p-4">
+              <p className="text-sm text-gray-600 mb-1">Open</p>
+              <p className="text-2xl font-bold text-orange-600">{requests.filter(r => r.status === 'open').length}</p>
+            </div>
+            <div className="bg-white rounded-lg shadow p-4">
+              <p className="text-sm text-gray-600 mb-1">Assigned</p>
+              <p className="text-2xl font-bold text-blue-600">{requests.filter(r => r.status === 'assigned' || r.status === 'in_progress').length}</p>
+            </div>
+            <div className="bg-white rounded-lg shadow p-4">
+              <p className="text-sm text-gray-600 mb-1">Completed</p>
+              <p className="text-2xl font-bold text-green-600">{requests.filter(r => r.status === 'completed').length}</p>
             </div>
           </div>
-        </div>
-      ) : activeTab === 'properties' ? (
+
+          {/* Request List */}
+          <div className="space-y-3">
+            {requests.length === 0 ? (
+              <div className="text-center py-12 bg-white rounded-lg border border-gray-200">
+                <p className="text-gray-600">No service requests yet</p>
+              </div>
+            ) : (
+              requests.map((request) => (
+                <div key={request.id} className="bg-white rounded-lg shadow-sm p-4 hover:shadow-md transition">
+                  <div className="flex justify-between items-start gap-4 mb-3">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-3 mb-2">
+                        <h3 className="font-bold text-gray-800 text-lg">
+                          {request.request_type.toUpperCase()} - {request.property_type}
+                        </h3>
+                        <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                          request.status === 'open' ? 'bg-orange-100 text-orange-800' :
+                          request.status === 'assigned' || request.status === 'in_progress' ? 'bg-blue-100 text-blue-800' :
+                          request.status === 'completed' ? 'bg-green-100 text-green-800' :
+                          'bg-gray-100 text-gray-800'
+                        }`}>
+                          {request.status}
+                        </span>
+                        {request.urgency === 'urgent' && (
+                          <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                            Urgent
+                          </span>
+                        )}
+                      </div>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm text-gray-600 mb-3">
+                        <div>
+                          <span className="font-medium">Client:</span> {request.client_name}
+                        </div>
+                        <div>
+                          <span className="font-medium">Location:</span> {request.location}
+                        </div>
+                        {request.budget_min && (
+                          <div>
+                            <span className="font-medium">Budget:</span> ${request.budget_min?.toLocaleString()} - ${request.budget_max?.toLocaleString()}
+                          </div>
+                        )}
+                        <div>
+                          <span className="font-medium">Date:</span> {new Date(request.created_at).toLocaleDateString()}
+                        </div>
+                      </div>
+
+                      {request.description && (
+                        <p className="text-sm text-gray-700 mb-3 bg-gray-50 p-2 rounded">{request.description}</p>
+                      )}
+
+                      <div className="flex flex-wrap items-center gap-3 text-sm mb-3">
+                        <span className="text-gray-600">📧 {request.client_email}</span>
+                        <span className="text-gray-600">📞 {request.client_phone}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Agent Assignment Section */}
+                  <div className="border-t pt-3 mt-3 bg-gray-50 -mx-4 px-4 -mb-4 pb-4 rounded-b-lg">
+                    {request.agent ? (
+                      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                        <div className="flex-1">
+                          <p className="text-xs font-semibold text-gray-500 uppercase mb-1">Assigned Agent</p>
+                          <p className="font-bold text-gray-900 text-lg">{request.agent.full_name}</p>
+                          <p className="text-sm text-gray-600">{request.agent.email}</p>
+                        </div>
+                        <div className="flex gap-2">
+                          {request.status !== 'completed' && request.status !== 'cancelled' && (
+                            <>
+                              <button
+                                onClick={() => handleManualAssign(request.id, null)}
+                                className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 text-sm font-medium"
+                                disabled={assignLoading}
+                              >
+                                Unassign
+                              </button>
+                              <select
+                                onChange={(e) => e.target.value && handleManualAssign(request.id, e.target.value)}
+                                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-accent outline-none text-sm"
+                                disabled={assignLoading}
+                                defaultValue=""
+                              >
+                                <option value="">Reassign to...</option>
+                                {agents.filter(a => a.id !== request.agent_id).map((agent) => (
+                                  <option key={agent.id} value={agent.id}>
+                                    {agent.full_name}
+                                  </option>
+                                ))}
+                              </select>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col gap-2">
+                        <p className="text-xs font-semibold text-orange-600 uppercase">⚠️ Unassigned Request</p>
+                        <div className="flex flex-col md:flex-row md:items-center gap-3">
+                          <label className="text-sm font-medium text-gray-700">Assign to Agent:</label>
+                          <select
+                            onChange={(e) => e.target.value && handleManualAssign(request.id, e.target.value)}
+                            className="flex-1 px-3 py-2 border-2 border-orange-300 rounded-lg focus:ring-2 focus:ring-accent outline-none bg-white"
+                            disabled={assignLoading}
+                            defaultValue=""
+                          >
+                            <option value="">Select an agent...</option>
+                            {agents.map((agent) => (
+                              <option key={agent.id} value={agent.id}>
+                                {agent.full_name} - {agent.email}
+                                {!agent.last_request_assigned_at && ' (Never assigned)'}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>      ) : activeTab === 'properties' ? (
         /* Mobile-Friendly Property Cards */
         <div className="space-y-3">
           {properties.map((prop) => (
@@ -747,5 +955,6 @@ export default function AdminDashboard() {
         </div>
       )}
     </div>
+    </>
   );
 }
