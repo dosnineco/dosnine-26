@@ -27,20 +27,10 @@
       "static/chunks/main.js",
       "static/chunks/pages/_error.js"
     ],
-    "/admin/allocation": [
+    "/dashboard": [
       "static/chunks/webpack.js",
       "static/chunks/main.js",
-      "static/chunks/pages/admin/allocation.js"
-    ],
-    "/admin/dashboard": [
-      "static/chunks/webpack.js",
-      "static/chunks/main.js",
-      "static/chunks/pages/admin/dashboard.js"
-    ],
-    "/agent/dashboard": [
-      "static/chunks/webpack.js",
-      "static/chunks/main.js",
-      "static/chunks/pages/agent/dashboard.js"
+      "static/chunks/pages/dashboard.js"
     ]
   },
   "ampFirstPages": []

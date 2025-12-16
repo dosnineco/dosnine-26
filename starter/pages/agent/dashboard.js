@@ -34,6 +34,11 @@ export default function AgentDashboard() {
 
   useEffect(() => {
     if (initialUserData) {
+      console.log('Agent Dashboard - User Data:', initialUserData);
+      console.log('Agent Dashboard - Agent Data:', initialUserData.agent);
+      console.log('Agent Dashboard - Verification Status:', initialUserData.agent?.verification_status);
+      console.log('Agent Dashboard - Payment Status:', initialUserData.agent?.payment_status);
+      
       setAgentData(initialUserData.agent);
       if (initialUserData.agent?.payment_status !== 'paid') {
         setShowPaymentRequired(true);

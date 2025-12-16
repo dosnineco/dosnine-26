@@ -1,12 +1,7 @@
 {
   "/_app": "pages/_app.js",
-  "/_error": "pages/_error.js",
   "/_document": "pages/_document.js",
-  "/agent/payment": "pages/agent/payment.js",
-  "/agent/dashboard": "pages/agent/dashboard.js",
+  "/_error": "pages/_error.js",
   "/": "pages/index.js",
-  "/api/agent/requests": "pages/api/agent/requests.js",
-  "/api/user/profile": "pages/api/user/profile.js",
-  "/admin/dashboard": "pages/admin/dashboard.js",
-  "/admin/allocation": "pages/admin/allocation.js"
+  "/dashboard": "pages/dashboard.js"
 }

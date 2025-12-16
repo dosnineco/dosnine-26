@@ -49,10 +49,16 @@ export function useRoleProtection({
           params: { clerkId: user.id }
         });
 
+        console.log('useRoleProtection - Fetched user data:', data);
+        console.log('useRoleProtection - Agent data:', data?.agent);
+        console.log('useRoleProtection - User role:', data?.role);
+
         setUserData(data);
 
         // Check access using provided function
         const access = checkAccess ? checkAccess(data) : true;
+        console.log('useRoleProtection - Access check result:', access);
+        
         setHasAccess(access);
 
         if (!access) {
