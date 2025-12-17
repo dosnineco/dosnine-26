@@ -23,6 +23,15 @@ export default function AgentPayment() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [processing, setProcessing] = useState(false);
+  const [sdkReady, setSdkReady] = useState(false);
+
+  useEffect(() => {
+    console.log('PayPal Config:', {
+      clientId: PAYPAL_CLIENT_ID ? 'Set' : 'Missing',
+      fee: UNLOCK_FEE,
+      user: user?.id
+    });
+  }, [user]);
 
   if (authLoading) {
     return (
@@ -156,35 +165,57 @@ export default function AgentPayment() {
                   <p className="text-gray-600 text-sm uppercase tracking-wide">One-Time Payment</p>
                   <p className="text-5xl font-bold text-accent mt-2">${UNLOCK_FEE}</p>
                   <p className="text-gray-500 mt-2">Lifetime access • No recurring fees</p>
+                  <p className="text-xs text-gray-400 mt-3">🔒 Secure card payment powered by PayPal</p>
+                  <p className="text-xs text-gray-400">Pay directly with your debit or credit card</p>
+                  <p className="text-xs text-gray-400">No PayPal account required • Jamaica-friendly checkout</p>
                 </div>
               </div>
 
-              {/* PayPal Button */}
+              {/* PayPal Buttons */}
               {!processing ? (
-                <PayPalScriptProvider options={{ 
-                  "client-id": PAYPAL_CLIENT_ID,
-                  currency: "USD",
-                  locale: "en_US",
-                  components: "buttons,card-fields",
-                  "disable-funding": "paylater,venmo",
-                  "enable-funding": "card",
-                  "buyer-country": "JM"
-                }}>
-                  <PayPalButtons
-                    createOrder={createOrder}
-                    onApprove={onApprove}
-                    onError={onError}
-                    forceReRender={[UNLOCK_FEE]}
-                    fundingSource="card"
-                    style={{
-                      layout: 'vertical',
-                      color: 'black',
-                      shape: 'rect',
-                      label: 'pay',
-                      height: 48
-                    }}
-                  />
-                </PayPalScriptProvider>
+                <div>
+                  {!PAYPAL_CLIENT_ID || PAYPAL_CLIENT_ID === "test" ? (
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
+                      <p className="text-red-800 font-semibold mb-2">⚠️ PayPal Not Configured</p>
+                      <p className="text-red-600 text-sm">Payment system is not properly configured. Please contact support.</p>
+                      <p className="text-xs text-gray-500 mt-2">Client ID: {PAYPAL_CLIENT_ID}</p>
+                    </div>
+                  ) : (
+                    <PayPalScriptProvider 
+                      options={{ 
+                        clientId: PAYPAL_CLIENT_ID,
+                        currency: "USD",
+                        intent: "capture",
+                        components: "buttons"
+                      }}
+                    >
+                      <div className="min-h-[50px]">
+                        {!sdkReady && (
+                          <div className="text-center py-4">
+                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-accent mx-auto"></div>
+                            <p className="text-sm text-gray-500 mt-2">Loading payment options...</p>
+                          </div>
+                        )}
+                        <PayPalButtons
+                          createOrder={createOrder}
+                          onApprove={onApprove}
+                          onError={onError}
+                          onInit={() => {
+                            console.log('PayPal SDK initialized');
+                            setSdkReady(true);
+                          }}
+                          style={{
+                            layout: 'vertical',
+                            shape: 'rect',
+                            height: 48,
+                            label: 'pay'
+                          }}
+                          fundingSource={undefined}
+                        />
+                      </div>
+                    </PayPalScriptProvider>
+                  )}
+                </div>
               ) : (
                 <div className="text-center py-8">
                   <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-accent mx-auto"></div>
@@ -192,11 +223,14 @@ export default function AgentPayment() {
                 </div>
               )}
 
-              {/* Security Note */}
-              <div className="mt-6 text-center text-sm text-gray-500">
-                <p>🔒 Secure card payment powered by PayPal</p>
-                <p className="mt-1">Pay directly with your debit or credit card</p>
-                <p className="mt-1 text-xs">No PayPal account required • Jamaica-friendly checkout</p>
+              {/* Additional Security Note */}
+              <div className="mt-6 text-center">
+                <div className="inline-flex items-center gap-2 text-sm text-gray-600 bg-blue-50 px-4 py-2 rounded-lg">
+                  <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                  </svg>
+                  <span>Bank-level security • Payments processed through PayPal</span>
+                </div>
               </div>
             </div>
           </div>

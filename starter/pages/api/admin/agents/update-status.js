@@ -37,19 +37,34 @@ export default async function handler(req, res) {
       verification_notes: notes || `${status === 'approved' ? 'Approved' : 'Rejected'} by ${adminUser.full_name}`,
     };
 
-    // When approving, set payment_status to unpaid
+    // When approving, set payment_status to unpaid and update user role
     if (status === 'approved') {
       updateData.payment_status = 'unpaid';
       
-      // Also update user role to 'agent'
+      // First get the agent's user_id
+      const { data: agentData, error: agentFetchError } = await supabase
+        .from('agents')
+        .select('user_id')
+        .eq('id', agentId)
+        .single();
+      
+      if (agentFetchError || !agentData) {
+        console.error('Failed to fetch agent data:', agentFetchError);
+        return res.status(500).json({ error: 'Failed to fetch agent data' });
+      }
+      
+      // Update user role to 'agent'
       const { error: userError } = await supabase
         .from('users')
         .update({ role: 'agent' })
-        .eq('id', (await supabase.from('agents').select('user_id').eq('id', agentId).single()).data.user_id);
+        .eq('id', agentData.user_id);
       
       if (userError) {
         console.error('Failed to update user role:', userError);
+        return res.status(500).json({ error: 'Failed to update user role' });
       }
+      
+      console.log(`✓ Agent ${agentId} approved - User role updated to 'agent'`);
     }
 
     const { data, error } = await supabase

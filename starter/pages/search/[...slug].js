@@ -126,7 +126,7 @@ export default function SearchLandingPage({ slug, properties: initialProperties,
           <div className="text-center py-12 bg-blue-50 rounded-lg border border-blue-200 p-8">
             <h2 className="text-2xl font-bold text-gray-800 mb-2">No Properties Found</h2>
             <p className="text-gray-600 mb-6">We don't currently have listings matching "{generateTitle()}". Check back soon!</p>
-            <Link href="/" className="btn-accent px-6 py-3 rounded-lg inline-block">
+            <Link href="/" className="btn-primary">
               Browse All Properties
             </Link>
           </div>
@@ -147,7 +147,7 @@ export default function SearchLandingPage({ slug, properties: initialProperties,
 
             {totalPages > 1 && (
               <nav className="flex justify-center items-center gap-2 mb-8">
-                <Link href={`/search/${(slug || []).join('/')}?page=${Math.max(1, page - 1)}`} className="btn-accent px-4 py-2 rounded-lg">
+                <Link href={`/search/${(slug || []).join('/')}?page=${Math.max(1, page - 1)}`} className="btn-primary btn-sm">
                   ← Prev
                 </Link>
 
@@ -158,14 +158,14 @@ export default function SearchLandingPage({ slug, properties: initialProperties,
                     <Link
                       key={pageNum}
                       href={`/search/${(slug || []).join('/')}?page=${pageNum}`}
-                      className={`px-4 py-2 rounded-lg transition ${page === pageNum ? 'btn-accent' : 'btn-accent-outline'}`}
+                      className={`btn-sm ${page === pageNum ? 'btn-primary' : 'btn-outline'}`}
                     >
                       {pageNum}
                     </Link>
                   );
                 })}
 
-                <Link href={`/search/${(slug || []).join('/')}?page=${Math.min(totalPages, page + 1)}`} className="btn-accent px-4 py-2 rounded-lg">
+                <Link href={`/search/${(slug || []).join('/')}?page=${Math.min(totalPages, page + 1)}`} className="btn-primary btn-sm">
                   Next →
                 </Link>
               </nav>

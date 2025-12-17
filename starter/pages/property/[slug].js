@@ -189,7 +189,7 @@ export default function PropertyPage({ property, similarProperties }) {
       <div className="container mx-auto px-4 py-8">
         {/* Breadcrumb Navigation */}
         <div className="mb-4 ">
-          <Link href="/" className="btn-accent">← Back to Browse</Link>
+          <Link href="/" className="btn-outline btn-sm">← Back to Browse</Link>
         </div>
         
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -290,7 +290,7 @@ export default function PropertyPage({ property, similarProperties }) {
                   <p className="text-gray-600 mb-4 text-sm">Get more visibility by featuring this property on the homepage banner!</p>
                   <Link
                     href="/properties/boost-property"
-                    className="block w-full btn-accent text-center py-3 rounded-lg font-semibold"
+                    className="block w-full btn-primary"
                   >
                     <Zap className="inline w-5 h-5 mr-2" />
                     Boost This Property
@@ -309,7 +309,7 @@ export default function PropertyPage({ property, similarProperties }) {
                   href={`https://wa.me/${property.phone_number}?text=Hi, I'm interested in ${encodeURIComponent(property.title)} at ${encodeURIComponent(property.address)}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="block w-full btn-accent text-center py-3 rounded-lg font-semibold"
+                  className="block w-full btn-primary"
                 >
                   WhatsApp
                 </a>
@@ -320,7 +320,7 @@ export default function PropertyPage({ property, similarProperties }) {
 
                 <a
                   href={`tel:${property.phone_number}`}
-                  className="mt-3 flex items-center justify-center gap-3 w-full btn-accent-outline text-center py-3 rounded-lg font-semibold"
+                  className="mt-3 flex items-center justify-center gap-3 w-full btn-outline"
                 >
                   <Phone className="w-5 h-5" />
                   <span>{formatPhone(property.phone_number) || 'Call Landlord'}</span>

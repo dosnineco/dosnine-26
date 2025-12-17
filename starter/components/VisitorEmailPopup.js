@@ -139,7 +139,7 @@ export default function VisitorEmailPopup() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full px-4 py-2 font-semibold rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition btn-accent"
+            className="w-full btn-primary"
           >
             {loading ? 'Saving...' : 'Get Property Alerts'}
           </button>
@@ -147,7 +147,7 @@ export default function VisitorEmailPopup() {
           <button
             type="button"
             onClick={handleDismiss}
-            className="w-full px-4 py-2 rounded-lg transition text-sm btn-accent-outline"
+            className="w-full btn-outline"
           >
             Maybe Later
           </button>

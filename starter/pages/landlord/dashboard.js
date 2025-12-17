@@ -175,7 +175,7 @@ export default function LandlordDashboard() {
                       </Link>
                       <button
                         onClick={() => handleDelete(property.id)}
-                        className="flex-1 sm:flex-none bg-gray-200 text-gray-700 px-6 py-2.5 rounded-lg hover:bg-gray-300 transition font-medium text-sm flex items-center justify-center gap-2"
+                        className="flex-1 sm:flex-none btn-secondary flex items-center justify-center gap-2"
                       >
                         <FiTrash2 size={16} />
                         Delete

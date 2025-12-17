@@ -23,6 +23,23 @@ export default async function handler(req, res) {
       return res.status(404).json({ error: 'User not found' });
     }
 
+    // Get agent to verify verification status
+    const { data: existingAgent, error: fetchError } = await supabase
+      .from('agents')
+      .select('id, verification_status')
+      .eq('user_id', userData.id)
+      .single();
+    
+    if (fetchError || !existingAgent) {
+      console.error('Agent not found:', fetchError);
+      return res.status(404).json({ error: 'Agent not found' });
+    }
+    
+    // Ensure agent is verified before allowing payment
+    if (existingAgent.verification_status !== 'approved') {
+      return res.status(403).json({ error: 'Agent must be verified before payment' });
+    }
+
     // Update agent payment status
     const { data: agent, error: updateError } = await supabase
       .from('agents')
@@ -39,6 +56,19 @@ export default async function handler(req, res) {
     if (updateError) {
       console.error('Failed to update payment status:', updateError);
       return res.status(500).json({ error: 'Failed to update payment status' });
+    }
+    
+    // Ensure user role is set to 'agent' (in case it wasn't set during approval)
+    const { error: roleError } = await supabase
+      .from('users')
+      .update({ role: 'agent' })
+      .eq('id', userData.id);
+    
+    if (roleError) {
+      console.error('Failed to update user role after payment:', roleError);
+      // Don't fail the request since payment was successful
+    } else {
+      console.log(`✓ Payment complete for agent ${agent.id} - User role confirmed as 'agent'`);
     }
 
     return res.status(200).json({ 

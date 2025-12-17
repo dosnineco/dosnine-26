@@ -479,7 +479,7 @@ const handleSubmit = async (e) => {
         <button
           type="submit"
           disabled={loading || uploadingImages}
-          className="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition disabled:opacity-50"
+          className="w-full btn-primary"
         >
           {loading ? 'Posting...' : 'Post Property'}
         </button>

@@ -9,7 +9,7 @@ import Link from 'next/link';
 import { formatJMD } from '../../lib/formatMoney';
 
 const MAX_ACTIVE_BOOSTS = 20;
-const BOOST_PRICE_JMD = 2500;
+const BOOST_PRICE_JMD =1;
 const BOOST_DURATION_DAYS = 10;
 
 export default function BoostProperty() {
@@ -236,7 +236,7 @@ export default function BoostProperty() {
               Next available spot: {new Date(nextAvailableDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
             </p>
           )}
-          <Link href="/landlord/dashboard" className="inline-block mt-6 px-6 py-3 rounded-lg btn-accent">
+          <Link href="/landlord/dashboard" className="btn-primary">
             Back to Dashboard
           </Link>
         </div>
@@ -280,7 +280,7 @@ export default function BoostProperty() {
           {properties.length === 0 && (
             <div className="bg-gray-50 border-2 border-gray-200 rounded-lg p-8 text-center">
               <p className="text-gray-600 mb-4">You don't have any available properties to boost.</p>
-              <Link href="/landlord/new-property" className="inline-block px-6 py-3 rounded-lg btn-accent">
+              <Link href="/landlord/new-property" className="btn-primary">
                 Post a Property
               </Link>
             </div>
@@ -291,7 +291,7 @@ export default function BoostProperty() {
             <div className="bg-white border-2 border-gray-200 rounded-lg p-8">
               <button
                 onClick={() => setSelectedProperty(null)}
-                className="text-accent hover:underline mb-4"
+                className="btn-outline btn-sm"
               >
                 ← Change Property
               </button>

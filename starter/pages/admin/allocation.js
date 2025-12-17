@@ -34,11 +34,11 @@ export default function AllocationDashboard() {
         .from('agents')
         .select(`
           id,
-          full_name,
-          email,
+          business_name,
           last_request_assigned_at,
           verification_status,
           payment_status,
+          users:user_id (full_name, email),
           service_requests:service_requests!assigned_agent_id(count)
         `)
         .eq('verification_status', 'approved')
@@ -51,12 +51,19 @@ export default function AllocationDashboard() {
       // Get ALL agents to show in a helper section
       const { data: allAgents } = await supabase
         .from('agents')
-        .select('id, full_name, email, verification_status, payment_status');
+        .select(`
+          id, 
+          business_name, 
+          verification_status, 
+          payment_status,
+          users:user_id (full_name, email)
+        `);
 
       console.log('All agents in system:', allAgents);
       
       if (agents && agents.length === 1) {
-        console.log('✅ Single agent system - All requests will go to:', agents[0].full_name);
+        const agentName = agents[0].users?.full_name || agents[0].business_name;
+        console.log('✅ Single agent system - All requests will go to:', agentName);
       } else if (agents && agents.length > 1) {
         console.log(`✅ Multi-agent system - ${agents.length} agents in rotation`);
       } else {
@@ -85,8 +92,9 @@ export default function AllocationDashboard() {
       // Process agent stats
       const agentData = agents?.map(agent => ({
         id: agent.id,
-        name: agent.full_name,
-        email: agent.email,
+        name: agent.users?.full_name || agent.business_name || 'Unnamed Agent',
+        email: agent.users?.email || 'No email',
+        business: agent.business_name,
         requestCount: agent.service_requests?.[0]?.count || 0,
         lastAssigned: agent.last_request_assigned_at,
         nextInQueue: !agent.last_request_assigned_at
@@ -211,30 +219,38 @@ export default function AllocationDashboard() {
                       <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-left">
                         <h4 className="font-semibold text-yellow-900 mb-2">Agents in System:</h4>
                         <div className="space-y-2 text-sm">
-                          {stats.allAgents.map((agent) => (
-                            <div key={agent.id} className="flex items-center justify-between bg-white px-3 py-2 rounded">
-                              <span className="text-gray-900">{agent.full_name || agent.email}</span>
-                              <div className="flex gap-2">
-                                <span className={`px-2 py-1 rounded text-xs font-medium ${
-                                  agent.verification_status === 'approved' 
-                                    ? 'bg-green-100 text-green-800' 
-                                    : 'bg-orange-100 text-orange-800'
-                                }`}>
-                                  {agent.verification_status || 'pending'}
-                                </span>
-                                <span className={`px-2 py-1 rounded text-xs font-medium ${
-                                  agent.payment_status === 'paid' 
-                                    ? 'bg-green-100 text-green-800' 
-                                    : 'bg-orange-100 text-orange-800'
-                                }`}>
-                                  {agent.payment_status || 'unpaid'}
-                                </span>
+                          {stats.allAgents.map((agent) => {
+                            const agentName = agent.users?.full_name || agent.business_name || 'Unnamed Agent';
+                            return (
+                              <div key={agent.id} className="flex items-center justify-between bg-white px-3 py-2 rounded">
+                                <div>
+                                  <span className="text-gray-900 font-medium">{agentName}</span>
+                                  {agent.business_name && (
+                                    <span className="text-gray-500 text-xs ml-2">({agent.business_name})</span>
+                                  )}
+                                </div>
+                                <div className="flex gap-2">
+                                  <span className={`px-2 py-1 rounded text-xs font-medium ${
+                                    agent.verification_status === 'approved' 
+                                      ? 'bg-green-100 text-green-800' 
+                                      : 'bg-orange-100 text-orange-800'
+                                  }`}>
+                                    {agent.verification_status || 'pending'}
+                                  </span>
+                                  <span className={`px-2 py-1 rounded text-xs font-medium ${
+                                    agent.payment_status === 'paid' 
+                                      ? 'bg-green-100 text-green-800' 
+                                      : 'bg-orange-100 text-orange-800'
+                                  }`}>
+                                    {agent.payment_status || 'unpaid'}
+                                  </span>
+                                </div>
                               </div>
-                            </div>
-                          ))}
+                            );
+                          })}
                         </div>
                         <div className="mt-4 text-sm text-yellow-800">
-                          <p><strong>Action needed:</strong> Go to Agent Management to approve agents and verify they've completed payment.</p>
+                          <p><strong>Action needed:</strong> Go to Agent Management to approve agents and verify they&apos;ve completed payment.</p>
                         </div>
                       </div>
                     </div>
@@ -273,6 +289,9 @@ export default function AllocationDashboard() {
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div>
                           <div className="text-sm font-medium text-gray-900">{agent.name}</div>
+                          {agent.business && (
+                            <div className="text-xs text-gray-500">{agent.business}</div>
+                          )}
                           <div className="text-sm text-gray-500">{agent.email}</div>
                         </div>
                       </td>

@@ -86,7 +86,7 @@ export default function Header() {
               {!isAgent && (
                 <button
                   onClick={() => setShowRequestPopup(true)}
-                  className="px-3 py-2 rounded-lg transition text-sm text-accent hover:bg-accent/10 font-medium"
+                  className="btn-outline btn-sm"
                 >
                   Find Agent
                 </button>
@@ -125,7 +125,7 @@ export default function Header() {
               </Link>
               <button
                 onClick={() => setShowRequestPopup(true)}
-                className="px-3 py-2 rounded-lg transition text-sm text-white bg-accent hover:bg-accent/90 font-medium"
+                className="btn-primary btn-sm"
               >
                 Find Agent
               </button>

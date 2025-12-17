@@ -319,7 +319,7 @@ export default function Home() {
             />
           </div>
 
-          <button type="submit" className="btn-accent px-6 py-2.5 font-medium rounded-lg">
+          <button type="submit" className="btn-primary">
             Update Results
           </button>
         </form>
@@ -345,7 +345,7 @@ export default function Home() {
                     setLocationInput('');
                     setPage(1);
                   }}
-                  className="btn-accent px-8 py-3 font-bold rounded-lg"
+                  className="btn-primary btn-lg"
                 >
                   Clear All Filters
                 </button>
@@ -360,7 +360,7 @@ export default function Home() {
                 </p>
                 <Link
                   href="/properties/my-listings"
-                  className="btn-accent px-8 py-3 font-bold rounded-lg inline-block"
+                  className="btn-primary btn-lg"
                 >
                   Claim Your Spot →
                 </Link>

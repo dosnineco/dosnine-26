@@ -18,34 +18,117 @@ html, body, #__next {
 .bg-accent { background-color: var(--accent-color); }
 .border-accent { border-color: var(--accent-color); }
 
-/* Primary button using accent color */
+/* Standardized Button System */
+/* Primary button - accent color */
+.btn-primary,
 .btn-accent {
   background-color: var(--accent-color);
   color: #fff;
   border-radius: 0.5rem;
-  padding: 0.625rem 1rem;
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
   font-weight: 600;
-  transition: background-color 150ms, box-shadow 150ms, transform 150ms;
+  transition: all 150ms ease-in-out;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem;
+  border: none;
+  cursor: pointer;
 }
-.btn-accent:hover { background-color: var(--accent-color-hover); }
-.btn-accent:focus { box-shadow: 0 0 0 3px var(--accent-ring); }
-.btn-accent:disabled { opacity: 0.6; cursor: not-allowed; }
+.btn-primary:hover,
+.btn-accent:hover { 
+  background-color: var(--accent-color-hover);
+  transform: translateY(-1px);
+}
+.btn-primary:focus,
+.btn-accent:focus { 
+  box-shadow: 0 0 0 3px var(--accent-ring);
+  outline: none;
+}
+.btn-primary:disabled,
+.btn-accent:disabled { 
+  opacity: 0.6; 
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Large button variant */
+.btn-lg {
+  padding: 0.75rem 1.5rem;
+  font-size: 1rem;
+}
+
+/* Small button variant */
+.btn-sm {
+  padding: 0.375rem 0.75rem;
+  font-size: 0.813rem;
+}
 
 /* Outline button variant */
+.btn-outline,
 .btn-accent-outline {
   background-color: transparent;
   color: var(--accent-color);
   border: 2px solid var(--accent-color);
   border-radius: 0.5rem;
-  padding: 0.5625rem 1rem;
+  padding: 0.375rem 1rem;
+  font-size: 0.875rem;
   font-weight: 600;
-  transition: color 150ms, border-color 150ms, background-color 150ms;
+  transition: all 150ms ease-in-out;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem;
+  cursor: pointer;
 }
+.btn-outline:hover,
 .btn-accent-outline:hover {
   background-color: var(--accent-color);
   color: #fff;
+  transform: translateY(-1px);
 }
-.btn-accent-outline:focus { box-shadow: 0 0 0 3px var(--accent-ring); }
+.btn-outline:focus,
+.btn-accent-outline:focus { 
+  box-shadow: 0 0 0 3px var(--accent-ring);
+  outline: none;
+}
+
+/* Secondary button - gray */
+.btn-secondary {
+  background-color: #6B7280;
+  color: #fff;
+  border-radius: 0.5rem;
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  transition: all 150ms ease-in-out;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem;
+  border: none;
+  cursor: pointer;
+}
+.btn-secondary:hover { 
+  background-color: #4B5563;
+  transform: translateY(-1px);
+}
+
+/* Standardized Text Sizes */
+.text-xs { font-size: 0.75rem; line-height: 1rem; }
+.text-sm { font-size: 0.875rem; line-height: 1.25rem; }
+.text-base { font-size: 1rem; line-height: 1.5rem; }
+.text-lg { font-size: 1.125rem; line-height: 1.75rem; }
+.text-xl { font-size: 1.25rem; line-height: 1.75rem; }
+.text-2xl { font-size: 1.5rem; line-height: 2rem; }
+.text-3xl { font-size: 1.875rem; line-height: 2.25rem; }
+
+/* Standardized Font Weights */
+.font-normal { font-weight: 400; }
+.font-medium { font-weight: 500; }
+.font-semibold { font-weight: 600; }
+.font-bold { font-weight: 700; }
 
 /* Animations */
 @keyframes bounce-in {

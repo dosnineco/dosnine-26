@@ -187,19 +187,50 @@ export default function AdminDashboard() {
           .from('service_requests')
           .select(`
             *,
-            agent:agents(id, full_name, email)
+            agent:agents(
+              id, 
+              business_name,
+              users:user_id(full_name, email)
+            )
           `)
           .order('created_at', { ascending: false });
-        setRequests(requestData || []);
+        
+        // Transform the data to flatten the nested users object
+        const transformedRequests = requestData?.map(request => ({
+          ...request,
+          agent: request.agent ? {
+            id: request.agent.id,
+            full_name: request.agent.users?.full_name || request.agent.business_name || 'Unnamed Agent',
+            email: request.agent.users?.email || 'No email',
+            business_name: request.agent.business_name
+          } : null
+        }));
+        
+        setRequests(transformedRequests || []);
 
         // Fetch all paid agents for assignment dropdown
         const { data: agentData } = await supabase
           .from('agents')
-          .select('id, full_name, email, last_request_assigned_at')
+          .select(`
+            id, 
+            business_name,
+            last_request_assigned_at,
+            users:user_id(full_name, email)
+          `)
           .eq('verification_status', 'approved')
           .eq('payment_status', 'paid')
           .order('last_request_assigned_at', { ascending: true, nullsFirst: true });
-        setAgents(agentData || []);
+        
+        // Transform agents data
+        const transformedAgents = agentData?.map(agent => ({
+          id: agent.id,
+          full_name: agent.users?.full_name || agent.business_name || 'Unnamed Agent',
+          email: agent.users?.email || 'No email',
+          business_name: agent.business_name,
+          last_request_assigned_at: agent.last_request_assigned_at
+        }));
+        
+        setAgents(transformedAgents || []);
       }
     } catch (err) {
       toast.error('Failed to fetch data');
@@ -393,87 +424,87 @@ export default function AdminDashboard() {
       
       <div className="container mx-auto px-4 py-6 max-w-7xl">
       {/* Simple Tabs */}
-      <div className="flex gap-2 mb-6 overflow-x-auto">
+      <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
         <button
           onClick={() => setActiveTab('properties')}
-          className={`px-6 py-3 rounded-lg font-medium flex items-center gap-2 whitespace-nowrap ${
+          className={`px-3 py-2 rounded-md text-sm font-medium flex items-center gap-1.5 whitespace-nowrap ${
             activeTab === 'properties'
               ? 'bg-accent text-white'
-              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              : 'text-gray-700 hover:bg-gray-100'
           }`}
         >
-          <FiGrid size={18} />
+          <FiGrid size={14} />
           Properties
         </button>
         <button
           onClick={() => setActiveTab('boosts')}
-          className={`px-6 py-3 rounded-lg font-medium flex items-center gap-2 whitespace-nowrap ${
+          className={`px-3 py-2 rounded-md text-sm font-medium flex items-center gap-1.5 whitespace-nowrap ${
             activeTab === 'boosts'
-              ? 'bg-yellow-500 text-white'
-              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              ? 'bg-accent text-white'
+              : 'text-gray-700 hover:bg-gray-100'
           }`}
         >
-          <FiZap size={18} />
+          <FiZap size={14} />
           Boosts
           {boostStats?.active > 0 && (
-            <span className="bg-yellow-600 text-white px-2 py-0.5 rounded-full text-xs">
+            <span className="bg-yellow-600 text-white px-1.5 py-0.5 rounded-full text-xs ml-1">
               {boostStats.active}
             </span>
           )}
         </button>
         <Link
           href="/admin/agents"
-          className="px-6 py-3 rounded-lg font-medium flex items-center gap-2 whitespace-nowrap bg-accent text-white hover:bg-accent/90"
+          className="px-3 py-2 rounded-md text-sm font-medium flex items-center gap-1.5 whitespace-nowrap text-gray-700 hover:bg-gray-100"
         >
-          <FiUsers size={18} />
-          Agent Management
+          <FiUsers size={14} />
+          Agents
         </Link>
         <Link
           href="/admin/allocation"
-          className="px-6 py-3 rounded-lg font-medium flex items-center gap-2 whitespace-nowrap bg-accent text-white hover:bg-accent/90"
+          className="px-3 py-2 rounded-md text-sm font-medium flex items-center gap-1.5 whitespace-nowrap text-gray-700 hover:bg-gray-100"
         >
-          <FiTrendingUp size={18} />
-          Request Allocation
+          <FiTrendingUp size={14} />
+          Allocation
         </Link>
         <button
           onClick={() => setActiveTab('requests')}
-          className={`px-6 py-3 rounded-lg font-medium flex items-center gap-2 whitespace-nowrap ${
+          className={`px-3 py-2 rounded-md text-sm font-medium flex items-center gap-1.5 whitespace-nowrap ${
             activeTab === 'requests'
               ? 'bg-accent text-white'
-              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              : 'text-gray-700 hover:bg-gray-100'
           }`}
         >
-          <FiGrid size={18} />
-          Service Requests
+          <FiGrid size={14} />
+          Requests
           {requests.filter(r => r.status === 'open').length > 0 && (
-            <span className="bg-red-500 text-white px-2 py-0.5 rounded-full text-xs">
+            <span className="bg-red-500 text-white px-1.5 py-0.5 rounded-full text-xs ml-1">
               {requests.filter(r => r.status === 'open').length}
             </span>
           )}
         </button>
         <button
           onClick={() => setActiveTab('users')}
-          className={`px-6 py-3 rounded-lg font-medium flex items-center gap-2 whitespace-nowrap ${
+          className={`px-3 py-2 rounded-md text-sm font-medium flex items-center gap-1.5 whitespace-nowrap ${
             activeTab === 'users'
               ? 'bg-accent text-white'
-              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              : 'text-gray-700 hover:bg-gray-100'
           }`}
         >
-          <FiUsers size={18} />
+          <FiUsers size={14} />
           Users
         </button>
         <button
           onClick={() => setActiveTab('emails')}
-          className={`px-6 py-3 rounded-lg font-medium flex items-center gap-2 whitespace-nowrap ${
+          className={`px-3 py-2 rounded-md text-sm font-medium flex items-center gap-1.5 whitespace-nowrap ${
             activeTab === 'emails'
               ? 'bg-accent text-white'
-              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              : 'text-gray-700 hover:bg-gray-100'
           }`}
         >
-          <FiMail size={18} />
+          <FiMail size={14} />
           Emails
           {visitorEmails.length > 0 && (
-            <span className="bg-blue-700 text-white px-2 py-0.5 rounded-full text-xs">
+            <span className="bg-blue-600 text-white px-1.5 py-0.5 rounded-full text-xs ml-1">
               {visitorEmails.length}
             </span>
           )}
