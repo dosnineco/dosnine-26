@@ -112,7 +112,7 @@ const handleSubmit = async (e) => {
         router.push('/agent/payment');
         return;
       } else if (limitCheck.reason === 'limit_reached') {
-        toast.error('Property limit reached. Regular users can post 1 property. Become a verified agent for unlimited postings!');
+        toast.error('Property limit reached. Regular users can post 2 properties. Become a verified agent for unlimited postings!');
         return;
       }
     }

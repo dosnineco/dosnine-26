@@ -57,10 +57,10 @@ CREATE INDEX IF NOT EXISTS idx_agents_payment_status ON public.agents(payment_st
 CREATE OR REPLACE FUNCTION increment_property_count()
 RETURNS TRIGGER AS $$
 BEGIN
-  IF NEW.landlord_user_id IS NOT NULL THEN
+  IF NEW.owner_id IS NOT NULL THEN
     UPDATE public.users 
     SET property_count = property_count + 1
-    WHERE id = NEW.landlord_user_id;
+    WHERE id = NEW.owner_id;
   END IF;
   RETURN NEW;
 END;
@@ -69,10 +69,10 @@ $$ LANGUAGE plpgsql;
 CREATE OR REPLACE FUNCTION decrement_property_count()
 RETURNS TRIGGER AS $$
 BEGIN
-  IF OLD.landlord_user_id IS NOT NULL THEN
+  IF OLD.owner_id IS NOT NULL THEN
     UPDATE public.users 
     SET property_count = GREATEST(property_count - 1, 0)
-    WHERE id = OLD.landlord_user_id;
+    WHERE id = OLD.owner_id;
   END IF;
   RETURN OLD;
 END;
@@ -270,7 +270,7 @@ User Login
 ### Property limit not working:
 - Run migration to add triggers
 - Check property_count column exists
-- Verify landlord_user_id is being set correctly
+- Verify owner_id is being set correctly
 
 ### Notifications not appearing:
 - Check service_requests table has data

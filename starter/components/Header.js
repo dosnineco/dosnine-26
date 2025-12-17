@@ -61,7 +61,7 @@ export default function Header() {
     const timer = setTimeout(() => {
       setShowRequestPopup(true);
       sessionStorage.setItem('hasShownRequestAgentPopup', 'true');
-    }, 3000);
+    }, 2000);
     
     return () => clearTimeout(timer);
   }, [router.pathname, isSignedIn, isAgent]);

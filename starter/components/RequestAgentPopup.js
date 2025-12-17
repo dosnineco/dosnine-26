@@ -8,8 +8,8 @@ import { X, Home, MapPin, DollarSign, Bed, Bath, AlertCircle, Send, Shield } fro
 
 const REQUEST_TYPES = [
   { value: 'buy', label: 'Buy Property' },
-  { value: 'rent', label: 'Rent Property' },
   { value: 'sell', label: 'Sell My Property' },
+  { value: 'rent', label: 'Rent Property' },
   { value: 'lease', label: 'Lease Property' },
   { value: 'valuation', label: 'Property Valuation' }
 ];
@@ -38,7 +38,7 @@ export default function RequestAgentPopup({ isOpen, onClose }) {
     client_name: '',
     client_email: '',
     client_phone: '',
-    request_type: 'rent',
+    request_type: 'buy',
     property_type: 'house',
     location: '',
     budget_min: '',
@@ -237,7 +237,7 @@ export default function RequestAgentPopup({ isOpen, onClose }) {
                     
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                        <label className="block  text-sm font-medium text-gray-700 mb-2">
                           I want to... <span className="text-accent">*</span>
                         </label>
                         <select
@@ -245,7 +245,7 @@ export default function RequestAgentPopup({ isOpen, onClose }) {
                           value={formData.request_type}
                           onChange={handleChange}
                           required
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-accent focus:border-transparent text-sm"
+                          className="text-accent font-bold w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-accent focus:border-transparent text-sm"
                         >
                           {REQUEST_TYPES.map(type => (
                             <option key={type.value} value={type.value}>{type.label}</option>

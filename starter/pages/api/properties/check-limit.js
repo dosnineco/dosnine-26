@@ -19,8 +19,15 @@ export default async function handler(req, res) {
       .eq('clerk_id', clerkId)
       .single();
 
+    // If user doesn't exist yet, they can post their first property
     if (userError || !userData) {
-      return res.status(404).json({ error: 'User not found' });
+      return res.status(200).json({ 
+        canPost: true,
+        isAgent: false,
+        propertyCount: 0,
+        maxProperties: 2,
+        isNewUser: true
+      });
     }
 
     // Check if user is an agent
@@ -56,14 +63,14 @@ export default async function handler(req, res) {
       });
     }
 
-    // Regular users - check property limit (max 1)
-    if (userData.property_count >= 1) {
+    // Regular users - check property limit (max 2)
+    if (userData.property_count >= 2) {
       return res.status(403).json({ 
         error: 'Property limit reached',
         canPost: false,
         reason: 'limit_reached',
         propertyCount: userData.property_count,
-        maxProperties: 1
+        maxProperties: 2
       });
     }
 
@@ -71,7 +78,7 @@ export default async function handler(req, res) {
       canPost: true,
       isAgent: false,
       propertyCount: userData.property_count,
-      maxProperties: 1
+      maxProperties: 2
     });
 
   } catch (error) {
