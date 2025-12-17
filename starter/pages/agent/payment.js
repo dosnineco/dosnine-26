@@ -1,18 +1,17 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useUser } from '@clerk/nextjs';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
 import axios from 'axios';
 import toast from 'react-hot-toast';
-import { PayPalScriptProvider, PayPalButtons } from "@paypal/react-paypal-js";
 import { useRoleProtection } from '../../lib/useRoleProtection';
 import { isVerifiedAgent, needsAgentPayment } from '../../lib/rbac';
+import { FiCopy, FiCheck, FiAlertCircle, FiUpload } from 'react-icons/fi';
+import { supabase } from '../../lib/supabase';
 
-const PAYPAL_CLIENT_ID = process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID || "test";
-const UNLOCK_FEE = 0.01; // $50 one-time fee
+const UNLOCK_FEE = 8050;
 
 export default function AgentPayment() {
-  // Protect route - only verified agents who need payment
   const { loading: authLoading, userData } = useRoleProtection({
     checkAccess: (data) => isVerifiedAgent(data) && needsAgentPayment(data),
     redirectTo: '/agent/dashboard',
@@ -21,81 +20,134 @@ export default function AgentPayment() {
 
   const { user } = useUser();
   const router = useRouter();
-  const [loading, setLoading] = useState(false);
-  const [processing, setProcessing] = useState(false);
-  const [sdkReady, setSdkReady] = useState(false);
+  const [proofFile, setProofFile] = useState(null);
+  const [uploading, setUploading] = useState(false);
+  const [copied, setCopied] = useState(false);
 
-  useEffect(() => {
-    console.log('PayPal Config:', {
-      clientId: PAYPAL_CLIENT_ID ? 'Set' : 'Missing',
-      fee: UNLOCK_FEE,
-      user: user?.id
-    });
-  }, [user]);
+  const bankDetails = [
+    {
+      bank: "Scotiabank Jamaica",
+      accountName: "Tahjay Thompson",
+      accountNumber: "010860258",
+      branch: "50575"
+    },
+    {
+      bank: "National Commercial Bank (NCB)",
+      accountName: "Tahjay Thompson",
+      accountNumber: "404386522",
+      branch: "uwi"
+    },
+    {
+      bank: "Jamaica National Bank (JN)",
+      accountName: "Tahjay Thompson",
+      accountNumber: "2094746895",
+      branch: "Any Branch"
+    }
+  ];
 
-  if (authLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-accent mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading...</p>
-        </div>
-      </div>
-    );
-  }
-
-  const createOrder = (data, actions) => {
-    return actions.order.create({
-      purchase_units: [{
-        description: 'Agent Request Access - One-time unlock fee',
-        amount: {
-          value: UNLOCK_FEE.toFixed(2),
-          currency_code: 'USD'
-        },
-        shipping: {
-          address: {
-            address_line_1: 'Kingston',
-            admin_area_2: 'Kingston',
-            admin_area_1: 'Kingston',
-            postal_code: '00000',
-            country_code: 'JM'
-          }
-        }
-      }],
-      application_context: {
-        shipping_preference: 'NO_SHIPPING'
-      }
-    });
+  const copyToClipboard = (text, field) => {
+    navigator.clipboard.writeText(text);
+    setCopied(field);
+    toast.success(`${field} copied!`);
+    setTimeout(() => setCopied(false), 2000);
   };
 
-  const onApprove = async (data, actions) => {
-    setProcessing(true);
-    try {
-      const order = await actions.order.capture();
-      
-      // Process payment in backend
-      await axios.post('/api/agent/process-payment', {
-        clerkId: user.id,
-        transactionId: order.id,
-        amount: UNLOCK_FEE
-      });
+  const handleFileUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
 
-      toast.success('Payment successful! Access unlocked 🎉');
+    const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'application/pdf'];
+    if (!validTypes.includes(file.type)) {
+      toast.error('Please upload JPG, PNG, or PDF file');
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('File size must be less than 5MB');
+      return;
+    }
+
+    setProofFile(file);
+  };
+
+  const handleSubmitProof = async () => {
+    if (!proofFile) {
+      toast.error('Please upload payment proof');
+      return;
+    }
+
+    setUploading(true);
+    try {
+      // Get user data first
+      const { data: dbUser, error: userError } = await supabase
+        .from('users')
+        .select('id')
+        .eq('clerk_id', user.id)
+        .single();
+
+      if (userError || !dbUser) {
+        throw new Error('User not found');
+      }
+
+      // Get agent data
+      const { data: agent, error: agentError } = await supabase
+        .from('agents')
+        .select('id')
+        .eq('user_id', dbUser.id)
+        .single();
+
+      if (agentError || !agent) {
+        throw new Error('Agent profile not found');
+      }
+
+      // Upload file directly to Supabase Storage (client-side, no service role needed)
+      const timestamp = Date.now();
+      const fileExt = proofFile.name.split('.').pop();
+      const filePath = `payment-proofs/${agent.id}_${timestamp}.${fileExt}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('agent-documents')
+        .upload(filePath, proofFile, {
+          contentType: proofFile.type,
+          upsert: false
+        });
+
+      if (uploadError) {
+        console.error('Upload error:', uploadError);
+        throw new Error('Failed to upload file: ' + uploadError.message);
+      }
+
+      // Get public URL
+      const { data: urlData } = supabase.storage
+        .from('agent-documents')
+        .getPublicUrl(filePath);
+
+      // Update agent payment status directly in Supabase
+      const { error: updateError } = await supabase
+        .from('agents')
+        .update({
+          payment_status: 'paid',
+          payment_proof_url: urlData.publicUrl,
+          payment_date: new Date().toISOString()
+        })
+        .eq('id', agent.id);
+
+      if (updateError) {
+        console.error('Update error:', updateError);
+        throw new Error('Failed to update payment status: ' + updateError.message);
+      }
+
+      toast.success('Payment proof submitted successfully! You now have full access.');
       router.push('/agent/dashboard');
     } catch (error) {
-      console.error('Payment processing failed:', error);
-      toast.error('Payment failed. Please try again.');
+      console.error('Upload error:', error);
+      toast.error(error.message || 'Failed to submit proof. Please try again.');
     } finally {
-      setProcessing(false);
+      setUploading(false);
     }
   };
 
-  const onError = (err) => {
-    console.error('PayPal Error:', err);
-    toast.error('Payment failed. Please try again.');
-  };
-
-  if (loading) {
+  if (authLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
@@ -109,7 +161,7 @@ export default function AgentPayment() {
   return (
     <>
       <Head>
-        <title>Unlock Agent Access — Rentals Jamaica</title>
+        <title>Unlock Agent Access — Dosnine Properties</title>
       </Head>
 
       <div className="min-h-screen bg-gray-50 py-12 px-4">
@@ -123,7 +175,7 @@ export default function AgentPayment() {
               <div>
                 <h3 className="text-lg font-semibold text-green-900 mb-1">🎉 Congratulations! You're Verified</h3>
                 <p className="text-green-800">
-                  Your agent application has been approved. Complete this one-time payment to unlock full access to client requests and unlimited property postings.
+                  Your agent application has been approved. Complete this payment to unlock 6 months of full access.
                 </p>
               </div>
             </div>
@@ -133,7 +185,7 @@ export default function AgentPayment() {
             {/* Header */}
             <div className="bg-accent text-white px-8 py-6">
               <h1 className="text-3xl font-bold">Unlock Agent Features</h1>
-              <p className="mt-2 text-white/90">One-time payment to access client requests</p>
+              <p className="mt-2 text-white/90">One-time payment via bank transfer</p>
             </div>
 
             {/* Content */}
@@ -162,74 +214,127 @@ export default function AgentPayment() {
               {/* Pricing */}
               <div className="bg-gray-50 rounded-lg p-6 mb-8 border-2 border-accent/20">
                 <div className="text-center">
-                  <p className="text-gray-600 text-sm uppercase tracking-wide">One-Time Payment</p>
-                  <p className="text-5xl font-bold text-accent mt-2">${UNLOCK_FEE}</p>
-                  <p className="text-gray-500 mt-2">Lifetime access • No recurring fees</p>
-                  <p className="text-xs text-gray-400 mt-3">🔒 Secure card payment powered by PayPal</p>
-                  <p className="text-xs text-gray-400">Pay directly with your debit or credit card</p>
-                  <p className="text-xs text-gray-400">No PayPal account required • Jamaica-friendly checkout</p>
+                  <p className="text-gray-600 text-sm uppercase tracking-wide">6-Month Access Payment</p>
+                  <p className="text-5xl font-bold text-accent mt-2">J${UNLOCK_FEE.toLocaleString()}</p>
+                  <p className="text-gray-500 mt-2">6 months access • No recurring fees during period</p>
                 </div>
               </div>
 
-              {/* PayPal Buttons */}
-              {!processing ? (
-                <div>
-                  {!PAYPAL_CLIENT_ID || PAYPAL_CLIENT_ID === "test" ? (
-                    <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
-                      <p className="text-red-800 font-semibold mb-2">⚠️ PayPal Not Configured</p>
-                      <p className="text-red-600 text-sm">Payment system is not properly configured. Please contact support.</p>
-                      <p className="text-xs text-gray-500 mt-2">Client ID: {PAYPAL_CLIENT_ID}</p>
-                    </div>
-                  ) : (
-                    <PayPalScriptProvider 
-                      options={{ 
-                        clientId: PAYPAL_CLIENT_ID,
-                        currency: "USD",
-                        intent: "capture",
-                        components: "buttons"
-                      }}
-                    >
-                      <div className="min-h-[50px]">
-                        {!sdkReady && (
-                          <div className="text-center py-4">
-                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-accent mx-auto"></div>
-                            <p className="text-sm text-gray-500 mt-2">Loading payment options...</p>
-                          </div>
-                        )}
-                        <PayPalButtons
-                          createOrder={createOrder}
-                          onApprove={onApprove}
-                          onError={onError}
-                          onInit={() => {
-                            console.log('PayPal SDK initialized');
-                            setSdkReady(true);
-                          }}
-                          style={{
-                            layout: 'vertical',
-                            shape: 'rect',
-                            height: 48,
-                            label: 'pay'
-                          }}
-                          fundingSource={undefined}
-                        />
-                      </div>
-                    </PayPalScriptProvider>
-                  )}
+              {/* Bank Transfer Instructions */}
+              <div className="bg-gray-100 border-l-4 border-blue-500 rounded-lg p-6 mb-6">
+                <div className="flex items-start gap-3 mb-4">
+                  <FiAlertCircle className="text-blue-600 flex-shrink-0 mt-1" size={20} />
+                  <div>
+                    <h3 className="font-semibold text-blue-900 mb-2">Payment Instructions</h3>
+                    <ol className="text-blue-800 text-sm space-y-1 list-decimal list-inside">
+                      <li>Transfer J${UNLOCK_FEE.toLocaleString()} to any of the bank accounts below</li>
+                      <li>In the transfer notes/description, include: <strong>Your Email</strong> and <strong>"Agent Payment"</strong></li>
+                      <li>Take a screenshot or photo of the receipt</li>
+                      <li>Upload the proof below</li>
+                    </ol>
+                  </div>
                 </div>
-              ) : (
-                <div className="text-center py-8">
-                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-accent mx-auto"></div>
-                  <p className="mt-4 text-gray-600">Processing payment...</p>
-                </div>
-              )}
 
-              {/* Additional Security Note */}
+                {bankDetails.map((bank, index) => {
+                  const cardColors = {
+                    "Scotiabank Jamaica": "bg-red-200 border-l-4 border-red-500",
+                    "National Commercial Bank (NCB)": "bg-blue-200 border-l-4 border-blue-500",
+                    "Jamaica National Bank (JN)": "bg-yellow-50 border-l-4 border-yellow-500"
+                  };
+                  const headerColors = {
+                    "Scotiabank Jamaica": "text-red-700 border-red-200",
+                    "National Commercial Bank (NCB)": "text-blue-700 border-blue-200",
+                    "Jamaica National Bank (JN)": "text-yellow-700 border-yellow-200"
+                  };
+                  return (
+                  <div key={index} className={`rounded-lg p-4 mb-3 last:mb-0 ${cardColors[bank.bank] || 'bg-white'}`}>
+                    <h4 className={`font-semibold mb-3 border-b pb-2 ${headerColors[bank.bank] || 'text-gray-900'}`}>{bank.bank}</h4>
+                    <div className="space-y-2">
+                      {Object.entries(bank).filter(([key]) => key !== 'bank').map(([key, value]) => (
+                        <div key={key} className="flex justify-between items-center">
+                          <span className="text-gray-600 text-sm capitalize">{key.replace(/([A-Z])/g, ' $1').trim()}:</span>
+                          <div className="flex items-center gap-2">
+                            <span className="font-semibold text-gray-900">{value}</span>
+                            <button
+                              onClick={() => copyToClipboard(value, `${bank.bank}-${key}`)}
+                              className="text-blue-600 hover:text-blue-700 p-1"
+                            >
+                              {copied === `${bank.bank}-${key}` ? <FiCheck size={14} /> : <FiCopy size={14} />}
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  );
+                })}
+
+                <div className="bg-yellow-50 border border-yellow-200 rounded p-3 mt-4">
+                  <p className="text-xs text-yellow-800">
+                    <strong>Important:</strong> Include your email ({user?.primaryEmailAddress?.emailAddress}) in the payment notes so we can verify your payment quickly.
+                  </p>
+                </div>
+              </div>
+
+              {/* Upload Proof */}
+              <div className="mb-6">
+                <label className="block text-sm font-semibold text-gray-700 mb-3">
+                  Upload Payment Proof (Receipt/Screenshot)
+                </label>
+                <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-accent transition">
+                  <input
+                    type="file"
+                    accept="image/*,.pdf"
+                    onChange={handleFileUpload}
+                    className="hidden"
+                    id="proof-upload"
+                  />
+                  <label htmlFor="proof-upload" className="cursor-pointer">
+                    <div className="text-gray-600">
+                      {proofFile ? (
+                        <div className="flex items-center justify-center gap-2">
+                          <FiCheck className="text-green-600" size={24} />
+                          <span className="font-medium text-green-600">{proofFile.name}</span>
+                        </div>
+                      ) : (
+                        <>
+                          <FiUpload className="mx-auto h-12 w-12 text-gray-400" />
+                          <p className="mt-2 text-sm">Click to upload or drag and drop</p>
+                          <p className="text-xs text-gray-500 mt-1">PNG, JPG, PDF up to 5MB</p>
+                        </>
+                      )}
+                    </div>
+                  </label>
+                </div>
+              </div>
+
+              {/* Submit Button */}
+              <button
+                onClick={handleSubmitProof}
+                disabled={!proofFile || uploading}
+                className="w-full btn-primary btn-lg"
+              >
+                {uploading ? (
+                  <div className="flex items-center justify-center gap-2">
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                    Submitting...
+                  </div>
+                ) : (
+                  'Submit Payment Proof'
+                )}
+              </button>
+
+              <p className="text-center text-sm text-gray-500 mt-4">
+                ⏱️ Verification typically takes 12-24 hours during business days
+              </p>
+
+              {/* Security Note */}
               <div className="mt-6 text-center">
                 <div className="inline-flex items-center gap-2 text-sm text-gray-600 bg-blue-50 px-4 py-2 rounded-lg">
                   <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
                   </svg>
-                  <span>Bank-level security • Payments processed through PayPal</span>
+                  <span>Secure payment • We'll email you once verified</span>
                 </div>
               </div>
             </div>
@@ -240,16 +345,20 @@ export default function AgentPayment() {
             <h3 className="font-semibold text-lg mb-4">Frequently Asked Questions</h3>
             <div className="space-y-4 text-sm">
               <div>
-                <p className="font-medium text-gray-900">Is this a one-time payment?</p>
-                <p className="text-gray-600 mt-1">Yes! Pay once and get lifetime access to all agent features.</p>
+                <p className="font-medium text-gray-900">How long does this payment cover?</p>
+                <p className="text-gray-600 mt-1">This payment provides 6 months of full access to all agent features.</p>
+              </div>
+              <div>
+                <p className="font-medium text-gray-900">How long does verification take?</p>
+                <p className="text-gray-600 mt-1">Usually 12-24 hours during business days. We'll email you once verified.</p>
+              </div>
+              <div>
+                <p className="font-medium text-gray-900">What payment methods are accepted?</p>
+                <p className="text-gray-600 mt-1">Bank transfer to Scotiabank, NCB, or JN Bank. Include your email in the transfer notes.</p>
               </div>
               <div>
                 <p className="font-medium text-gray-900">Can I get a refund?</p>
                 <p className="text-gray-600 mt-1">Yes, within 7 days if you haven't accessed any client requests.</p>
-              </div>
-              <div>
-                <p className="font-medium text-gray-900">What payment methods are accepted?</p>
-                <p className="text-gray-600 mt-1">Credit and debit cards (Visa, Mastercard, Discover, Amex) - optimized for Jamaica.</p>
               </div>
             </div>
           </div>

@@ -1,15 +1,16 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
-import { PayPalScriptProvider, PayPalButtons } from '@paypal/react-paypal-js';
 import { useUser } from '@clerk/nextjs';
 import { supabase } from '../../lib/supabase';
 import toast from 'react-hot-toast';
 import { Zap, TrendingUp, Eye, Clock, AlertCircle } from 'lucide-react';
+import { FiCopy, FiCheck, FiAlertCircle, FiUpload } from 'react-icons/fi';
 import Link from 'next/link';
 import { formatJMD } from '../../lib/formatMoney';
+import axios from 'axios';
 
 const MAX_ACTIVE_BOOSTS = 20;
-const BOOST_PRICE_JMD =1;
+const BOOST_PRICE_JMD = 1550; // Approximately $10 USD
 const BOOST_DURATION_DAYS = 10;
 
 export default function BoostProperty() {
@@ -21,6 +22,30 @@ export default function BoostProperty() {
   const [activeBoostsCount, setActiveBoostsCount] = useState(0);
   const [nextAvailableDate, setNextAvailableDate] = useState(null);
   const [existingBoosts, setExistingBoosts] = useState([]);
+  const [proofFile, setProofFile] = useState(null);
+  const [uploading, setUploading] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  const bankDetails = [
+    {
+      bank: "Scotiabank Jamaica",
+      accountName: "Dosnine Properties",
+      accountNumber: "Enter Account Number",
+      branch: "Any Branch"
+    },
+    {
+      bank: "National Commercial Bank (NCB)",
+      accountName: "Dosnine Properties",
+      accountNumber: "Enter Account Number",
+      branch: "Any Branch"
+    },
+    {
+      bank: "Jamaica National Bank (JN)",
+      accountName: "Dosnine Properties",
+      accountNumber: "Enter Account Number",
+      branch: "Any Branch"
+    }
+  ];
 
   useEffect(() => {
     if (!isLoaded) return;
@@ -94,38 +119,100 @@ export default function BoostProperty() {
     }
   };
 
-  const handlePaymentSuccess = async (paymentId) => {
-    if (!selectedProperty) return;
+  const copyToClipboard = (text, field) => {
+    navigator.clipboard.writeText(text);
+    setCopied(field);
+    toast.success(`${field} copied!`);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
+  const handleFileUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'application/pdf'];
+    if (!validTypes.includes(file.type)) {
+      toast.error('Please upload JPG, PNG, or PDF file');
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('File size must be less than 5MB');
+      return;
+    }
+
+    setProofFile(file);
+  };
+
+  const handleSubmitProof = async () => {
+    if (!proofFile) {
+      toast.error('Please upload payment proof');
+      return;
+    }
+
+    if (!selectedProperty) {
+      toast.error('Please select a property');
+      return;
+    }
+
+    setUploading(true);
     try {
-      // Get user's UUID
-      const { data: userData } = await supabase
+      // Get user data
+      const { data: dbUser, error: userError } = await supabase
         .from('users')
         .select('id')
         .eq('clerk_id', user.id)
         .single();
 
+      if (userError || !dbUser) {
+        throw new Error('User not found');
+      }
+
+      // Upload file directly to Supabase Storage (client-side)
+      const timestamp = Date.now();
+      const fileExt = proofFile.name.split('.').pop();
+      const filePath = `boost-payment-proofs/${selectedProperty.id}_${timestamp}.${fileExt}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('agent-documents')
+        .upload(filePath, proofFile, {
+          contentType: proofFile.type,
+          upsert: false
+        });
+
+      if (uploadError) {
+        console.error('Upload error:', uploadError);
+        throw new Error('Failed to upload file: ' + uploadError.message);
+      }
+
+      // Get public URL
+      const { data: urlData } = supabase.storage
+        .from('agent-documents')
+        .getPublicUrl(filePath);
+
+      // Create boost record with pending status
       const now = new Date();
       const endDate = new Date(now);
       endDate.setDate(endDate.getDate() + BOOST_DURATION_DAYS);
 
-      // Create boost record
-      const { data: boost, error: boostError } = await supabase
+      const { error: boostError } = await supabase
         .from('property_boosts')
         .insert({
           property_id: selectedProperty.id,
-          owner_id: userData.id,
-          payment_id: paymentId,
+          owner_id: dbUser.id,
+          payment_id: `boost_${timestamp}`,
           amount: BOOST_PRICE_JMD,
           currency: 'JMD',
           boost_start_date: now.toISOString(),
           boost_end_date: endDate.toISOString(),
-          status: 'active'
-        })
-        .select()
-        .single();
+          status: 'active',
+          payment_proof_url: urlData.publicUrl
+        });
 
-      if (boostError) throw boostError;
+      if (boostError) {
+        console.error('Boost creation error:', boostError);
+        throw new Error('Failed to create boost');
+      }
 
       // Mark property as featured
       await supabase
@@ -133,11 +220,13 @@ export default function BoostProperty() {
         .update({ is_featured: true })
         .eq('id', selectedProperty.id);
 
-      toast.success('Property boost activated successfully!');
+      toast.success('Payment proof submitted! Your property boost is now active.');
       router.push('/landlord/dashboard');
-    } catch (err) {
-      console.error('Error activating boost:', err);
-      toast.error('Failed to activate boost. Please contact support.');
+    } catch (error) {
+      console.error('Upload error:', error);
+      toast.error(error.message || 'Failed to submit proof. Please try again.');
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -155,11 +244,7 @@ export default function BoostProperty() {
   return (
     <div className="container mx-auto px-4 py-8 max-w-5xl">
       <div className="mb-8">
-        {/* <Link href="/landlord/dashboard" className="text-blue-600 hover:text-blue-800 mb-4 inline-block">
-          ← Back to Dashboard
-        </Link> */}
         <h1 className="text-4xl font-extrabold text-gray-800 flex items-center gap-3 mb-2">
-          {/* <Zap className="text-yellow-500 h-10 w-10" /> */}
           Boost Your Property
         </h1>
         <p className="text-gray-600 text-md">
@@ -188,8 +273,6 @@ export default function BoostProperty() {
           </div>
         </div>
       </div>
-
-     
 
       {/* Existing Active Boosts */}
       {existingBoosts.length > 0 && (
@@ -306,8 +389,7 @@ export default function BoostProperty() {
                 </div>
               </div>
 
-              <div className="bg-gradient-to-r from-yellow-50 to-orange-50  rounded-lg p-6 mb-6">
-               
+              <div className="bg-gradient-to-r from-yellow-50 to-orange-50 rounded-lg p-6 mb-6">
                 <ul className="space-y-2 text-sm text-gray-700">
                   <li>✓ {BOOST_DURATION_DAYS} days of featured placement</li>
                   <li>✓ Rotating banner on every page</li>
@@ -315,46 +397,125 @@ export default function BoostProperty() {
                   <li>✓ Detailed analytics and performance tracking</li>
                   <li>✓ Cancel anytime (pro-rated refund available)</li>
                 </ul>
-                 <div className="flex justify-start items-center mb-4">
+                <div className="flex justify-start items-center mt-4">
                   <span className="text-2xl font-bold text-gray-800 mr-2">Boost Price:</span>
-                  <span className="text-2xl  font-bold text-green-600 ">
+                  <span className="text-2xl font-bold text-green-600">
                     {formatJMD(BOOST_PRICE_JMD)}
                   </span>
                 </div>
               </div>
 
-              <PayPalScriptProvider options={{ "client-id": process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID }}>
-                <PayPalButtons
-                  style={{ layout: 'vertical', color: 'gold', shape: 'rect', label: 'pay' }}
-                  createOrder={(data, actions) => {
-                    return actions.order.create({
-                      purchase_units: [
-                        {
-                          description: `Property Boost: ${selectedProperty.title}`,
-                          amount: {
-                            value: (BOOST_PRICE_JMD / 155).toFixed(2), // Convert JMD to USD (approximate rate: 155 JMD = 1 USD)
-                          },
-                        },
-                      ],
-                    });
-                  }}
-                  onApprove={(data, actions) => {
-                    return actions.order.capture().then(() => {
-                      handlePaymentSuccess(data.orderID);
-                    });
-                  }}
-                  onError={(err) => {
-                    console.error('PayPal Checkout Error:', err);
-                    toast.error('Payment failed. Please try again.');
-                  }}
-                />
-              </PayPalScriptProvider>
+              {/* Bank Transfer Instructions */}
+              <div className="bg-blue-50 border-l-4 border-blue-500 rounded-lg p-6 mb-6">
+                <div className="flex items-start gap-3 mb-4">
+                  <FiAlertCircle className="text-blue-600 flex-shrink-0 mt-1" size={20} />
+                  <div>
+                    <h3 className="font-semibold text-blue-900 mb-2">Payment Instructions</h3>
+                    <ol className="text-blue-800 text-sm space-y-1 list-decimal list-inside">
+                      <li>Transfer J${BOOST_PRICE_JMD.toLocaleString()} to any of the bank accounts below</li>
+                      <li>In the transfer notes/description, include: <strong>Your Email</strong> and <strong>Property: {selectedProperty.slug}</strong></li>
+                      <li>Take a screenshot or photo of the receipt</li>
+                      <li>Upload the proof below</li>
+                    </ol>
+                  </div>
+                </div>
+
+                {bankDetails.map((bank, index) => {
+                  const cardColors = {
+                    "Scotiabank Jamaica": "bg-red-50 border-l-4 border-red-500",
+                    "National Commercial Bank (NCB)": "bg-blue-50 border-l-4 border-blue-500",
+                    "Jamaica National Bank (JN)": "bg-yellow-50 border-l-4 border-yellow-500"
+                  };
+                  const headerColors = {
+                    "Scotiabank Jamaica": "text-red-700 border-red-200",
+                    "National Commercial Bank (NCB)": "text-blue-700 border-blue-200",
+                    "Jamaica National Bank (JN)": "text-yellow-700 border-yellow-200"
+                  };
+                  return (
+                  <div key={index} className={`rounded-lg p-4 mb-3 last:mb-0 ${cardColors[bank.bank] || 'bg-white'}`}>
+                    <h4 className={`font-semibold mb-3 border-b pb-2 ${headerColors[bank.bank] || 'text-gray-900'}`}>{bank.bank}</h4>
+                    <div className="space-y-2">
+                      {Object.entries(bank).filter(([key]) => key !== 'bank').map(([key, value]) => (
+                        <div key={key} className="flex justify-between items-center">
+                          <span className="text-gray-600 text-sm capitalize">{key.replace(/([A-Z])/g, ' $1').trim()}:</span>
+                          <div className="flex items-center gap-2">
+                            <span className="font-semibold text-gray-900">{value}</span>
+                            <button
+                              onClick={() => copyToClipboard(value, `${bank.bank}-${key}`)}
+                              className="text-blue-600 hover:text-blue-700 p-1"
+                            >
+                              {copied === `${bank.bank}-${key}` ? <FiCheck size={14} /> : <FiCopy size={14} />}
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  );
+                })}
+
+                <div className="bg-yellow-50 border border-yellow-200 rounded p-3 mt-4">
+                  <p className="text-xs text-yellow-800">
+                    <strong>Important:</strong> Include your email ({user?.primaryEmailAddress?.emailAddress}) and property slug ({selectedProperty.slug}) in the payment notes so we can verify your payment quickly.
+                  </p>
+                </div>
+              </div>
+
+              {/* Upload Proof */}
+              <div className="mb-6">
+                <label className="block text-sm font-semibold text-gray-700 mb-3">
+                  Upload Payment Proof (Receipt/Screenshot)
+                </label>
+                <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-accent transition">
+                  <input
+                    type="file"
+                    accept="image/*,.pdf"
+                    onChange={handleFileUpload}
+                    className="hidden"
+                    id="proof-upload"
+                  />
+                  <label htmlFor="proof-upload" className="cursor-pointer">
+                    <div className="text-gray-600">
+                      {proofFile ? (
+                        <div className="flex items-center justify-center gap-2">
+                          <FiCheck className="text-green-600" size={24} />
+                          <span className="font-medium text-green-600">{proofFile.name}</span>
+                        </div>
+                      ) : (
+                        <>
+                          <FiUpload className="mx-auto h-12 w-12 text-gray-400" />
+                          <p className="mt-2 text-sm">Click to upload or drag and drop</p>
+                          <p className="text-xs text-gray-500 mt-1">PNG, JPG, PDF up to 5MB</p>
+                        </>
+                      )}
+                    </div>
+                  </label>
+                </div>
+              </div>
+
+              {/* Submit Button */}
+              <button
+                onClick={handleSubmitProof}
+                disabled={!proofFile || uploading}
+                className="w-full btn-primary btn-lg"
+              >
+                {uploading ? (
+                  <div className="flex items-center justify-center gap-2">
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                    Submitting...
+                  </div>
+                ) : (
+                  'Submit Payment Proof'
+                )}
+              </button>
+
+              <p className="text-center text-sm text-gray-500 mt-4">
+                ⏱️ Verification typically takes 12-24 hours during business days
+              </p>
             </div>
           )}
         </>
       )}
-
-      
     </div>
   );
 }

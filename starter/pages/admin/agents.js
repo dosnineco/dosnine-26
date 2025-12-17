@@ -6,6 +6,7 @@ import Link from 'next/link';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 import { Shield, CheckCircle, XCircle, Clock, Eye, FileText, Phone, Mail, Calendar, Building2, Users } from 'lucide-react';
+import { supabase } from '../../lib/supabase';
 
 export default function AdminAgents() {
   const { user } = useUser();
@@ -113,6 +114,40 @@ export default function AdminAgents() {
       toast.error(error.response?.data?.error || 'Failed to update agent');
     } finally {
       setVerifying(false);
+    }
+  }
+
+  async function togglePaymentStatus(agentId, currentStatus) {
+    const newStatus = currentStatus === 'paid' ? 'unpaid' : 'paid';
+    if (!confirm(`Mark agent as ${newStatus}?`)) {
+      return;
+    }
+
+    try {
+      // Update payment status directly in Supabase
+      const updateData = {
+        payment_status: newStatus,
+      };
+      
+      // If marking as paid, set payment_date
+      if (newStatus === 'paid') {
+        updateData.payment_date = new Date().toISOString();
+      }
+
+      const { error } = await supabase
+        .from('agents')
+        .update(updateData)
+        .eq('id', agentId);
+
+      if (error) {
+        throw error;
+      }
+
+      toast.success(`Payment status updated to ${newStatus}`);
+      fetchAgents(); // Refresh list
+    } catch (error) {
+      console.error('Failed to update payment:', error);
+      toast.error(error.message || 'Failed to update payment status');
     }
   }
 
@@ -319,6 +354,7 @@ export default function AdminAgents() {
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Business</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Experience</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Payment</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Submitted</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
                     </tr>
@@ -359,6 +395,20 @@ export default function AdminAgents() {
                             {agent.verification_status === 'pending' && <Clock className="w-3 h-3" />}
                             {agent.verification_status}
                           </span>
+                        </td>
+                        <td className="px-6 py-4">
+                          <button
+                            onClick={() => togglePaymentStatus(agent.id, agent.payment_status)}
+                            disabled={agent.verification_status !== 'approved'}
+                            className={`inline-flex items-center gap-1 px-3 py-1 rounded-md text-xs font-medium transition disabled:opacity-40 disabled:cursor-not-allowed ${
+                              agent.payment_status === 'paid'
+                                ? 'bg-green-100 text-green-800 hover:bg-green-200'
+                                : 'bg-gray-100 text-gray-800 hover:bg-gray-200'
+                            }`}
+                            title={agent.verification_status !== 'approved' ? 'Agent must be approved first' : 'Toggle payment status'}
+                          >
+                            {agent.payment_status === 'paid' ? '✓ Paid' : 'Unpaid'}
+                          </button>
                         </td>
                         <td className="px-6 py-4 text-sm text-gray-500">
                           <div className="flex items-center gap-1">
