@@ -1,6 +1,6 @@
 ✅ COMPLETE SETUP GUIDE (NO SERVICE ROLE KEY NEEDED)
 
-🔧 RUN THESE 3 SQL SCRIPTS IN ORDER:
+🔧 RUN THESE 4 SQL SCRIPTS IN ORDER:
 
 STEP 1: Add Payment Columns to Agents Table
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -39,12 +39,24 @@ STEP 3: Setup Permissions (Row Level Security)
 
 5. This allows users and admins to update payment status
 
-STEP 4: Restart Dev Server
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+STEP 4: Enable Auto-Assign for Service Requests
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+1. In the same SQL editor
+
+2. Copy ALL the SQL from: setup-auto-assign.sql
+
+3. Paste it in the SQL editor
+
+4. Click "Run" or press Ctrl+Enter
+
+5. This enables fair round-robin distribution of client requests to paid agents
+
+STEP 5: Restart Dev Server
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 In terminal, run:
    yarn dev
 
-STEP 5: Try Upload Again
+STEP 6: Try Upload Again
 ━━━━━━━━━━━━━━━━━━━━━━
 Go to /agent/payment and upload your payment proof!
 
@@ -56,6 +68,7 @@ WHAT THIS FIXES:
 • Creates storage bucket for file uploads ✓
 • Sets up proper permissions for updates ✓
 • Admin manual payment toggle button ✓
+• Auto-assigns service requests to paid agents fairly ✓
 
 ADMIN FEATURES:
 • Go to /admin/agents

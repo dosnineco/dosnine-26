@@ -30,19 +30,19 @@ export default function BoostProperty() {
     {
       bank: "Scotiabank Jamaica",
       accountName: "Dosnine Properties",
-      accountNumber: "Enter Account Number",
-      branch: "Any Branch"
+      accountNumber: "010860258",
+      branch: "50575"
     },
     {
       bank: "National Commercial Bank (NCB)",
       accountName: "Dosnine Properties",
-      accountNumber: "Enter Account Number",
-      branch: "Any Branch"
+      accountNumber: "404386522",
+      branch: "uwi"
     },
     {
       bank: "Jamaica National Bank (JN)",
       accountName: "Dosnine Properties",
-      accountNumber: "Enter Account Number",
+      accountNumber: "2094746895",
       branch: "Any Branch"
     }
   ];
