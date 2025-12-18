@@ -28,8 +28,8 @@ export default function MyPropertiesPage() {
         .single();
 
       if (userError) {
-        console.error('Error fetching user:', userError);
-        toast.error('Failed to fetch user data');
+        // console.error('Error fetching user:', userError);
+        // toast.error('Failed to fetch user data');
         setLoading(false);
         return;
       }

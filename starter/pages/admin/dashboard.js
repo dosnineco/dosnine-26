@@ -884,7 +884,7 @@ export default function AdminDashboard() {
                         </div>
                       </div>
                     ) : (
-                      <div className="flex flex-col gap-2">
+                      <div className="flex  flex-col gap-2">
                         <p className="text-xs font-semibold text-orange-600 uppercase">⚠️ Unassigned Request</p>
                         <div className="flex flex-col md:flex-row md:items-center gap-3">
                           <label className="text-sm font-medium text-gray-700">Assign to Agent:</label>

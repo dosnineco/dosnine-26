@@ -18,15 +18,34 @@ export default function AdminAgentApprovals() {
 
   const fetchPendingAgents = async () => {
     try {
-      const { data, error } = await supabase
+      // Fetch users with pending agent status and their agent data
+      const { data: usersData, error: usersError } = await supabase
         .from('users')
         .select('*')
         .eq('user_type', 'agent')
         .eq('agent_verification_status', 'pending')
         .order('agent_verification_submitted_at', { ascending: false });
 
-      if (error) throw error;
-      setPendingAgents(data || []);
+      if (usersError) throw usersError;
+
+      // Fetch corresponding agent records to get profile images
+      const { data: agentsData, error: agentsError } = await supabase
+        .from('agents')
+        .select('user_id, profile_image_url')
+        .in('user_id', usersData?.map(u => u.id) || []);
+
+      if (agentsError) throw agentsError;
+
+      // Merge agent data with user data
+      const mergedData = usersData?.map(user => {
+        const agentData = agentsData?.find(a => a.user_id === user.id);
+        return {
+          ...user,
+          profile_image_url: agentData?.profile_image_url || null
+        };
+      }) || [];
+
+      setPendingAgents(mergedData);
     } catch (error) {
       console.error('Error fetching pending agents:', error);
       toast.error('Failed to load pending agents');
@@ -152,11 +171,25 @@ export default function AdminAgentApprovals() {
                 {/* Agent Card Header */}
                 <div className="bg-blue-600 text-white p-6">
                   <div className="flex justify-between items-start">
-                    <div>
-                      <h3 className="text-2xl font-bold mb-2">{agent.full_name}</h3>
-                      <p className="text-blue-100 text-sm">
-                        Submitted: {new Date(agent.agent_verification_submitted_at).toLocaleDateString()}
-                      </p>
+                    <div className="flex items-center gap-4">
+                      {agent.profile_image_url && (
+                        <div className="w-16 h-16 rounded-full overflow-hidden bg-white/20 flex-shrink-0">
+                          <img 
+                            src={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/agent-documents/${agent.profile_image_url}`}
+                            alt={agent.full_name}
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              e.target.style.display = 'none';
+                            }}
+                          />
+                        </div>
+                      )}
+                      <div>
+                        <h3 className="text-2xl font-bold mb-2">{agent.full_name}</h3>
+                        <p className="text-blue-100 text-sm">
+                          Submitted: {new Date(agent.agent_verification_submitted_at).toLocaleDateString()}
+                        </p>
+                      </div>
                     </div>
                     <div className="bg-yellow-400 text-yellow-900 px-3 py-1 rounded-full text-sm font-semibold">
                       PENDING REVIEW
@@ -239,6 +272,22 @@ export default function AdminAgentApprovals() {
                       </button>
                       <button
                         onClick={() => viewDocument(agent.agent_registration_file_url)}
+                      <button
+                        onClick={() => viewDocument(agent.profile_image_url)}
+                        disabled={!agent.profile_image_url}
+                        className={`w-full text-left p-3 rounded flex items-center justify-between ${
+                          agent.profile_image_url
+                            ? 'bg-green-50 hover:bg-green-100 cursor-pointer'
+                            : 'bg-gray-100 cursor-not-allowed'
+                        }`}
+                      >
+                        <span className="font-medium text-gray-900">Profile Image</span>
+                        {agent.profile_image_url ? (
+                          <span className="text-green-600 text-sm">View →</span>
+                        ) : (
+                          <span className="text-gray-400 text-sm">Not uploaded</span>
+                        )}
+                      </button>
                         disabled={!agent.agent_registration_file_url}
                         className={`w-full text-left p-3 rounded flex items-center justify-between ${
                           agent.agent_registration_file_url

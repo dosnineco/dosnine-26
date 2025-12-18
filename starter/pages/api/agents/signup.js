@@ -21,6 +21,7 @@ export default async function handler(req, res) {
       dataConsent,
       licenseFileUrl,
       registrationFileUrl,
+      profileImageUrl,
     } = req.body;
 
     console.log('Agent signup request:', { clerkId, fullName, email });
@@ -104,6 +105,7 @@ export default async function handler(req, res) {
       deals_closed_count: parseInt(dealsClosedCount) || 0,
       license_file_url: licenseFileUrl,
       registration_file_url: registrationFileUrl,
+      profile_image_url: profileImageUrl || null,
       verification_status: 'pending',
       verification_submitted_at: new Date().toISOString(),
       service_agreement_signed: true,

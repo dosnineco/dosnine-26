@@ -9,13 +9,12 @@ import { isVerifiedAgent, needsAgentPayment } from '../../lib/rbac';
 import { FiCopy, FiCheck, FiAlertCircle, FiUpload } from 'react-icons/fi';
 import { supabase } from '../../lib/supabase';
 
-const UNLOCK_FEE = 8050;
+const UNLOCK_FEE = 8050; // JMD per month for up to 25 agent leads
 
 export default function AgentPayment() {
   const { loading: authLoading, userData } = useRoleProtection({
     checkAccess: (data) => isVerifiedAgent(data) && needsAgentPayment(data),
     redirectTo: '/agent/dashboard',
-    message: 'Invalid access'
   });
 
   const { user } = useUser();

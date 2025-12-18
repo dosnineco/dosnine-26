@@ -91,18 +91,27 @@ export default function Header() {
                   Find Agent
                 </button>
               )}
-              <Link 
-                href="/dashboard" 
-                className={`px-3 py-2 rounded-lg transition text-sm ${router.pathname === '/dashboard' ? 'bg-accent text-white' : 'text-gray-600 hover:bg-gray-100'}`}
-              >
-                Dashboard
-              </Link>
-              {isVerifiedAgent && (
+              {isVerifiedAgent ? (
+                <>
+                  <Link 
+                    href="/properties/my-listings" 
+                    className={`px-3 py-2 rounded-lg transition text-sm ${router.pathname === '/landlord/properties' ? 'bg-accent text-white' : 'text-gray-600 hover:bg-gray-100'}`}
+                  >
+                    My Properties
+                  </Link>
+                  <Link 
+                    href="/agent/dashboard" 
+                    className={`px-3 py-2 rounded-lg transition text-sm ${router.pathname === '/agent/dashboard' ? 'bg-accent text-white' : 'text-gray-600 hover:bg-gray-100'}`}
+                  >
+                    Agent Dashboard
+                  </Link>
+                </>
+              ) : (
                 <Link 
-                  href="/agent/dashboard" 
-                  className={`px-3 py-2 rounded-lg transition text-sm ${router.pathname === '/agent/dashboard' ? 'bg-accent text-white' : 'text-gray-600 hover:bg-gray-100'}`}
+                  href="/dashboard" 
+                  className={`px-3 py-2 rounded-lg transition text-sm ${router.pathname === '/dashboard' ? 'bg-accent text-white' : 'text-gray-600 hover:bg-gray-100'}`}
                 >
-                  Agent Dashboard
+                  Dashboard
                 </Link>
               )}
               {isAdmin && (
@@ -195,21 +204,30 @@ export default function Header() {
                   Browse Properties
                 </Link>
                 
-                <Link 
-                  href="/dashboard" 
-                  onClick={() => setMobileMenuOpen(false)}
-                  className={`px-4 py-3 rounded-lg font-medium ${router.pathname === '/dashboard' ? 'bg-accent text-white' : 'text-gray-700 hover:bg-gray-50'}`}
-                >
-                  Dashboard
-                </Link>
-
-                {isVerifiedAgent && (
+                {isVerifiedAgent ? (
+                  <>
+                    <Link 
+                      href="/landlord/properties" 
+                      onClick={() => setMobileMenuOpen(false)}
+                      className={`px-4 py-3 rounded-lg font-medium ${router.pathname === '/landlord/properties' ? 'bg-accent text-white' : 'text-gray-700 hover:bg-gray-50'}`}
+                    >
+                      My Properties
+                    </Link>
+                    <Link 
+                      href="/agent/dashboard" 
+                      onClick={() => setMobileMenuOpen(false)}
+                      className={`px-4 py-3 rounded-lg font-medium ${router.pathname === '/agent/dashboard' ? 'bg-accent text-white' : 'text-gray-700 hover:bg-gray-50'}`}
+                    >
+                      Agent Dashboard
+                    </Link>
+                  </>
+                ) : (
                   <Link 
-                    href="/agent/dashboard" 
+                    href="/dashboard" 
                     onClick={() => setMobileMenuOpen(false)}
-                    className={`px-4 py-3 rounded-lg font-medium ${router.pathname === '/agent/dashboard' ? 'bg-accent text-white' : 'text-gray-700 hover:bg-gray-50'}`}
+                    className={`px-4 py-3 rounded-lg font-medium ${router.pathname === '/dashboard' ? 'bg-accent text-white' : 'text-gray-700 hover:bg-gray-50'}`}
                   >
-                    Agent Dashboard
+                    Dashboard
                   </Link>
                 )}
                 

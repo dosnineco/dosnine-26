@@ -40,6 +40,7 @@ export default function AgentSignup() {
   const [verification, setVerification] = useState({
     agentLicenseFile: null,
     businessRegistrationFile: null,
+    profileImageFile: null,
     agreeToTerms: false,
     dataConsent: false,
   });
@@ -107,7 +108,11 @@ export default function AgentSignup() {
 
     if (step === 2) {
       if (!verification.agentLicenseFile || !verification.businessRegistrationFile) {
-        toast.error('Please upload both documents');
+        toast.error('Please upload both required documents');
+        return;
+      }
+      if (!verification.profileImageFile) {
+        toast.error('Please upload your profile image');
         return;
       }
       if (!verification.agreeToTerms) {
@@ -175,6 +180,25 @@ export default function AgentSignup() {
         registrationUrl = regName;
         console.log('Registration uploaded:', regName);
 
+        // Upload profile image
+        const imageExt = verification.profileImageFile.name.split('.').pop();
+        const imageName = `${user.id}_profile_${Date.now()}.${imageExt}`;
+        
+        const { error: imageError } = await supabase.storage
+          .from('agent-documents')
+          .upload(imageName, verification.profileImageFile, {
+            cacheControl: '3600',
+            upsert: true
+          });
+
+        if (imageError) {
+          console.error('Profile image upload error:', imageError);
+          throw new Error(`Profile image upload failed: ${imageError.message}`);
+        }
+        
+        profileImageUrl = imageName;
+        console.log('Profile image uploaded:', imageName);
+
       } catch (uploadError) {
         console.error('Upload error:', uploadError);
         console.error('Upload error details:', uploadError.response?.data || uploadError.message);
@@ -202,6 +226,7 @@ export default function AgentSignup() {
           dataConsent: verification.dataConsent,
           licenseFileUrl: licenseUrl,
           registrationFileUrl: registrationUrl,
+          profileImageUrl: profileImageUrl,
         });
 
         if (response.data.success) {
@@ -525,6 +550,34 @@ export default function AgentSignup() {
                     type="file"
                     accept=".jpg,.jpeg,.png,image/jpeg,image/png"
                     onChange={(e) => handleFileChange(e, 'businessRegistrationFile')}
+                    className="hidden"
+                  />
+                </div>
+              </div>
+
+              {/* Profile Image */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Profile Image *
+                </label>
+                <p className="text-xs text-gray-600 mb-2">
+                  Upload a professional profile photo that will be displayed on your agent profile.
+                </p>
+                <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-blue-500 transition cursor-pointer"
+                  onClick={() => document.getElementById('profile-image-file').click()}
+                >
+                  <Upload className="w-8 h-8 text-gray-400 mx-auto mb-2" />
+                  <p className="text-sm font-medium text-gray-700">
+                    {verification.profileImageFile
+                      ? verification.profileImageFile.name
+                      : 'Click to upload or drag and drop'}
+                  </p>
+                  <p className="text-xs text-gray-500">JPG, PNG • Max 5MB</p>
+                  <input
+                    id="profile-image-file"
+                    type="file"
+                    accept=".jpg,.jpeg,.png,image/jpeg,image/png"
+                    onChange={(e) => handleFileChange(e, 'profileImageFile')}
                     className="hidden"
                   />
                 </div>
