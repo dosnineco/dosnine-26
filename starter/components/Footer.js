@@ -106,7 +106,15 @@ export default function Footer() {
         </div>
            <div className="bg-red-50 border-l-4 border-red-600 p-4 mt-4 mb-4">
           <p className="text-gray-700 mb-2">
-            <strong>Important:</strong> Dosnine.com does not act as an agent. We only display user-submitted listings and verify authenticity where possible.
+            <strong>Disclaimer:</strong> 
+            Dosnine.com is an independent property listing and discovery platform.
+Dosnine does not act as a real estate agent, broker, intermediary, negotiator, or representative for buyers, sellers, landlords, tenants, or agents.
+
+All property listings displayed on the platform are user-submitted or sourced from publicly available information. While Dosnine may verify listings for authenticity where possible, we do not guarantee accuracy, availability, pricing, or suitability.
+
+Any communication, negotiation, agreement, or transaction related to a property is conducted directly between the user and the listed agent, agency, landlord, or property owner, without involvement from Dosnine.
+
+By using this platform, users acknowledge that Dosnine role is limited to providing visibility and facilitating direct connections only.
           </p>
         
         </div> 
