@@ -70,22 +70,20 @@ export default function AdminAgents() {
         }
       });
 
-      console.log('API Response:', response.data);
 
       const agentData = response.data.agents || [];
       setAgents(agentData);
       
       // Log data for debugging
-      console.log('✅ Loaded agents:', agentData.length);
+      console.log('✅ Loaded agents:');
       if (agentData.length > 0) {
-        console.log('Sample agent:', agentData[0]);
+        console.log('Sample agent:');
       } else {
         console.log('⚠️ No agents found in database');
         toast.info('No agents found. Create a test agent at /agent/signup');
       }
     } catch (error) {
-      console.error('❌ Failed to fetch agents:', error);
-      console.error('Error details:', error.response?.data);
+   
       toast.error(error.response?.data?.error || 'Failed to load agents');
     } finally {
       setLoading(false);
@@ -110,7 +108,6 @@ export default function AdminAgents() {
       fetchAgents(); // Refresh list
       setSelectedAgent(null); // Close modal
     } catch (error) {
-      console.error('Failed to update agent:', error);
       toast.error(error.response?.data?.error || 'Failed to update agent');
     } finally {
       setVerifying(false);
@@ -146,7 +143,7 @@ export default function AdminAgents() {
       toast.success(`Payment status updated to ${newStatus}`);
       fetchAgents(); // Refresh list
     } catch (error) {
-      console.error('Failed to update payment:', error);
+      
       toast.error(error.message || 'Failed to update payment status');
     }
   }
@@ -256,9 +253,9 @@ export default function AdminAgents() {
               </div>
               <Link
                 href="/admin/dashboard"
-                className="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-lg"
+                className="btn-accent  px-4 py-2 text-sm text-white  rounded-lg"
               >
-                Back to Dashboard
+                Back
               </Link>
             </div>
           </div>

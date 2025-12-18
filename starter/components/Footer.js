@@ -6,12 +6,7 @@ export default function Footer() {
       <div className="container mx-auto px-4">
         {/* Footer Links */}
 
-          <div className="bg-red-50 border-l-4 border-red-600 p-4 mt-4 mb-4">
-          <p className="text-gray-700 mb-2">
-            <strong>Important:</strong> Dosnine.com does not act as an agent. We only display user-submitted listings and verify authenticity where possible.
-          </p>
-        
-        </div> 
+       
         <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-6">
           {/* Company */}
           <div>
@@ -109,7 +104,14 @@ export default function Footer() {
             &copy; {new Date().getFullYear()} Dosnine Properties. All rights reserved.
           </p>
         </div>
+           <div className="bg-red-50 border-l-4 border-red-600 p-4 mt-4 mb-4">
+          <p className="text-gray-700 mb-2">
+            <strong>Important:</strong> Dosnine.com does not act as an agent. We only display user-submitted listings and verify authenticity where possible.
+          </p>
+        
+        </div> 
       </div>
+      
     </footer>
   );
 }

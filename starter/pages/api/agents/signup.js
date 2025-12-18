@@ -99,7 +99,7 @@ export default async function handler(req, res) {
       years_experience: parseInt(yearsExperience) || 1,
       license_number: licenseNumber || null,
       specializations: Array.isArray(specializations) ? specializations : [specializations].filter(Boolean),
-      service_areas: serviceAreas || '',
+      service_areas: Array.isArray(serviceAreas) ? serviceAreas.join(', ') : (serviceAreas || ''),
       about_me: aboutMe || '',
       deals_closed_count: parseInt(dealsClosedCount) || 0,
       license_file_url: licenseFileUrl,

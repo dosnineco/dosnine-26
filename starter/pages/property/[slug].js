@@ -7,6 +7,7 @@ import toast from 'react-hot-toast';
 import { useUser } from '@clerk/nextjs';
 import { Zap, Phone } from 'lucide-react';
 import { formatMoney } from '../../lib/formatMoney';
+import { normalizeParish } from '../../lib/normalizeParish';
 
 export async function getStaticPaths() {
   const { data } = await supabase
@@ -45,7 +46,7 @@ export async function getStaticProps({ params }) {
     .from('properties')
     .select('*')
     .eq('status', 'available')
-    .eq('parish', data.parish)
+    .eq('parish', normalizeParish(data.parish))
     .neq('id', data.id)
     .limit(4);
 

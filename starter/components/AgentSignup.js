@@ -4,6 +4,7 @@ import axios from 'axios';
 import toast from 'react-hot-toast';
 import { CheckCircle, AlertCircle, Upload, MapPin, Award } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { PARISHES } from '@/lib/normalizeParish';
 
 const SPECIALIZATIONS = [
   'Residential',
@@ -30,7 +31,7 @@ export default function AgentSignup() {
     yearsExperience: '',
     specializations: [],
     licenseNumber: '',
-    serviceAreas: '', // comma-separated parishes/areas
+    serviceAreas: [], // array of parishes
     aboutMe: '',
     profileImageUrl: '',
     dealsClosedCount: 0,
@@ -49,6 +50,15 @@ export default function AgentSignup() {
       specializations: prev.specializations.includes(spec)
         ? prev.specializations.filter(s => s !== spec)
         : [...prev.specializations, spec]
+    }));
+  };
+
+  const handleServiceAreaToggle = (parish) => {
+    setFormData(prev => ({
+      ...prev,
+      serviceAreas: prev.serviceAreas.includes(parish)
+        ? prev.serviceAreas.filter(p => p !== parish)
+        : [...prev.serviceAreas, parish]
     }));
   };
 
@@ -85,6 +95,10 @@ export default function AgentSignup() {
       }
       if (formData.specializations.length === 0) {
         toast.error('Please select at least one specialization');
+        return;
+      }
+      if (formData.serviceAreas.length === 0) {
+        toast.error('Please select at least one service area');
         return;
       }
       setStep(2);
@@ -220,15 +234,16 @@ export default function AgentSignup() {
             <ul className="text-sm text-gray-700 space-y-2 mt-3 text-left">
               <li>✓ Document verification</li>
               <li>✓ License confirmation</li>
-              <li>✓ Profile approval</li>
+              <li>✓ Profile approval and payment</li>
               <li>✓ Agent dashboard access</li>
+              <li>✓ Start receiving client requests</li>
             </ul>
           </div>
           <a
-            href="/"
+            href="/dashboard"
             className="inline-block w-full btn-accent px-4 py-2 rounded-lg font-semibold transition"
           >
-            Back to Home
+            Go to Dashboard
           </a>
         </div>
       </div>
@@ -398,16 +413,25 @@ export default function AgentSignup() {
               {/* Service Areas */}
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Service Areas (Parishes/Regions)
+                  Service Areas (Parishes/Regions) * (Select at least one)
                 </label>
-                <input
-                  type="text"
-                  value={formData.serviceAreas}
-                  onChange={(e) => setFormData({ ...formData, serviceAreas: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-accent outline-none"
-                  placeholder="e.g., Kingston, St. Andrew, St. Catherine"
-                />
-                <p className="text-xs text-gray-500 mt-1">Comma-separated list</p>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  {PARISHES.map(parish => (
+                    <button
+                      key={parish}
+                      type="button"
+                      onClick={() => handleServiceAreaToggle(parish)}
+                      className={`px-3 py-2 rounded-lg text-sm font-medium transition ${
+                        formData.serviceAreas.includes(parish)
+                          ? 'bg-accent text-white'
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      }`}
+                    >
+                      {parish}
+                    </button>
+                  ))}
+                </div>
+                <p className="text-xs text-gray-500 mt-1">Select the parishes you serve</p>
               </div>
 
               {/* About Me */}
@@ -576,7 +600,17 @@ export default function AgentSignup() {
                 </div>
                 <div>
                   <p className="text-xs uppercase font-semibold text-gray-500">Service Areas</p>
-                  <p className="text-gray-800">{formData.serviceAreas || 'Not specified'}</p>
+                  <div className="flex flex-wrap gap-2 mt-1">
+                    {formData.serviceAreas.length > 0 ? (
+                      formData.serviceAreas.map(area => (
+                        <span key={area} className="bg-blue-100 text-blue-700 text-xs px-2 py-1 rounded">
+                          {area}
+                        </span>
+                      ))
+                    ) : (
+                      <span className="text-gray-500 text-sm">Not specified</span>
+                    )}
+                  </div>
                 </div>
               </div>
 

@@ -5,12 +5,7 @@ import { supabase } from '../../lib/supabase';
 // formatMoney not used here
 import PropertyCard from '../../components/PropertyCard';
 import { useUser } from '@clerk/nextjs';
-
-const PARISHES = [
-  'Kingston', 'St Andrew', 'St Catherine', 'St James', 'Clarendon',
-  'Manchester', 'St Ann', 'Portland', 'St Thomas', 'St Elizabeth',
-  'Trelawny', 'Hanover'
-];
+import { PARISHES, normalizeParish } from '../../lib/normalizeParish';
 
 export default function SearchLandingPage({ slug, properties: initialProperties, totalCount, pageTitle, pageDescription, pageKeywords }) {
   const { user } = useUser();
@@ -40,7 +35,7 @@ export default function SearchLandingPage({ slug, properties: initialProperties,
     // Extract parish (case-insensitive match against known parishes)
     PARISHES.forEach(p => {
       if (slugStr.includes(p.toLowerCase().replace(/ /g, '-'))) {
-        filters.parish = p;
+        filters.parish = normalizeParish(p);
       }
     });
 
@@ -239,7 +234,7 @@ export async function getStaticProps({ params }) {
   const filters = { parish: '', bedrooms: '', type: '' };
   PARISHES.forEach(p => {
     if (slugStr.includes(p.toLowerCase().replace(/ /g, '-'))) {
-      filters.parish = p;
+      filters.parish = normalizeParish(p);
     }
   });
 
@@ -256,7 +251,7 @@ export async function getStaticProps({ params }) {
     .order('created_at', { ascending: false });
 
   // Apply precise filters when present
-  if (filters.parish) query = query.eq('parish', filters.parish);
+  if (filters.parish) query = query.eq('parish', normalizeParish(filters.parish));
   if (filters.bedrooms) query = query.eq('bedrooms', Number(filters.bedrooms));
 
   // Harsh partial search: tokenize slug and OR-match across title, description, parish, town, address

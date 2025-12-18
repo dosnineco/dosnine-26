@@ -5,15 +5,65 @@ import Seo from '../components/Seo';
 import Link from 'next/link';
 import { supabase } from '../lib/supabase';
 import { FiSearch } from 'react-icons/fi';
-import { useUser } from '@clerk/nextjs';
+import { useUser, useClerk } from '@clerk/nextjs';
 import { formatMoney } from '../lib/formatMoney';
 import BetaBanner from '../components/BetaBanner';
+import { Home as HomeIcon, Users, ArrowRight } from 'lucide-react';
+import { useRouter } from 'next/router';
+import { PARISHES, normalizeParish } from '../lib/normalizeParish';
 const PROPERTIES_PER_PAGE = 20;
 
-const PARISHES = [
-  'Kingston', 'St Andrew', 'St Catherine', 'St James', 'Clarendon',
-  'Manchester', 'St Ann', 'Portland', 'St Thomas', 'St Elizabeth', 'Trelawny', 'Hanover'
-];
+// Role Card Component - same size as PropertyCard
+function RoleCard({ title, subtitle, icon: Icon, bgColor, textColor, link, user, bgImage }) {
+  const router = useRouter();
+  const { redirectToSignIn } = useClerk();
+  const { isLoaded } = useUser();
+
+  const handleClick = () => {
+    if (!isLoaded) return;
+    
+    if (user) {
+      router.push(link);
+    } else {
+      sessionStorage.setItem('redirectAfterSignIn', link);
+      redirectToSignIn({ redirectUrl: link });
+    }
+  };
+
+  return (
+    <div 
+      onClick={handleClick}
+      className={`${bgImage ? 'bg-cover bg-center' : bgColor} rounded-lg hover:shadow-lg border-2 border-transparent hover: p-6 cursor-pointer transition-all group h-full flex flex-col relative overflow-hidden`}
+      style={bgImage ? { backgroundImage: `url(${bgImage})` } : {}}
+    >
+      {/* Overlay for better text readability when using background image */}
+      {bgImage && (
+        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/50 to-black/30"></div>
+      )}
+
+      <div className="relative z-0">
+        {/* Icon */}
+        <div className={`w-12 h-12 ${bgImage ? 'text-white  bg-white/20 backdrop-blur-sm' : `${textColor} bg-white`} rounded-lg flex items-center justify-center mb-3 shadow-sm group-hover:shadow-md transition`}>
+          <Icon className="w-6 h-6" />
+        </div>
+
+        {/* Title */}
+        <h3 className={`text-xl font-bold mb-1 ${bgImage ? 'text-white' : 'text-gray-900'}`}>
+          {title}
+        </h3>
+        <p className={`text-sm font-semibold mb-3 ${bgImage ? 'text-white/90' : textColor}`}>
+          {subtitle}
+        </p>
+
+        {/* CTA */}
+        <div className={`mt-auto flex items-center font-medium group-hover:translate-x-1 transition text-white }`}>
+          Get Started
+          <ArrowRight className="w-4 h-4 ml-1" />
+        </div>
+      </div>
+    </div>
+  );
+}
 
 
 export default function Home() {
@@ -99,7 +149,7 @@ export default function Home() {
         .order('is_featured', { ascending: false })
         .order('created_at', { ascending: false });
 
-      const parishFilter = (filters.parish || '').trim();
+      const parishFilter = normalizeParish(filters.parish);
       const minPriceFilter = filters.minPrice ? Number(filters.minPrice) : null;
       const maxPriceFilter = filters.maxPrice ? Number(filters.maxPrice) : null;
       const bedroomsFilter = filters.bedrooms ? Number(filters.bedrooms) : null;
@@ -222,15 +272,13 @@ export default function Home() {
       {/* Beta Banner */}
       {/* <BetaBanner propertyCount={totalCount} /> */}
 
+      {/* User Role Selection */}
+
       <div className="container  mx-auto px-4 py-8">
-        <h1 className="text-4xl font-bold text-center mb-4 text-gray-900">Find Your Perfect Rental</h1>
+        <h1 className="text-4xl font-bold text-center mb-4 text-gray-900">Find Your Perfect Property</h1>
         <p className="text-center text-gray-600 mb-8">Browse available properties across Jamaica</p>
 
-        {/* {!loading && (
-          <div className="mb-4 text-center text-sm text-gray-500">
-            Found {totalCount+20} properties
-          </div>
-        )} */}
+
 
         <form 
           onSubmit={(e) => {
@@ -370,6 +418,25 @@ export default function Home() {
         ) : (
           <div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mb-8">
+              {/* Role Cards */}
+              <RoleCard
+                title="Post your Property"
+                subtitle="Rent or sell"
+                icon={HomeIcon}
+                bgColor='bg-green-500'
+                bgImage="/agent-listing.jpg"
+                link="/landlord/new-property"
+                user={user}
+              />
+              <RoleCard
+                title="Become Agent"
+                subtitle="Verified pros"
+                icon={Users}
+                bgColor="bg-blue-100"
+                link="/agent/signup"
+                user={user}
+              />
+
               {/* Real Properties - Clickable */}
               {properties.map((prop, idx) => {
                 const isOwner = userOwnerId && prop.owner_id === userOwnerId;

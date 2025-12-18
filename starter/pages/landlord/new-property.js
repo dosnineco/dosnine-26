@@ -5,12 +5,7 @@ import { useRouter } from 'next/router';
 import { supabase } from '../../lib/supabase';
 import axios from 'axios';
 import toast from 'react-hot-toast';
-
-const PARISHES = [
-  'Kingston', 'St Andrew', 'St Catherine', 'St James', 'Clarendon',
-  'Manchester', 'St Ann', 'Portland', 'St Thomas', 'St Elizabeth',
-  'Trelawny', 'Hanover'
-];
+import { PARISHES, normalizeParish } from '../../lib/normalizeParish';
 
 export default function NewProperty() {
   const { user } = useUser();
@@ -170,7 +165,7 @@ const handleSubmit = async (e) => {
         slug,
         title: form.title,
         description: form.description,
-        parish: form.parish,
+        parish: normalizeParish(form.parish),
         town: form.town,
         address: form.address,
         bedrooms: Number(form.bedrooms),

@@ -530,16 +530,6 @@ export default function AdminDashboard() {
             </button>
           </div>
 
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-            <h3 className="font-semibold text-blue-900 mb-2">💰 Monetization Ideas</h3>
-            <ul className="text-sm text-blue-800 space-y-1">
-              <li>✓ Sell targeted email list to property management companies (JMD 50,000+)</li>
-              <li>✓ Partner with real estate investors for lead generation (JMD 500-1,000 per lead)</li>
-              <li>✓ Send sponsored weekly newsletters (JMD 10,000 per sponsor)</li>
-              <li>✓ Create premium alert service for serious renters (JMD 2,000/month)</li>
-              <li>✓ Sell bulk data to platforms (JMD 100,000+ for 5,000+ emails)</li>
-            </ul>
-          </div>
 
           {visitorEmails.length === 0 ? (
             <div className="text-center py-8 bg-white rounded-lg border border-gray-200">

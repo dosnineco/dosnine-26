@@ -29,9 +29,21 @@ function MyApp({ Component, pageProps }) {
 }
 function AppContent({ Component, pageProps, isPublicRoute }) {
   const { isSignedIn, user } = useUser();
+  const router = useRouter();
   
   // Initialize analytics tracking on all pages
   useAnalyticsTracking();
+
+  // Handle redirect after sign-in
+  useEffect(() => {
+    if (isSignedIn) {
+      const redirectPath = sessionStorage.getItem('redirectAfterSignIn');
+      if (redirectPath) {
+        sessionStorage.removeItem('redirectAfterSignIn');
+        router.push(redirectPath);
+      }
+    }
+  }, [isSignedIn, router]);
 
   // Sync Clerk user to Supabase
   useEffect(() => {

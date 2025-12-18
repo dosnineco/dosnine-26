@@ -59,11 +59,9 @@ export default function AllocationDashboard() {
           users:user_id (full_name, email)
         `);
 
-      console.log('All agents in system:', allAgents);
       
       if (agents && agents.length === 1) {
         const agentName = agents[0].users?.full_name || agents[0].business_name;
-        console.log('✅ Single agent system - All requests will go to:', agentName);
       } else if (agents && agents.length > 1) {
         console.log(`✅ Multi-agent system - ${agents.length} agents in rotation`);
       } else {
@@ -130,12 +128,13 @@ export default function AllocationDashboard() {
           {/* Header */}
           <div className="mb-8">
             <div className="flex items-center justify-between mb-2">
-              <h1 className="text-3xl font-bold text-gray-900">Fair Request Allocation</h1>
-              <Link href="/admin/dashboard" className="text-accent hover:underline">
-                ← Back to Admin
+              <h1 className="text-3xl font-bold text-gray-900">Allocation</h1>
+              <Link href="/admin/dashboard" className="btn-accent  px-4 py-2 text-sm text-white  rounded-lg"
+>
+                Back
               </Link>
             </div>
-            <p className="text-gray-600">Round-robin distribution system ensures equal opportunities for all agents</p>
+            <p className="text-gray-600">Equal opportunities for all agents</p>
           </div>
 
           {/* Stats Cards */}
@@ -323,28 +322,7 @@ export default function AllocationDashboard() {
             </div>
           </div>
 
-          {/* How It Works */}
-          <div className="mt-8 bg-accent/10 border-l-4 border-accent p-6 rounded-lg">
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">How Fair Allocation Works</h3>
-            <ul className="space-y-2 text-gray-700">
-              <li className="flex items-start gap-2">
-                <span className="text-accent mt-1">•</span>
-                <span>New requests are automatically assigned to the agent who received a request longest ago (or never)</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <span className="text-accent mt-1">•</span>
-                <span>Only verified and paid agents are eligible to receive requests</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <span className="text-accent mt-1">•</span>
-                <span>Each request is unique and assigned to only one agent</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <span className="text-accent mt-1">•</span>
-                <span>Round-robin algorithm ensures equal distribution over time</span>
-              </li>
-            </ul>
-          </div>
+       
         </div>
       </div>
     </>
