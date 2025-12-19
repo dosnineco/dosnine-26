@@ -333,6 +333,41 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleDeleteRequest = async (requestId) => {
+    if (!confirm('⚠️ DELETE this service request?\n\nThis action cannot be undone!')) return;
+
+    try {
+      // Delete associated notifications first
+      const { error: notifError } = await supabase
+        .from('agent_notifications')
+        .delete()
+        .eq('service_request_id', requestId);
+
+      if (notifError) {
+        console.error('Notification delete error:', notifError);
+        // Continue even if notification deletion fails
+      }
+
+      // Delete the request
+      const { error: requestError } = await supabase
+        .from('service_requests')
+        .delete()
+        .eq('id', requestId);
+
+      if (requestError) {
+        console.error('Request delete error:', requestError);
+        throw new Error(requestError.message || 'Failed to delete request');
+      }
+
+      toast.success('Request deleted successfully');
+      setRequests(requests.filter((r) => r.id !== requestId));
+      fetchData(); // Refetch data to ensure sync
+    } catch (err) {
+      console.error('Delete request error:', err);
+      toast.error(err.message || 'Failed to delete request');
+    }
+  };
+
   const handleDeleteProperty = async (id) => {
     try {
       // Get property to find details
@@ -856,7 +891,7 @@ export default function AdminDashboard() {
                           <p className="font-bold text-gray-900 text-lg">{request.agent.full_name}</p>
                           <p className="text-sm text-gray-600">{request.agent.email}</p>
                         </div>
-                        <div className="flex gap-2">
+                        <div className="flex gap-2 flex-wrap">
                           {request.status !== 'completed' && request.status !== 'cancelled' && (
                             <>
                               <button
@@ -881,6 +916,13 @@ export default function AdminDashboard() {
                               </select>
                             </>
                           )}
+                          <button
+                            onClick={() => handleDeleteRequest(request.id)}
+                            className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm font-medium flex items-center gap-1"
+                          >
+                            <FiTrash2 size={16} />
+                            Delete
+                          </button>
                         </div>
                       </div>
                     ) : (
@@ -902,6 +944,13 @@ export default function AdminDashboard() {
                               </option>
                             ))}
                           </select>
+                          <button
+                            onClick={() => handleDeleteRequest(request.id)}
+                            className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm font-medium flex items-center gap-1 justify-center"
+                          >
+                            <FiTrash2 size={16} />
+                            Delete
+                          </button>
                         </div>
                       </div>
                     )}

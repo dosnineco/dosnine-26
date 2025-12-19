@@ -272,6 +272,20 @@ export default function AdminAgentApprovals() {
                       </button>
                       <button
                         onClick={() => viewDocument(agent.agent_registration_file_url)}
+                        disabled={!agent.agent_registration_file_url}
+                        className={`w-full text-left p-3 rounded flex items-center justify-between ${
+                          agent.agent_registration_file_url
+                            ? 'bg-green-50 hover:bg-green-100 cursor-pointer'
+                            : 'bg-gray-100 cursor-not-allowed'
+                        }`}
+                      >
+                        <span className="font-medium text-gray-900">Business Registration</span>
+                        {agent.agent_registration_file_url ? (
+                          <span className="text-green-600 text-sm">View →</span>
+                        ) : (
+                          <span className="text-gray-400 text-sm">Not uploaded</span>
+                        )}
+                      </button>
                       <button
                         onClick={() => viewDocument(agent.profile_image_url)}
                         disabled={!agent.profile_image_url}
@@ -283,20 +297,6 @@ export default function AdminAgentApprovals() {
                       >
                         <span className="font-medium text-gray-900">Profile Image</span>
                         {agent.profile_image_url ? (
-                          <span className="text-green-600 text-sm">View →</span>
-                        ) : (
-                          <span className="text-gray-400 text-sm">Not uploaded</span>
-                        )}
-                      </button>
-                        disabled={!agent.agent_registration_file_url}
-                        className={`w-full text-left p-3 rounded flex items-center justify-between ${
-                          agent.agent_registration_file_url
-                            ? 'bg-green-50 hover:bg-green-100 cursor-pointer'
-                            : 'bg-gray-100 cursor-not-allowed'
-                        }`}
-                      >
-                        <span className="font-medium text-gray-900">Business Registration</span>
-                        {agent.agent_registration_file_url ? (
                           <span className="text-green-600 text-sm">View →</span>
                         ) : (
                           <span className="text-gray-400 text-sm">Not uploaded</span>
