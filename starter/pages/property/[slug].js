@@ -2,12 +2,14 @@ import Head from 'next/head';
 import Seo from '../../components/Seo';
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/router';
 import { supabase } from '../../lib/supabase';
 import toast from 'react-hot-toast';
 import { useUser } from '@clerk/nextjs';
 import { Zap, Phone } from 'lucide-react';
 import { formatMoney } from '../../lib/formatMoney';
 import { normalizeParish } from '../../lib/normalizeParish';
+import PropertyAgentRequest from '../../components/PropertyAgentRequest';
 
 export async function getStaticPaths() {
   const { data } = await supabase
@@ -41,6 +43,18 @@ export async function getStaticProps({ params }) {
     .update({ views: (data.views || 0) + 1 })
     .eq('id', data.id);
 
+  // Fetch owner verification status from users table (synced with agents table)
+  const { data: ownerData, error: ownerError } = await supabase
+    .from('users')
+    .select('agent_is_verified, verified_at')
+    .eq('id', data.owner_id)
+    .single();
+
+  if (ownerError) {
+    console.error('Error fetching owner verification:', ownerError);
+  }
+  
+
   // Fetch similar properties in the same parish
   const { data: similarProps } = await supabase
     .from('properties')
@@ -53,21 +67,55 @@ export async function getStaticProps({ params }) {
   return {
     props: { 
       property: data,
-      similarProperties: similarProps || []
+      similarProperties: similarProps || [],
+      isVerifiedAgent: ownerData?.agent_is_verified || false
     },
     revalidate: 60,
   };
 }
 
-export default function PropertyPage({ property, similarProperties }) {
+export default function PropertyPage({ property, similarProperties, isVerifiedAgent }) {
   const { user } = useUser();
+  const router = useRouter();
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [isOwner, setIsOwner] = useState(false);
+  const [showRequestForm, setShowRequestForm] = useState(false);
 
-  // Scroll to top when page loads
+  // Debug: Log verified status
   useEffect(() => {
+ 
+  }, [property.owner_id, isVerifiedAgent]);
+
+  // Aggressive scroll to top on any route or property change
+  useEffect(() => {
+    // Immediate scroll on component mount or property change
     window.scrollTo(0, 0);
-  }, [property.slug]);
+    document.documentElement.scrollTop = 0;
+    document.body.scrollTop = 0;
+  }, [router.asPath, property.id]);
+
+  // Force scroll to top on route change events
+  useEffect(() => {
+    const handleRouteChangeStart = () => {
+      window.scrollTo(0, 0);
+      document.documentElement.scrollTop = 0;
+      document.body.scrollTop = 0;
+    };
+
+    const handleRouteChangeComplete = () => {
+      window.scrollTo(0, 0);
+      document.documentElement.scrollTop = 0;
+      document.body.scrollTop = 0;
+    };
+
+    router.events.on('routeChangeStart', handleRouteChangeStart);
+    router.events.on('routeChangeComplete', handleRouteChangeComplete);
+    
+    return () => {
+      router.events.off('routeChangeStart', handleRouteChangeStart);
+      router.events.off('routeChangeComplete', handleRouteChangeComplete);
+    };
+  }, [router.events]);
 
   useEffect(() => {
     const checkOwner = async () => {
@@ -126,7 +174,7 @@ export default function PropertyPage({ property, similarProperties }) {
   const jsonLdProperty = {
     '@context': 'https://schema.org',
     '@type': 'Residence',
-    name: property.title,
+    name: `${property.bedrooms} Bedroom ${property.type || 'Property'} for Rent in ${property.parish}`,
     description: property.description,
     address: {
       '@type': 'PostalAddress',
@@ -139,16 +187,47 @@ export default function PropertyPage({ property, similarProperties }) {
     priceCurrency: 'JMD',
     numberOfBedrooms: property.bedrooms || null,
     numberOfBathrooms: property.bathrooms || null,
+    floorSize: property.square_feet ? {
+      '@type': 'QuantitativeValue',
+      value: property.square_feet,
+      unitCode: 'FTK'
+    } : undefined,
+    amenityFeature: property.amenities ? property.amenities.map(amenity => ({
+      '@type': 'LocationFeatureSpecification',
+      name: amenity
+    })) : undefined,
     image: allImages,
     url: `https://dosnine.com/property/${property.slug}`,
+    offers: {
+      '@type': 'Offer',
+      price: property.price,
+      priceCurrency: 'JMD',
+      availability: 'https://schema.org/InStock',
+      validFrom: property.created_at,
+      priceValidUntil: new Date(new Date().setMonth(new Date().getMonth() + 3)).toISOString().split('T')[0]
+    },
     interactionStatistic: {
       '@type': 'InteractionCounter',
       interactionType: 'https://schema.org/ViewAction',
       userInteractionCount: property.views || 0
     },
+    geo: {
+      '@type': 'GeoCoordinates',
+      addressCountry: 'JM'
+    },
+    containedInPlace: {
+      '@type': 'City',
+      name: property.parish,
+      containedInPlace: {
+        '@type': 'Country',
+        name: 'Jamaica'
+      }
+    },
     isPartOf: {
       '@type': 'WebSite',
-      name: 'Dosnine Properties'
+      name: 'Dosnine Properties',
+      url: 'https://dosnine.com',
+      description: 'Jamaica\'s premier property marketplace'
     }
   };
 
@@ -171,8 +250,63 @@ export default function PropertyPage({ property, similarProperties }) {
       {
         '@type': 'ListItem',
         position: 3,
+        name: `${property.parish} Properties`,
+        item: `https://dosnine.com/search/houses-for-rent-${property.parish.toLowerCase().replace(/ /g, '-')}`
+      },
+      {
+        '@type': 'ListItem',
+        position: 4,
         name: property.title,
         item: `https://dosnine.com/property/${property.slug}`
+      }
+    ]
+  };
+
+  const jsonLdFAQ = {
+    '@context': 'https://schema.org',
+    '@type': 'FAQPage',
+    mainEntity: [
+      {
+        '@type': 'Question',
+        name: `How much is this ${property.bedrooms} bedroom ${property.type || 'property'} for rent in ${property.parish}?`,
+        acceptedAnswer: {
+          '@type': 'Answer',
+          text: `This ${property.bedrooms} bedroom ${property.type || 'property'} in ${property.town ? property.town + ', ' : ''}${property.parish} is available for ${formatMoney(property.price)} per month. Contact the landlord directly via WhatsApp for viewing arrangements.`
+        }
+      },
+      {
+        '@type': 'Question',
+        name: `Where is this rental property located in ${property.parish}?`,
+        acceptedAnswer: {
+          '@type': 'Answer',
+          text: `This property is located at ${property.address}, ${property.town ? property.town + ', ' : ''}${property.parish}, Jamaica.`
+        }
+      },
+      {
+        '@type': 'Question',
+        name: `How many bedrooms and bathrooms does this ${property.parish} rental have?`,
+        acceptedAnswer: {
+          '@type': 'Answer',
+          text: `This rental property features ${property.bedrooms} ${property.bedrooms === 1 ? 'bedroom' : 'bedrooms'} and ${property.bathrooms} ${property.bathrooms === 1 ? 'bathroom' : 'bathrooms'}.`
+        }
+      },
+      {
+        '@type': 'Question',
+        name: 'How do I contact the landlord about this property?',
+        acceptedAnswer: {
+          '@type': 'Answer',
+          text: 'You can contact the landlord directly via WhatsApp or phone. Click the WhatsApp button to send a message or call the phone number listed on the property page. Never pay a deposit without viewing the property first.'
+        }
+      },
+      {
+        '@type': 'Question',
+        name: `When is this ${property.parish} rental property available?`,
+        acceptedAnswer: {
+          '@type': 'Answer',
+          text: property.available_date 
+            ? `This property is available from ${new Date(property.available_date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}. Contact the landlord to arrange a viewing.`
+            : 'This property is available now. Contact the landlord directly to schedule a viewing and discuss move-in details.'
+        }
       }
     ]
   };
@@ -180,11 +314,12 @@ export default function PropertyPage({ property, similarProperties }) {
   return (
     <>
       <Seo
-        title={`${property.title} — Dosnine Properties`}
-        description={property.description}
+        title={`${property.bedrooms} Bedroom ${property.type === 'house' ? 'House' : 'Apartment'} for Rent in ${property.parish} ${property.town ? `- ${property.town}` : ''} | ${formatMoney(property.price)}/month | Dosnine Properties Jamaica`}
+        
+        description={`${property.bedrooms} bedroom ${property.type || 'property'} for rent in ${property.town ? property.town + ', ' : ''}${property.parish}, Jamaica. ${property.description?.substring(0, 120)}... Contact landlord directly. Available now.`}
         image={currentImage}
         url={`https://dosnine.com/property/${property.slug}`}
-        structuredData={[jsonLdProperty, jsonLdBreadcrumb]}
+        structuredData={[jsonLdProperty, jsonLdBreadcrumb, jsonLdFAQ]}
       />
 
       <div className="container mx-auto px-4 py-8">
@@ -198,6 +333,7 @@ export default function PropertyPage({ property, similarProperties }) {
           <div className="lg:col-span-2">
             <div className="relative bg-gray-200 rounded-xl overflow-hidden mb-4">
               <img src={currentImage} alt={property.title} className="w-full h-96 object-cover" />
+            
 
               {allImages.length > 1 && (
                 <>
@@ -244,7 +380,17 @@ export default function PropertyPage({ property, similarProperties }) {
 
             {/* Property Details */}
             <div className="bg-white rounded-xl  p-6 mb-6">
-              <h1 className="text-3xl font-bold mb-2">{property.title}</h1>
+              <div className="flex items-start justify-between mb-2">
+                <h1 className="text-3xl font-bold">{property.title}</h1>
+                {isVerifiedAgent && (
+                  <div className="flex items-center gap-1 bg-blue-50 text-blue-700 px-3 py-1 rounded-full text-sm font-semibold flex-shrink-0">
+                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                    </svg>
+                    Verified
+                  </div>
+                )}
+              </div>
               <p className="text-lg text-gray-600 mb-4">{property.town}, {property.parish}</p>
 
               <div className="flex items-center gap-6 mb-6 pb-6 border-b">
@@ -273,7 +419,7 @@ export default function PropertyPage({ property, similarProperties }) {
                 </p>
                 {property.available_date && (
                   <p className="text-sm text-gray-700 mt-2">
-                    <strong>Available from:</strong> {new Date(property.available_date).toLocaleDateString()}
+                    <strong>Available from:</strong> {property.available_date}
                   </p>
                 )}
               </div>
@@ -301,32 +447,93 @@ export default function PropertyPage({ property, similarProperties }) {
                 </div>
               ) : null}
               
-              <h3 className="text-xl font-bold mb-4">Contact Landlord</h3>
+              <h3 className="text-xl font-bold mb-4">{isVerifiedAgent ? 'Contact Agent' : 'Contact Landlord'}</h3>
+              
+              {isVerifiedAgent && (
+                <>
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+                    <div className="flex items-center gap-2 text-blue-700 font-semibold text-sm">
+                      <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                      </svg>
+                      Verified Agent
+                    </div>
+                    <p className="text-xs text-gray-600 mt-1">This property is listed by a verified real estate agent</p>
+                  </div>
+
+                  <button
+                    onClick={() => setShowRequestForm(true)}
+                    className="w-full btn-primary mb-4 flex items-center justify-center gap-2 text-lg py-3"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                    </svg>
+                    I Want This Property
+                  </button>
+
+                  <div className="relative my-4">
+                    <div className="absolute inset-0 flex items-center">
+                      <div className="w-full border-t border-gray-300"></div>
+                    </div>
+                    <div className="relative flex justify-center text-sm">
+                      <span className="px-2 bg-white text-gray-500">Or contact directly</span>
+                    </div>
+                  </div>
+                </>
+              )}
               
               <div className="space-y-4">
-                <p className="text-gray-600">Interested in this property? Get in touch directly via WhatsApp.</p>
-                
-                <a
-                  href={`https://wa.me/${property.phone_number}?text=Hi, I'm interested in ${encodeURIComponent(property.title)} at ${encodeURIComponent(property.address)}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="block w-full btn-primary"
-                >
-                  WhatsApp
-                </a>
+                <div className="grid grid-cols-2 gap-3">
+                  <a
+                    href={`https://wa.me/${property.phone_number}?text=Hi, I'm interested in ${encodeURIComponent(property.title)} at ${encodeURIComponent(property.address)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-center gap-2 px-4 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg transition font-semibold"
+                    title="Contact via WhatsApp"
+                  >
+                    <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/>
+                    </svg>
+                  </a>
+
+                  <a
+                    href={`tel:${property.phone_number}`}
+                    className="flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition font-semibold"
+                    title={isVerifiedAgent ? 'Call Agent' : 'Call Landlord'}
+                  >
+                    <Phone className="w-6 h-6" />
+                  </a>
+                </div>
                 
                 <div className="pt-4 border-t">
                   <p className="text-sm text-gray-500">👁️ Views: <span className="font-semibold text-gray-700">{property.views || 0}</span></p>
                 </div>
-
-                <a
-                  href={`tel:${property.phone_number}`}
-                  className="mt-3 flex items-center justify-center gap-3 w-full btn-outline"
-                >
-                  <Phone className="w-5 h-5" />
-                  <span>{formatPhone(property.phone_number) || 'Call Landlord'}</span>
-                </a>
               </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Location-specific SEO content */}
+        <div className="mt-12 bg-gray-50 rounded-xl p-6">
+          <h2 className="text-2xl font-bold mb-4">About Renting in {property.parish}, Jamaica</h2>
+          <div className="prose max-w-none text-gray-700">
+            <p className="mb-3">
+              Looking for a <strong>{property.bedrooms} bedroom {property.type || 'property'} for rent in {property.parish}</strong>? 
+              This property in {property.town || property.parish} offers great value at <strong>{formatMoney(property.price)} per month</strong>.
+            </p>
+            <p className="mb-3">
+              {property.parish} is a popular area for rentals in Jamaica, with properties ranging from apartments to houses. 
+              Whether you're searching for <strong>houses for rent in {property.parish} Jamaica</strong> or apartments, 
+              Dosnine Properties connects you directly with landlords for the best rental deals.
+            </p>
+            <div className="mt-4">
+              <h3 className="text-lg font-semibold mb-2">Popular Searches in {property.parish}:</h3>
+              <ul className="list-disc list-inside space-y-1 text-sm">
+                <li><Link href={`/search/1-bedroom-apartment-${property.parish.toLowerCase().replace(/ /g, '-')}`} className="text-accent hover:underline">1 Bedroom for rent in {property.parish}</Link></li>
+                <li><Link href={`/search/2-bedroom-house-${property.parish.toLowerCase().replace(/ /g, '-')}`} className="text-accent hover:underline">2 Bedroom House for rent in {property.parish}</Link></li>
+                <li><Link href={`/search/3-bedroom-house-${property.parish.toLowerCase().replace(/ /g, '-')}`} className="text-accent hover:underline">3 Bedroom House for rent in {property.parish}</Link></li>
+                <li><Link href={`/search/apartments-for-rent-${property.parish.toLowerCase().replace(/ /g, '-')}`} className="text-accent hover:underline">Apartments for rent in {property.parish}</Link></li>
+              </ul>
             </div>
           </div>
         </div>
@@ -334,7 +541,7 @@ export default function PropertyPage({ property, similarProperties }) {
         {/* Similar Properties Section */}
         {similarProperties && similarProperties.length > 0 && (
           <div className="mt-12">
-            <h2 className="text-2xl font-bold mb-6">Similar Properties in {property.parish}</h2>
+            <h2 className="text-2xl font-bold mb-6">More {property.bedrooms} Bedroom Properties for Rent in {property.parish}</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
               {similarProperties.map((prop) => {
                 const firstImage = prop.image_urls?.[0] || prop.property_images?.[0]?.image_url;
@@ -386,6 +593,14 @@ export default function PropertyPage({ property, similarProperties }) {
 
          
       </div>
+
+      {/* Property Agent Request Modal */}
+      <PropertyAgentRequest 
+        property={property}
+        agentId={property.owner_id}
+        isOpen={showRequestForm}
+        onClose={() => setShowRequestForm(false)}
+      />
     </>
   );
 }

@@ -530,34 +530,6 @@ export default function AgentSignup() {
               {/* Business Registration */}
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Business Registration or Government ID *
-                </label>
-                <p className="text-xs text-gray-600 mb-2">
-                  Upload your business registration certificate. If you don't have a company, upload a government-issued ID instead.
-                </p>
-                <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-blue-500 transition cursor-pointer"
-                  onClick={() => document.getElementById('registration-file').click()}
-                >
-                  <Upload className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-                  <p className="text-sm font-medium text-gray-700">
-                    {verification.businessRegistrationFile
-                      ? verification.businessRegistrationFile.name
-                      : 'Click to upload or drag and drop'}
-                  </p>
-                  <p className="text-xs text-gray-500">JPG, PNG • Max 5MB</p>
-                  <input
-                    id="registration-file"
-                    type="file"
-                    accept=".jpg,.jpeg,.png,image/jpeg,image/png"
-                    onChange={(e) => handleFileChange(e, 'businessRegistrationFile')}
-                    className="hidden"
-                  />
-                </div>
-              </div>
-
-              {/* Profile Image */}
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
                   Profile Image *
                 </label>
                 <p className="text-xs text-gray-600 mb-2">

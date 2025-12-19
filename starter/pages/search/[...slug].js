@@ -99,11 +99,71 @@ export default function SearchLandingPage({ slug, properties: initialProperties,
               description: pageDescription,
               url: `https://dosnine.com/search/${(slug || []).join('/')}`,
               mainEntity: {
-                '@type': 'LocalBusiness',
+                '@type': 'ItemList',
+                numberOfItems: totalCount,
+                itemListElement: (initialProperties || []).slice(0, 10).map((prop, index) => ({
+                  '@type': 'ListItem',
+                  position: index + 1,
+                  item: {
+                    '@type': 'Residence',
+                    name: `${prop.bedrooms} Bedroom ${prop.type || 'Property'} for Rent in ${prop.parish}`,
+                    url: `https://dosnine.com/property/${prop.slug}`,
+                    image: prop.image_urls?.[0] || '',
+                    offers: {
+                      '@type': 'Offer',
+                      price: prop.price,
+                      priceCurrency: 'JMD'
+                    },
+                    address: {
+                      '@type': 'PostalAddress',
+                      addressLocality: prop.town || '',
+                      addressRegion: prop.parish || '',
+                      addressCountry: 'JM'
+                    }
+                  }
+                }))
+              },
+              isPartOf: {
+                '@type': 'WebSite',
                 name: 'Dosnine Properties',
-                description: 'Property listing marketplace in Jamaica',
+                description: 'Jamaica\'s premier property rental marketplace - Houses and Apartments for Rent',
                 url: 'https://dosnine.com',
               },
+            }),
+          }}
+        />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              '@context': 'https://schema.org',
+              '@type': 'FAQPage',
+              mainEntity: [
+                {
+                  '@type': 'Question',
+                  name: `How many ${filters.bedrooms ? filters.bedrooms + ' bedroom ' : ''}properties are available in ${filters.parish || 'this area'}?`,
+                  acceptedAnswer: {
+                    '@type': 'Answer',
+                    text: `We currently have ${totalCount} ${filters.bedrooms ? filters.bedrooms + ' bedroom ' : ''}properties for rent in ${filters.parish || 'this area'}. New listings are added daily, so check back often for the latest rentals.`
+                  }
+                },
+                {
+                  '@type': 'Question',
+                  name: 'Can I contact the landlord directly?',
+                  acceptedAnswer: {
+                    '@type': 'Answer',
+                    text: 'Yes! Every property listing on Dosnine includes direct contact information for the landlord or property owner. You can reach out via WhatsApp or phone call. There are no agent fees or commissions.'
+                  }
+                },
+                {
+                  '@type': 'Question',
+                  name: `What is the average rent for properties in ${filters.parish || 'Jamaica'}?`,
+                  acceptedAnswer: {
+                    '@type': 'Answer',
+                    text: `Rental prices in ${filters.parish || 'Jamaica'} vary based on size, location, and amenities. Browse our listings to see current market rates for ${filters.bedrooms ? filters.bedrooms + ' bedroom ' : ''}properties. Prices are shown in Jamaican dollars per month.`
+                  }
+                }
+              ]
             }),
           }}
         />
@@ -115,7 +175,42 @@ export default function SearchLandingPage({ slug, properties: initialProperties,
         </div>
 
         <h1 className="text-4xl font-bold mb-2 text-gray-900">{generateTitle()}</h1>
-        <p className="text-lg text-gray-600 mb-8">{pageDescription}</p>
+        <p className="text-lg text-gray-600 mb-4">{pageDescription}</p>
+        
+        {/* SEO-rich location content */}
+        {properties.length > 0 && (
+          <div className="bg-blue-50 rounded-lg p-6 mb-8">
+            <h2 className="text-xl font-bold mb-3 text-gray-900">
+              {filters.parish && filters.bedrooms 
+                ? `${filters.bedrooms} Bedroom ${filters.type ? filters.type.charAt(0).toUpperCase() + filters.type.slice(1) + 's' : 'Properties'} Available in ${filters.parish}`
+                : `Rental Properties in ${filters.parish || 'Jamaica'}`
+              }
+            </h2>
+            <p className="text-gray-700 text-sm leading-relaxed">
+              {filters.parish === 'St Catherine' && (
+                <>
+                  Looking for <strong>houses for rent in St Catherine Jamaica</strong>? 
+                  Browse our listings in Spanish Town, Portmore, and surrounding areas. 
+                  Find <strong>1 bedroom, 2 bedroom, and 3 bedroom houses for rent in St Catherine</strong> with direct landlord contact. 
+                  No agent fees - connect directly with property owners.
+                </>
+              )}
+              {filters.parish && filters.parish !== 'St Catherine' && (
+                <>
+                  Browse <strong>houses and apartments for rent in {filters.parish}, Jamaica</strong>. 
+                  Our listings include {filters.bedrooms ? `${filters.bedrooms} bedroom ` : ''}properties 
+                  with verified landlord contact information. Connect directly with property owners for the best rental deals in {filters.parish}.
+                </>
+              )}
+              {!filters.parish && (
+                <>
+                  Discover rental properties across Jamaica including St Catherine, Kingston, St James, and more. 
+                  Browse <strong>houses and apartments for rent</strong> with direct landlord contact - no agent fees or commissions.
+                </>
+              )}
+            </p>
+          </div>
+        )}
 
         {properties.length === 0 ? (
           <div className="text-center py-12 bg-blue-50 rounded-lg border border-blue-200 p-8">
@@ -165,6 +260,73 @@ export default function SearchLandingPage({ slug, properties: initialProperties,
                 </Link>
               </nav>
             )}
+
+            {/* FAQ and Search Suggestions Section */}
+            <div className="mt-12 grid md:grid-cols-2 gap-8">
+              <div className="bg-white rounded-xl shadow-sm border p-6">
+                <h2 className="text-2xl font-bold mb-4">Frequently Asked Questions</h2>
+                <div className="space-y-4 text-sm">
+                  <div>
+                    <h3 className="font-semibold text-gray-900 mb-1">How do I find houses for rent in {filters.parish || 'Jamaica'}?</h3>
+                    <p className="text-gray-600">
+                      Browse our listings above to find available properties. Each listing shows photos, prices, and direct landlord contact information. 
+                      You can filter by bedrooms, location, and property type.
+                    </p>
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-gray-900 mb-1">Can I contact landlords directly?</h3>
+                    <p className="text-gray-600">
+                      Yes! All our listings include direct WhatsApp and phone contact for property owners. 
+                      No agent fees or commissions - connect with landlords directly.
+                    </p>
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-gray-900 mb-1">Are these listings updated regularly?</h3>
+                    <p className="text-gray-600">
+                      Our property listings are updated daily. New properties are added regularly, so check back often for the latest rentals.
+                    </p>
+                  </div>
+                  {filters.parish === 'St Catherine' && (
+                    <div>
+                      <h3 className="font-semibold text-gray-900 mb-1">What areas of St Catherine do you cover?</h3>
+                      <p className="text-gray-600">
+                        We have listings across St Catherine including Spanish Town, Portmore, Old Harbour, Linstead, and surrounding communities.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="bg-white rounded-xl shadow-sm border p-6">
+                <h2 className="text-2xl font-bold mb-4">Popular Searches</h2>
+                <div className="space-y-2 text-sm">
+                  <Link href="/search/1-bedroom-apartment-st-catherine" className="block text-accent hover:underline">
+                    → 1 Bedroom House for rent in St Catherine
+                  </Link>
+                  <Link href="/search/2-bedroom-house-st-catherine" className="block text-accent hover:underline">
+                    → 2 Bedroom House for rent in St Catherine
+                  </Link>
+                  <Link href="/search/3-bedroom-house-st-catherine" className="block text-accent hover:underline">
+                    → 3 Bedroom House for rent in St Catherine
+                  </Link>
+                  <Link href="/search/houses-for-rent-spanish-town" className="block text-accent hover:underline">
+                    → House for rent Spanish Town
+                  </Link>
+                  <Link href="/search/houses-for-rent-portmore" className="block text-accent hover:underline">
+                    → House for rent in Portmore
+                  </Link>
+                  <Link href="/search/apartments-for-rent-kingston" className="block text-accent hover:underline">
+                    → Apartments for rent in Kingston
+                  </Link>
+                  <Link href="/search/houses-for-rent-st-james" className="block text-accent hover:underline">
+                    → Houses for rent in St James
+                  </Link>
+                  <Link href="/search/2-bedroom-apartment-st-andrew" className="block text-accent hover:underline">
+                    → 2 Bedroom Apartments in St Andrew
+                  </Link>
+                </div>
+              </div>
+            </div>
           </div>
         )}
       </div>
@@ -290,11 +452,29 @@ export async function getStaticProps({ params }) {
     count = fallback.count || properties.length;
   }
 
-  // Generate meta tags
+  // Generate meta tags with better SEO optimization
   const parts = slug.map(s => s.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase()));
-  const pageTitle = `${parts.join(' ')} - Dosnine Properties`;
-  const pageDescription = `Browse ${parts.join(' ')} in Jamaica. Find rental properties with detailed information and contact landlords directly.`;
-  const pageKeywords = `${parts.join(', ')}, rental properties Jamaica, apartments for rent`;
+  const bedroomCount = filters.bedrooms || '';
+  const propertyType = filters.type ? filters.type.charAt(0).toUpperCase() + filters.type.slice(1) : 'Property';
+  const parishName = filters.parish || 'Jamaica';
+  
+  const pageTitle = bedroomCount 
+    ? `${bedroomCount} Bedroom ${propertyType} for Rent in ${parishName} | Dosnine Properties Jamaica`
+    : `${parts.join(' ')} | Houses & Apartments for Rent in Jamaica | Dosnine Properties`;
+  
+  const pageDescription = `Find ${bedroomCount ? bedroomCount + ' bedroom ' : ''}${filters.type || 'properties'} for rent in ${parishName}, Jamaica. Browse ${count || 'available'} listings with photos, prices, and landlord contact info. No agent fees. Connect directly with property owners.`;
+  
+  const pageKeywords = [
+    `${bedroomCount} bedroom ${filters.type || 'house'} for rent in ${parishName}`,
+    `${filters.type || 'property'} for rent ${parishName} Jamaica`,
+    `houses for rent in ${parishName}`,
+    `apartments for rent ${parishName}`,
+    `rental properties ${parishName}`,
+    'Sunday Gleaner classified',
+    'house for rent Jamaica',
+    parishName === 'St Catherine' ? 'house for rent Spanish Town, house for rent Portmore' : '',
+    'rental listings Jamaica'
+  ].filter(Boolean).join(', ');
 
   return {
     props: {
