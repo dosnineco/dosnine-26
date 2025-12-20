@@ -160,7 +160,7 @@ export default function RequestAgent() {
       }
 
       // Show success state for 2 seconds before redirecting
-      toast.success('✅ Request submitted! An agent will contact you soon.', {
+      toast.success('Request submitted! An agent will contact you soon.', {
         duration: 2000
       });
       
