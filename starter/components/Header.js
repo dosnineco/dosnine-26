@@ -4,7 +4,6 @@ import { UserButton, useUser } from '@clerk/nextjs';
 import { FiHome, FiGrid, FiPlusCircle, FiMenu, FiSettings, FiUser } from 'react-icons/fi';
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import RequestAgentPopup from './RequestAgentPopup';
 
 export default function Header() {
   const router = useRouter();
@@ -12,7 +11,6 @@ export default function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isVerifiedAgent, setIsVerifiedAgent] = useState(false);
-  const [showRequestPopup, setShowRequestPopup] = useState(false);
 
   const [isAgent, setIsAgent] = useState(false);
 
@@ -42,30 +40,6 @@ export default function Header() {
     checkAdmin();
   }, [user]);
 
-  // Auto-popup Request Agent modal for visitors on homepage
-  useEffect(() => {
-    // Only show on homepage
-    if (router.pathname !== '/') return;
-    
-    // Don't show if user is signed in
-    if (isSignedIn) return;
-    
-    // Don't show if user is an agent
-    if (isAgent) return;
-    
-    // Check if popup was already shown this session
-    const hasShownPopup = sessionStorage.getItem('hasShownRequestAgentPopup');
-    if (hasShownPopup) return;
-    
-    // Show popup after 3 seconds
-    const timer = setTimeout(() => {
-      setShowRequestPopup(true);
-      sessionStorage.setItem('hasShownRequestAgentPopup', 'true');
-    }, 2000);
-    
-    return () => clearTimeout(timer);
-  }, [router.pathname, isSignedIn, isAgent]);
-
   return (
     <header className="bg-white border-b border-gray-200 sticky top-0 z-50 ">
       <nav className="container mx-auto px-4 py-3 flex items-center justify-between">
@@ -83,14 +57,6 @@ export default function Header() {
               >
                 Browse
               </Link>
-              {!isAgent && (
-                <button
-                  onClick={() => setShowRequestPopup(true)}
-                  className="btn-outline btn-sm"
-                >
-                  Find Agent
-                </button>
-              )}
               {isVerifiedAgent ? (
                 <>
                   <Link 
@@ -132,12 +98,6 @@ export default function Header() {
               >
                 Browse
               </Link>
-              <button
-                onClick={() => setShowRequestPopup(true)}
-                className="btn-primary btn-sm"
-              >
-                Find Agent
-              </button>
               <Link 
                 href="/dashboard" 
                 className={`px-3 py-2 rounded-lg transition text-sm ${router.pathname === '/dashboard' ? 'bg-gray-200 text-gray-900 font-medium' : 'text-gray-600 hover:bg-gray-100'}`}
@@ -252,12 +212,6 @@ export default function Header() {
           </div>
         </>
       )}
-
-      {/* Request Agent Popup */}
-      <RequestAgentPopup 
-        isOpen={showRequestPopup} 
-        onClose={() => setShowRequestPopup(false)} 
-      />
     </header>
   );
 }

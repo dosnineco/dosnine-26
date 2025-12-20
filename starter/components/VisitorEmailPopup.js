@@ -1,160 +1,235 @@
 import React, { useState, useEffect } from 'react';
 import { useUser } from '@clerk/nextjs';
+import { useRouter } from 'next/router';
 import { supabase } from '../lib/supabase';
 
 export default function VisitorEmailPopup() {
   const { isSignedIn, user } = useUser();
+  const router = useRouter();
+
   const [showPopup, setShowPopup] = useState(false);
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
+  const [intent, setIntent] = useState(''); // buy, sell, rent
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [isAgent, setIsAgent] = useState(false);
 
+  /* -----------------------------
+     Check if signed-in user is agent
+  ------------------------------*/
   useEffect(() => {
-    // Check if user is an agent
     const checkAgent = async () => {
       if (!user) return;
-      const { data } = await supabase
-        .from('agents')
-        .select('id')
+
+      // Query through users table since agents table uses user_id, not clerk_id
+      const { data, error } = await supabase
+        .from('users')
+        .select('agent:agents(id, verification_status)')
         .eq('clerk_id', user.id)
-        .single();
-      if (data) setIsAgent(true);
+        .maybeSingle();
+
+      if (data?.agent && !error) {
+        setIsAgent(true);
+      }
     };
+
     if (isSignedIn) {
       checkAgent();
     }
   }, [isSignedIn, user]);
 
+  /* -----------------------------
+     Auto-fill email and phone from user data
+  ------------------------------*/
   useEffect(() => {
-    // Don't show popup if user is signed in or is an agent
+    if (isSignedIn && user) {
+      // Auto-fill from Clerk user data
+      const userEmail = user.emailAddresses?.[0]?.emailAddress;
+      const userPhone = user.phoneNumbers?.[0]?.phoneNumber;
+      
+      if (userEmail) setEmail(userEmail);
+      if (userPhone) setPhone(userPhone);
+    }
+  }, [isSignedIn, user]);
+
+  /* -----------------------------
+     Popup trigger logic
+  ------------------------------*/
+  useEffect(() => {
     if (isSignedIn || isAgent) return;
-    
-    // Check if user has already submitted email this session
-    const hasSubmitted = sessionStorage.getItem('visitor-email-submitted');
+
+    const hasSubmitted = localStorage.getItem('visitor-lead-submitted');
     if (hasSubmitted) {
       setSubmitted(true);
       return;
     }
 
-    // Show popup after 5 seconds
+    const hasDismissedRecently = sessionStorage.getItem('visitor-lead-dismissed');
+    if (hasDismissedRecently) return;
+
     const timer = setTimeout(() => {
       setShowPopup(true);
-    }, 5000);
+    }, 30000);
 
     return () => clearTimeout(timer);
   }, [isSignedIn, isAgent]);
 
+  /* -----------------------------
+     Submit handler
+  ------------------------------*/
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!email.trim() || !phone.trim()) return;
+    if (!email || !phone || !intent) return;
 
     setLoading(true);
+
     try {
-      // Save to database via API
-      const response = await fetch('/api/visitor-email', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, phone }),
-      });
+      // Insert directly to Supabase (no API)
+      const { data, error } = await supabase
+        .from('visitor_emails')
+        .insert({
+          email,
+          phone,
+          intent,
+          page: router.pathname,
+          source: 'popup',
+          user_agent: typeof navigator !== 'undefined' ? navigator.userAgent : null,
+          referrer: typeof document !== 'undefined' ? document.referrer : null,
+        });
 
-      if (response.ok) {
-        // Also submit to Formspree
-        await fetch('https://formspree.io/f/xgeggljb', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email, phone, _subject: 'New Visitor Email Capture' }),
-        }).catch(err => console.error('Formspree error:', err));
-
-        // Mark as submitted in session
-        sessionStorage.setItem('visitor-email-submitted', 'true');
+      if (error) {
+        console.error('Insert error:', error);
+        // Still mark as submitted to not annoy user
+        localStorage.setItem('visitor-lead-submitted', 'true');
         setSubmitted(true);
         setShowPopup(false);
-      } else {
-        console.error('Failed to save email');
+        return;
       }
-    } catch (error) {
-      console.error('Error submitting email:', error);
+
+      localStorage.setItem('visitor-lead-submitted', 'true');
+      setSubmitted(true);
+      setShowPopup(false);
+    } catch (err) {
+      console.error('Lead submit error:', err);
+      // Still close popup to not annoy user
+      localStorage.setItem('visitor-lead-submitted', 'true');
+      setSubmitted(true);
+      setShowPopup(false);
     } finally {
       setLoading(false);
     }
   };
 
+  /* -----------------------------
+     Dismiss handler (soft)
+  ------------------------------*/
   const handleDismiss = () => {
-    // Mark as dismissed (don't show again this session)
-    sessionStorage.setItem('visitor-email-submitted', 'true');
+    sessionStorage.setItem('visitor-lead-dismissed', 'true');
     setShowPopup(false);
   };
 
   if (!showPopup || submitted) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-40 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full relative overflow-hidden animate-in fade-in slide-in-from-bottom-4">
-        {/* Close Button */}
+    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-40 p-4">
+      <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden">
 
-        {/* Header with Santa Image */}
-        <div className="bg-gradient-to-r from-orange-600 to-orange-700 p-6 text-white relative">
-          <div className="flex items-center justify-between gap-4">
-            <div>
-              <h2 className="text-2xl font-bold">Don't Miss Out!</h2>
-              <p className="text-orange-100 text-sm mt-1">Get exclusive property listings & deals</p>
-            </div>
-            <img 
-              src="/santa-claus.png" 
-              alt="Santa Mascot" 
-              className="w-20 h-20 flex-shrink-0"
-            />
-          </div>
+        {/* Header */}
+        <div className="bg-gradient-to-r from-orange-600 to-orange-700 p-6 text-white">
+          <h2 className="text-2xl font-bold">Get Property Alerts</h2>
+          <p className="text-orange-100 text-sm mt-1">
+            Verified listings sent directly to you
+          </p>
         </div>
 
-        {/* Content */}
+        {/* Form */}
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
-
-          <div className="space-y-2">
-            <label className="block text-sm font-medium text-gray-700">Email Address</label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="your@email.com"
-              required
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-            />
+          
+          {/* Intent Buttons */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              I'm interested in:
+            </label>
+            <div className="grid grid-cols-3 gap-2">
+              <button
+                type="button"
+                onClick={() => setIntent('buy')}
+                className={`px-4 py-3 rounded-lg border-2 font-medium transition ${
+                  intent === 'buy'
+                    ? 'border-orange-600 bg-orange-50 text-orange-700'
+                    : 'border-gray-300 text-gray-700 hover:border-orange-400'
+                }`}
+              >
+                Buy
+              </button>
+              <button
+                type="button"
+                onClick={() => setIntent('sell')}
+                className={`px-4 py-3 rounded-lg border-2 font-medium transition ${
+                  intent === 'sell'
+                    ? 'border-orange-600 bg-orange-50 text-orange-700'
+                    : 'border-gray-300 text-gray-700 hover:border-orange-400'
+                }`}
+              >
+                Sell
+              </button>
+              <button
+                type="button"
+                onClick={() => setIntent('rent')}
+                className={`px-4 py-3 rounded-lg border-2 font-medium transition ${
+                  intent === 'rent'
+                    ? 'border-orange-600 bg-orange-50 text-orange-700'
+                    : 'border-gray-300 text-gray-700 hover:border-orange-400'
+                }`}
+              >
+                Rent
+              </button>
+            </div>
           </div>
 
-          <div className="space-y-2">
-            <label className="block text-sm font-medium text-gray-700">Phone Number</label>
-            <input
-              type="tel"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              placeholder="+1 (876) 555-0000"
-              required
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-            />
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="Email address"
+            required
+            className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+          />
+
+          <input
+            type="tel"
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+            placeholder="Phone number"
+            required
+            className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+          />
+
+          {/* Data Sharing Disclaimer */}
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-xs text-gray-700">
+            <p className="font-medium text-blue-900 mb-1">📋 Data Sharing Notice</p>
+            <p>
+              By submitting, you agree to share your contact information with verified agents 
+              who can help with your property needs. We respect your privacy and never spam.
+            </p>
           </div>
 
           <button
             type="submit"
-            disabled={loading}
-            className="w-full btn-primary"
+            disabled={loading || !intent}
+            className="w-full btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {loading ? 'Saving...' : 'Get Property Alerts'}
+            {loading ? 'Saving...' : intent ? `Connect with ${intent.charAt(0).toUpperCase() + intent.slice(1)} Agents` : 'Select an option above'}
           </button>
 
           <button
             type="button"
             onClick={handleDismiss}
-            className="w-full btn-outline"
+            className="w-full text-sm text-gray-500 hover:underline"
           >
-            Maybe Later
+            Maybe later
           </button>
-
-          <p className="text-xs text-gray-500 text-center">
-            We respect your privacy. No spam, ever.
-          </p>
         </form>
       </div>
     </div>

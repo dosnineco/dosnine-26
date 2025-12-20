@@ -1,17 +1,16 @@
 import { useEffect, useState, useRef, lazy, Suspense } from 'react';
 const PropertyCard = lazy(() => import('../components/PropertyCard'));
-import Head from 'next/head';
 import Seo from '../components/Seo';
 import Link from 'next/link';
 import { supabase } from '../lib/supabase';
 import { FiSearch } from 'react-icons/fi';
 import { useUser, useClerk } from '@clerk/nextjs';
-import { formatMoney } from '../lib/formatMoney';
-import BetaBanner from '../components/BetaBanner';
 import { Home as HomeIcon, Users, ArrowRight } from 'lucide-react';
 import { useRouter } from 'next/router';
 import { PARISHES, normalizeParish } from '../lib/normalizeParish';
+// import VisitorEmailPopup from '@/components/VisitorEmailPopup';
 const PROPERTIES_PER_PAGE = 20;
+
 
 // Role Card Component - same size as PropertyCard
 function RoleCard({ title, subtitle, icon: Icon, bgColor, textColor, link, user, bgImage }) {
@@ -269,8 +268,8 @@ export default function Home() {
         url={process.env.NEXT_PUBLIC_SITE_URL + '/'}
       />
 
+    {/* <VisitorEmailPopup/> */}
       {/* Beta Banner */}
-      {/* <BetaBanner propertyCount={totalCount} /> */}
 
       {/* User Role Selection */}
 
