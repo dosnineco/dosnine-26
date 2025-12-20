@@ -501,6 +501,13 @@ export default function AdminDashboard() {
           <FiTrendingUp size={14} />
           Allocation
         </Link>
+        <Link
+          href="/admin/feedback"
+          className="px-3 py-2 rounded-md text-sm font-medium flex items-center gap-1.5 whitespace-nowrap text-gray-700 hover:bg-gray-100"
+        >
+          <FiTrendingUp size={14} />
+          Feedback
+        </Link>
         <button
           onClick={() => setActiveTab('requests')}
           className={`px-3 py-2 rounded-md text-sm font-medium flex items-center gap-1.5 whitespace-nowrap ${

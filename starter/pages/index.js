@@ -423,16 +423,15 @@ export default function Home() {
                 title="Post your Property"
                 subtitle="Rent or sell"
                 icon={HomeIcon}
-                bgColor='bg-green-500'
-                bgImage="/agent-listing.jpg"
+                bgColor='bg-blue-300'
                 link="/landlord/new-property"
                 user={user}
               />
               <RoleCard
-                title="Become Agent"
+                title="Become a Agent"
                 subtitle="Verified pros"
                 icon={Users}
-                bgColor="bg-blue-100"
+                bgColor="bg-red-300"
                 link="/agent/signup"
                 user={user}
               />

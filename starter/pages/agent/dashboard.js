@@ -6,6 +6,7 @@ import Link from 'next/link';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 import RequestNotificationPopup from '../../components/RequestNotificationPopup';
+import AgentFeedbackPopup from '../../components/AgentFeedbackPopup';
 import VerifiedBadge from '../../components/VerifiedBadge';
 import { useRoleProtection } from '../../lib/useRoleProtection';
 import { isVerifiedAgent } from '../../lib/rbac';
@@ -543,6 +544,9 @@ export default function AgentDashboard() {
           </div>
         </div>
       )}
+
+      {/* Agent Feedback Popup */}
+      <AgentFeedbackPopup />
     </>
   );
 }
