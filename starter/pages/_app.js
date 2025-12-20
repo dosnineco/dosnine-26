@@ -17,7 +17,7 @@ function MyApp({ Component, pageProps }) {
   const router = useRouter();
   
   // Public routes that don't require sign-in
-  const publicRoutes = ['/', '/property', '/tools', '/blog', '/contact', '/privacy-policy', '/terms-of-service', '/refund-policy', '/about'];
+  const publicRoutes = ['/', '/property', '/ads/*','/ads/request-agent', '/tools', '/blog', '/contact', '/privacy-policy', '/terms-of-service', '/refund-policy', '/about'];
   const isPublicRoute = publicRoutes.some(
     (route) => router.pathname === route || router.pathname.startsWith(`${route}/`)
   );
@@ -31,6 +31,9 @@ function MyApp({ Component, pageProps }) {
 function AppContent({ Component, pageProps, isPublicRoute }) {
   const { isSignedIn, user } = useUser();
   const router = useRouter();
+  
+  // Use the page-level layout if it exists, otherwise use the default layout
+  const getLayout = Component.getLayout || ((page) => page);
   
   // Initialize analytics tracking on all pages
   useAnalyticsTracking();
@@ -95,6 +98,19 @@ function AppContent({ Component, pageProps, isPublicRoute }) {
     syncUser();
   }, [isSignedIn, user]);
 
+  // If page has custom layout (like ads pages), use it without Header/Footer
+  if (Component.getLayout) {
+    return getLayout(
+      <>
+        <Seo />
+        <SiteProtection />
+        <Toaster position="top-center" />
+        <Component {...pageProps} />
+      </>
+    );
+  }
+
+  // Default layout with Header and Footer
   return (
     <>
       <Seo />
