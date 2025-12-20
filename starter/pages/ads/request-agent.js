@@ -133,7 +133,8 @@ export default function RequestAgent() {
         budgetMin: formData.budget ? parseFloat(formData.budget) : null,
         budgetMax: formData.budget ? parseFloat(formData.budget) : null,
         description: formData.description,
-        urgency: 'normal'
+        urgency: 'normal',
+        fromAds: true // Flag to prevent auto-assignment
       };
 
       // Submit request

@@ -20,6 +20,7 @@ export default async function handler(req, res) {
     bathrooms,
     description,
     urgency,
+    fromAds,
   } = req.body;
 
   if (!clientName || !clientEmail || !clientPhone || !requestType || !propertyType || !location) {
@@ -68,15 +69,18 @@ export default async function handler(req, res) {
     }
 
     // Automatically assign to a paid agent using fair distribution
-    try {
-      await fetch(`${req.headers.origin || 'http://localhost:3002'}/api/service-requests/auto-assign`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ requestId: data.id })
-      });
-    } catch (assignError) {
-      // Don't fail request creation if auto-assignment fails
-      // Request will remain 'open' and can be manually assigned
+    // Skip auto-assignment for leads from ads pages
+    if (!fromAds) {
+      try {
+        await fetch(`${req.headers.origin || 'http://localhost:3002'}/api/service-requests/auto-assign`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ requestId: data.id })
+        });
+      } catch (assignError) {
+        // Don't fail request creation if auto-assignment fails
+        // Request will remain 'open' and can be manually assigned
+      }
     }
 
     return res.status(200).json({ 
