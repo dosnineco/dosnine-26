@@ -11,6 +11,7 @@ import { useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { Toaster } from 'react-hot-toast';
 import { useAnalyticsTracking } from '../lib/useAnalyticsTracking';
+import Clarity from '@microsoft/clarity';
 
 function MyApp({ Component, pageProps }) {
   const router = useRouter();
@@ -33,6 +34,13 @@ function AppContent({ Component, pageProps, isPublicRoute }) {
   
   // Initialize analytics tracking on all pages
   useAnalyticsTracking();
+
+  // Initialize Microsoft Clarity
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      Clarity.init('ujn9fzt88c');
+    }
+  }, []);
 
   // Handle redirect after sign-in
   useEffect(() => {
