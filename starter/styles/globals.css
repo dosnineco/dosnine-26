@@ -225,3 +225,22 @@ a:focus-visible {
   outline: 2px solid #4b5563;
   outline-offset: 2px;
 }
+@layer components {
+  .input {
+    @apply w-full px-4 py-3 mt-3 rounded-lg border border-gray-300 
+    text-gray-900 placeholder-gray-400
+    focus:outline-none focus:ring-2 focus:ring-black focus:border-black
+    transition duration-150;
+  }
+
+  .label {
+    @apply block text-sm font-semibold text-gray-700 mt-4;
+  }
+}
+input[type="range"] {
+  @apply w-full mt-2;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  @apply bg-black cursor-pointer;
+}

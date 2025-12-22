@@ -115,7 +115,7 @@ function AppContent({ Component, pageProps, isPublicRoute }) {
     <>
       <Seo />
       <SiteProtection />
-      <VisitorEmailPopup/>
+      {/* <VisitorEmailPopup/> */}
       <Toaster position="top-center" />
       <Header />
       {/* Show boost banner on all pages */}
