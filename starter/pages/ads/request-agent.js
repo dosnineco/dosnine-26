@@ -162,7 +162,7 @@ export default function RequestAgent() {
                 onChange={e => setPartnerIncome(Number(e.target.value))}
               />
             )}
-<label className="flex gap-2 mt-6 text-sm"> I agree to be contacted by a verified agent, once i check my Readiness </label>
+          <label className="flex gap-2 mt-6 text-sm"> I agree to be contacted by a verified agent, once i check my Readiness </label>
             <button
               disabled={loading}
               className="w-full bg-black text-white py-4 rounded-lg mt-6 font-bold"
