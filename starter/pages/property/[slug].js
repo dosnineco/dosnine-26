@@ -10,6 +10,7 @@ import { Zap, Phone } from 'lucide-react';
 import { formatMoney } from '../../lib/formatMoney';
 import { normalizeParish } from '../../lib/normalizeParish';
 import PropertyAgentRequest from '../../components/PropertyAgentRequest';
+import AdList from '../../components/AdList';
 
 export async function getStaticPaths() {
   const { data } = await supabase
@@ -537,6 +538,7 @@ export default function PropertyPage({ property, similarProperties, isVerifiedAg
             </div>
           </div>
         </div>
+        <AdList/>
 
         {/* Similar Properties Section */}
         {similarProperties && similarProperties.length > 0 && (

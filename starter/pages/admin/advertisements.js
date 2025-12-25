@@ -178,7 +178,11 @@ export default function AdminAdvertisements() {
             <div>
               <p className="font-medium">{ad.company_name}</p>
               <p className="text-xs text-gray-500">{ad.category}</p>
+                <p className="text-sm">{ad.title}</p>
+                <p className="text-xs text-gray-600">{ad.description}</p>
+
             </div>
+
 
             <button
               onClick={() => deleteAd(ad.id)}
@@ -186,6 +190,7 @@ export default function AdminAdvertisements() {
             >
               Delete
             </button>
+            
           </div>
         ))}
       </div>

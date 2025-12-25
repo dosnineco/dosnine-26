@@ -10,7 +10,7 @@ import { useRouter } from 'next/router';
 import { PARISHES, normalizeParish } from '../lib/normalizeParish';
 // import VisitorEmailPopup from '@/components/VisitorEmailPopup';
 const PROPERTIES_PER_PAGE = 20;
-
+import AdList from '../components/AdList';
 
 // Role Card Component - same size as PropertyCard
 function RoleCard({ title, subtitle, icon: Icon, bgColor, textColor, link, user, bgImage }) {
@@ -434,7 +434,7 @@ export default function Home() {
                 link="/agent/signup"
                 user={user}
               />
-
+              <AdList/>
               {/* Real Properties - Clickable */}
               {properties.map((prop, idx) => {
                 const isOwner = userOwnerId && prop.owner_id === userOwnerId;

@@ -494,6 +494,13 @@ export default function AdminDashboard() {
           <FiUsers size={14} />
           Agents
         </Link>
+          <Link
+          href="/admin/advertisements"
+          className="px-3 py-2 rounded-md text-sm font-medium flex items-center gap-1.5 whitespace-nowrap text-gray-700 hover:bg-gray-100"
+        >
+          <FiUsers size={14} />
+          Advertisements
+        </Link>
         <Link
           href="/admin/allocation"
           className="px-3 py-2 rounded-md text-sm font-medium flex items-center gap-1.5 whitespace-nowrap text-gray-700 hover:bg-gray-100"
