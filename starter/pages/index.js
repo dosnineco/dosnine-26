@@ -371,6 +371,9 @@ export default function Home() {
           </button>
         </form>
 
+         <AdList/>
+
+
 
         {loading ? (
           <div className="text-center py-12">
@@ -434,7 +437,6 @@ export default function Home() {
                 link="/agent/signup"
                 user={user}
               />
-              <AdList/>
               {/* Real Properties - Clickable */}
               {properties.map((prop, idx) => {
                 const isOwner = userOwnerId && prop.owner_id === userOwnerId;

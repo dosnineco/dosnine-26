@@ -68,7 +68,7 @@ export default function AdvertisementGrid({ category }) {
   if (!ads.length) return null
 
   return (
-    <div className="w-full bg-gray-50 py-6 rounded-xl shadow-inner">
+    <div className="w-full bg-gray-50 py-6 rounded-xl bg-gray-50">
       {/* Header */}
       <div className="flex justify-between items-center px-4 mb-4">
         <h2 className="text-lg font-semibold">
