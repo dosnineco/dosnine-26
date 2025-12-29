@@ -11,10 +11,15 @@ export default function AdvertisementGrid({ category }) {
     lead_bounties: 25
   })
   const [index, setIndex] = useState(0)
+  const [isMobile, setIsMobile] = useState(false)
   const sliderRef = useRef(null)
 
-  const isMobile =
-    typeof window !== 'undefined' && window.innerWidth < 768
+  useEffect(() => {
+    setIsMobile(window.innerWidth < 768)
+    const handleResize = () => setIsMobile(window.innerWidth < 768)
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
 
   useEffect(() => {
     loadAds()
@@ -81,7 +86,7 @@ export default function AdvertisementGrid({ category }) {
   }
 
   const visibleAds = isMobile
-    ? [ads[index]]
+    ? (ads[index] ? [ads[index]] : [])
     : ads.slice(index, index + 4)
 
   const next = () => {

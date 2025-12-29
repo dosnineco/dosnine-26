@@ -83,7 +83,9 @@ export default function RequestAgentPage() {
       }
 
       // Mark as submitted to prevent popup on other pages
-      localStorage.setItem('visitor-lead-submitted', 'true');
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('visitor-lead-submitted', 'true');
+      }
       toast.success('Request submitted successfully! An agent will contact you soon.');
       setSubmitted(true);
     } catch (err) {

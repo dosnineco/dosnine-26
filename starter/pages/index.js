@@ -32,7 +32,7 @@ function RoleCard({ title, subtitle, icon: Icon, bgColor, textColor, link, user,
   return (
     <div 
       onClick={handleClick}
-      className={`${bgImage ? 'bg-cover bg-center' : bgColor} rounded-lg hover:shadow-lg border-2 border-transparent hover: p-6 cursor-pointer transition-all group h-full flex flex-col relative overflow-hidden`}
+      className={`${bgImage ? 'bg-cover bg-center' : bgColor} rounded-lg hover:shadow-lg border-2 border-transparent p-6 cursor-pointer transition-all group h-full flex flex-col relative overflow-hidden`}
       style={bgImage ? { backgroundImage: `url(${bgImage})` } : {}}
     >
       {/* Overlay for better text readability when using background image */}
@@ -55,7 +55,7 @@ function RoleCard({ title, subtitle, icon: Icon, bgColor, textColor, link, user,
         </p>
 
         {/* CTA */}
-        <div className={`mt-auto flex items-center font-medium group-hover:translate-x-1 transition text-white }`}>
+        <div className={`mt-auto flex items-center font-medium group-hover:translate-x-1 transition text-white`}>
           Get Started
           <ArrowRight className="w-4 h-4 ml-1" />
         </div>
