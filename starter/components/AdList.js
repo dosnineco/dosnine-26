@@ -1,228 +1,131 @@
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import Link from 'next/link'
+import {Star} from 'lucide-react';
 
-export default function AdvertisementGrid({ category }) {
+export default function AdvertisementGrid() {
   const [ads, setAds] = useState([])
-  const [availableSlots, setAvailableSlots] = useState({
-    agent_trials: 20,
-    partner_spots: 15,
-    property_boosts: 20,
-    lead_bounties: 25
-  })
-  const [index, setIndex] = useState(0)
-  const [isMobile, setIsMobile] = useState(false)
-  const sliderRef = useRef(null)
-
-  useEffect(() => {
-    setIsMobile(window.innerWidth < 768)
-    const handleResize = () => setIsMobile(window.innerWidth < 768)
-    window.addEventListener('resize', handleResize)
-    return () => window.removeEventListener('resize', handleResize)
-  }, [])
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     loadAds()
-    loadAvailableSlots()
-  }, [category])
-
-  useEffect(() => {
-    ads.forEach(ad => track(ad.id, 'impression'))
-  }, [ads])
-
-  // Mobile auto-slide
-  useEffect(() => {
-    if (!isMobile || ads.length <= 1) return
-    const interval = setInterval(() => {
-      setIndex(prev => (prev + 1) % ads.length)
-    }, 4000)
-    return () => clearInterval(interval)
-  }, [ads, isMobile])
-
-  const track = async (adId, type) => {
-    await fetch('/api/ads/track', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ adId, type })
-    })
-  }
-
-  const loadAvailableSlots = async () => {
-    // Get count of active ads by category
-    const { data } = await supabase
-      .from('advertisements')
-      .select('category')
-      .eq('is_active', true)
-      .or('expires_at.is.null,expires_at.gt.now()')
-
-    const counts = {
-      agent_trials: data?.filter(a => a.category === 'agent_trial').length || 0,
-      partner_spots: data?.filter(a => a.category === 'contractor').length || 0,
-      property_boosts: 0, // From separate table
-      lead_bounties: 0
-    }
-
-    setAvailableSlots({
-      agent_trials: Math.max(0, 20 - counts.agent_trials),
-      partner_spots: Math.max(0, 15 - counts.partner_spots),
-      property_boosts: 20 - counts.property_boosts,
-      lead_bounties: 25 - counts.lead_bounties
-    })
-  }
+  }, [])
 
   const loadAds = async () => {
-    let query = supabase
+    const { data } = await supabase
       .from('advertisements')
       .select('*')
       .eq('is_active', true)
       .or('expires_at.is.null,expires_at.gt.now()')
       .order('is_featured', { ascending: false })
-      .order('display_order', { ascending: true })
+      .order('created_at', { ascending: false })
+      .limit(12)
 
-    if (category) query = query.eq('category', category)
-
-    const { data } = await query
     setAds(data || [])
+    setLoading(false)
   }
 
-  const visibleAds = isMobile
-    ? (ads[index] ? [ads[index]] : [])
-    : ads.slice(index, index + 4)
-
-  const next = () => {
-    setIndex(prev =>
-      prev + 4 >= ads.length ? 0 : prev + 4
+  if (loading) {
+    return (
+      <div className="w-full bg-gray-50 py-8 rounded-xl">
+        <div className="text-center py-12">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-accent mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading sponsors...</p>
+        </div>
+      </div>
     )
   }
-
-  const prev = () => {
-    setIndex(prev =>
-      prev - 4 < 0 ? Math.max(ads.length - 4, 0) : prev - 4
-    )
-  }
-
-  
 
   return (
-    <div className="w-full bg-gray-50 py-6 rounded-xl bg-gray-50">
+    <div className="w-full bg-orange-50 mb-8 py-8 rounded-xl">
       {/* Header */}
-      <div className="flex justify-between items-center px-4 mb-4">
-        <h2 className="text-lg font-semibold">
-          Sponsored Partners
-        </h2>
-
-        {!isMobile && (
-          <div className="flex gap-2">
-            <button
-              onClick={prev}
-              className="px-3 py-1 text-sm rounded bg-gray-200 hover:bg-gray-300"
-            >
-              ← Prev
-            </button>
-            <button
-              onClick={next}
-              className="px-3 py-1 text-sm rounded bg-gray-200 hover:bg-gray-300"
-            >
-              Next →
-            </button>
-          </div>
-        )}
+      <div className="flex justify-between flex-col items-center px-6 mb-6">
+          <h2 className="text-2xl font-bold itext-gray-800">Our Business Partners</h2>
+          <p className="text-gray-600 text-sm mt-1">Advertise to real people with intent. </p>
+        <Link
+          href="/advertise"
+          className="bg-accent m-2 text-white px-6 py-3 rounded-lg font-semibold hover:bg-accent/90 transition shadow-lg"
+        >
+          Advertise Your Business
+        </Link>
       </div>
 
-      {/* Ads Row */}
-      <div
-        ref={sliderRef}
-        className={`grid gap-4 px-4 ${
-          isMobile ? 'grid-cols-1' : 'grid-cols-4'
-        }`}
-      >
-        {visibleAds.map(ad => (
-          <div
-            key={ad.id}
-            className={`relative bg-white rounded-xl p-4 shadow hover:shadow-lg transition ${
-              ad.is_featured
-                ? 'ring-2 ring-yellow-400'
-                : ''
-            }`}
-          >
-            {ad.is_featured && (
-              <span className="absolute top-2 right-2 text-xs bg-yellow-400 text-black px-2 py-1 rounded">
-                Featured Partner
-              </span>
-            )}
-
-            <p className="text-xs text-gray-500 uppercase mb-1">
-              {ad.category?.replace('_', ' ')}
-            </p>
-
-            <h3 className="font-semibold text-base mb-2">
-              {ad.company_name}
-            </h3>
-
-            {ad.image_url && (
-              <img
-                src={ad.image_url}
-                alt={ad.company_name}
-                className="w-full h-24 object-contain mb-3"
-              />
-            )}
-
-            <p className="text-sm text-gray-600 mb-3 line-clamp-3">
-              {ad.description}
-            </p>
-
-            <div className="space-y-1 text-sm">
-              {ad.phone && (
-                <a
-                  href={`tel:${ad.phone}`}
-                  onClick={() => track(ad.id, 'click')}
-                  className="block text-blue-600 font-medium"
-                >
-                  📞 {ad.phone}
-                </a>
-              )}
-
-              {ad.email && (
-                <a
-                  href={`mailto:${ad.email}`}
-                  onClick={() => track(ad.id, 'click')}
-                  className="block text-blue-600 font-medium"
-                >
-                  ✉️ {ad.email}
-                </a>
-              )}
-
-              {ad.website && (
-                <a
-                  href={ad.website}
-                  target="_blank"
-                  onClick={() => track(ad.id, 'click')}
-                  className="inline-block mt-2 text-sm underline text-gray-700"
-                >
-                  Visit Website →
-                </a>
-              )}
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* Mobile Dots */}
-      {isMobile && (
-        <div className="flex justify-center gap-2 mt-4">
-          {ads.map((_, i) => (
-            <button
-              key={i}
-              onClick={() => setIndex(i)}
-              className={`w-2 h-2 rounded-full ${
-                i === index
-                  ? 'bg-blue-600'
-                  : 'bg-gray-300'
+      {/* Ads Grid */}
+      {ads.length > 0 ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 px-6">
+          {ads.map(ad => (
+            <Link
+              key={ad.id}
+              href={`/ads/${ad.id}`}
+              className={`relative bg-white rounded-xl p-5 shadow-md hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1 ${
+                ad.is_featured ? 'ring-2 ring-yellow-400' : ''
               }`}
-            />
+            >
+              {ad.is_featured && (
+                <div className="absolute -top-2 -right-2 bg-yellow-400 text-black text-xs px-3 py-1 rounded-full font-bold shadow-lg">
+                  <Star className="inline-block w-3 h-3 mr-1" />
+                  FEATURED
+                </div>
+              )}
+
+              {ad.image_url && (
+                <div className="w-full h-24 mb-4 flex items-center justify-center bg-gray-50 rounded-lg overflow-hidden">
+                  <img
+                    src={ad.image_url}
+                    alt={ad.company_name}
+                    className="max-w-full max-h-full object-contain"
+                  />
+                </div>
+              )}
+
+              <h3 className="font-bold text-lg mb-2 text-gray-800 line-clamp-1">
+                {ad.company_name}
+              </h3>
+
+              <p className="text-xs text-gray-500 uppercase mb-2 font-medium">
+                {ad.category?.replace('_', ' ')}
+              </p>
+
+              <p className="text-sm text-gray-600 mb-4 line-clamp-3">
+                {ad.description}
+              </p>
+
+              <div className="space-y-2">
+                {ad.phone && (
+                  <div className="flex items-center gap-2 text-sm text-gray-700">
+                    <span className="text-accent">📞</span>
+                    <span className="font-medium">{ad.phone}</span>
+                  </div>
+                )}
+                {ad.email && (
+                  <div className="flex items-center gap-2 text-sm text-gray-700">
+                    <span className="text-accent">✉️</span>
+                    <span className="font-medium truncate">{ad.email}</span>
+                  </div>
+                )}
+              </div>
+
+              <div className="mt-4 pt-4 border-t border-gray-100">
+                <span className="text-accent font-semibold text-sm hover:underline">
+                  View Details →
+                </span>
+              </div>
+            </Link>
           ))}
         </div>
+      ) : (
+        <div className="text-center py-12">
+          <p className="text-gray-500 mb-6">No advertisers yet. Be the first!</p>
+          <Link
+            href="/advertise"
+            className="inline-block bg-accent text-white px-8 py-4 rounded-lg font-semibold hover:bg-accent/90 transition shadow-lg"
+          >
+            Advertise Your Business
+          </Link>
+        </div>
       )}
+
+    
     </div>
   )
 }

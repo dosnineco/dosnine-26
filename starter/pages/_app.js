@@ -17,10 +17,14 @@ function MyApp({ Component, pageProps }) {
   const router = useRouter();
   
   // Public routes that don't require sign-in
-  const publicRoutes = ['/', '/property', '/ads/*','/ads/request-agent', '/tools', '/blog', '/contact', '/privacy-policy', '/terms-of-service', '/refund-policy', '/about'];
+  const publicRoutes = ['/', '/property', '/advertise', '/ads/[id]', '/ads/request-agent', '/tools', '/blog', '/contact', '/privacy-policy', '/terms-of-service', '/refund-policy', '/about'];
   const isPublicRoute = publicRoutes.some(
     (route) => router.pathname === route || router.pathname.startsWith(`${route}/`)
   );
+  
+  // Pages that should not have header/footer
+  const noLayoutPages = ['/advertise'];
+  const hideLayout = noLayoutPages.includes(router.pathname);
 
   return (
     <ClerkProvider>
@@ -31,6 +35,10 @@ function MyApp({ Component, pageProps }) {
 function AppContent({ Component, pageProps, isPublicRoute }) {
   const { isSignedIn, user } = useUser();
   const router = useRouter();
+  
+  // Pages that should not have header/footer
+  const noLayoutPages = ['/advertise'];
+  const hideLayout = noLayoutPages.includes(router.pathname);
   
   // Use the page-level layout if it exists, otherwise use the default layout
   const getLayout = Component.getLayout || ((page) => page);
@@ -117,9 +125,9 @@ function AppContent({ Component, pageProps, isPublicRoute }) {
       <SiteProtection />
       {/* <VisitorEmailPopup/> */}
       <Toaster position="top-center" />
-      <Header />
+      {!hideLayout && <Header />}
       {/* Show boost banner on all pages */}
-      <BoostedPropertyBanner />
+      {!hideLayout && <BoostedPropertyBanner />}
         {/* Show visitor email capture popup on all pages */}
         {/* <VisitorEmailPopup /> */}
       
@@ -166,9 +174,9 @@ function AppContent({ Component, pageProps, isPublicRoute }) {
           </div>
         </SignedOut>
       )}
-      <Footer />
+      {!hideLayout && <Footer />}
     </>
-  );
+  )
 }
 
 export default MyApp;
