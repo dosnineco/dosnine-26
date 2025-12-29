@@ -1,218 +1,520 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useUser } from '@clerk/nextjs';
 import { useRouter } from 'next/router';
+import { supabase } from '../../lib/supabase';
 import Head from 'next/head';
-import axios from 'axios';
-import toast, { Toaster } from 'react-hot-toast';
-import { CheckCircle, XCircle } from 'lucide-react';
+import toast from 'react-hot-toast';
 
-const JAMAICAN_PARISHES = [
-  'Kingston','St. Andrew','St. Catherine','Clarendon','Manchester',
-  'St. Elizabeth','Westmoreland','Hanover','St. James','Trelawny',
-  'St. Ann','St. Mary','Portland','St. Thomas'
-];
-
-export default function RequestAgent() {
-  const { user } = useUser();
+export default function RequestAgentPage() {
+  const { isSignedIn, user } = useUser();
   const router = useRouter();
 
-  const [loading, setLoading] = useState(false);
-  const [showResult, setShowResult] = useState(false);
-
+  const [step, setStep] = useState(1);
   const [formData, setFormData] = useState({
-    client_name: '',
-    client_email: '',
-    client_phone: '',
+    name: '',
+    email: '',
+    phone: '',
+    requestType: '', // buy, sell, rent, lease, valuation
+    propertyType: 'apartment',
     location: '',
-    budget: ''
+    budgetMin: '',
+    budgetMax: '',
+    bedrooms: '',
+    bathrooms: '',
+    description: '',
+    urgency: 'normal'
   });
+  const [loading, setLoading] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
 
-  const [monthlyIncome, setMonthlyIncome] = useState(300000);
-  const [nhtContribution, setNhtContribution] = useState(0);
-  const [hasPartner, setHasPartner] = useState(false);
-  const [partnerIncome, setPartnerIncome] = useState(0);
-
-  /** Calculations (NOT SHOWN UNTIL CHECK) */
-  const totalIncome = monthlyIncome + (hasPartner ? partnerIncome : 0);
-  const maxMortgagePayment = Math.round(totalIncome * 0.45);
-  const estimatedMortgage = Math.round(Number(formData.budget || 0) * 0.0075);
-  const passed = estimatedMortgage <= maxMortgagePayment;
-
+  /* -----------------------------
+     Auto-fill email, phone, and name from user data
+  ------------------------------*/
   useEffect(() => {
-    if (user) {
+    if (isSignedIn && user) {
       setFormData(prev => ({
         ...prev,
-        client_name: user.fullName || '',
-        client_email: user.primaryEmailAddress?.emailAddress || ''
+        name: user.fullName || '',
+        email: user.emailAddresses?.[0]?.emailAddress || '',
+        phone: user.phoneNumbers?.[0]?.phoneNumber || ''
       }));
     }
-  }, [user]);
+  }, [isSignedIn, user]);
 
-  const handleChange = (e) => {
-    setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
-  };
-
-  const handleCheck = async (e) => {
+  /* -----------------------------
+     Submit handler
+  ------------------------------*/
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!formData.name || !formData.email || !formData.phone || !formData.requestType || !formData.propertyType || !formData.location) {
+      toast.error('Please fill in all required fields');
+      return;
+    }
+
     setLoading(true);
 
     try {
-      await axios.post('/api/service-requests/create', {
-        clerkId: user?.id || null,
-        clientName: formData.client_name,
-        clientEmail: formData.client_email,
-        clientPhone: formData.client_phone,
-        requestType: 'buy',
-        propertyType: 'house',
+      const requestData = {
+        client_user_id: user?.id || null,
+        client_name: formData.name,
+        client_email: formData.email,
+        client_phone: formData.phone,
+        request_type: formData.requestType,
+        property_type: formData.propertyType,
         location: formData.location,
-        budgetMin: Number(formData.budget),
-        budgetMax: Number(formData.budget),
-        fromAds: true,
-        consent: true, // 🔥 AUTO SET TRUE
+        budget_min: formData.budgetMin ? parseFloat(formData.budgetMin) : null,
+        budget_max: formData.budgetMax ? parseFloat(formData.budgetMax) : null,
+        bedrooms: formData.bedrooms ? parseInt(formData.bedrooms) : null,
+        bathrooms: formData.bathrooms ? parseInt(formData.bathrooms) : null,
+        description: formData.description || null,
+        urgency: formData.urgency || 'normal',
+        status: 'open'
+      };
 
-        additionalData: {
-          monthlyIncome,
-          partnerIncome: hasPartner ? partnerIncome : 0,
-          totalIncome,
-          nhtContribution,
-          estimatedMortgage,
-          maxAllowedMortgage: maxMortgagePayment,
-          passedReadiness: passed,
-          country: 'Jamaica'
-        }
-      });
+      const { data, error } = await supabase
+        .from('service_requests')
+        .insert(requestData)
+        .select();
 
-      setShowResult(true);
+      if (error) {
+        console.error('Insert error:', error);
+        toast.error(`Failed to submit: ${error.message}`);
+        return;
+      }
 
+      // Mark as submitted to prevent popup on other pages
+      localStorage.setItem('visitor-lead-submitted', 'true');
+      toast.success('Request submitted successfully! An agent will contact you soon.');
+      setSubmitted(true);
     } catch (err) {
-      toast.error('Submission failed');
+      console.error('Lead submit error:', err);
+      toast.error('Failed to submit request. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
-  return (
-    <>
-      <Head>
-        <title>Buyer Readiness Check | Jamaica</title>
-      </Head>
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
 
-      <Toaster />
+  const nextStep = () => {
+    // Validate current step
+    if (step === 1 && (!formData.name || !formData.email || !formData.phone || !formData.requestType)) {
+      toast.error('Please fill in all required fields');
+      return;
+    }
+    if (step === 2 && (!formData.propertyType || !formData.location)) {
+      toast.error('Please fill in property type and location');
+      return;
+    }
+    setStep(prev => prev + 1);
+  };
 
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
-        <div className="max-w-xl w-full bg-white rounded-xl shadow-xl p-8">
+  const prevStep = () => {
+    setStep(prev => prev - 1);
+  };
 
-          <h1 className="text-2xl font-bold text-center">
-            Jamaica Buyer Readiness Check
-          </h1>
-          <p className="text-center text-gray-600 mb-6">
-            Find out what you can truly afford in under 60 seconds
-          </p>
+  const skipToSubmit = () => {
+    handleSubmit({ preventDefault: () => {} });
+  };
 
-          <form onSubmit={handleCheck}>
-
-            <input className="input" placeholder="Full Name" name="client_name" value={formData.client_name} onChange={handleChange} required />
-            <input className="input" placeholder="Email" name="client_email" value={formData.client_email} onChange={handleChange} required />
-            <input className="input" placeholder="Phone" name="client_phone" value={formData.client_phone} onChange={handleChange} required />
-
-            <select className="input" name="location" value={formData.location} onChange={handleChange} required>
-              <option value="">Select Parish</option>
-              {JAMAICAN_PARISHES.map(p => <option key={p}>{p}</option>)}
-            </select>
-
-            <input
-              type="number"
-              className="input"
-              placeholder="Target Home Price (JMD)"
-              name="budget"
-              value={formData.budget}
-              onChange={handleChange}
-              required
-            />
-
-            <label className="label mt-4">Your Monthly Income (JMD)</label>
-            <input type="range" min="150000" max="3000000" step="50000"
-              value={monthlyIncome}
-              onChange={e => setMonthlyIncome(Number(e.target.value))}
-            />
-            <p className="text-sm text-gray-600">
-              {monthlyIncome.toLocaleString()}
+  if (submitted) {
+    return (
+      <>
+        <Head>
+          <title>Request Submitted - DoSnine</title>
+        </Head>
+        <div className="min-h-screen bg-gradient-to-br from-orange-50 to-orange-100 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-8 text-center">
+            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">Request Submitted!</h2>
+            <p className="text-gray-600 mb-6">
+              A verified agent will contact you soon to help with your {formData.requestType} needs.
             </p>
-
-            <label className="label mt-4">NHT Balance (Optional)</label>
-            <input
-              type="number"
-              className="input"
-              value={nhtContribution}
-              onChange={e => setNhtContribution(Number(e.target.value))}
-            />
-
-            <div className="mt-4">
-              <label className="flex items-center gap-2 text-sm">
-                <input type="checkbox" onChange={e => setHasPartner(e.target.checked)} />
-                Partner contributing?
-              </label>
-            </div>
-
-            {hasPartner && (
-              <input
-                type="number"
-                className="input mt-2"
-                placeholder="Partner Monthly Income"
-                onChange={e => setPartnerIncome(Number(e.target.value))}
-              />
-            )}
-          <label className="flex gap-2 mt-6 text-sm"> I agree to be contacted by a verified agent, once i check my Readiness </label>
-            <button
-              disabled={loading}
-              className="w-full bg-black text-white py-4 rounded-lg mt-6 font-bold"
-            >
-              {loading ? 'Checking…' : 'Check Buyer Readiness'}
-            </button>
-
-          </form>
-        </div>
-      </div>
-
-      {/* RESULT POPUP */}
-      {showResult && (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
-          <div className="bg-white p-8 rounded-xl max-w-sm w-full text-center">
-            {passed ? (
-              <CheckCircle className="mx-auto w-12 h-12 text-green-600" />
-            ) : (
-              <XCircle className="mx-auto w-12 h-12 text-yellow-500" />
-            )}
-
-            <h3 className="text-xl font-bold mt-4">
-              Buyer Affordability Result
-            </h3>
-
-            <div className="mt-4 bg-gray-50 rounded-lg p-4 text-left">
-              <p className="font-semibold">
-                Max Affordable Mortgage
-              </p>
-              <p className="text-lg font-bold text-green-600">
-                JMD {maxMortgagePayment.toLocaleString()}
-              </p>
-
-              <p className="font-semibold mt-3">
-                Estimated Monthly Payment
-              </p>
-              <p className="text-lg font-bold text-black">
-                JMD {estimatedMortgage.toLocaleString()}
-              </p>
-            </div>
-
             <button
               onClick={() => router.push('/')}
-              className="mt-6 w-full bg-black text-white py-3 rounded-lg"
+              className="btn-primary"
             >
-              Continue
+              Return to Home
             </button>
           </div>
         </div>
-      )}
+      </>
+    );
+  }
+
+  return (
+    <>
+      <Head>
+        <title>Request an Agent - DoSnine</title>
+        <meta name="description" content="Connect with verified real estate agents in Jamaica" />
+      </Head>
+      
+      <div className="min-h-screen bg-gradient-to-br from-orange-50 to-orange-100 flex items-center justify-center p-4">
+        <div className="bg-white rounded-2xl shadow-xl max-w-md w-full overflow-hidden">
+
+          {/* Header */}
+          <div className="bg-gradient-to-r from-orange-600 to-orange-700 p-8 text-white">
+            <h1 className="text-3xl font-bold mb-2">Connect with an Agent</h1>
+            <p className="text-orange-100 mb-4">
+              Get matched with verified real estate professionals
+            </p>
+            
+            {/* Progress Indicator */}
+            <div className="flex items-center justify-center gap-2">
+              <div className={`w-10 h-10 rounded-full flex items-center justify-center font-semibold ${step >= 1 ? 'bg-white text-orange-600' : 'bg-orange-500 text-white'}`}>
+                1
+              </div>
+              <div className={`h-1 w-12 ${step >= 2 ? 'bg-white' : 'bg-orange-500'}`}></div>
+              <div className={`w-10 h-10 rounded-full flex items-center justify-center font-semibold ${step >= 2 ? 'bg-white text-orange-600' : 'bg-orange-500 text-white'}`}>
+                2
+              </div>
+              <div className={`h-1 w-12 ${step >= 3 ? 'bg-white' : 'bg-orange-500'}`}></div>
+              <div className={`w-10 h-10 rounded-full flex items-center justify-center font-semibold ${step >= 3 ? 'bg-white text-orange-600' : 'bg-orange-500 text-white'}`}>
+                3
+              </div>
+            </div>
+            <div className="flex justify-between text-xs text-orange-100 mt-2">
+              <span>Your Info</span>
+              <span>Property</span>
+              <span>Details</span>
+            </div>
+          </div>
+
+          {/* Form */}
+          <form onSubmit={handleSubmit} className="p-8 space-y-6">
+          
+          {/* STEP 1: Basic Info & Request Type */}
+          {step === 1 && (
+            <>
+              <div className="text-center mb-4">
+                <h2 className="text-xl font-bold text-gray-900">Let's get started</h2>
+                <p className="text-sm text-gray-600">We'll need a few details to connect you with the right agent</p>
+              </div>
+
+              {/* Request Type Buttons */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-3">
+                  What do you need help with? *
+                </label>
+                <div className="grid grid-cols-3 gap-3">
+                  {['buy', 'rent', 'sell'].map(type => (
+                    <button
+                      key={type}
+                      type="button"
+                      onClick={() => setFormData(prev => ({ ...prev, requestType: type }))}
+                      className={`px-4 py-4 rounded-lg border-2 font-semibold transition ${
+                        formData.requestType === type
+                          ? 'border-orange-600 bg-orange-50 text-orange-700 shadow-md'
+                          : 'border-gray-300 text-gray-700 hover:border-orange-400 hover:bg-orange-50'
+                      }`}
+                    >
+                      {type.charAt(0).toUpperCase() + type.slice(1)}
+                    </button>
+                  ))}
+                </div>
+                <div className="grid grid-cols-2 gap-3 mt-3">
+                  {['lease', 'valuation'].map(type => (
+                    <button
+                      key={type}
+                      type="button"
+                      onClick={() => setFormData(prev => ({ ...prev, requestType: type }))}
+                      className={`px-4 py-3 rounded-lg border-2 font-semibold transition text-sm ${
+                        formData.requestType === type
+                          ? 'border-orange-600 bg-orange-50 text-orange-700 shadow-md'
+                          : 'border-gray-300 text-gray-700 hover:border-orange-400 hover:bg-orange-50'
+                      }`}
+                    >
+                      {type.charAt(0).toUpperCase() + type.slice(1)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Full Name *
+                </label>
+                <input
+                  type="text"
+                  name="name"
+                  value={formData.name}
+                  onChange={handleInputChange}
+                  placeholder="John Doe"
+                  required
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Email Address *
+                </label>
+                <input
+                  type="email"
+                  name="email"
+                  value={formData.email}
+                  onChange={handleInputChange}
+                  placeholder="your@email.com"
+                  required
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Phone Number *
+                </label>
+                <input
+                  type="tel"
+                  name="phone"
+                  value={formData.phone}
+                  onChange={handleInputChange}
+                  placeholder="876-XXX-XXXX"
+                  required
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                />
+              </div>
+
+              <button
+                type="button"
+                onClick={nextStep}
+                className="w-full btn-primary py-4 text-lg"
+              >
+                Continue →
+              </button>
+            </>
+          )}
+
+          {/* STEP 2: Property Details */}
+          {step === 2 && (
+            <>
+              <div className="text-center mb-4">
+                <h2 className="text-xl font-bold text-gray-900">Property Details</h2>
+                <p className="text-sm text-gray-600">Help us match you with the perfect property</p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Property Type *
+                </label>
+                <select
+                  name="propertyType"
+                  value={formData.propertyType}
+                  onChange={handleInputChange}
+                  required
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                >
+                  <option value="apartment">Apartment</option>
+                  <option value="house">House</option>
+                  <option value="land">Land</option>
+                  <option value="commercial">Commercial</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Location/Area *
+                </label>
+                <input
+                  type="text"
+                  name="location"
+                  value={formData.location}
+                  onChange={handleInputChange}
+                  placeholder="e.g., Kingston, Montego Bay, Portmore..."
+                  required
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                />
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={prevStep}
+                  className="flex-1 px-6 py-4 border-2 border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition font-semibold"
+                >
+                  ← Back
+                </button>
+                <button
+                  type="button"
+                  onClick={nextStep}
+                  className="flex-1 btn-primary py-4 text-lg"
+                >
+                  Continue →
+                </button>
+              </div>
+
+              <button
+                type="button"
+                onClick={skipToSubmit}
+                className="w-full text-sm text-gray-600 hover:text-gray-900 underline"
+              >
+                Skip optional details and submit now
+              </button>
+            </>
+          )}
+
+          {/* STEP 3: Optional Details (Skippable) */}
+          {step === 3 && (
+            <>
+              <div className="text-center mb-4">
+                <h2 className="text-xl font-bold text-gray-900">Additional Details</h2>
+                <p className="text-sm text-gray-600">Optional - Help agents find better matches for you</p>
+                <p className="text-xs text-orange-600 font-semibold mt-1">You can skip this step if you prefer</p>
+              </div>
+            
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm text-gray-600 mb-2">
+                    Budget Min (JMD)
+                  </label>
+                  <input
+                    type="number"
+                    name="budgetMin"
+                    value={formData.budgetMin}
+                    onChange={handleInputChange}
+                    placeholder="50,000"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm text-gray-600 mb-2">
+                    Budget Max (JMD)
+                  </label>
+                  <input
+                    type="number"
+                    name="budgetMax"
+                    value={formData.budgetMax}
+                    onChange={handleInputChange}
+                    placeholder="150,000"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm text-gray-600 mb-2">
+                    Bedrooms
+                  </label>
+                  <select
+                    name="bedrooms"
+                    value={formData.bedrooms}
+                    onChange={handleInputChange}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                  >
+                    <option value="">Any</option>
+                    <option value="1">1</option>
+                    <option value="2">2</option>
+                    <option value="3">3</option>
+                    <option value="4">4</option>
+                    <option value="5">5+</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm text-gray-600 mb-2">
+                    Bathrooms
+                  </label>
+                  <select
+                    name="bathrooms"
+                    value={formData.bathrooms}
+                    onChange={handleInputChange}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                  >
+                    <option value="">Any</option>
+                    <option value="1">1</option>
+                    <option value="2">2</option>
+                    <option value="3">3</option>
+                    <option value="4">4+</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm text-gray-600 mb-2">
+                  Additional Details/Requirements
+                </label>
+                <textarea
+                  name="description"
+                  value={formData.description}
+                  onChange={handleInputChange}
+                  placeholder="Any specific requirements, preferences, or timeline..."
+                  rows="3"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm text-gray-600 mb-2">
+                  Urgency
+                </label>
+                <select
+                  name="urgency"
+                  value={formData.urgency}
+                  onChange={handleInputChange}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                >
+                  <option value="low">Low - Just browsing</option>
+                  <option value="normal">Normal - Within a few months</option>
+                  <option value="high">High - Within a few weeks</option>
+                  <option value="urgent">Urgent - ASAP</option>
+                </select>
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={prevStep}
+                  className="flex-1 px-6 py-4 border-2 border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition font-semibold"
+                >
+                  ← Back
+                </button>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="flex-1 btn-primary py-4 text-lg disabled:opacity-50"
+                >
+                  {loading ? 'Submitting...' : 'Submit Request ✓'}
+                </button>
+              </div>
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full text-sm text-gray-600 hover:text-gray-900 underline"
+              >
+                Skip and submit now
+              </button>
+            </>
+          )}
+
+          {/* Data Sharing Disclaimer */}
+          {step === 3 && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-xs text-gray-700">
+              <p className="font-semibold text-blue-900 mb-2">📋 Privacy Notice</p>
+              <p>
+                By submitting this form, you consent to share your contact information with verified agents 
+                who will reach out to assist with your property needs. We respect your privacy and never spam.
+              </p>
+            </div>
+          )}
+
+          <p className="text-center text-xs text-gray-500">
+            Response time: Usually within 24 hours
+          </p>
+        </form>
+      </div>
+    </div>
     </>
   );
 }

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useUser } from '@clerk/nextjs';
 import { useRouter } from 'next/router';
@@ -8,11 +8,46 @@ import toast from 'react-hot-toast';
 import { PARISHES, normalizeParish } from '../../lib/normalizeParish';
 
 export default function NewProperty() {
-  const { user } = useUser();
+  const { user, isLoaded } = useUser();
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [checkingAccess, setCheckingAccess] = useState(true);
   const [images, setImages] = useState([]);
   const [uploadingImages, setUploadingImages] = useState(false);
+
+  // Check payment status for agents before loading page
+  useEffect(() => {
+    async function checkAgentPaymentStatus() {
+      if (!isLoaded) return;
+      
+      if (!user) {
+        setCheckingAccess(false);
+        return;
+      }
+
+      try {
+        const { data } = await axios.get('/api/user/profile', {
+          params: { clerkId: user.id }
+        });
+
+        // If user is an agent (verified), check payment status
+        if (data?.agent?.verification_status === 'approved') {
+          if (data.agent.payment_status !== 'paid') {
+            toast.error('Payment required to post properties');
+            router.push('/agent/payment');
+            return;
+          }
+        }
+        
+        setCheckingAccess(false);
+      } catch (error) {
+        console.error('Failed to check access:', error);
+        setCheckingAccess(false);
+      }
+    }
+
+    checkAgentPaymentStatus();
+  }, [user, isLoaded, router]);
 
   const initialFormState = {
     title: '',
@@ -258,6 +293,18 @@ const handleSubmit = async (e) => {
   }
 };
 
+
+  // Show loading screen while checking access
+  if (checkingAccess) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Checking access...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="container mx-auto px-4 py-8">

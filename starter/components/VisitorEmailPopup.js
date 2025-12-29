@@ -65,12 +65,21 @@ export default function VisitorEmailPopup() {
       return;
     }
 
-    const hasDismissedRecently = sessionStorage.getItem('visitor-lead-dismissed');
-    if (hasDismissedRecently) return;
+    // Check if dismissed recently (within 10 minutes)
+    const dismissedUntil = sessionStorage.getItem('visitor-lead-dismissed-until');
+    if (dismissedUntil) {
+      const now = Date.now();
+      if (now < parseInt(dismissedUntil)) {
+        return; // Still in cooldown period
+      } else {
+        // Cooldown expired, remove the flag
+        sessionStorage.removeItem('visitor-lead-dismissed-until');
+      }
+    }
 
     const timer = setTimeout(() => {
       setShowPopup(true);
-    }, 30000);
+    }, 3000);
 
     return () => clearTimeout(timer);
   }, [isSignedIn, isAgent]);
@@ -122,18 +131,30 @@ export default function VisitorEmailPopup() {
   };
 
   /* -----------------------------
-     Dismiss handler (soft)
+     Dismiss handler (soft - 10 minute cooldown)
   ------------------------------*/
   const handleDismiss = () => {
-    sessionStorage.setItem('visitor-lead-dismissed', 'true');
+    const tenMinutesFromNow = Date.now() + (10 * 60 * 1000); // 10 minutes
+    sessionStorage.setItem('visitor-lead-dismissed-until', tenMinutesFromNow.toString());
     setShowPopup(false);
   };
 
   if (!showPopup || submitted) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-40 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden">
+    <div className="fixed inset-0 bg-gray-100  flex items-center justify-center z-50 p-4">
+      <div className="bg-white  max-w-md rounded-2xl w-full overflow-hidden relative">
+
+        {/* Close X Button */}
+        <button
+          onClick={handleDismiss}
+          className="absolute top-4 right-4 z-10 w-8 h-8 flex items-center justify-center rounded-full bg-white/20 hover:bg-white/30 text-white transition"
+          aria-label="Close popup"
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
 
         {/* Header */}
         <div className="bg-gradient-to-r from-orange-600 to-orange-700 p-6 text-white">
@@ -220,16 +241,10 @@ export default function VisitorEmailPopup() {
             disabled={loading || !intent}
             className="w-full btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {loading ? 'Saving...' : intent ? `Connect with ${intent.charAt(0).toUpperCase() + intent.slice(1)} Agents` : 'Select an option above'}
+            {loading ? 'Saving...' : intent ? `Connect with ${intent.charAt(0).toUpperCase() + intent.slice(1)} Agent` : 'Select an option above'}
           </button>
 
-          <button
-            type="button"
-            onClick={handleDismiss}
-            className="w-full text-sm text-gray-500 hover:underline"
-          >
-            Maybe later
-          </button>
+      
         </form>
       </div>
     </div>

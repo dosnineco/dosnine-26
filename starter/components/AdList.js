@@ -1,8 +1,15 @@
 import { useEffect, useState, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
+import Link from 'next/link'
 
 export default function AdvertisementGrid({ category }) {
   const [ads, setAds] = useState([])
+  const [availableSlots, setAvailableSlots] = useState({
+    agent_trials: 20,
+    partner_spots: 15,
+    property_boosts: 20,
+    lead_bounties: 25
+  })
   const [index, setIndex] = useState(0)
   const sliderRef = useRef(null)
 
@@ -11,6 +18,7 @@ export default function AdvertisementGrid({ category }) {
 
   useEffect(() => {
     loadAds()
+    loadAvailableSlots()
   }, [category])
 
   useEffect(() => {
@@ -31,6 +39,29 @@ export default function AdvertisementGrid({ category }) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ adId, type })
+    })
+  }
+
+  const loadAvailableSlots = async () => {
+    // Get count of active ads by category
+    const { data } = await supabase
+      .from('advertisements')
+      .select('category')
+      .eq('is_active', true)
+      .or('expires_at.is.null,expires_at.gt.now()')
+
+    const counts = {
+      agent_trials: data?.filter(a => a.category === 'agent_trial').length || 0,
+      partner_spots: data?.filter(a => a.category === 'contractor').length || 0,
+      property_boosts: 0, // From separate table
+      lead_bounties: 0
+    }
+
+    setAvailableSlots({
+      agent_trials: Math.max(0, 20 - counts.agent_trials),
+      partner_spots: Math.max(0, 15 - counts.partner_spots),
+      property_boosts: 20 - counts.property_boosts,
+      lead_bounties: 25 - counts.lead_bounties
     })
   }
 
@@ -65,7 +96,7 @@ export default function AdvertisementGrid({ category }) {
     )
   }
 
-  if (!ads.length) return null
+  
 
   return (
     <div className="w-full bg-gray-50 py-6 rounded-xl bg-gray-50">

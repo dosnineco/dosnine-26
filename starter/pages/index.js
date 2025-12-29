@@ -8,7 +8,7 @@ import { useUser, useClerk } from '@clerk/nextjs';
 import { Home as HomeIcon, Users, ArrowRight } from 'lucide-react';
 import { useRouter } from 'next/router';
 import { PARISHES, normalizeParish } from '../lib/normalizeParish';
-// import VisitorEmailPopup from '@/components/VisitorEmailPopup';
+import VisitorEmailPopup from '@/components/VisitorEmailPopup';
 const PROPERTIES_PER_PAGE = 20;
 import AdList from '../components/AdList';
 
@@ -268,7 +268,7 @@ export default function Home() {
         url={process.env.NEXT_PUBLIC_SITE_URL + '/'}
       />
 
-    {/* <VisitorEmailPopup/> */}
+    <VisitorEmailPopup/>
       {/* Beta Banner */}
 
       {/* User Role Selection */}
@@ -421,7 +421,7 @@ export default function Home() {
           <div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mb-8">
               {/* Role Cards */}
-              <RoleCard
+              {/* <RoleCard
                 title="Post your Property"
                 subtitle="Rent or sell"
                 icon={HomeIcon}
@@ -436,7 +436,7 @@ export default function Home() {
                 bgColor="bg-red-300"
                 link="/agent/signup"
                 user={user}
-              />
+              /> */}
               {/* Real Properties - Clickable */}
               {properties.map((prop, idx) => {
                 const isOwner = userOwnerId && prop.owner_id === userOwnerId;

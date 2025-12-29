@@ -31,7 +31,6 @@ export default function AgentDashboard() {
   const [requests, setRequests] = useState([]);
   const [filterStatus, setFilterStatus] = useState('all');
   const [selectedRequest, setSelectedRequest] = useState(null);
-  const [showPaymentRequired, setShowPaymentRequired] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
 
   useEffect(() => {
@@ -42,17 +41,20 @@ export default function AgentDashboard() {
       console.log('Agent Dashboard - Payment Status:', initialUserData.agent?.payment_status);
       
       setAgentData(initialUserData.agent);
-      if (initialUserData.agent?.payment_status !== 'paid') {
-        setShowPaymentRequired(true);
-        setLoading(false);
-      } else {
-        setLoading(false);
+      
+      // Redirect immediately if payment is not completed
+      if (initialUserData.agent?.verification_status === 'approved' && 
+          initialUserData.agent?.payment_status !== 'paid') {
+        router.push('/agent/payment');
+        return;
       }
+      
+      setLoading(false);
     }
-  }, [initialUserData]);
+  }, [initialUserData, router]);
 
   useEffect(() => {
-    if (agentData?.payment_status === 'paid') {
+    if (agentData) {
       fetchRequests();
     }
   }, [filterStatus, agentData]);
@@ -139,115 +141,9 @@ export default function AgentDashboard() {
       </Head>
 
       {/* Notification Popup for new requests */}
-      {agentData?.payment_status === 'paid' && <RequestNotificationPopup />}
+      <RequestNotificationPopup />
 
       <div className="min-h-screen bg-gray-50">
-        {/* Payment Required Block */}
-        {showPaymentRequired && (
-          <div className="bg-white border-b border-accent/20">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-              <div className="text-center max-w-2xl mx-auto">
-                <div className="inline-flex items-center justify-center w-16 h-16 bg-accent/10 rounded-full mb-4">
-                  <AlertCircle className="w-8 h-8 text-accent" />
-                </div>
-                <h2 className="text-3xl font-bold text-gray-900 mb-2">Unlock Client Requests</h2>
-                <p className="text-gray-600 mb-6">
-                  Your agent profile is verified! To access client requests and start connecting with potential customers, 
-                  complete a one-time payment of <span className="font-bold text-accent">$50 USD</span>.
-                </p>
-                <div className="bg-gray-50 rounded-lg p-6 mb-6">
-                  <h3 className="font-semibold mb-3">What You'll Get:</h3>
-                  <ul className="text-left space-y-2 text-gray-700">
-                    <li>✅ Access to all client requests</li>
-                    <li>✅ Direct client contact information</li>
-                    <li>✅ Unlimited property postings</li>
-                    <li>✅ Real-time request notifications</li>
-                  </ul>
-                </div>
-                <button
-                  onClick={() => router.push('/agent/payment')}
-                  className="btn-primary btn-lg"
-                >
-                  Unlock Access - $50 USD
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Header */}
-        <div className="bg-white border-b">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <Users className="w-8 h-8 text-accent" />
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h1 className="text-2xl font-bold text-gray-900">Agent Dashboard</h1>
-                    <VerifiedBadge size="md" />
-                  </div>
-                  <p className="text-sm text-gray-500">
-                    {agentData?.payment_status === 'paid' ? 'Client Requests' : 'Verified Agent - Payment Required'}
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
-                {agentData?.payment_status === 'paid' && (
-                  <Link
-                    href="/properties/new"
-                    className="px-4 py-2 bg-accent text-white rounded-lg hover:bg-accent/90 flex items-center gap-2"
-                  >
-                    <Plus className="w-4 h-4" />
-                    Post Property
-                  </Link>
-                )}
-           
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {showPaymentRequired ? (
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-            <div className="bg-green-50 border-l-4 border-green-400 rounded-lg p-8 mb-8">
-              <div className="flex items-start gap-4">
-                <div className="flex-shrink-0">
-                  <svg className="w-12 h-12 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                </div>
-                <div className="flex-1">
-                  <h3 className="text-2xl font-bold text-green-900 mb-2">
-                    🎉 Congratulations! You're Verified
-                  </h3>
-                  <p className="text-green-800 text-lg mb-4">
-                    Your agent application has been approved. You're now a verified agent on our platform!
-                  </p>
-                  <div className="bg-white rounded-lg p-6 mb-4">
-                    <h4 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
-                      <svg className="w-5 h-5 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                      </svg>
-                      One More Step: Unlock Full Access
-                    </h4>
-                    <p className="text-gray-700 mb-4">
-                      To start receiving client requests and post unlimited properties, complete the one-time $50 USD payment.
-                    </p>
-                    <button
-                      onClick={() => router.push('/agent/payment')}
-                      className="w-full btn-primary btn-lg flex items-center justify-center gap-2"
-                    >
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                      </svg>
-                      Unlock Access Now - $50 USD
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        ) : (
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           {/* Stats */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
@@ -448,7 +344,6 @@ export default function AgentDashboard() {
             )}
           </div>
         </div>
-        )}
       </div>
 
       {/* Request Details Modal */}

@@ -40,7 +40,6 @@ export default function AgentSignup() {
   const [verification, setVerification] = useState({
     agentLicenseFile: null,
     businessRegistrationFile: null,
-    profileImageFile: null,
     agreeToTerms: false,
     dataConsent: false,
   });
@@ -111,10 +110,6 @@ export default function AgentSignup() {
         toast.error('Please upload both required documents');
         return;
       }
-      if (!verification.profileImageFile) {
-        toast.error('Please upload your profile image');
-        return;
-      }
       if (!verification.agreeToTerms) {
         toast.error('Please agree to terms and conditions');
         return;
@@ -180,25 +175,6 @@ export default function AgentSignup() {
         registrationUrl = regName;
         console.log('Registration uploaded:', regName);
 
-        // Upload profile image
-        const imageExt = verification.profileImageFile.name.split('.').pop();
-        const imageName = `${user.id}_profile_${Date.now()}.${imageExt}`;
-        
-        const { error: imageError } = await supabase.storage
-          .from('agent-documents')
-          .upload(imageName, verification.profileImageFile, {
-            cacheControl: '3600',
-            upsert: true
-          });
-
-        if (imageError) {
-          console.error('Profile image upload error:', imageError);
-          throw new Error(`Profile image upload failed: ${imageError.message}`);
-        }
-        
-        profileImageUrl = imageName;
-        console.log('Profile image uploaded:', imageName);
-
       } catch (uploadError) {
         console.error('Upload error:', uploadError);
         console.error('Upload error details:', uploadError.response?.data || uploadError.message);
@@ -226,7 +202,6 @@ export default function AgentSignup() {
           dataConsent: verification.dataConsent,
           licenseFileUrl: licenseUrl,
           registrationFileUrl: registrationUrl,
-          profileImageUrl: profileImageUrl,
         });
 
         if (response.data.success) {
@@ -530,26 +505,26 @@ export default function AgentSignup() {
               {/* Business Registration */}
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Profile Image *
+                  Business Registration or Government ID *
                 </label>
                 <p className="text-xs text-gray-600 mb-2">
-                  Upload a professional profile photo that will be displayed on your agent profile.
+                  Upload your business registration document or government-issued ID if you operate as an individual.
                 </p>
                 <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-blue-500 transition cursor-pointer"
-                  onClick={() => document.getElementById('profile-image-file').click()}
+                  onClick={() => document.getElementById('registration-file').click()}
                 >
                   <Upload className="w-8 h-8 text-gray-400 mx-auto mb-2" />
                   <p className="text-sm font-medium text-gray-700">
-                    {verification.profileImageFile
-                      ? verification.profileImageFile.name
+                    {verification.businessRegistrationFile
+                      ? verification.businessRegistrationFile.name
                       : 'Click to upload or drag and drop'}
                   </p>
                   <p className="text-xs text-gray-500">JPG, PNG • Max 5MB</p>
                   <input
-                    id="profile-image-file"
+                    id="registration-file"
                     type="file"
                     accept=".jpg,.jpeg,.png,image/jpeg,image/png"
-                    onChange={(e) => handleFileChange(e, 'profileImageFile')}
+                    onChange={(e) => handleFileChange(e, 'businessRegistrationFile')}
                     className="hidden"
                   />
                 </div>
