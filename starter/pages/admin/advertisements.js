@@ -12,6 +12,7 @@ export default function AdminAdvertisements() {
   const [editingAd, setEditingAd] = useState(null)
 
   const [form, setForm] = useState({
+    title: '',
     company_name: '',
     category: 'contractor',
     description: '',
@@ -125,6 +126,7 @@ export default function AdminAdvertisements() {
   }
 
   const approveSubmission = async (submission) => {
+    if (!user?.id) return toast.error('Not authenticated')
     setLoading(true)
 
     try {
@@ -132,6 +134,7 @@ export default function AdminAdvertisements() {
       const { error: adError } = await supabase
         .from('advertisements')
         .insert([{
+          title: submission.title || submission.company_name,
           company_name: submission.company_name,
           category: submission.category,
           description: submission.description,
@@ -141,6 +144,7 @@ export default function AdminAdvertisements() {
           image_url: submission.image_url,
           is_featured: submission.is_featured,
           is_active: true,
+          created_by_clerk_id: user.id,
           created_at: new Date().toISOString()
         }])
 
@@ -182,7 +186,8 @@ export default function AdminAdvertisements() {
 
   const startEdit = (ad) => {
     setEditingAd(ad)
-    setForm({
+    setitle: ad.title || '',
+      tForm({
       company_name: ad.company_name,
       category: ad.category,
       description: ad.description,
@@ -197,7 +202,8 @@ export default function AdminAdvertisements() {
   }
 
   const resetForm = () => {
-    setForm({
+    setitle: '',
+      tForm({
       company_name: '',
       category: 'contractor',
       description: '',
@@ -247,6 +253,15 @@ export default function AdminAdvertisements() {
             <h2 className="text-xl font-bold mb-4">
               {editingAd ? 'Edit Advertisement' : 'Create New Advertisement'}
             </h2>
+
+            <div className="mb-4">
+              <input
+                placeholder="Advertisement Title *"
+                className="w-full border-2 border-gray-300 p-3 rounded-lg focus:border-accent focus:outline-none"
+                value={form.title}
+                onChange={e => setForm({ ...form, title: e.target.value })}
+              />
+            </div>
 
             <div className="grid md:grid-cols-2 gap-4 mb-4">
               <input

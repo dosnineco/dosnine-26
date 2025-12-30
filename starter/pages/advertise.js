@@ -102,7 +102,7 @@ export default function AdvertisePage() {
         <meta name="description" content="Get your business in front of real people looking, selling, and renting homes in Jamaica." />
       </Head>
 
-      <div className="min-h-screen bg-gray-50 py-8 px-4">
+      <div className=" py-8 px-4">
         <div className="max-w-4xl mx-auto">
           
           {step === 2 ? (
@@ -345,7 +345,7 @@ export default function AdvertisePage() {
                             className="sr-only"
                           />
                           <div className="text-center">
-                            <div className="text-3xl font-bold text-gray-800">J$8,970</div>
+                            <div className="text-xl font-bold text-gray-800">J$8,970</div>
                             <div className="text-sm text-gray-600 mt-2">Regular Spot</div>
                           </div>
                         </label>
@@ -361,11 +361,9 @@ export default function AdvertisePage() {
                             onChange={() => setSponsorForm({...sponsorForm, is_featured: true})}
                             className="sr-only"
                           />
-                          <div className="absolute -top-3 -right-3 bg-accent text-white text-xs px-3 py-1 rounded-full font-bold">
-                            HOT
-                          </div>
+                        
                           <div className="text-center">
-                            <div className="text-3xl font-bold text-accent">J$14,970</div>
+                            <div className="text-xl font-bold text-accent">J$14,970</div>
                             <div className="text-sm text-gray-600 mt-2">⭐ Featured</div>
                           </div>
                         </label>

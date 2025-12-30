@@ -23,7 +23,7 @@ function MyApp({ Component, pageProps }) {
   );
   
   // Pages that should not have header/footer
-  const noLayoutPages = ['/advertise'];
+  const noLayoutPages = ['/advertise', '/ads/[id]', '/ads/request-agent'];
   const hideLayout = noLayoutPages.includes(router.pathname);
 
   return (
