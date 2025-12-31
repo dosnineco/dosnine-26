@@ -2,10 +2,6 @@
 @tailwind components;
 @tailwind utilities;
 
-html, body, #__next {
-  height: 100%;
-}
-
 /* Accent color system */
 :root {
   --accent-color: #F55353;

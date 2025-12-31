@@ -37,7 +37,7 @@ class MyDocument extends Document {
 
 
         </Head>     
-        <body className="snap-y snap-mandatory h-screen overflow-y-scroll Default ">
+        <body>
           
           <Main />
           <NextScript />
