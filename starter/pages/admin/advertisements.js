@@ -186,8 +186,8 @@ export default function AdminAdvertisements() {
 
   const startEdit = (ad) => {
     setEditingAd(ad)
-    setitle: ad.title || '',
-      tForm({
+    setForm({
+      title: ad.title || '',
       company_name: ad.company_name,
       category: ad.category,
       description: ad.description,
@@ -202,8 +202,8 @@ export default function AdminAdvertisements() {
   }
 
   const resetForm = () => {
-    setitle: '',
-      tForm({
+    setForm({
+      title: '',
       company_name: '',
       category: 'contractor',
       description: '',
@@ -406,7 +406,15 @@ export default function AdminAdvertisements() {
                         </span>
                       )}
                     </div>
-                    <p className="text-sm text-gray-600 mb-1">{ad.category} • {ad.phone}</p>
+                    <p className="text-sm text-gray-600 mb-1">
+                      {ad.category} • {ad.phone} • 
+                      <span className="ml-2 text-blue-600 font-medium">
+                        👁️ {ad.impressions || 0} views
+                      </span>
+                      <span className="ml-2 text-green-600 font-medium">
+                        🔗 {ad.clicks || 0} clicks
+                      </span>
+                    </p>
                     <p className="text-sm text-gray-700 line-clamp-2">{ad.description}</p>
                   </div>
 

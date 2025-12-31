@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
 import Link from 'next/link'
 import {Star} from 'lucide-react';
@@ -6,6 +6,7 @@ import {Star} from 'lucide-react';
 export default function AdvertisementGrid() {
   const [ads, setAds] = useState([])
   const [loading, setLoading] = useState(true)
+  const impressionTracked = useRef(new Set())
 
   useEffect(() => {
     loadAds()
@@ -25,6 +26,45 @@ export default function AdvertisementGrid() {
     setLoading(false)
   }
 
+  const trackImpression = async (adId) => {
+    if (impressionTracked.current.has(adId)) return
+    
+    try {
+      const { error } = await supabase.rpc('increment_ad_impressions', {
+        ad_id: adId
+      })
+      
+      if (!error) {
+        impressionTracked.current.add(adId)
+      } else {
+        console.error('Impression tracking error:', error)
+      }
+    } catch (err) {
+      console.error('Failed to track impression:', err)
+    }
+  }
+
+  useEffect(() => {
+    if (ads.length === 0) return
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            const adId = entry.target.getAttribute('data-ad-id')
+            if (adId) trackImpression(adId)
+          }
+        })
+      },
+      { threshold: 0.5 }
+    )
+
+    const adElements = document.querySelectorAll('[data-ad-id]')
+    adElements.forEach((el) => observer.observe(el))
+
+    return () => observer.disconnect()
+  }, [ads])
+
   if (loading) {
     return (
       <div className="w-full bg-gray-50 py-8 rounded-xl">
@@ -37,18 +77,8 @@ export default function AdvertisementGrid() {
   }
 
   return (
-    <div className="w-full bg-orange-50 mb-8 py-8 rounded-xl">
-      {/* Header */}
-      <div className="flex justify-between flex-col items-center px-6 mb-6">
-          <h2 className="text-2xl font-bold itext-gray-800">Our Business Partners</h2>
-          <p className="text-gray-600 text-sm mt-1">Advertise to real people with intent. </p>
-        <Link
-          href="/advertise"
-          className="bg-accent m-2 text-white px-6 py-3 rounded-lg font-semibold hover:bg-accent/90 transition shadow-lg"
-        >
-          Advertise Your Business
-        </Link>
-      </div>
+    <div className="w-full bg-gray-200 mb-8 py-8 rounded-xl">
+     
 
       {/* Ads Grid */}
       {ads.length > 0 ? (
@@ -57,12 +87,13 @@ export default function AdvertisementGrid() {
             <Link
               key={ad.id}
               href={`/ads/${ad.id}`}
-              className={`relative bg-white rounded-xl p-5 shadow-md hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1 ${
+              data-ad-id={ad.id}
+              className={`relative bg-white rounded-xl p-5  transition-all duration-300 transform hover:-translate-y-1 ${
                 ad.is_featured ? 'ring-2 ring-yellow-400' : ''
               }`}
             >
               {ad.is_featured && (
-                <div className="absolute -top-2 -right-2 bg-yellow-400 text-black text-xs px-3 py-1 rounded-full font-bold shadow-lg">
+                <div className="absolute -top-2 -right-2 bg-yellow-400 text-black text-xs px-3 py-1 rounded-full font-bold ">
                   <Star className="inline-block w-3 h-3 mr-1" />
                   FEATURED
                 </div>
@@ -92,24 +123,12 @@ export default function AdvertisementGrid() {
 
               <div className="space-y-2">
                 {ad.phone && (
-                  <div className="flex items-center gap-2 text-sm text-gray-700">
-                    <span className="text-accent">📞</span>
-                    <span className="font-medium">{ad.phone}</span>
-                  </div>
-                )}
-                {ad.email && (
-                  <div className="flex items-center gap-2 text-sm text-gray-700">
-                    <span className="text-accent">✉️</span>
-                    <span className="font-medium truncate">{ad.email}</span>
+                  <div className="flex w-full bg-gray-100 px-3 py-2 rounded-lg items-center justify-start gap-2 text-sm text-gray-700">
+                    <span className=" font-bold font-medium">{ad.phone}</span>
                   </div>
                 )}
               </div>
 
-              <div className="mt-4 pt-4 border-t border-gray-100">
-                <span className="text-accent font-semibold text-sm hover:underline">
-                  View Details →
-                </span>
-              </div>
             </Link>
           ))}
         </div>
@@ -118,13 +137,22 @@ export default function AdvertisementGrid() {
           <p className="text-gray-500 mb-6">No advertisers yet. Be the first!</p>
           <Link
             href="/advertise"
-            className="inline-block bg-accent text-white px-8 py-4 rounded-lg font-semibold hover:bg-accent/90 transition shadow-lg"
+            className="inline-block bg-accent text-white px-8 py-4 rounded-lg font-semibold hover:bg-accent/90 transition "
           >
             Advertise Your Business
           </Link>
         </div>
       )}
 
+ {/* Header */}
+      <div className="flex justify-start items-center ">
+        <Link
+          href="/advertise"
+          className=" mt-4 italic text-gray-800 px-6 underline rounded-lg font-semibold hover:bg-accent/90 transition "
+        >
+          Advertise Your Business
+        </Link> 
+      </div>
     
     </div>
   )

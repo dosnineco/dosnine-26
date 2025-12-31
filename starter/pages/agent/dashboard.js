@@ -145,59 +145,77 @@ export default function AgentDashboard() {
 
       <div className="min-h-screen bg-gray-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          {/* Quick Actions */}
+          <div className="mb-6 flex gap-3 flex-wrap">
+            <Link 
+              href="/properties/my-listings"
+              className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition font-medium flex items-center gap-2"
+            >
+              <Home className="w-4 h-4" />
+              My Properties
+            </Link>
+            <Link 
+              href="/properties/bulk-create"
+              className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition font-medium flex items-center gap-2"
+            >
+              <Plus className="w-4 h-4" />
+              Bulk Create Listings
+            </Link>
+          </div>
+
           {/* Stats */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-            <div className="bg-white rounded-lg shadow p-6">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-6 mb-8">
+            <div className="bg-white rounded-lg shadow p-4 md:p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-500">Total Requests</p>
-                  <p className="text-2xl font-bold text-gray-900">{stats.total}</p>
+                  <p className="text-xs md:text-sm text-gray-500">Total Requests</p>
+                  <p className="text-xl md:text-2xl font-bold text-gray-900">{stats.total}</p>
                 </div>
-                <Users className="w-10 h-10 text-gray-400" />
+                <Users className="w-8 h-8 md:w-10 md:h-10 text-gray-400" />
               </div>
             </div>
 
-            <div className="bg-white rounded-lg shadow p-6">
+            <div className="bg-white rounded-lg shadow p-4 md:p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-500">Open</p>
-                  <p className="text-2xl font-bold text-blue-600">{stats.open}</p>
+                  <p className="text-xs md:text-sm text-gray-500">Open</p>
+                  <p className="text-xl md:text-2xl font-bold text-blue-600">{stats.open}</p>
                 </div>
-                <AlertCircle className="w-10 h-10 text-blue-400" />
+                <AlertCircle className="w-8 h-8 md:w-10 md:h-10 text-blue-400" />
               </div>
             </div>
 
-            <div className="bg-white rounded-lg shadow p-6">
+            <div className="bg-white rounded-lg shadow p-4 md:p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-500">In Progress</p>
-                  <p className="text-2xl font-bold text-orange-600">{stats.assigned}</p>
+                  <p className="text-xs md:text-sm text-gray-500">In Progress</p>
+                  <p className="text-xl md:text-2xl font-bold text-orange-600">{stats.assigned}</p>
                 </div>
-                <Clock className="w-10 h-10 text-orange-400" />
+                <Clock className="w-8 h-8 md:w-10 md:h-10 text-orange-400" />
               </div>
             </div>
 
-            <div className="bg-white rounded-lg shadow p-6">
+            <div className="bg-white rounded-lg shadow p-4 md:p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-500">Completed</p>
-                  <p className="text-2xl font-bold text-green-600">{stats.completed}</p>
+                  <p className="text-xs md:text-sm text-gray-500">Completed</p>
+                  <p className="text-xl md:text-2xl font-bold text-green-600">{stats.completed}</p>
                 </div>
-                <CheckCircle className="w-10 h-10 text-green-400" />
+                <CheckCircle className="w-8 h-8 md:w-10 md:h-10 text-green-400" />
               </div>
             </div>
           </div>
 
           {/* Filters */}
-          <div className="bg-white rounded-lg shadow p-4 mb-6">
-            <div className="flex items-center gap-2">
-              <Filter className="w-5 h-5 text-gray-500" />
-              <span className="text-sm font-medium text-gray-700">Filter:</span>
+          <div className="bg-white rounded-lg shadow p-4 mb-6 overflow-x-auto">
+            <div className="flex items-center gap-2 min-w-max">
+              <Filter className="w-5 h-5 text-gray-500 flex-shrink-0" />
+              <span className="text-sm font-medium text-gray-700 flex-shrink-0">Filter:</span>
               {['all', 'open', 'assigned', 'in_progress', 'completed'].map((status) => (
                 <button
                   key={status}
                   onClick={() => setFilterStatus(status)}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
+                  className={`px-3 md:px-4 py-2 rounded-lg text-xs md:text-sm font-medium transition whitespace-nowrap ${
                     filterStatus === status
                       ? 'bg-accent text-white'
                       : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -229,11 +247,11 @@ export default function AgentDashboard() {
             ) : (
               <div className="divide-y divide-gray-200">
                 {filteredRequests.map((request) => (
-                  <div key={request.id} className="p-6 hover:bg-gray-50">
-                    <div className="flex items-start justify-between">
+                  <div key={request.id} className="p-4 md:p-6 hover:bg-gray-50">
+                    <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
                       <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-2">
-                          <h3 className="text-lg font-semibold text-gray-900">
+                        <div className="flex flex-wrap items-center gap-2 mb-3">
+                          <h3 className="text-base md:text-lg font-semibold text-gray-900">
                             {request.request_type.charAt(0).toUpperCase() + request.request_type.slice(1)} {request.property_type}
                           </h3>
                           <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${
@@ -252,7 +270,7 @@ export default function AgentDashboard() {
                           )}
                         </div>
 
-                        <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm text-gray-600 mb-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 md:gap-4 text-xs md:text-sm text-gray-600 mb-3">
                           <div className="flex items-center gap-2">
                             <MapPin className="w-4 h-4" />
                             {request.location}
@@ -275,41 +293,42 @@ export default function AgentDashboard() {
                               {request.bathrooms} baths
                             </div>
                           )}
-                          <div className="flex items-center gap-2">
-                            <Calendar className="w-4 h-4" />
-                            {new Date(request.created_at).toLocaleDateString()}
-                          </div>
+                      
                         </div>
 
                         {request.description && (
                           <p className="text-sm text-gray-700 mb-3">{request.description}</p>
                         )}
 
-                        <div className="flex items-center gap-4 text-sm text-gray-600">
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-xs md:text-sm text-gray-600">
                           <div className="flex items-center gap-1">
-                            <Users className="w-4 h-4" />
-                            {request.client_name}
+                            <Users className="w-4 h-4 flex-shrink-0" />
+                            <span className="truncate">{request.client_name}</span>
                           </div>
                           <div className="flex items-center gap-1">
-                            <Mail className="w-4 h-4" />
-                            {request.client_email}
+                            <Mail className="w-4 h-4 flex-shrink-0" />
+                            <span className="truncate">{request.client_email}</span>
                           </div>
                           <div className="flex items-center gap-1">
-                            <Phone className="w-4 h-4" />
-                            {request.client_phone}
+                            <Phone className="w-4 h-4 flex-shrink-0" />
+                            <span className="truncate">{request.client_phone}</span>
+                          </div>
+                            <div className="flex items-center gap-2">
+                            <Calendar className="w-4 h-4" />
+                            {new Date(request.created_at).toLocaleDateString()}
                           </div>
                         </div>
                       </div>
 
-                      <div className="ml-4 flex flex-col gap-2">
+                      <div className="flex md:flex-col gap-2 w-full md:w-auto md:ml-4">
                         <button
                           onClick={() => setSelectedRequest(request)}
-                          className="btn-primary btn-sm whitespace-nowrap"
+                          className="btn-primary btn-sm whitespace-nowrap flex-1 md:flex-none"
                         >
                           View Details
                         </button>
                         {request.status !== 'completed' && (
-                          <div className="flex gap-2">
+                          <div className="flex gap-2 flex-1 md:flex-none">
                             <button
                               onClick={() => handleRequestAction(request.id, 'complete')}
                               disabled={actionLoading}
@@ -407,15 +426,15 @@ export default function AgentDashboard() {
                       disabled={actionLoading}
                       className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 flex items-center justify-center gap-2"
                     >
-                      <CheckCircle className="w-4 h-4" />
-                      Mark Complete
+                      <CheckCircle className="w-3 h-3" />
+                      Complete
                     </button>
                     <button
                       onClick={() => handleRequestAction(selectedRequest.id, 'release')}
                       disabled={actionLoading}
                       className="flex-1 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:opacity-50 flex items-center justify-center gap-2"
                     >
-                      <RotateCcw className="w-4 h-4" />
+                      <RotateCcw className="w-3 h-3" />
                       Release
                     </button>
                     <button
@@ -423,7 +442,7 @@ export default function AgentDashboard() {
                       disabled={actionLoading}
                       className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 flex items-center justify-center gap-2"
                     >
-                      <Trash2 className="w-4 h-4" />
+                      <Trash2 className="w-3 h-3" />
                       Remove
                     </button>
                   </>

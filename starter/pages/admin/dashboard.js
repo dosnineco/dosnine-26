@@ -458,6 +458,24 @@ export default function AdminDashboard() {
       </Head>
       
       <div className="container mx-auto px-4 py-6 max-w-7xl">
+      {/* Quick Actions */}
+      <div className="mb-4 flex gap-3 flex-wrap">
+        <Link 
+          href="/properties/my-listings"
+          className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition font-medium text-sm flex items-center gap-2"
+        >
+          <FiGrid className="w-4 h-4" />
+          All Properties
+        </Link>
+        <Link 
+          href="/properties/bulk-create"
+          className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition font-medium text-sm flex items-center gap-2"
+        >
+          <FiZap className="w-4 h-4" />
+          Bulk Create Listings
+        </Link>
+      </div>
+
       {/* Simple Tabs */}
       <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
         <button

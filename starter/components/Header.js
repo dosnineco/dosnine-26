@@ -60,16 +60,10 @@ export default function Header() {
               {isVerifiedAgent ? (
                 <>
                   <Link 
-                    href="/properties/my-listings" 
-                    className={`px-3 py-2 rounded-lg transition text-sm ${router.pathname === '/landlord/properties' ? 'bg-accent text-white' : 'text-gray-600 hover:bg-gray-100'}`}
-                  >
-                    My Properties
-                  </Link>
-                  <Link 
                     href="/agent/dashboard" 
                     className={`px-3 py-2 rounded-lg transition text-sm ${router.pathname === '/agent/dashboard' ? 'bg-accent text-white' : 'text-gray-600 hover:bg-gray-100'}`}
                   >
-                    Agent Dashboard
+                    Dashboard
                   </Link>
                 </>
               ) : (
@@ -166,13 +160,7 @@ export default function Header() {
                 
                 {isVerifiedAgent ? (
                   <>
-                    <Link 
-                      href="/landlord/properties" 
-                      onClick={() => setMobileMenuOpen(false)}
-                      className={`px-4 py-3 rounded-lg font-medium ${router.pathname === '/landlord/properties' ? 'bg-accent text-white' : 'text-gray-700 hover:bg-gray-50'}`}
-                    >
-                      My Properties
-                    </Link>
+               
                     <Link 
                       href="/agent/dashboard" 
                       onClick={() => setMobileMenuOpen(false)}
@@ -197,7 +185,7 @@ export default function Header() {
                     onClick={() => setMobileMenuOpen(false)}
                     className={`px-4 py-3 rounded-lg font-medium ${router.pathname === '/admin/dashboard' ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50'}`}
                   >
-                    Admin Dashboard
+                    Admin
                   </Link>
                 )}
               </div>

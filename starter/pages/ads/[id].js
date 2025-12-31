@@ -13,7 +13,10 @@ export default function AdDetailPage() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    if (id) loadAd()
+    if (id) {
+      loadAd()
+      trackClick()
+    }
   }, [id])
 
   const loadAd = async () => {
@@ -25,6 +28,16 @@ export default function AdDetailPage() {
 
     setAd(data)
     setLoading(false)
+  }
+
+  const trackClick = async () => {
+    try {
+      await supabase.rpc('increment_ad_clicks', {
+        ad_id: id
+      })
+    } catch (err) {
+      console.error('Failed to track click:', err)
+    }
   }
 
   if (loading) {

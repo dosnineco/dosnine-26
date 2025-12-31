@@ -15,7 +15,7 @@ export default function RequestAgentPage() {
     email: '',
     phone: '',
     requestType: '', // buy, sell, rent, lease, valuation
-    propertyType: 'apartment',
+    propertyType: 'House',
     location: '',
     budgetMin: '',
     budgetMax: '',
@@ -34,9 +34,9 @@ export default function RequestAgentPage() {
     if (isSignedIn && user) {
       setFormData(prev => ({
         ...prev,
-        name: user.fullName || '',
-        email: user.emailAddresses?.[0]?.emailAddress || '',
-        phone: user.phoneNumbers?.[0]?.phoneNumber || ''
+        name: prev.name || user.fullName || '',
+        email: prev.email || user.emailAddresses?.[0]?.emailAddress || '',
+        phone: prev.phone || user.phoneNumbers?.[0]?.phoneNumber || ''
       }));
     }
   }, [isSignedIn, user]);
@@ -292,7 +292,7 @@ export default function RequestAgentPage() {
                 onClick={nextStep}
                 className="w-full btn-primary py-4 text-lg"
               >
-                Continue →
+                Continue
               </button>
             </>
           )}
@@ -316,8 +316,8 @@ export default function RequestAgentPage() {
                   required
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
                 >
-                  <option value="apartment">Apartment</option>
                   <option value="house">House</option>
+                  <option value="apartment">Apartment</option>
                   <option value="land">Land</option>
                   <option value="commercial">Commercial</option>
                   <option value="other">Other</option>
@@ -345,14 +345,14 @@ export default function RequestAgentPage() {
                   onClick={prevStep}
                   className="flex-1 px-6 py-4 border-2 border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition font-semibold"
                 >
-                  ← Back
+                  Back
                 </button>
                 <button
                   type="button"
                   onClick={nextStep}
                   className="flex-1 btn-primary py-4 text-lg"
                 >
-                  Continue →
+                  Continue
                 </button>
               </div>
 
@@ -466,10 +466,10 @@ export default function RequestAgentPage() {
                   onChange={handleInputChange}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
                 >
+                  <option value="urgent">Urgent - ASAP</option>
                   <option value="low">Low - Just browsing</option>
                   <option value="normal">Normal - Within a few months</option>
                   <option value="high">High - Within a few weeks</option>
-                  <option value="urgent">Urgent - ASAP</option>
                 </select>
               </div>
 
@@ -479,14 +479,14 @@ export default function RequestAgentPage() {
                   onClick={prevStep}
                   className="flex-1 px-6 py-4 border-2 border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition font-semibold"
                 >
-                  ← Back
+                  Back
                 </button>
                 <button
                   type="submit"
                   disabled={loading}
                   className="flex-1 btn-primary py-4 text-lg disabled:opacity-50"
                 >
-                  {loading ? 'Submitting...' : 'Submit Request ✓'}
+                  {loading ? 'Submitting...' : 'Submit Request'}
                 </button>
               </div>
 

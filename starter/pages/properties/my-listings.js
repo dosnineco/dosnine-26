@@ -90,18 +90,32 @@ export default function MyPropertiesPage() {
     );
   }
 
+  // Dynamic page title based on property count
+  const pageTitle = properties.length > 0 
+    ? `My Properties (${properties.length})` 
+    : 'My Properties';
+
   return (
     <div className="container mx-auto px-4 py-6 max-w-6xl">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
-        <h1 className="text-2xl sm:text-3xl font-bold text-gray-800">My Properties</h1>
-        <Link 
-          href="/properties/new" 
-          className="bg-gray-800 text-white px-6 py-3 rounded-lg hover:bg-gray-700 transition font-medium flex items-center justify-center gap-2 text-lg"
-        >
-          <FiPlusCircle size={20} />
-          Add Property
-        </Link>
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-800">{pageTitle}</h1>
+        <div className="flex gap-2">
+          <Link 
+            href="/properties/new" 
+            className="bg-gray-800 text-white px-6 py-3 rounded-lg hover:bg-gray-700 transition font-medium flex items-center justify-center gap-2 text-lg"
+          >
+            <FiPlusCircle size={20} />
+            Add Property
+          </Link>
+          <Link 
+            href="/properties/bulk-new" 
+            className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition font-medium flex items-center justify-center gap-2 text-lg"
+          >
+            <FiPlusCircle size={20} />
+            Bulk Add
+          </Link>
+        </div>
       </div>
 
       {loading ? (

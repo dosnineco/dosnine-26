@@ -399,7 +399,7 @@ export default function AdvertisePage() {
                         required
                       />
                       <p className="text-sm text-gray-500 mt-2">
-                        📞 Customers will see this number • We'll call to confirm your ad
+                        Customers will see this number • We'll call to confirm your ad
                       </p>
                     </div>
 
@@ -414,7 +414,7 @@ export default function AdvertisePage() {
                         onChange={(e) => setSponsorForm({...sponsorForm, email: e.target.value})}
                         className="w-full border-2 border-gray-300 rounded-lg px-4 py-4 text-lg focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
                         placeholder="youremail@example.com"
-                        required
+                        
                       />
                       <p className="text-sm text-gray-500 mt-2">
                         📧 For confirmation and updates

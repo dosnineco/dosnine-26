@@ -37,7 +37,7 @@ function AppContent({ Component, pageProps, isPublicRoute }) {
   const router = useRouter();
   
   // Pages that should not have header/footer
-  const noLayoutPages = ['/advertise'];
+  const noLayoutPages = ['/advertise','/ads/request-agent'];
   const hideLayout = noLayoutPages.includes(router.pathname);
   
   // Use the page-level layout if it exists, otherwise use the default layout
