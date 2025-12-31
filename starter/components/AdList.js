@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
 import Link from 'next/link'
-import {Star} from 'lucide-react';
+import { Star, Eye, Phone } from 'lucide-react';
 
 export default function AdvertisementGrid() {
   const [ads, setAds] = useState([])
@@ -36,6 +36,14 @@ export default function AdvertisementGrid() {
       
       if (!error) {
         impressionTracked.current.add(adId)
+        // Update the ad count in state immediately
+        setAds(prevAds => 
+          prevAds.map(ad => 
+            ad.id === adId 
+              ? { ...ad, impressions: (ad.impressions || 0) + 1 }
+              : ad
+          )
+        )
       } else {
         console.error('Impression tracking error:', error)
       }
@@ -113,21 +121,25 @@ export default function AdvertisementGrid() {
                 {ad.company_name}
               </h3>
 
-              <p className="text-xs text-gray-500 uppercase mb-2 font-medium">
+              <p className="text-xs text-gray-500 uppercase font-medium mb-1">
                 {ad.category?.replace('_', ' ')}
+                <span className="text-blue-600 ml-2 inline-flex items-center gap-1">
+                  •
+                  <Eye className="w-3 h-3" />
+                  {ad.impressions || 0} views
+                </span>
               </p>
+              
+              {ad.phone && (
+                <p className="text-xs text-gray-600 font-medium mb-2 inline-flex items-center gap-1">
+                  <Phone className="w-3 h-3" />
+                  {ad.phone}
+                </p>
+              )}
 
               <p className="text-sm text-gray-600 mb-4 line-clamp-3">
                 {ad.description}
               </p>
-
-              <div className="space-y-2">
-                {ad.phone && (
-                  <div className="flex w-full bg-gray-100 px-3 py-2 rounded-lg items-center justify-start gap-2 text-sm text-gray-700">
-                    <span className=" font-bold font-medium">{ad.phone}</span>
-                  </div>
-                )}
-              </div>
 
             </Link>
           ))}

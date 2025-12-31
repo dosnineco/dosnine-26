@@ -17,6 +17,7 @@ export default function AdDetailPage() {
       loadAd()
       trackClick()
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id])
 
   const loadAd = async () => {
@@ -32,9 +33,14 @@ export default function AdDetailPage() {
 
   const trackClick = async () => {
     try {
-      await supabase.rpc('increment_ad_clicks', {
+      const { error } = await supabase.rpc('increment_ad_clicks', {
         ad_id: id
       })
+      
+      if (!error) {
+        // Update click count in state immediately
+        setAd(prev => prev ? { ...prev, clicks: (prev.clicks || 0) + 1 } : null)
+      }
     } catch (err) {
       console.error('Failed to track click:', err)
     }
@@ -88,6 +94,11 @@ export default function AdDetailPage() {
               <h1 className="text-4xl  text-gray-800 font-bold mb-2">{ad.company_name}</h1>
               <p className="text-xl text-gray-600 capitalize">
                 {ad.category?.replace('_', ' ')} Services
+              </p>
+              <p className="text-sm text-gray-500 mt-2">
+                <span className="text-blue-600">👁️ {ad.impressions || 0} views</span>
+                <span className="mx-2">•</span>
+                <span className="text-green-600">🔗 {ad.clicks || 0} clicks</span>
               </p>
             </div>
 
