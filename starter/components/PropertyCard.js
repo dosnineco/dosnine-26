@@ -2,6 +2,7 @@ import Link from 'next/link';
 import clsx from 'clsx';
 import { formatMoney } from '../lib/formatMoney';
 import LazyImage from './LazyImage';
+import { Eye } from 'lucide-react';
 
 export default function PropertyCard({ property, isOwner = false, index = 0 }) {
   const img = property.image_urls?.[0] || property.property_images?.[0]?.image_url || '/placeholder.png';
@@ -27,6 +28,12 @@ export default function PropertyCard({ property, isOwner = false, index = 0 }) {
             <div className="text-sm text-gray-600">{property.bedrooms} bed • {property.bathrooms} bath</div>
             <div className="text-accent font-bold text-sm">{formatMoney(property.price)}</div>
           </div>
+          {property.impressions > 0 && (
+            <div className="flex items-center gap-1 text-xs text-blue-600 mt-1">
+              <Eye className="w-3 h-3" />
+              <span>{property.impressions} views</span>
+            </div>
+          )}
         </div>
       </div>
     </Link>
