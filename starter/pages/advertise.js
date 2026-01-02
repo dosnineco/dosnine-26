@@ -20,6 +20,18 @@ export default function AdvertisePage() {
   const [copied, setCopied] = useState(false)
   const [submissionId, setSubmissionId] = useState(null)
 
+  // Track conversion when form is submitted
+  const trackConversion = () => {
+    if (typeof window !== 'undefined' && window.gtag) {
+      window.gtag('event', 'ads_conversion_Submit_lead_form_1', {
+        send_to: 'AW-CONVERSION_ID/CONVERSION_LABEL', // Replace with your actual conversion ID
+        value: sponsorForm.is_featured ? 14970 : 8970,
+        currency: 'JMD',
+        transaction_id: submissionId
+      })
+    }
+  }
+
   const bankDetails = [
     {
       bank: "Scotiabank Jamaica",
@@ -60,6 +72,10 @@ export default function AdvertisePage() {
 
     try {
       const { data, error } = await supabase
+      
+      // Track conversion in Google Ads
+      trackConversion()
+      
         .from('sponsor_submissions')
         .insert([{
           ...sponsorForm,
@@ -96,7 +112,19 @@ export default function AdvertisePage() {
   ]
 
   return (
-    <>
+    <>  
+        {/* Google Ads Conversion Tracking */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              window.dataLayer = window.dataLayer || [];
+              function gtag(){dataLayer.push(arguments);}
+              gtag('js', new Date());
+              gtag('config', 'AW-CONVERSION_ID');
+            `
+          }}
+        />
+      
       <Head>
         <title>Advertise Your Business — Dosnine Properties</title>
         <meta name="description" content="Get your business in front of real people looking, selling, and renting homes in Jamaica." />
