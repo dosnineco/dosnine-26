@@ -8,7 +8,7 @@ export default function VisitorEmailPopup() {
   const { isSignedIn, user } = useUser();
   const router = useRouter();
 
-  const [showPopup, setShowPopup] = useState(true);
+  const [showPopup, setShowPopup] = useState(false);
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [intent, setIntent] = useState(''); // buy, sell, rent
