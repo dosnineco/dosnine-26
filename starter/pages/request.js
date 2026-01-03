@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useUser } from '@clerk/nextjs';
 import { useRouter } from 'next/router';
-import { supabase } from '../../lib/supabase';
+import { supabase } from '../lib/supabase';
 import Head from 'next/head';
 import toast from 'react-hot-toast';
 
@@ -15,7 +15,7 @@ export default function RequestAgentPage() {
     email: '',
     phone: '',
     requestType: '', // buy, sell, rent, lease, valuation
-    propertyType: 'House',
+    propertyType: 'house', // lowercase to match database constraint
     location: '',
     budgetMin: '',
     budgetMax: '',
@@ -55,7 +55,7 @@ export default function RequestAgentPage() {
 
     try {
       const requestData = {
-        client_user_id: user?.id || null,
+        client_user_id: null, // Don't use Clerk ID - it's not a valid UUID
         client_name: formData.name,
         client_email: formData.email,
         client_phone: formData.phone,

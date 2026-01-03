@@ -85,16 +85,43 @@ export default function VisitorEmailPopup() {
   }, [isSignedIn, isAgent]);
 
   /* -----------------------------
-     Submit handler
+     Submit handler - Save to both visitor_emails and service_requests
   ------------------------------*/
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!email || !phone || !intent) return;
+    
+    // Validate required fields including phone
+    if (!email || !phone || !intent) {
+      console.warn('Missing required fields');
+      return;
+    }
 
     setLoading(true);
 
     try {
-      // Insert directly to Supabase (no API)
+      // First, create a service_request entry from the visitor email
+      const requestData = {
+        client_name: 'Website Visitor',
+        client_email: email,
+        client_phone: phone,
+        request_type: intent, // buy, sell, rent
+        property_type: 'house',
+        location: 'TBD',
+        status: 'open',
+        urgency: 'normal',
+        description: 'Lead from homepage popup'
+      };
+
+      const { data: requestData_response, error: requestError } = await supabase
+        .from('service_requests')
+        .insert(requestData)
+        .select();
+
+      if (requestError) {
+        console.error('Service request insert error:', error);
+      }
+
+      // Also save to visitor_emails for tracking
       const { data, error } = await supabase
         .from('visitor_emails')
         .insert({
@@ -108,12 +135,7 @@ export default function VisitorEmailPopup() {
         });
 
       if (error) {
-        console.error('Insert error:', error);
-        // Still mark as submitted to not annoy user
-        localStorage.setItem('visitor-lead-submitted', 'true');
-        setSubmitted(true);
-        setShowPopup(false);
-        return;
+        console.error('Visitor email insert error:', error);
       }
 
       localStorage.setItem('visitor-lead-submitted', 'true');
@@ -121,7 +143,6 @@ export default function VisitorEmailPopup() {
       setShowPopup(false);
     } catch (err) {
       console.error('Lead submit error:', err);
-      // Still close popup to not annoy user
       localStorage.setItem('visitor-lead-submitted', 'true');
       setSubmitted(true);
       setShowPopup(false);
@@ -229,11 +250,12 @@ export default function VisitorEmailPopup() {
 
           {/* Data Sharing Disclaimer */}
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-xs text-gray-700">
-            <p className="font-medium text-blue-900 mb-1">📋 Data Sharing Notice</p>
-            <p>
+            <p className="font-medium text-blue-900 mb-1">📋 Data Sharing & Capture Notice</p>
+            <p className="mb-2">
               By submitting, you agree to share your contact information with verified agents 
-              who can help with your property needs. We respect your privacy and never spam.
-            </p>
+              who can help with your property needs.
+            </p> 
+      
           </div>
 
           <button

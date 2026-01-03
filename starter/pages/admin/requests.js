@@ -49,10 +49,10 @@ export default function AdminRequestsPage() {
         .from('service_requests')
         .select(`
           *,
-          agent:agents!service_requests_agent_id_fkey (
+          agent:assigned_agent_id(
             id,
-            user_id,
-            users (
+            business_name,
+            users:user_id(
               full_name,
               email
             )
@@ -67,8 +67,9 @@ export default function AdminRequestsPage() {
         ...req,
         agent: req.agent ? {
           id: req.agent.id,
-          full_name: req.agent.users?.full_name,
-          email: req.agent.users?.email
+          business_name: req.agent.business_name,
+          full_name: req.agent.users?.full_name || req.agent.business_name || 'Unknown Agent',
+          email: req.agent.users?.email || 'No email'
         } : null
       })) || [];
 
@@ -79,14 +80,15 @@ export default function AdminRequestsPage() {
         .from('agents')
         .select(`
           id,
+          business_name,
           user_id,
           last_request_assigned_at,
-          users (
+          users:user_id(
             full_name,
             email
           )
         `)
-        .eq('verified', true)
+        .eq('verification_status', 'approved')
         .eq('payment_status', 'paid')
         .order('last_request_assigned_at', { ascending: true, nullsFirst: true });
 
@@ -95,8 +97,9 @@ export default function AdminRequestsPage() {
       // Flatten agents data
       const flattenedAgents = agentsData?.map(agent => ({
         id: agent.id,
-        full_name: agent.users?.full_name,
-        email: agent.users?.email,
+        business_name: agent.business_name,
+        full_name: agent.users?.full_name || agent.business_name || 'Unnamed Agent',
+        email: agent.users?.email || 'No email',
         last_request_assigned_at: agent.last_request_assigned_at
       })) || [];
 
@@ -111,51 +114,76 @@ export default function AdminRequestsPage() {
   const handleManualAssign = async (requestId, agentId) => {
     setAssignLoading(true);
     try {
-      const updateData = {
-        agent_id: agentId,
-        status: agentId ? 'assigned' : 'open'
+      const now = new Date().toISOString();
+
+      // Only update assignment-related fields - never touch required fields
+      const updatePayload = {
+        assigned_agent_id: agentId || null,
+        status: agentId ? 'assigned' : 'open',
+        assigned_at: agentId ? now : null
       };
 
-      const { error: updateError } = await supabase
+      console.log('📤 Updating request:', requestId);
+      console.log('📋 Payload:', updatePayload);
+
+      const { error: updateError, data } = await supabase
         .from('service_requests')
-        .update(updateData)
-        .eq('id', requestId);
+        .update(updatePayload)
+        .eq('id', requestId)
+        .select();
 
-      if (updateError) throw updateError;
+      console.log('📥 Response:', { error: updateError, data });
 
-      if (agentId) {
-        const { error: agentUpdateError } = await supabase
-          .from('agents')
-          .update({ last_request_assigned_at: new Date().toISOString() })
-          .eq('id', agentId);
-
-        if (agentUpdateError) throw agentUpdateError;
+      if (updateError) {
+        console.error('❌ DB Error:', updateError);
+        throw new Error(updateError.message || 'Database update failed');
       }
 
-      toast.success(agentId ? 'Request assigned successfully!' : 'Request unassigned successfully!');
-      await fetchData();
+      // Update agent's last assignment timestamp
+      if (agentId) {
+        const { error: agentError } = await supabase
+          .from('agents')
+          .update({ last_request_assigned_at: now })
+          .eq('id', agentId);
+
+        if (agentError) {
+          console.warn(' Agent timestamp update failed:', agentError);
+        }
+      }
+
+      toast.success(agentId ? 'Request assigned!' : 'Request unassigned!');
+      
+      // Refresh data after a short delay
+      setTimeout(() => fetchData(), 200);
     } catch (err) {
-      toast.error('Failed to update assignment');
+      console.error('❌ Assignment error:', err);
+      toast.error(`Error: ${err.message}`);
     } finally {
       setAssignLoading(false);
     }
   };
 
   const handleDeleteRequest = async (requestId) => {
-    if (!confirm('⚠️ DELETE this service request?\n\nThis action cannot be undone!')) return;
+    if (!confirm('DELETE this service request?\n\nThis action cannot be undone!')) return;
 
     try {
-      const { error } = await supabase
+      console.log('🗑️ Deleting request:', requestId);
+
+      const { error, data } = await supabase
         .from('service_requests')
         .delete()
-        .eq('id', requestId);
+        .eq('id', requestId)
+        .select();
+
+      console.log('Delete response:', { error, data });
 
       if (error) throw error;
 
       toast.success('Request deleted successfully!');
-      await fetchData();
+      setTimeout(() => fetchData(), 200);
     } catch (err) {
-      toast.error('Failed to delete request');
+      console.error(' Delete error:', err);
+      toast.error(`Failed to delete: ${err.message}`);
     }
   };
 
@@ -181,9 +209,7 @@ export default function AdminRequestsPage() {
           {/* Header */}
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-4">
-              <Link href="/admin/dashboard" className="text-gray-600 hover:text-gray-900">
-                ← Back to Dashboard
-              </Link>
+       
               <div>
                 <h1 className="text-3xl font-bold text-gray-900">Service Requests</h1>
                 <p className="text-sm text-gray-500">All submitted client requests with agent assignments</p>

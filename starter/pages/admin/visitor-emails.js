@@ -2,8 +2,6 @@ import { useRouter } from 'next/router';
 import { useUser } from '@clerk/nextjs';
 import { useState, useEffect } from 'react';
 import Head from 'next/head';
-import Header from '../../components/Header';
-import Footer from '../../components/Footer';
 import { supabase } from '../../lib/supabase';
 
 export default function AdminVisitorEmails() {
@@ -89,11 +87,9 @@ export default function AdminVisitorEmails() {
         <Head>
           <title>Visitor Emails - Admin</title>
         </Head>
-        <Header />
         <div className="flex items-center justify-center min-h-screen">
           <p>Loading...</p>
         </div>
-        <Footer />
       </>
     );
   }
@@ -103,7 +99,6 @@ export default function AdminVisitorEmails() {
       <Head>
         <title>Visitor Emails - Admin Dashboard</title>
       </Head>
-      <Header />
 
       <main className="min-h-screen bg-gray-50 py-8">
         <div className="container mx-auto px-4">
@@ -181,7 +176,6 @@ export default function AdminVisitorEmails() {
         </div>
       </main>
 
-      <Footer />
     </>
   );
 }
