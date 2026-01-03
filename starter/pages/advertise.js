@@ -25,7 +25,7 @@ export default function AdvertisePage() {
     if (typeof window !== 'undefined' && window.gtag) {
       window.gtag('event', 'ads_conversion_Submit_lead_form_1', {
         send_to: 'AW-CONVERSION_ID/CONVERSION_LABEL', // Replace with your actual conversion ID
-        value: sponsorForm.is_featured ? 14970 : 8970,
+        value: 0, // No fixed value - commission-based
         currency: 'JMD',
         transaction_id: submissionId
       })
@@ -72,10 +72,6 @@ export default function AdvertisePage() {
 
     try {
       const { data, error } = await supabase
-      
-      // Track conversion in Google Ads
-      trackConversion()
-      
         .from('sponsor_submissions')
         .insert([{
           ...sponsorForm,
@@ -88,6 +84,10 @@ export default function AdvertisePage() {
       if (error) throw error
 
       setSubmissionId(data.id)
+      
+      // Track conversion in Google Ads
+      trackConversion()
+      
       setStep(2) // Move to payment screen
       window.scrollTo({ top: 0, behavior: 'smooth' })
     } catch (err) {
@@ -98,17 +98,17 @@ export default function AdvertisePage() {
     }
   }
 
-  const currentPrice = sponsorForm.is_featured ? 14970 : 8970 // JMD prices
+  const commissionRate = 7 // 7% commission per closed client
 
   const benefits = [
     'Your business displayed on our homepage',
     'Seen by thousands of property seekers monthly',
     'Direct contact info (phone, email, website)',
     'Company logo & description included',
-    '30-day advertising period',
     'Mobile & desktop visibility',
     'Featured spots get gold badge & priority placement',
-    'Cancel or renew anytime'
+    'Pay only when you close a client - 7% commission',
+    'No upfront fees required'
   ]
 
   return (
@@ -134,129 +134,138 @@ export default function AdvertisePage() {
         <div className="max-w-4xl mx-auto">
           
           {step === 2 ? (
-            // Payment Screen
+            // Agreement Screen - Commission-based Model
             <div className="bg-white rounded-xl shadow-lg overflow-hidden">
               <div className="bg-accent text-white px-8 py-10 text-center">
-                <h1 className="text-4xl font-bold mb-4">Complete Your Payment</h1>
+                <h1 className="text-4xl font-bold mb-4">You're All Set!</h1>
                 <p className="text-xl text-white/90">
-                  Transfer payment to activate your ad
+                  Your business profile is active. Start generating leads!
                 </p>
               </div>
 
               <div className="px-8 py-8">
-                {/* Order Summary */}
-                <div className="bg-gray-50 rounded-xl p-6 mb-8">
-                  <h2 className="text-2xl font-bold text-gray-800 mb-4">Order Summary</h2>
-                  <div className="space-y-3">
-                    <div className="flex justify-between items-center">
-                      <span className="text-gray-600">Business Name:</span>
-                      <span className="font-semibold">{sponsorForm.company_name}</span>
+                {/* Commission Agreement */}
+                <div className="bg-blue-50 border-2 border-blue-500 rounded-xl p-6 mb-8">
+                  <h2 className="text-2xl font-bold text-gray-800 mb-4">Commission Agreement</h2>
+                  <div className="space-y-4 text-gray-700">
+                    <div className="bg-white rounded-lg p-4">
+                      <p className="font-semibold text-lg mb-2">How It Works:</p>
+                      <p className="text-gray-600 mb-2">
+                        Your business profile is now live and visible to potential clients. <strong>You only pay when you close a deal!</strong>
+                      </p>
+                      <p className="text-gray-600">
+                        Commission rate: <span className="text-accent font-bold text-xl">7%</span> of the client's total transaction value
+                      </p>
                     </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-gray-600">Package:</span>
-                      <span className="font-semibold">{sponsorForm.is_featured ? '⭐ Featured Spot' : 'Regular Spot'}</span>
+                    <div className="bg-white rounded-lg p-4">
+                      <p className="font-semibold text-lg mb-2">Example:</p>
+                      <ul className="text-gray-600 space-y-2">
+                        <li>📝 Client hires you for J$100,000 project</li>
+                        <li>💰 You pay commission: J$100,000 × 7% = <strong>J$7,000</strong></li>
+                        <li>✅ You keep: J$93,000</li>
+                      </ul>
                     </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-gray-600">Duration:</span>
-                      <span className="font-semibold">30 days</span>
-                    </div>
-                    <div className="border-t pt-3 mt-3">
-                      <div className="flex justify-between items-center">
-                        <span className="text-xl font-bold text-gray-800">Total Amount:</span>
-                        <span className="text-3xl font-bold text-accent">J${currentPrice.toLocaleString()}</span>
-                      </div>
+                    <div className="bg-white rounded-lg p-4">
+                      <p className="font-semibold text-lg mb-2">Payment Terms:</p>
+                      <ul className="text-gray-600 space-y-2">
+                        <li>✓ Payment due within 7 days of closing a deal</li>
+                        <li>✓ Multiple payment methods available</li>
+                        <li>✓ No upfront fees or deposits required</li>
+                      </ul>
                     </div>
                   </div>
                 </div>
 
-            {/*payment instructions */}
+            {/*Commission Terms */}
 
-                {/* Bank Options */}
-                <h3 className="text-2xl font-bold text-gray-800 mb-6">Choose Your Bank:</h3>
-                {bankDetails.map((bank, index) => {
-                  const cardColors = {
-                    "Scotiabank Jamaica": "bg-red-50 border-2 border-red-500",
-                    "National Commercial Bank (NCB)": "bg-blue-50 border-2 border-blue-500",
-                    "Jamaica National Bank (JN)": "bg-yellow-50 border-2 border-yellow-500"
-                  }
-                  const headerColors = {
-                    "Scotiabank Jamaica": "text-red-700",
-                    "National Commercial Bank (NCB)": "text-blue-700",
-                    "Jamaica National Bank (JN)": "text-yellow-700"
-                  }
-                  return (
-                    <div key={index} className={`rounded-xl p-6 mb-6 ${cardColors[bank.bank]}`}>
-                      <h4 className={`text-xl font-bold mb-4 ${headerColors[bank.bank]}`}>{bank.bank}</h4>
-                      <div className="space-y-3">
-                        {Object.entries(bank).filter(([key]) => !['bank', 'branchNote', 'copyInstructions'].includes(key)).map(([key, value]) => (
-                          <div key={key}>
-                            <div className="flex justify-between items-center bg-white rounded-lg p-3">
-                              <span className="text-gray-600 font-medium capitalize">
-                                {key.replace(/([A-Z])/g, ' $1').trim()}:
-                              </span>
-                              <div className="flex items-center gap-3">
-                                <span className="font-bold text-gray-900 text-lg">{value}</span>
-                                <button
-                                  onClick={() => copyToClipboard(value, `${bank.bank}-${key}`)}
-                                  className="text-blue-600 hover:text-blue-700 p-2 hover:bg-blue-100 rounded transition"
-                                >
-                                  {copied === `${bank.bank}-${key}` ? <FiCheck size={20} /> : <FiCopy size={20} />}
-                                </button>
-                              </div>
-                            </div>
-                         
-                          </div>
-                        ))}                        
-                        {/* Payment Reference Note */}
-                        <div className="bg-white/80 rounded-lg p-4 mt-4 border-2 border-gray-300">
-                          <h5 className="text-sm font-bold text-gray-800 mb-2 flex items-center gap-2">
-                            Add This to Transfer Notes:
-                          </h5>
-                          <div className="bg-gray-50 rounded p-3 mb-3">
-                            <p className="text-gray-900 font-mono text-xs leading-relaxed">
-                              <strong>Business:</strong> {sponsorForm.company_name}<br />
-                              <strong>Phone:</strong> {sponsorForm.phone}<br />
-                              <strong>Amount:</strong> J${currentPrice.toLocaleString()}
-                            </p>
-                          </div>
-                          <button
-                            onClick={() => copyToClipboard(
-                              `Business: ${sponsorForm.company_name}\nPhone: ${sponsorForm.phone}\nAmount: J$${currentPrice.toLocaleString()}`,
-                              `${bank.bank}-payment-reference`
-                            )}
-                            className="w-full bg-gray-800 hover:bg-gray-900 text-white py-2 px-4 rounded-lg transition flex items-center justify-center gap-2"
-                          >
-                            {copied === `${bank.bank}-payment-reference` ? (
-                              <>
-                                <FiCheck size={18} />
-                                <span className="text-sm font-semibold">Copied!</span>
-                              </>
-                            ) : (
-                              <>
-                                <FiCopy size={18} />
-                                <span className="text-sm font-semibold">Copy for Transfer Notes</span>
-                              </>
-                            )}
-                          </button>
-                          <p className="text-gray-600 text-xs mt-2 text-center">
-                            💡 Helps us identify your payment faster
-                          </p>
-                        </div>                      </div>
+                {/* Profile Summary */}
+                <h3 className="text-2xl font-bold text-gray-800 mb-6">Your Profile:</h3>
+                <div className="bg-gray-50 rounded-xl p-6 mb-8 border-2 border-gray-200">
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-600 font-medium">Business Name:</span>
+                      <span className="font-semibold">{sponsorForm.company_name}</span>
                     </div>
-                  )
-                })}
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-600 font-medium">Plan Type:</span>
+                      <span className="font-semibold">{sponsorForm.is_featured ? '⭐ Featured Spot' : 'Regular Spot'}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-600 font-medium">Commission Rate:</span>
+                      <span className="text-accent font-bold text-lg">7% per closed deal</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-600 font-medium">Phone:</span>
+                      <span className="font-semibold">{sponsorForm.phone}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-600 font-medium">Email:</span>
+                      <span className="font-semibold">{sponsorForm.email}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Commission Structure */}
+                <h3 className="text-2xl font-bold text-gray-800 mb-6">Commission Structure:</h3>
+                <div className="grid md:grid-cols-2 gap-6 mb-8">
+                  <div className="bg-green-50 border-2 border-green-500 rounded-xl p-6">
+                    <h4 className="text-lg font-bold text-green-700 mb-3">Regular Spot</h4>
+                    <p className="text-gray-700 mb-3">
+                      Your business listed with standard visibility
+                    </p>
+                    <p className="text-sm text-gray-600">
+                      📊 Commission: <span className="font-bold text-accent">7% of deal value</span>
+                    </p>
+                  </div>
+                  
+                  <div className="bg-yellow-50 border-2 border-yellow-500 rounded-xl p-6">
+                    <h4 className="text-lg font-bold text-yellow-700 mb-3">⭐ Featured Spot</h4>
+                    <p className="text-gray-700 mb-3">
+                      Premium visibility with gold badge and priority placement
+                    </p>
+                    <p className="text-sm text-gray-600">
+                      📊 Commission: <span className="font-bold text-accent">11% of deal value</span>
+                    </p>
+                  </div>
+                </div>
 
                 {/* Confirmation Note */}
-                <div className="bg-green-50 border-2 border-green-500 rounded-xl p-6 text-center">
+                <div className="bg-green-50 border-2 border-green-500 rounded-xl p-6 text-center mb-8">
                   <p className="text-green-800 font-semibold mb-2">
-                    ✅ Your application has been received!
+                    ✅ Your profile is now LIVE!
                   </p>
                   <p className="text-green-700 text-sm">
-                    We'll call you at <strong>{sponsorForm.phone}</strong> to confirm once payment is verified.
+                    Customers can now see your business. You'll be contacted at <strong>{sponsorForm.phone}</strong> when deals come through.
                   </p>
                   <p className="text-green-700 text-sm mt-2">
-                    Confirmation email sent to: <strong>{sponsorForm.email}</strong>
+                    Confirmation details sent to: <strong>{sponsorForm.email}</strong>
                   </p>
+                  <p className="text-green-700 text-sm mt-3 font-semibold">
+                    💡 Start getting leads today - No upfront payment required!
+                  </p>
+                </div>
+
+                {/* Commission Payment Terms */}
+                <div className="bg-blue-50 border-2 border-blue-500 rounded-xl p-6 mb-8">
+                  <h3 className="text-lg font-bold text-blue-800 mb-4">When & How You'll Pay</h3>
+                  <div className="space-y-3 text-blue-700">
+                    <div className="flex gap-3">
+                      <span className="font-bold">1.</span>
+                      <p>Customer closes a deal with you</p>
+                    </div>
+                    <div className="flex gap-3">
+                      <span className="font-bold">2.</span>
+                      <p>We send you an invoice with 7% commission due</p>
+                    </div>
+                    <div className="flex gap-3">
+                      <span className="font-bold">3.</span>
+                      <p>Payment due within 7 days of invoice</p>
+                    </div>
+                    <div className="flex gap-3">
+                      <span className="font-bold">4.</span>
+                      <p>Multiple payment methods accepted (bank transfer, mobile money, etc.)</p>
+                    </div>
+                  </div>
                 </div>
 
                 {/* Contact */}
@@ -309,26 +318,28 @@ export default function AdvertisePage() {
                   <div className="grid md:grid-cols-2 gap-6">
                     <div className="border-2 border-gray-300 rounded-xl p-6 hover:border-accent transition">
                       <div className="text-center">
-                        <div className="text-5xl font-bold text-gray-800">J$8,970</div>
-                        <div className="text-gray-500 mt-2">per month</div>
-                        <div className="mt-4 text-xl font-semibold text-gray-700">Regular Spot</div>
+                        <div className="text-sm font-semibold text-gray-500 uppercase mb-2">NO UPFRONT FEE</div>
+                        <div className="text-gray-800 font-bold">Regular Spot</div>
+                        <div className="text-gray-600 mt-2 text-sm">Pay only on closed deals</div>
+                        <div className="mt-4 text-xl font-semibold text-accent">7% Commission</div>
                         <ul className="mt-4 text-sm text-gray-600 space-y-2 text-left">
                           <li>✓ Your business info displayed</li>
                           <li>✓ Phone, email, website links</li>
-                          <li>✓ 30 days visibility</li>
-                          <li>✓ Mobile & desktop</li>
+                          <li>✓ Mobile & desktop visibility</li>
+                          <li>✓ Standard placement</li>
                         </ul>
                       </div>
                     </div>
 
                     <div className="border-2 border-accent rounded-xl p-6 bg-red-50 relative">
                       <div className="absolute -top-3 -right-3 bg-accent text-white text-sm px-4 py-1 rounded-full font-bold shadow-lg">
-                        MOST POPULAR
+                        RECOMMENDED
                       </div>
                       <div className="text-center">
-                        <div className="text-5xl font-bold text-accent">J$14,970</div>
-                        <div className="text-gray-500 mt-2">per month</div>
-                        <div className="mt-4 text-xl font-semibold text-gray-700">⭐ Featured Spot</div>
+                        <div className="text-sm font-semibold text-gray-500 uppercase mb-2">NO UPFRONT FEE</div>
+                        <div className="text-gray-800 font-bold">⭐ Featured Spot</div>
+                        <div className="text-gray-600 mt-2 text-sm">Premium visibility, higher commission</div>
+                        <div className="mt-4 text-xl font-semibold text-accent">11% Commission</div>
                         <ul className="mt-4 text-sm text-gray-700 space-y-2 text-left">
                           <li>✓ Everything in Regular</li>
                           <li>✓ <strong>Gold "Featured" badge</strong></li>
@@ -359,6 +370,9 @@ export default function AdvertisePage() {
                       <div className="text-xl font-bold text-gray-800 mb-4">
                         Step 1: Select Your Advertising Package
                       </div>
+                      <p className="text-gray-600 mb-4 text-sm">
+                        Both plans use the same 7% commission model. Choose based on visibility level.
+                      </p>
                       <div className="grid grid-cols-2 gap-4">
                         <label className={`border-3 rounded-xl p-6 cursor-pointer transition ${
                           !sponsorForm.is_featured 
@@ -373,8 +387,9 @@ export default function AdvertisePage() {
                             className="sr-only"
                           />
                           <div className="text-center">
-                            <div className="text-xl font-bold text-gray-800">J$8,970</div>
-                            <div className="text-sm text-gray-600 mt-2">Regular Spot</div>
+                            <div className="text-sm font-bold text-gray-800">Regular</div>
+                            <div className="text-lg font-bold text-accent mt-2">7%</div>
+                            <div className="text-xs text-gray-600 mt-1">Commission</div>
                           </div>
                         </label>
                         <label className={`border-3 rounded-xl p-6 cursor-pointer transition relative ${
@@ -391,8 +406,9 @@ export default function AdvertisePage() {
                           />
                         
                           <div className="text-center">
-                            <div className="text-xl font-bold text-accent">J$14,970</div>
-                            <div className="text-sm text-gray-600 mt-2">⭐ Featured</div>
+                            <div className="text-sm font-bold text-gray-800">⭐ Featured</div>
+                            <div className="text-lg font-bold text-accent mt-2">11%</div>
+                            <div className="text-xs text-gray-600 mt-1">Commission</div>
                           </div>
                         </label>
                       </div>
@@ -498,7 +514,7 @@ export default function AdvertisePage() {
                           Sending...
                         </div>
                       ) : (
-                        `Continue to Payment (J$${currentPrice.toLocaleString()})`
+                        `Activate Your Profile (7% Commission)`
                       )}
                     </button>
 
@@ -525,20 +541,28 @@ export default function AdvertisePage() {
                 <h3 className="text-2xl font-bold text-gray-800 mb-6">Frequently Asked Questions</h3>
                 <div className="space-y-6">
                   <div>
-                    <p className="font-semibold text-gray-900 mb-2">How long will my ad run?</p>
-                    <p className="text-gray-600">30 days from the date your payment is confirmed.</p>
+                    <p className="font-semibold text-gray-900 mb-2">How does the commission work?</p>
+                    <p className="text-gray-600">You pay 7% of each deal's value. No upfront fees. For example, a J$100,000 deal costs you J$7,000 in commission.</p>
                   </div>
                   <div>
-                    <p className="font-semibold text-gray-900 mb-2">How quickly does my ad go live?</p>
-                    <p className="text-gray-600">Within 24 hours of receiving your payment. Usually faster!</p>
+                    <p className="font-semibold text-gray-900 mb-2">When do I pay?</p>
+                    <p className="text-gray-600">You only pay when you close a deal. We send you an invoice, and payment is due within 7 days.</p>
                   </div>
                   <div>
-                    <p className="font-semibold text-gray-900 mb-2">Can I change my ad details later?</p>
-                    <p className="text-gray-600">Yes! Just call or email us and we'll update it for free.</p>
+                    <p className="font-semibold text-gray-900 mb-2">What if I don't close any deals?</p>
+                    <p className="text-gray-600">You pay nothing! Your profile stays active and visible to potential customers indefinitely.</p>
                   </div>
                   <div>
                     <p className="font-semibold text-gray-900 mb-2">What's the difference between Regular and Featured?</p>
-                    <p className="text-gray-600">Featured ads get a gold badge, appear first, and get 3x more clicks.</p>
+                    <p className="text-gray-600">Regular is 7% commission, Featured is 11% commission. Featured gets a gold badge, appears first, and gets 3x more visibility for higher exposure.</p>
+                  </div>
+                  <div>
+                    <p className="font-semibold text-gray-900 mb-2">How do I know if a customer came from Dosnine?</p>
+                    <p className="text-gray-600">We'll contact you when a customer wants to work with you. We confirm the deal and send you an invoice for 7% of the agreed amount.</p>
+                  </div>
+                  <div>
+                    <p className="font-semibold text-gray-900 mb-2">Can I change my profile details later?</p>
+                    <p className="text-gray-600">Yes! Just contact us and we'll update your information for free anytime.</p>
                   </div>
                 </div>
               </div>
