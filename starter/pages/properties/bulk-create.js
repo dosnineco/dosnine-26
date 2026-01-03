@@ -42,7 +42,6 @@ export default function BulkCreatePage() {
         setTimeout(() => router.push('/'), 2000);
       }
     } catch (error) {
-      console.error('Access check error:', error);
       toast.error('Failed to verify access');
       setTimeout(() => router.push('/'), 2000);
     } finally {

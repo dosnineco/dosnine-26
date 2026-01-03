@@ -28,7 +28,7 @@ export default function MyPropertiesPage() {
         .single();
 
       if (userError) {
-        // console.error('Error fetching user:', userError);
+        // User fetch failed
         // toast.error('Failed to fetch user data');
         setLoading(false);
         return;
@@ -77,7 +77,6 @@ export default function MyPropertiesPage() {
       toast.success('Property and images deleted');
       setProperties(properties.filter((p) => p.id !== id));
     } catch (err) {
-      console.error('Delete error:', err);
       toast.error('Failed to delete property');
     }
   };

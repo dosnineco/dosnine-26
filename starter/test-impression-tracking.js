@@ -69,4 +69,6 @@ async function testImpressionTracking() {
   }
 }
 
-testImpressionTracking().catch(console.error);
+testImpressionTracking().catch(err => {
+  // Error in test execution
+});

@@ -8,11 +8,7 @@ const supabaseUrl = 'https://etikxypnxjsonefwnzkr.supabase.co';
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 if (!serviceRoleKey) {
-  console.error('\n❌ ERROR: SUPABASE_SERVICE_ROLE_KEY not found!');
-  console.error('\nTo fix this:');
-  console.error('1. Go to your Supabase Dashboard: https://supabase.com/dashboard/project/etikxypnxjsonefwnzkr/settings/api');
-  console.error('2. Copy the "service_role" key (NOT the anon key)');
-  console.error('3. Run: SUPABASE_SERVICE_ROLE_KEY=your-key-here node apply-storage-policies.js\n');
+  // Supabase service role key not found - check environment
   process.exit(1);
 }
 
@@ -42,27 +38,20 @@ USING (bucket_id = 'property-images');
 `;
 
 async function applyPolicies() {
-  console.log('🔧 Applying storage policies...\n');
+  // Applying storage policies
   
   const { data, error } = await supabase.rpc('exec_sql', { sql: policies });
   
   if (error) {
-    console.error('❌ Error applying policies:', error.message);
-    console.log('\n⚠️  Trying direct approach...\n');
+    // Error applying policies, trying direct approach
     
     // Try direct SQL query instead
     const { error: sqlError } = await supabase.from('storage.objects').select('*').limit(1);
-    console.error('Direct query result:', sqlError);
+    // Direct query error
     
-    console.log('\n📋 MANUAL STEPS REQUIRED:');
-    console.log('Since automated application failed, please:');
-    console.log('1. Go to: https://supabase.com/dashboard/project/etikxypnxjsonefwnzkr/editor');
-    console.log('2. Click "New Query"');
-    console.log('3. Paste the contents of storage-policy.sql');
-    console.log('4. Click "Run"\n');
+    // Manual steps required for storage policies
   } else {
-    console.log('✅ Storage policies applied successfully!');
-    console.log('You can now upload images.\n');
+    // Storage policies applied successfully
   }
 }
 

@@ -157,8 +157,21 @@ export default function AdvertisementGrid() {
   }
 
   return (
-    <div className="w-full bg-gray-200 mb-8 py-8 rounded-xl">
+    <div className="w-full bg-gray-200 mb-8 py-3 rounded-xl">
      
+     <h3 className="text-lg font-bold text-gray-800 px-6 mb-2">
+      You might also require?    </h3>
+
+ {/* Header */}
+      <div className="flex justify-start items-center ">
+        <Link
+          href="/advertise"
+          className="  italic text-blue-800 text-sm mb-2 px-6 underline rounded-lg font-semibold hover:bg-accent/90 transition "
+        >
+          Advertise Your Business
+        </Link> 
+      </div>
+
 
       {/* Ads Grid */}
       {ads.length > 0 ? (
@@ -211,12 +224,7 @@ export default function AdvertisementGrid() {
                 {ad.impressions || 0} views
               </p>
               
-              {ad.phone && (
-                <p className="text-xs text-gray-600 font-medium mb-3 flex items-center gap-1">
-                  <Phone className="w-3 h-3 flex-shrink-0" />
-                  <span className="truncate">{ad.phone}</span>
-                </p>
-              )}
+             
 
               <p className="text-xs text-gray-600 line-clamp-2">
                 {ad.description}
@@ -227,7 +235,6 @@ export default function AdvertisementGrid() {
         </div>
       ) : (
         <div className="text-center py-12">
-          <p className="text-gray-500 mb-6">No advertisers yet. Be the first!</p>
           <Link
             href="/advertise"
             className="inline-block bg-accent text-white px-8 py-4 rounded-lg font-semibold hover:bg-accent/90 transition "
@@ -237,15 +244,7 @@ export default function AdvertisementGrid() {
         </div>
       )}
 
- {/* Header */}
-      <div className="flex justify-start items-center ">
-        <Link
-          href="/advertise"
-          className=" mt-4 italic text-gray-800 px-6 underline rounded-lg font-semibold hover:bg-accent/90 transition "
-        >
-          Advertise Your Business
-        </Link> 
-      </div>
+
     
     </div>
   )

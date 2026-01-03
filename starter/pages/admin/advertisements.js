@@ -184,6 +184,36 @@ export default function AdminAdvertisements() {
     }
   }
 
+  const reverseApproval = async (submissionId, companyName) => {
+    if (!confirm(`Reverse approval for ${companyName}? This will NOT delete the created ad.`)) return
+    
+    setLoading(true)
+    try {
+      const { error } = await supabase
+        .from('sponsor_submissions')
+        .update({ status: 'pending_payment' })
+        .eq('id', submissionId)
+
+      if (error) throw error
+
+      toast.success('Submission reverted to pending payment')
+      loadSubmissions()
+    } catch (err) {
+      toast.error(err.message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const findAdFromSubmission = async (submission) => {
+    // Find the ad created from this submission by matching company name and details
+    const matchingAd = ads.find(
+      ad => ad.company_name === submission.company_name && 
+            ad.email === submission.email
+    )
+    return matchingAd
+  }
+
   const startEdit = (ad) => {
     setEditingAd(ad)
     setForm({
@@ -452,67 +482,167 @@ export default function AdminAdvertisements() {
       {activeTab === 'submissions' && (
         <div className="bg-white rounded-xl shadow-lg p-6">
           <h2 className="text-xl font-bold mb-4">Sponsor Submissions</h2>
+          
+          {/* Filter tabs */}
+          <div className="flex gap-2 mb-6 border-b pb-4">
+            <button
+              onClick={() => {/* filter to pending */}}
+              className="px-4 py-2 bg-yellow-100 text-yellow-700 rounded-lg font-semibold text-sm hover:bg-yellow-200"
+            >
+              Pending ({submissions.filter(s => s.status === 'pending_payment').length})
+            </button>
+            <button
+              onClick={() => {/* filter to approved */}}
+              className="px-4 py-2 bg-green-100 text-green-700 rounded-lg font-semibold text-sm hover:bg-green-200"
+            >
+              Approved ({submissions.filter(s => s.status === 'approved').length})
+            </button>
+            <button
+              onClick={() => {/* filter to rejected */}}
+              className="px-4 py-2 bg-red-100 text-red-700 rounded-lg font-semibold text-sm hover:bg-red-200"
+            >
+              Rejected ({submissions.filter(s => s.status === 'rejected').length})
+            </button>
+          </div>
+
           <div className="space-y-4">
-            {submissions.map(sub => (
-              <div
-                key={sub.id}
-                className={`p-5 rounded-lg border-2 ${
-                  sub.status === 'pending_payment'
-                    ? 'bg-yellow-50 border-yellow-300'
-                    : sub.status === 'approved'
-                    ? 'bg-green-50 border-green-300'
-                    : 'bg-red-50 border-red-300'
-                }`}
-              >
-                <div className="flex justify-between items-start mb-3">
-                  <div>
-                    <h3 className="font-bold text-lg">{sub.company_name}</h3>
-                    <p className="text-sm text-gray-600">
-                      {sub.category} • {sub.is_featured ? 'J$14,970' : 'J$8,970'} {sub.is_featured && '(Featured)'}
+            {submissions.map(sub => {
+              const matchingAd = ads.find(
+                ad => ad.company_name === sub.company_name && ad.email === sub.email
+              )
+
+              return (
+                <div
+                  key={sub.id}
+                  className={`p-5 rounded-lg border-2 ${
+                    sub.status === 'pending_payment'
+                      ? 'bg-yellow-50 border-yellow-300'
+                      : sub.status === 'approved'
+                      ? 'bg-green-50 border-green-300'
+                      : 'bg-red-50 border-red-300'
+                  }`}
+                >
+                  <div className="flex justify-between items-start mb-3">
+                    <div>
+                      <h3 className="font-bold text-lg">{sub.company_name}</h3>
+                      <p className="text-sm text-gray-600">
+                        {sub.category} • J${sub.is_featured ? '14,970' : '8,970'} {sub.is_featured && '(Featured)'}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      {sub.status === 'approved' && matchingAd && (
+                        <span className="text-xs bg-blue-500 text-white px-2 py-1 rounded font-bold">
+                          ✓ Ad Created (ID: {matchingAd.id.slice(0, 8)})
+                        </span>
+                      )}
+                      <span
+                        className={`px-3 py-1 rounded-full text-xs font-bold whitespace-nowrap ${
+                          sub.status === 'pending_payment'
+                            ? 'bg-yellow-400 text-yellow-900'
+                            : sub.status === 'approved'
+                            ? 'bg-green-400 text-green-900'
+                            : 'bg-red-400 text-red-900'
+                        }`}
+                      >
+                        {sub.status.replace('_', ' ').toUpperCase()}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="mb-3 space-y-1 text-sm">
+                    <p><strong>Phone:</strong> {sub.phone}</p>
+                    <p><strong>Email:</strong> {sub.email}</p>
+                    {sub.website && <p><strong>Website:</strong> {sub.website}</p>}
+                    <p className="mt-2"><strong>Description:</strong> {sub.description}</p>
+                    <p className="text-xs text-gray-500 mt-2">
+                      Submitted: {new Date(sub.submitted_at).toLocaleString()}
                     </p>
                   </div>
-                  <span
-                    className={`px-3 py-1 rounded-full text-xs font-bold ${
-                      sub.status === 'pending_payment'
-                        ? 'bg-yellow-400 text-yellow-900'
-                        : sub.status === 'approved'
-                        ? 'bg-green-400 text-green-900'
-                        : 'bg-red-400 text-red-900'
-                    }`}
-                  >
-                    {sub.status.replace('_', ' ').toUpperCase()}
-                  </span>
-                </div>
 
-                <div className="mb-3 space-y-1 text-sm">
-                  <p><strong>Phone:</strong> {sub.phone}</p>
-                  <p><strong>Email:</strong> {sub.email}</p>
-                  {sub.website && <p><strong>Website:</strong> {sub.website}</p>}
-                  <p className="mt-2"><strong>Description:</strong> {sub.description}</p>
-                  <p className="text-xs text-gray-500 mt-2">
-                    Submitted: {new Date(sub.submitted_at).toLocaleString()}
-                  </p>
-                </div>
+                  {sub.status === 'pending_payment' && (
+                    <div className="flex gap-3">
+                      <button
+                        onClick={() => approveSubmission(sub)}
+                        disabled={loading}
+                        className="bg-green-600 text-white px-6 py-2 rounded-lg font-semibold hover:bg-green-700 disabled:bg-gray-400"
+                      >
+                        ✓ Approve & Activate
+                      </button>
+                      <button
+                        onClick={() => rejectSubmission(sub.id)}
+                        className="bg-red-600 text-white px-6 py-2 rounded-lg font-semibold hover:bg-red-700"
+                      >
+                        ✗ Reject
+                      </button>
+                    </div>
+                  )}
 
-                {sub.status === 'pending_payment' && (
-                  <div className="flex gap-3">
-                    <button
-                      onClick={() => approveSubmission(sub)}
-                      disabled={loading}
-                      className="bg-green-600 text-white px-6 py-2 rounded-lg font-semibold hover:bg-green-700 disabled:bg-gray-400"
-                    >
-                      ✓ Approve & Activate
-                    </button>
-                    <button
-                      onClick={() => rejectSubmission(sub.id)}
-                      className="bg-red-600 text-white px-6 py-2 rounded-lg font-semibold hover:bg-red-700"
-                    >
-                      ✗ Reject
-                    </button>
-                  </div>
-                )}
-              </div>
-            ))}
+                  {sub.status === 'approved' && (
+                    <div className="flex gap-3 flex-wrap">
+                      {matchingAd ? (
+                        <>
+                          <button
+                            onClick={() => startEdit(matchingAd)}
+                            className="bg-blue-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-blue-700 text-sm"
+                          >
+                            📝 Edit Ad
+                          </button>
+                          <button
+                            onClick={() => toggleActive(matchingAd.id, matchingAd.is_active)}
+                            className={`px-4 py-2 rounded-lg font-semibold text-sm ${
+                              matchingAd.is_active
+                                ? 'bg-yellow-100 text-yellow-700 hover:bg-yellow-200'
+                                : 'bg-green-100 text-green-700 hover:bg-green-200'
+                            }`}
+                          >
+                            {matchingAd.is_active ? '⏸️ Deactivate Ad' : '▶️ Activate Ad'}
+                          </button>
+                          <button
+                            onClick={() => deleteAd(matchingAd.id)}
+                            className="bg-red-100 text-red-700 px-4 py-2 rounded-lg font-semibold hover:bg-red-200 text-sm"
+                          >
+                            🗑️ Delete Ad
+                          </button>
+                        </>
+                      ) : (
+                        <p className="text-yellow-700 text-sm">⚠️ Ad not found - may have been manually created</p>
+                      )}
+                      
+                      <button
+                        onClick={() => reverseApproval(sub.id, sub.company_name)}
+                        disabled={loading}
+                        className="bg-gray-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-gray-700 disabled:bg-gray-400 text-sm"
+                      >
+                        ↺ Revert to Pending
+                      </button>
+                    </div>
+                  )}
+
+                  {sub.status === 'rejected' && (
+                    <div className="flex gap-3">
+                      <button
+                        onClick={() => {
+                          const newStatus = 'pending_payment'
+                          supabase
+                            .from('sponsor_submissions')
+                            .update({ status: newStatus })
+                            .eq('id', sub.id)
+                            .then(() => {
+                              toast.success('Submission restored to pending')
+                              loadSubmissions()
+                            })
+                            .catch(err => toast.error(err.message))
+                        }}
+                        className="bg-blue-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-blue-700 text-sm"
+                      >
+                        ↺ Restore to Pending
+                      </button>
+                      <p className="text-sm text-gray-600 py-2">Rejected submissions can be restored if needed.</p>
+                    </div>
+                  )}
+                </div>
+              )
+            })}
 
             {submissions.length === 0 && (
               <p className="text-center text-gray-500 py-8">No submissions yet</p>

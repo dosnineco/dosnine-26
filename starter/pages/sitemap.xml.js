@@ -122,7 +122,6 @@ export async function getServerSideProps({ res }) {
     res.write(xml);
     res.end();
   } catch (err) {
-    console.error('Sitemap generation error:', err);
     res.statusCode = 500;
     res.end();
   }

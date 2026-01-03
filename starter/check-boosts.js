@@ -7,7 +7,8 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 async function checkBoosts() {
-  console.log('Checking for active boosts...\n');
+  // Checking for active boosts
+
   
   // Check if table exists and get all boosts
   const { data: allBoosts, error: allError } = await supabase
@@ -16,11 +17,12 @@ async function checkBoosts() {
     .limit(5);
   
   if (allError) {
-    console.error('Error fetching boosts:', allError);
+    // Error fetching boosts
     return;
   }
   
-  console.log(`Total boosts in table: ${allBoosts?.length || 0}`);
+  // Total boosts in table
+
   if (allBoosts && allBoosts.length > 0) {
     console.log('All boosts:', JSON.stringify(allBoosts, null, 2));
   }
@@ -40,11 +42,12 @@ async function checkBoosts() {
     .gte('boost_end_date', new Date().toISOString());
   
   if (activeError) {
-    console.error('Error fetching active boosts:', activeError);
+    // Error fetching active boosts
     return;
   }
   
-  console.log(`\nActive boosts (not expired): ${activeBoosts?.length || 0}`);
+  // Active boosts count
+
   if (activeBoosts && activeBoosts.length > 0) {
     console.log('Active boosts:', JSON.stringify(activeBoosts, null, 2));
   } else {

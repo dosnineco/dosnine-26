@@ -35,10 +35,6 @@ export default function AgentDashboard() {
 
   useEffect(() => {
     if (initialUserData) {
-      console.log('Agent Dashboard - User Data:', initialUserData);
-      console.log('Agent Dashboard - Agent Data:', initialUserData.agent);
-      console.log('Agent Dashboard - Verification Status:', initialUserData.agent?.verification_status);
-      console.log('Agent Dashboard - Payment Status:', initialUserData.agent?.payment_status);
       
       setAgentData(initialUserData.agent);
       
@@ -70,7 +66,6 @@ export default function AgentDashboard() {
       });
       setRequests(response.data.requests || []);
     } catch (error) {
-      console.error('Failed to fetch requests:', error);
       if (error.response?.status === 403) {
         toast.error('Agent verification required');
         router.push('/agent/signup');
@@ -116,7 +111,6 @@ export default function AgentDashboard() {
       // Close modal if open
       setSelectedRequest(null);
     } catch (error) {
-      console.error('Failed to update request:', error);
       toast.error(error.response?.data?.error || 'Failed to update request');
     } finally {
       setActionLoading(false);

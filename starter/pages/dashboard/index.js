@@ -302,7 +302,6 @@ export default function Dashboard() {
                               });
                               fetchDashboardData();
                             } catch (error) {
-                              console.error('Failed to withdraw:', error);
                             }
                           }
                         }}

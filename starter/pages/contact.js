@@ -32,7 +32,6 @@ export default function ContactPage() {
       toast.success('Message sent successfully! We\'ll get back to you soon.');
       setFormData({ name: '', email: '', phone: '', subject: '', message: '' });
     } catch (err) {
-      console.error('Contact form error:', err);
       toast.error('Failed to send message. Please email us directly.');
     } finally {
       setSubmitting(false);

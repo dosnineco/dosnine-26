@@ -156,7 +156,6 @@ export default function AdminRequestsPage() {
       // Refresh data after a short delay
       setTimeout(() => fetchData(), 200);
     } catch (err) {
-      console.error('❌ Assignment error:', err);
       toast.error(`Error: ${err.message}`);
     } finally {
       setAssignLoading(false);
@@ -167,7 +166,6 @@ export default function AdminRequestsPage() {
     if (!confirm('DELETE this service request?\n\nThis action cannot be undone!')) return;
 
     try {
-      console.log('🗑️ Deleting request:', requestId);
 
       const { error, data } = await supabase
         .from('service_requests')

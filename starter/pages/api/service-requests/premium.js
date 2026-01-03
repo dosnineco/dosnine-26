@@ -63,7 +63,7 @@ export default async function handler(req, res) {
       });
 
     if (notificationError) {
-      console.error('Error creating notification:', notificationError);
+
       // Don't fail the entire request if notification fails
     }
 

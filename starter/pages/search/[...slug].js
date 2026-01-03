@@ -67,7 +67,6 @@ export default function SearchLandingPage({ slug, properties: initialProperties,
       const state = { page, scrollY: window.scrollY, index };
       sessionStorage.setItem('dosnine_list_state', JSON.stringify(state));
     } catch (err) {
-      console.error('Failed to save list state', err);
     }
   };
 

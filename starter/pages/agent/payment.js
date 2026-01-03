@@ -112,7 +112,6 @@ export default function AgentPayment() {
         });
 
       if (uploadError) {
-        console.error('Upload error:', uploadError);
         throw new Error('Failed to upload file: ' + uploadError.message);
       }
 
@@ -132,14 +131,12 @@ export default function AgentPayment() {
         .eq('id', agent.id);
 
       if (updateError) {
-        console.error('Update error:', updateError);
         throw new Error('Failed to update payment status: ' + updateError.message);
       }
 
       toast.success('Payment proof submitted successfully! You now have full access.');
       router.push('/agent/dashboard');
     } catch (error) {
-      console.error('Upload error:', error);
       toast.error(error.message || 'Failed to submit proof. Please try again.');
     } finally {
       setUploading(false);

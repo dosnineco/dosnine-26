@@ -31,7 +31,6 @@ export default function AdminApprovalsPage() {
         setIsAdmin(true);
       }
     } catch (error) {
-      console.error('Error checking admin access:', error);
     } finally {
       setChecking(false);
     }

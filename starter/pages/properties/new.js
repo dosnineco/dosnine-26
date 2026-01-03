@@ -41,7 +41,6 @@ export default function NewProperty() {
         
         setCheckingAccess(false);
       } catch (error) {
-        console.error('Failed to check access:', error);
         setCheckingAccess(false);
       }
     }

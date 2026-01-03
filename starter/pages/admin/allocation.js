@@ -63,9 +63,9 @@ export default function AllocationDashboard() {
       if (agents && agents.length === 1) {
         const agentName = agents[0].users?.full_name || agents[0].business_name;
       } else if (agents && agents.length > 1) {
-        console.log(`✅ Multi-agent system - ${agents.length} agents in rotation`);
+        // Multi-agent system active
       } else {
-        console.log('⚠️ No eligible agents - Requests will queue until agent is approved and paid');
+        // No eligible agents
       }
 
       // Get request stats
@@ -73,8 +73,7 @@ export default function AllocationDashboard() {
         .from('service_requests')
         .select('status, assigned_agent_id');
 
-      console.log('Fetched requests:', requests);
-      console.log('Requests error:', requestsError);
+
 
       const assignedCount = requests?.filter(r => r.assigned_agent_id).length || 0;
       const openCount = requests?.filter(r => r.status === 'open').length || 0;
@@ -100,7 +99,6 @@ export default function AllocationDashboard() {
 
       setAgentStats(agentData);
     } catch (error) {
-      console.error('Error loading allocation stats:', error);
     } finally {
       setLoading(false);
     }

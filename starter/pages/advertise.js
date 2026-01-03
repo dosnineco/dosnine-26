@@ -91,7 +91,6 @@ export default function AdvertisePage() {
       setStep(2) // Move to payment screen
       window.scrollTo({ top: 0, behavior: 'smooth' })
     } catch (err) {
-      console.error('Submission error:', err)
       toast.error(err.message || 'Error submitting. Please try again.')
     } finally {
       setSubmitting(false)

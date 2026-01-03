@@ -46,7 +46,6 @@ export default function AdminVisitorEmails() {
         setEmails(data || []);
         setTotalCount(count || 0);
       } catch (err) {
-        console.error('Error fetching visitor emails:', err);
       } finally {
         setLoading(false);
       }

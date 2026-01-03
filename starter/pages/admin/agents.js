@@ -47,7 +47,6 @@ export default function AdminAgents() {
         router.push('/dashboard');
       }
     } catch (error) {
-      console.error('Admin verification failed:', error);
       toast.error('Access denied');
       router.push('/dashboard');
     } finally {
@@ -58,11 +57,7 @@ export default function AdminAgents() {
   async function fetchAgents() {
     setLoading(true);
     try {
-      console.log('Fetching agents with:', { 
-        clerkId: user.id, 
-        status: filterStatus 
-      });
-
+      // Fetching agents list
       const response = await axios.get('/api/admin/agents/list', {
         params: {
           clerkId: user.id,
@@ -73,15 +68,6 @@ export default function AdminAgents() {
 
       const agentData = response.data.agents || [];
       setAgents(agentData);
-      
-      // Log data for debugging
-      console.log('✅ Loaded agents:');
-      if (agentData.length > 0) {
-        console.log('Sample agent:');
-      } else {
-        console.log('⚠️ No agents found in database');
-        toast.info('No agents found. Create a test agent at /agent/signup');
-      }
     } catch (error) {
    
       toast.error(error.response?.data?.error || 'Failed to load agents');
@@ -176,7 +162,6 @@ export default function AdminAgents() {
           });
           urls.license = response.data.signedUrl;
         } catch (err) {
-          console.error('Failed to load license:', err);
           urls.license = agent.license_file_url; // Fallback to original URL
         }
       }
@@ -194,14 +179,12 @@ export default function AdminAgents() {
           });
           urls.registration = response.data.signedUrl;
         } catch (err) {
-          console.error('Failed to load registration:', err);
           urls.registration = agent.registration_file_url; // Fallback
         }
       }
 
       setDocumentUrls(urls);
     } catch (error) {
-      console.error('Failed to load documents:', error);
     } finally {
       setLoadingDocs(false);
     }
@@ -555,7 +538,6 @@ export default function AdminAgents() {
                             alt="Agent License"
                             className="w-full h-auto object-contain"
                             onError={(e) => {
-                              console.error('Failed to load license image');
                               e.target.style.display = 'none';
                               e.target.nextSibling.style.display = 'flex';
                             }}
@@ -587,7 +569,6 @@ export default function AdminAgents() {
                             className="w-full h-auto object-contain"
                             onError={(e) => {
                               console.error('Failed to load registration image');
-                              e.target.style.display = 'none';
                               e.target.nextSibling.style.display = 'flex';
                             }}
                           />

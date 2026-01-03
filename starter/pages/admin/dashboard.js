@@ -43,7 +43,6 @@ export default function AdminDashboard() {
       setIsAdmin(true);
       fetchData();
     } catch (err) {
-      console.error('Error checking admin access:', err);
       setIsAdmin(false);
     }
   };
@@ -237,7 +236,6 @@ export default function AdminDashboard() {
       toast.success(`Property deleted: ${imageCount} images + ${boostCount} boosts removed`);
       setProperties(properties.filter((p) => p.id !== id));
     } catch (err) {
-      console.error('Delete error:', err);
       toast.error('Failed to delete property');
     }
   };

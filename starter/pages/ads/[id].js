@@ -42,7 +42,6 @@ export default function AdDetailPage() {
         setAd(prev => prev ? { ...prev, clicks: (prev.clicks || 0) + 1 } : null)
       }
     } catch (err) {
-      console.error('Failed to track click:', err)
     }
   }
 
@@ -126,78 +125,23 @@ export default function AdDetailPage() {
                 
               </div>
 
-              {/* Contact Information */}
-              <div className="bg-gray-50 rounded-xl p-8 mb-8">
-                <h2 className="text-2xl font-bold text-gray-800 mb-6">Contact Information</h2>
-                <div className="space-y-4">
-                  {ad.phone && (
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 bg-accent rounded-full flex items-center justify-center text-white text-xl">
-                        📞
-                      </div>
-                      <div>
-                        <p className="text-sm text-gray-600 font-medium">Phone</p>
-                        <a
-                          href={`tel:${ad.phone}`}
-                          className="text-xl font-bold text-gray-800 hover:text-accent transition"
-                        >
-                          {ad.phone}
-                        </a>
-                      </div>
-                    </div>
-                  )}
-
-                  {ad.email && (
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 bg-accent rounded-full flex items-center justify-center text-white text-xl">
-                        ✉️
-                      </div>
-                      <div>
-                        <p className="text-sm text-gray-600 font-medium">Email</p>
-                        <a
-                          href={`mailto:${ad.email}`}
-                          className="text-xl font-bold text-gray-800 hover:text-accent transition break-all"
-                        >
-                          {ad.email}
-                        </a>
-                      </div>
-                    </div>
-                  )}
-
-                  {ad.website && (
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 bg-accent rounded-full flex items-center justify-center text-white text-xl">
-                        🌐
-                      </div>
-                      <div>
-                        <p className="text-sm text-gray-600 font-medium">Website</p>
-                        <a
-                          href={ad.website}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-xl font-bold text-accent hover:underline break-all"
-                        >
-                          Visit Website →
-                        </a>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
+          
 
               {/* Call to Action */}
               <div className="bg-accent rounded-xl p-8 text-white text-center">
-                <h3 className="text-2xl font-bold mb-3">Get in Touch Today!</h3>
+                <h3 className="text-2xl font-bold mb-3">Get a Quote from {ad.company_name}</h3>
                 <p className="mb-6 text-white/90">
                   Contact {ad.company_name} for professional service
                 </p>
                 <div className="flex flex-col sm:flex-row gap-4 justify-center">
                   {ad.phone && (
                     <a
-                      href={`tel:${ad.phone}`}
+                      href={`https://wa.me/1${ad.phone}?text=Hello%20I%20found%20your%20service%20via%20Dosnine%20Properties`}
+                      target="_blank"
+                      rel="noopener noreferrer"
                       className="bg-white text-accent px-8 py-4 rounded-lg font-bold hover:bg-gray-100 transition shadow-lg"
                     >
-                      📞 Call Now
+                      WhatsApp Now
                     </a>
                   )}
                   {ad.email && (
@@ -205,7 +149,7 @@ export default function AdDetailPage() {
                       href={`mailto:${ad.email}`}
                       className="bg-white/10 border-2 border-white text-white px-8 py-4 rounded-lg font-bold hover:bg-white/20 transition"
                     >
-                      ✉️ Send Email
+                      Send Email
                     </a>
                   )}
                 </div>
@@ -213,12 +157,7 @@ export default function AdDetailPage() {
             </div>
           </div>
 
-          {/* Back to Home */}
-          <div className="mt-8 text-center">
-            <Link href="/" className="text-accent font-semibold text-lg hover:underline">
-              ← Back to Browse Properties
-            </Link>
-          </div>
+    
         </div>
       </div>
     </>

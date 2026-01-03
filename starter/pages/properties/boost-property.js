@@ -136,7 +136,6 @@ export default function BoostProperty() {
       toast.success('Property boost activated successfully!');
       router.push('/properties/my-listings');
     } catch (err) {
-      console.error('Error activating boost:', err);
       toast.error('Failed to activate boost. Please contact support.');
     }
   };

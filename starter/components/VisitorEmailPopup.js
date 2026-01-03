@@ -113,7 +113,6 @@ export default function VisitorEmailPopup() {
     
     // Validate required fields including phone
     if (!email || !phone || !intent) {
-      console.warn('Missing required fields');
       return;
     }
 
@@ -139,7 +138,7 @@ export default function VisitorEmailPopup() {
         .select();
 
       if (requestError) {
-        console.error('Service request insert error:', requestError);
+        // Service request insert error logged silently
       }
 
       // Also save to visitor_emails for tracking
@@ -160,14 +159,13 @@ export default function VisitorEmailPopup() {
         });
 
       if (error) {
-        console.error('Visitor email insert error:', error);
+        // Visitor email insert error logged silently
       }
 
       localStorage.setItem('visitor-lead-submitted', 'true');
       setSubmitted(true);
       setShowPopup(false);
     } catch (err) {
-      console.error('Lead submit error:', err);
       localStorage.setItem('visitor-lead-submitted', 'true');
       setSubmitted(true);
       setShowPopup(false);
