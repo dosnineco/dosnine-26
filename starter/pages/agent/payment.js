@@ -10,9 +10,9 @@ import { Copy, Check, AlertCircle, ChevronDown, Activity } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 
 const PRICING_TIERS = [
-  { amount: 1710, requests: 3, label: 'Starter', description: 'Testing the platform' },
-  { amount: 8250, requests: 15, label: 'Standard', description: 'Active agents' },
-  { amount: 12000, requests: 24, label: 'Premium', description: 'Top performers', isStar: true }
+  { amount: 1710, requests: 3, label: 'Essential', description: 'Up to 3 requests' },
+  { amount: 8250, requests: 15, label: 'Customized', description: 'Up to 15 requests' },
+  { amount: 12000, requests: 24, label: 'Limited', description: 'Up to 24 requests' }
 ];
 
 export default function AgentPayment() {
@@ -170,7 +170,6 @@ export default function AgentPayment() {
                       <div className="text-left">
                         <div className="flex items-center gap-2">
                           <h3 className="text-lg font-semibold text-gray-900">{tier.label}</h3>
-                          {tier.isStar && <span className="text-xl">⭐</span>}
                         </div>
                         <p className="text-3xl font-bold text-accent mt-2">J${tier.amount.toLocaleString()}</p>
                         <p className="text-sm text-gray-600 mt-1">{tier.requests} requests</p>
@@ -187,13 +186,12 @@ export default function AgentPayment() {
                 </div>
               </div>
 
-              {/* Selected Plan Summary */}
+              {/* Selected Plan Summary
               <div className="bg-gradient-to-r from-accent/10 to-accent/5 rounded-lg p-6 mb-8 border-2 border-accent/30">
                 <div className="text-center">
                   <p className="text-gray-600 text-sm uppercase tracking-widest font-semibold">You Selected</p>
                   <div className="flex items-center justify-center gap-2 mt-2">
                     <p className="text-4xl font-bold text-accent">{selectedPrice.label}</p>
-                    {selectedPrice.isStar && <span className="text-2xl">⭐</span>}
                   </div>
                   <p className="text-5xl font-bold text-accent mt-3">J${selectedPrice.amount.toLocaleString()}</p>
                   <div className="mt-4 flex items-center justify-center gap-4 text-sm">
@@ -201,10 +199,10 @@ export default function AgentPayment() {
                     <span className="text-gray-600">{selectedPrice.description}</span>
                   </div>
                 </div>
-              </div>
+              </div> */}
 
               {/* Bank Transfer Instructions */}
-              <div className="bg-gray-100 border-l-4 border-blue-500 rounded-lg p-6 mb-6">
+              <div className="bg-white border-l-4 border-blue-500 rounded-lg p-6 mb-6">
                 <div className="flex items-start gap-3 mb-4">
                   <AlertCircle className="text-blue-600 flex-shrink-0 mt-1" size={20} />
                   <div>
@@ -230,33 +228,58 @@ export default function AgentPayment() {
                     "Jamaica National Bank (JN)": "text-yellow-700 border-yellow-200"
                   };
                   return (
-                  <div key={index} className={`rounded-lg p-4 mb-3 last:mb-0 ${cardColors[bank.bank] || 'bg-white'}`}>
-                    <h4 className={`font-semibold mb-3 border-b pb-2 ${headerColors[bank.bank] || 'text-gray-900'}`}>{bank.bank}</h4>
-                    <div className="space-y-2">
+                  <div key={index} className={`rounded-lg p-3 md:p-4 mb-2 md:mb-3 last:mb-0 ${cardColors[bank.bank] || 'bg-white'}`}>
+                    <h4 className={`font-semibold mb-2 md:mb-3 border-b pb-1 md:pb-2 text-sm md:text-base ${headerColors[bank.bank] || 'text-gray-900'}`}>{bank.bank}</h4>
+                    <div className="space-y-1 md:space-y-2">
                       {Object.entries(bank).filter(([key]) => key !== 'bank').map(([key, value]) => (
-                        <div key={key} className="flex justify-between items-center">
-                          <span className="text-gray-600 text-sm capitalize">{key.replace(/([A-Z])/g, ' $1').trim()}:</span>
-                          <div className="flex items-center gap-2">
-                            <span className="font-semibold text-gray-900">{value}</span>
+                        <div key={key} className="flex justify-between items-center gap-2">
+                          <span className="text-gray-700 text-xs md:text-sm font-medium capitalize">{key.replace(/([A-Z])/g, ' $1').trim()}:</span>
+                          <div className="flex items-center gap-1 md:gap-2">
+                            <span className="font-semibold text-gray-900 text-xs md:text-sm">{value}</span>
                             <button
                               onClick={() => copyToClipboard(value, `${bank.bank}-${key}`)}
-                              className="text-blue-600 hover:text-blue-700 p-1"
+                              className="text-gray-700 hover:text-gray-900 p-2 md:p-2.5 font-medium"
                             >
-                              {copied === `${bank.bank}-${key}` ? <Check size={14} /> : <Copy size={14} />}
+                              {copied === `${bank.bank}-${key}` ? <Check size={18} /> : <Copy size={18} />}
                             </button>
                           </div>
                         </div>
                       ))}
+                      <div className="flex flex-col gap-1 pt-1 md:pt-2">
+                        <span className="text-gray-800 text-xs md:text-sm font-bold">Notes to Include:</span>
+                        <div className="flex items-start gap-1 md:gap-2">
+                          <span className="font-semibold text-gray-900 text-xs break-words">{selectedPrice.label} Plan ({selectedPrice.requests} requests) - {user?.primaryEmailAddress?.emailAddress?.split('@')[0]}</span>
+                          <button
+                            onClick={() => copyToClipboard(`${selectedPrice.label} Plan (${selectedPrice.requests} requests) - ${user?.primaryEmailAddress?.emailAddress?.split('@')[0]}`, `${bank.bank}-notes`)}
+                            className="text-gray-700 hover:text-gray-900 p-2 md:p-2.5 font-medium flex-shrink-0"
+                          >
+                            {copied === `${bank.bank}-notes` ? <Check size={18} /> : <Copy size={18} />}
+                          </button>
+                        </div>
+                      </div>
+                      <div className="flex justify-between items-center pt-1 md:pt-2 border-t border-gray-400">
+                        <span className="text-gray-800 text-xs md:text-sm font-bold">Amount to Pay:</span>
+                        <div className="flex items-center gap-1 md:gap-2">
+                          <span className="font-bold text-gray-900 text-xs md:text-sm">J${selectedPrice.amount.toLocaleString()}</span>
+                          <button
+                            onClick={() => copyToClipboard(selectedPrice.amount.toString(), `${bank.bank}-amount`)}
+                            className="text-gray-700 hover:text-gray-900 p-2 md:p-2.5 font-medium"
+                          >
+                            {copied === `${bank.bank}-amount` ? <Check size={18} /> : <Copy size={18} />}
+                          </button>
+                        </div>
+                      </div>
+                     
                     </div>
                   </div>
                   );
                 })}
 
-                <div className="bg-yellow-50 border border-yellow-200 rounded p-3 mt-4">
+                {/* <div className="bg-yellow-50 border border-yellow-200 rounded p-3 mt-4">
                   <p className="text-xs text-yellow-800">
                     <strong>Important:</strong> Include your email ({user?.primaryEmailAddress?.emailAddress}) in the payment notes so we can verify your payment quickly.
                   </p>
-                </div>
+                </div> */}
               </div>
 
               {/* WhatsApp Submission */}
@@ -278,7 +301,7 @@ export default function AgentPayment() {
               </div>
 
               <p className="text-center text-sm font-semibold text-green-700 mt-4 bg-green-50 px-4 py-3 rounded-lg">
-                ✓ Verification 24hrs or less from sending proof
+                Verification 24hrs or less from sending proof
               </p>
             </div>
           </div>
@@ -292,7 +315,7 @@ export default function AgentPayment() {
               {[
                 {
                   question: "What's the difference between plans?",
-                  answer: "Starter gives you 3 requests for J$1,710 - perfect for testing. Standard gives you 15 requests for J$8,250 for active agents. Premium gives you 24 requests for J$12,000 for top performers. Choose based on how many leads you want to handle."
+                  answer: "Essential gives you 3 requests for J$1,710 - perfect for testing. Customized gives you 15 requests for J$8,250 for active agents. Limited gives you 24 requests for J$12,000 for top performers. Choose based on how many leads you want to handle."
                 },
                 {
                   question: "What types of requests are included?",
