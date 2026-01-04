@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useUser } from '@clerk/nextjs';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
@@ -6,10 +6,14 @@ import axios from 'axios';
 import toast from 'react-hot-toast';
 import { useRoleProtection } from '../../lib/useRoleProtection';
 import { isVerifiedAgent, needsAgentPayment } from '../../lib/rbac';
-import { FiCopy, FiCheck, FiAlertCircle, FiUpload } from 'react-icons/fi';
+import { Copy, Check, AlertCircle, ChevronDown, Activity } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 
-const UNLOCK_FEE = 8050; // JMD per month for up to 25 agent leads
+const PRICING_TIERS = [
+  { amount: 1710, requests: 3, label: 'Starter', description: 'Testing the platform' },
+  { amount: 8250, requests: 15, label: 'Standard', description: 'Active agents' },
+  { amount: 12000, requests: 24, label: 'Premium', description: 'Top performers', isStar: true }
+];
 
 export default function AgentPayment() {
   const { loading: authLoading, userData } = useRoleProtection({
@@ -19,9 +23,35 @@ export default function AgentPayment() {
 
   const { user } = useUser();
   const router = useRouter();
-  const [proofFile, setProofFile] = useState(null);
-  const [uploading, setUploading] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [queueCount, setQueueCount] = useState(null);
+  const [queueLoading, setQueueLoading] = useState(true);
+  const [selectedTier, setSelectedTier] = useState(1); // Default to Standard
+  const [openFAQ, setOpenFAQ] = useState(null);
+
+  // Fetch the number of unassigned requests in the queue
+  useEffect(() => {
+    const fetchQueueCount = async () => {
+      try {
+        const { count, error } = await supabase
+          .from('service_requests')
+          .select('*', { count: 'exact', head: true })
+          .eq('status', 'open');
+        
+        if (error) throw error;
+        setQueueCount(count);
+      } catch (error) {
+        console.error('Error fetching queue count:', error);
+        setQueueCount(null);
+      } finally {
+        setQueueLoading(false);
+      }
+    };
+
+    fetchQueueCount();
+  }, []);
+
+  const selectedPrice = PRICING_TIERS[selectedTier];
 
   const bankDetails = [
     {
@@ -49,98 +79,6 @@ export default function AgentPayment() {
     setCopied(field);
     toast.success(`${field} copied!`);
     setTimeout(() => setCopied(false), 2000);
-  };
-
-  const handleFileUpload = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-
-    const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'application/pdf'];
-    if (!validTypes.includes(file.type)) {
-      toast.error('Please upload JPG, PNG, or PDF file');
-      return;
-    }
-
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error('File size must be less than 5MB');
-      return;
-    }
-
-    setProofFile(file);
-  };
-
-  const handleSubmitProof = async () => {
-    if (!proofFile) {
-      toast.error('Please upload payment proof');
-      return;
-    }
-
-    setUploading(true);
-    try {
-      // Get user data first
-      const { data: dbUser, error: userError } = await supabase
-        .from('users')
-        .select('id')
-        .eq('clerk_id', user.id)
-        .single();
-
-      if (userError || !dbUser) {
-        throw new Error('User not found');
-      }
-
-      // Get agent data
-      const { data: agent, error: agentError } = await supabase
-        .from('agents')
-        .select('id')
-        .eq('user_id', dbUser.id)
-        .single();
-
-      if (agentError || !agent) {
-        throw new Error('Agent profile not found');
-      }
-
-      // Upload file directly to Supabase Storage (client-side, no service role needed)
-      const timestamp = Date.now();
-      const fileExt = proofFile.name.split('.').pop();
-      const filePath = `payment-proofs/${agent.id}_${timestamp}.${fileExt}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from('agent-documents')
-        .upload(filePath, proofFile, {
-          contentType: proofFile.type,
-          upsert: false
-        });
-
-      if (uploadError) {
-        throw new Error('Failed to upload file: ' + uploadError.message);
-      }
-
-      // Get public URL
-      const { data: urlData } = supabase.storage
-        .from('agent-documents')
-        .getPublicUrl(filePath);
-
-      // Update agent payment status directly in Supabase
-      const { error: updateError } = await supabase
-        .from('agents')
-        .update({
-          payment_status: 'paid',
-          payment_proof_url: urlData.publicUrl,
-          payment_date: new Date().toISOString()
-        })
-        .eq('id', agent.id);
-
-      if (updateError) {
-        throw new Error('Failed to update payment status: ' + updateError.message);
-      }
-
-      toast.success('Payment proof submitted successfully! You now have full access.');
-      router.push('/agent/dashboard');
-    } catch (error) {
-      toast.error(error.message || 'Failed to submit proof. Please try again.');
-    } finally {
-      setUploading(false);
-    }
   };
 
   if (authLoading) {
@@ -171,6 +109,27 @@ export default function AgentPayment() {
               <p className="mt-2 text-white/90">One-time payment via bank transfer</p>
             </div>
 
+            {/* Queue Status Alert with Live Pulse */}
+            {!queueLoading && queueCount !== null && (
+              <div className="bg-gradient-to-r from-green-50 to-emerald-50 border-b-4 border-green-400 px-8 py-6 flex items-center gap-4">
+                <div className="relative flex-shrink-0">
+                  <div className="absolute inset-0 bg-green-400 rounded-full animate-pulse" style={{animationDuration: '1.5s'}}></div>
+                  <div className="absolute inset-0 bg-green-300 rounded-full animate-pulse" style={{animationDuration: '2s', animationDelay: '0.3s'}}></div>
+                  <div className="relative bg-green-500 rounded-full p-3">
+                    <Activity className="w-8 h-8 text-white animate-pulse" style={{animationDuration: '2s'}} />
+                  </div>
+                </div>
+                <div className="flex-1">
+                  <p className="text-green-900 font-bold text-lg">
+                    <strong className="text-2xl text-green-600">{queueCount}</strong> active client {queueCount === 1 ? 'request' : 'requests'} waiting to be assigned
+                  </p>
+                  <p className="text-green-700 text-sm mt-2 font-medium">
+                    Join our agents and start claiming high-value leads today.
+                  </p>
+                </div>
+              </div>
+            )}
+
             {/* Content */}
             <div className="px-8 py-6">
               <div className="mb-8">
@@ -194,26 +153,67 @@ export default function AgentPayment() {
                 </ul>
               </div>
 
-              {/* Pricing */}
-              <div className="bg-gray-50 rounded-lg p-6 mb-8 border-2 border-accent/20">
+              {/* Pricing Tiers */}
+              <div className="mb-8">
+                <h2 className="text-2xl font-bold mb-6 text-center">Choose Your Plan</h2>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {PRICING_TIERS.map((tier, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => setSelectedTier(idx)}
+                      className={`p-6 rounded-lg border-2 transition ${
+                        selectedTier === idx
+                          ? 'border-accent bg-accent/5'
+                          : 'border-gray-200 hover:border-accent/50'
+                      }`}
+                    >
+                      <div className="text-left">
+                        <div className="flex items-center gap-2">
+                          <h3 className="text-lg font-semibold text-gray-900">{tier.label}</h3>
+                          {tier.isStar && <span className="text-xl">⭐</span>}
+                        </div>
+                        <p className="text-3xl font-bold text-accent mt-2">J${tier.amount.toLocaleString()}</p>
+                        <p className="text-sm text-gray-600 mt-1">{tier.requests} requests</p>
+                        <p className="text-xs text-gray-500 mt-2 font-medium">{tier.description}</p>
+                      </div>
+                      {selectedTier === idx && (
+                        <div className="mt-3 flex items-center text-accent">
+                          <Check size={20} className="flex-shrink-0" />
+                          <span className="ml-2 font-medium">Selected</span>
+                        </div>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Selected Plan Summary */}
+              <div className="bg-gradient-to-r from-accent/10 to-accent/5 rounded-lg p-6 mb-8 border-2 border-accent/30">
                 <div className="text-center">
-                  <p className="text-gray-600 text-sm uppercase tracking-wide">6-Month Access Payment</p>
-                  <p className="text-5xl font-bold text-accent mt-2">J${UNLOCK_FEE.toLocaleString()}</p>
-                  <p className="text-gray-500 mt-2">6 months access • No recurring fees during period</p>
+                  <p className="text-gray-600 text-sm uppercase tracking-widest font-semibold">You Selected</p>
+                  <div className="flex items-center justify-center gap-2 mt-2">
+                    <p className="text-4xl font-bold text-accent">{selectedPrice.label}</p>
+                    {selectedPrice.isStar && <span className="text-2xl">⭐</span>}
+                  </div>
+                  <p className="text-5xl font-bold text-accent mt-3">J${selectedPrice.amount.toLocaleString()}</p>
+                  <div className="mt-4 flex items-center justify-center gap-4 text-sm">
+                    <span className="bg-accent/20 text-accent font-semibold px-3 py-1 rounded-full">{selectedPrice.requests} requests</span>
+                    <span className="text-gray-600">{selectedPrice.description}</span>
+                  </div>
                 </div>
               </div>
 
               {/* Bank Transfer Instructions */}
               <div className="bg-gray-100 border-l-4 border-blue-500 rounded-lg p-6 mb-6">
                 <div className="flex items-start gap-3 mb-4">
-                  <FiAlertCircle className="text-blue-600 flex-shrink-0 mt-1" size={20} />
+                  <AlertCircle className="text-blue-600 flex-shrink-0 mt-1" size={20} />
                   <div>
                     <h3 className="font-semibold text-blue-900 mb-2">Payment Instructions</h3>
-                    <ol className="text-blue-800 text-sm space-y-1 list-decimal list-inside">
-                      <li>Transfer J${UNLOCK_FEE.toLocaleString()} to any of the bank accounts below</li>
-                      <li>In the transfer notes/description, include: <strong>Your Email</strong> and <strong>"Agent Payment"</strong></li>
-                      <li>Take a screenshot or photo of the receipt</li>
-                      <li>Upload the proof below</li>
+                    <ol className="text-blue-800 text-sm space-y-2 list-decimal list-inside">
+                      <li><strong>Transfer J${selectedPrice.amount.toLocaleString()}</strong> to any of the bank accounts below</li>
+                      <li>In transfer notes, include: <strong>Your Email</strong> + <strong>"{selectedPrice.label} Plan ({selectedPrice.requests} requests)"</strong></li>
+                      <li>Screenshot or photo of receipt</li>
+                      <li>Send proof via WhatsApp (button below)</li>
                     </ol>
                   </div>
                 </div>
@@ -242,7 +242,7 @@ export default function AgentPayment() {
                               onClick={() => copyToClipboard(value, `${bank.bank}-${key}`)}
                               className="text-blue-600 hover:text-blue-700 p-1"
                             >
-                              {copied === `${bank.bank}-${key}` ? <FiCheck size={14} /> : <FiCopy size={14} />}
+                              {copied === `${bank.bank}-${key}` ? <Check size={14} /> : <Copy size={14} />}
                             </button>
                           </div>
                         </div>
@@ -259,90 +259,77 @@ export default function AgentPayment() {
                 </div>
               </div>
 
-              {/* Upload Proof */}
+              {/* WhatsApp Submission */}
               <div className="mb-6">
-                <label className="block text-sm font-semibold text-gray-700 mb-3">
-                  Upload Payment Proof (Receipt/Screenshot)
-                </label>
-                <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-accent transition">
-                  <input
-                    type="file"
-                    accept="image/*,.pdf"
-                    onChange={handleFileUpload}
-                    className="hidden"
-                    id="proof-upload"
-                  />
-                  <label htmlFor="proof-upload" className="cursor-pointer">
-                    <div className="text-gray-600">
-                      {proofFile ? (
-                        <div className="flex items-center justify-center gap-2">
-                          <FiCheck className="text-green-600" size={24} />
-                          <span className="font-medium text-green-600">{proofFile.name}</span>
-                        </div>
-                      ) : (
-                        <>
-                          <FiUpload className="mx-auto h-12 w-12 text-gray-400" />
-                          <p className="mt-2 text-sm">Click to upload or drag and drop</p>
-                          <p className="text-xs text-gray-500 mt-1">PNG, JPG, PDF up to 5MB</p>
-                        </>
-                      )}
-                    </div>
-                  </label>
-                </div>
-              </div>
-
-              {/* Submit Button */}
-              <button
-                onClick={handleSubmitProof}
-                disabled={!proofFile || uploading}
-                className="w-full btn-primary btn-lg"
-              >
-                {uploading ? (
-                  <div className="flex items-center justify-center gap-2">
-                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                    Submitting...
-                  </div>
-                ) : (
-                  'Submit Payment Proof'
-                )}
-              </button>
-
-              <p className="text-center text-sm text-gray-500 mt-4">
-                ⏱️ Verification typically takes 12-24 hours during business days
-              </p>
-
-              {/* Security Note */}
-              <div className="mt-6 text-center">
-                <div className="inline-flex items-center gap-2 text-sm text-gray-600 bg-blue-50 px-4 py-2 rounded-lg">
-                  <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                <p className="text-sm text-gray-600 mb-4 text-center">
+                  After making the transfer, click the button below to message us your payment proof on WhatsApp
+                </p>
+                <a
+                  href={`https://wa.me/18763369045?text=Hello%20Dosnine%20Team,%20I%20have%20submitted%20my%20agent%20payment.%20Here%20is%20my%20payment%20proof.%0A%0AEmail:%20${encodeURIComponent(user?.primaryEmailAddress?.emailAddress || 'YOUR_EMAIL')}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full btn-primary btn-lg flex items-center justify-center gap-2"
+                >
+                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.67-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.076 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421-7.403h-.004a9.87 9.87 0 00-4.946 1.443c-3.056 2.068-5.01 5.033-5.01 8.15 0 1.325.264 2.605.788 3.823l-2.322 8.466 8.69-2.295c1.238.739 2.676 1.128 4.147 1.128h.004c4.676 0 8.488-3.812 8.488-8.488 0-2.26-.881-4.388-2.48-5.987-1.6-1.599-3.727-2.48-5.987-2.48"/>
                   </svg>
-                  <span>Secure payment • We'll email you once verified</span>
-                </div>
+                  Message Payment Proof on WhatsApp
+                </a>
               </div>
+
+              <p className="text-center text-sm font-semibold text-green-700 mt-4 bg-green-50 px-4 py-3 rounded-lg">
+                ✓ Verification 24hrs or less from sending proof
+              </p>
             </div>
           </div>
 
           {/* FAQ */}
-          <div className="mt-8 bg-white rounded-lg shadow p-6">
-            <h3 className="font-semibold text-lg mb-4">Frequently Asked Questions</h3>
-            <div className="space-y-4 text-sm">
-              <div>
-                <p className="font-medium text-gray-900">How long does this payment cover?</p>
-                <p className="text-gray-600 mt-1">This payment provides 6 months of full access to all agent features.</p>
-              </div>
-              <div>
-                <p className="font-medium text-gray-900">How long does verification take?</p>
-                <p className="text-gray-600 mt-1">Usually 12-24 hours during business days. We'll email you once verified.</p>
-              </div>
-              <div>
-                <p className="font-medium text-gray-900">What payment methods are accepted?</p>
-                <p className="text-gray-600 mt-1">Bank transfer to Scotiabank, NCB, or JN Bank. Include your email in the transfer notes.</p>
-              </div>
-              <div>
-                <p className="font-medium text-gray-900">Can I get a refund?</p>
-                <p className="text-gray-600 mt-1">Yes, within 7 days if you haven't accessed any client requests.</p>
-              </div>
+          <div className="mt-8 bg-white rounded-lg shadow overflow-hidden">
+            <div className="p-6 border-b border-gray-200">
+              <h3 className="font-semibold text-lg">Frequently Asked Questions</h3>
+            </div>
+            <div className="divide-y divide-gray-200">
+              {[
+                {
+                  question: "What's the difference between plans?",
+                  answer: "Starter gives you 3 requests for J$1,710 - perfect for testing. Standard gives you 15 requests for J$8,250 for active agents. Premium gives you 24 requests for J$12,000 for top performers. Choose based on how many leads you want to handle."
+                },
+                {
+                  question: "What types of requests are included?",
+                  answer: "All plans include all request types: buy, rent, sell, lease, and valuations. Your request limit applies across all types combined."
+                },
+                {
+                  question: "What happens when I reach my limit?",
+                  answer: "You can upgrade to a higher tier or wait until next month. You'll be notified when approaching your limit so you can plan accordingly."
+                },
+                {
+                  question: "How long does verification take?",
+                  answer: "Verification takes 24 hours or less from sending your payment proof via WhatsApp. We'll email you once verified and your access is activated."
+                },
+                {
+                  question: "Can I get a refund?",
+                  answer: "Yes, within 7 days if you haven't accessed any client requests. Simply contact our support team with your proof of purchase."
+                }
+              ].map((item, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => setOpenFAQ(openFAQ === idx ? null : idx)}
+                  className="w-full text-left p-6 hover:bg-gray-50 transition"
+                >
+                  <div className="flex items-center justify-between gap-4">
+                    <h4 className="font-medium text-gray-900">{item.question}</h4>
+                    <ChevronDown
+                      size={20}
+                      className={`flex-shrink-0 text-accent transition-transform duration-300 ${
+                        openFAQ === idx ? 'rotate-180' : ''
+                      }`}
+                    />
+                  </div>
+                  {openFAQ === idx && (
+                    <p className="text-gray-600 text-sm mt-4">{item.answer}</p>
+                  )}
+                </button>
+              ))}
             </div>
           </div>
         </div>
