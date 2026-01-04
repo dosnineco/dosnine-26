@@ -30,14 +30,8 @@ export default function NewProperty() {
           params: { clerkId: user.id }
         });
 
-        // If user is an agent (verified), check payment status
-        if (data?.agent?.verification_status === 'approved') {
-          if (data.agent.payment_status !== 'paid') {
-            toast.error('Payment required to post properties');
-            router.push('/agent/payment');
-            return;
-          }
-        }
+        // If user is an agent (verified), just allow them to continue
+        // Payment status will be managed on the agent dashboard
         
         setCheckingAccess(false);
       } catch (error) {
@@ -135,10 +129,6 @@ const handleSubmit = async (e) => {
       if (limitCheck.reason === 'verification_required') {
         toast.error('Agent verification required. Please complete your agent profile.');
         router.push('/agent/signup');
-        return;
-      } else if (limitCheck.reason === 'payment_required') {
-        toast.error('Payment required to access agent features.');
-        router.push('/agent/payment');
         return;
       } else if (limitCheck.reason === 'limit_reached') {
         toast.error('Property limit reached. Regular users can post 2 properties. Become a verified agent for unlimited postings!');

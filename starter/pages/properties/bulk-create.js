@@ -37,8 +37,11 @@ export default function BulkCreatePage() {
 
       if (isAgent || isAdmin) {
         setIsVerified(true);
+      } else if (data?.agents?.verification_status === 'approved' && data?.agents?.payment_status !== 'paid') {
+        toast.error('Payment required to access bulk create. Please complete your payment.');
+        setTimeout(() => router.push('/agent/payment'), 2000);
       } else {
-        toast.error('Access denied: Verified agents only');
+        toast.error('Access denied: Verified paid agents only');
         setTimeout(() => router.push('/'), 2000);
       }
     } catch (error) {

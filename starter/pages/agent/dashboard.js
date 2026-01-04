@@ -10,10 +10,11 @@ import AgentFeedbackPopup from '../../components/AgentFeedbackPopup';
 import VerifiedBadge from '../../components/VerifiedBadge';
 import { useRoleProtection } from '../../lib/useRoleProtection';
 import { isVerifiedAgent } from '../../lib/rbac';
+import { supabase } from '../../lib/supabase';
 import { 
   Home, Users, Mail, Phone, MapPin, DollarSign, 
   Bed, Bath, Calendar, Filter, CheckCircle, XCircle,
-  AlertCircle, Clock, Plus, RotateCcw, Trash2
+  AlertCircle, Clock, Plus, RotateCcw, Trash2, BellDot
 } from 'lucide-react';
 
 export default function AgentDashboard() {
@@ -32,22 +33,69 @@ export default function AgentDashboard() {
   const [filterStatus, setFilterStatus] = useState('all');
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [actionLoading, setActionLoading] = useState(false);
+  const [queueCount, setQueueCount] = useState(null);
+  const [queueLoading, setQueueLoading] = useState(true);
+  const [paidAgentCount, setPaidAgentCount] = useState(null);
+  const [paidAgentLoading, setPaidAgentLoading] = useState(true);
 
   useEffect(() => {
     if (initialUserData) {
       
       setAgentData(initialUserData.agent);
       
-      // Redirect immediately if payment is not completed
-      if (initialUserData.agent?.verification_status === 'approved' && 
-          initialUserData.agent?.payment_status !== 'paid') {
-        router.push('/agent/payment');
+      // Redirect unpaid agents to main dashboard
+      if (initialUserData.agent?.payment_status !== 'paid') {
+        router.replace('/dashboard');
         return;
       }
       
       setLoading(false);
     }
   }, [initialUserData, router]);
+
+  // Fetch queue count for unpaid agents
+  useEffect(() => {
+    const fetchQueueCount = async () => {
+      try {
+        const { count, error } = await supabase
+          .from('service_requests')
+          .select('*', { count: 'exact', head: true })
+          .eq('status', 'open');
+        
+        if (error) throw error;
+        setQueueCount(count);
+      } catch (error) {
+        console.error('Error fetching queue count:', error);
+        setQueueCount(null);
+      } finally {
+        setQueueLoading(false);
+      }
+    };
+
+    fetchQueueCount();
+  }, []);
+
+  // Fetch paid agents count
+  useEffect(() => {
+    const fetchPaidAgentCount = async () => {
+      try {
+        const { count, error } = await supabase
+          .from('agents')
+          .select('*', { count: 'exact', head: true })
+          .eq('payment_status', 'paid');
+        
+        if (error) throw error;
+        setPaidAgentCount(count);
+      } catch (error) {
+        console.error('Error fetching paid agents count:', error);
+        setPaidAgentCount(null);
+      } finally {
+        setPaidAgentLoading(false);
+      }
+    };
+
+    fetchPaidAgentCount();
+  }, []);
 
   useEffect(() => {
     if (agentData) {
@@ -157,7 +205,39 @@ export default function AgentDashboard() {
             </Link>
           </div>
 
+          {/* Unpaid Agent Payment Prompt */}
+          {agentData?.payment_status !== 'paid' && (
+            <div className="bg-gradient-to-r from-amber-50 to-orange-50 border-l-4 border-orange-400 rounded-lg p-3 mb-4">
+              <div className="flex items-start gap-4">
+               
+                <div className="flex-1">
+                  <h3 className="text-lg font-bold text-orange-900 mb-3">
+                    Clients Are Waiting
+                  </h3>
+                  <div className="text-orange-800 space-y-2 mb-4">
+                    {!queueLoading && queueCount !== null && (
+                      <p><strong>{queueCount}</strong> people are looking for an agent right now.</p>
+                    )}
+                    {queueLoading && <p>Loading live requests...</p>}
+                    {!paidAgentLoading && paidAgentCount !== null && (
+                      <p>Only <strong>{20 - paidAgentCount}</strong> paid {20 - paidAgentCount === 1 ? 'spot' : 'spots'} left.</p>
+                    )}
+                  </div>
+                  <Link
+                    href="/agent/payment"
+                    className="inline-block px-6 py-3 bg-orange-500 text-white font-semibold rounded-lg hover:bg-orange-600 transition flex items-center gap-2 w-fit"
+                  >
+                    <DollarSign className="w-5 h-5" />
+                    Claim Your Paid Slot
+                  </Link>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Stats */}
+          {agentData?.payment_status === 'paid' && (
+            <>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-6 mb-8">
             <div className="bg-white rounded-lg shadow p-4 md:p-6">
               <div className="flex items-center justify-between">
@@ -356,6 +436,8 @@ export default function AgentDashboard() {
               </div>
             )}
           </div>
+            </>
+          )}
         </div>
       </div>
 

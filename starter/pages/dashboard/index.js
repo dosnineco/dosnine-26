@@ -8,7 +8,7 @@ import axios from 'axios';
 import toast from 'react-hot-toast';
 import { formatMoney } from '../../lib/formatMoney';
 import { getUserProfileByClerkId } from '../../lib/getUserProfile';
-import { AlertCircle, Clock, XCircle, Briefcase, CheckCircle } from 'lucide-react';
+import { AlertCircle, Clock, XCircle, Briefcase, CheckCircle, Activity, DollarSign } from 'lucide-react';
 
 export default function Dashboard() {
   const { user } = useUser();
@@ -20,11 +20,59 @@ export default function Dashboard() {
   const [redirecting, setRedirecting] = useState(false);
   const [agentData, setAgentData] = useState(null);
   const [showAgentPrompt, setShowAgentPrompt] = useState(false);
+  const [queueCount, setQueueCount] = useState(null);
+  const [queueLoading, setQueueLoading] = useState(true);
+  const [paidAgentCount, setPaidAgentCount] = useState(null);
+  const [paidAgentLoading, setPaidAgentLoading] = useState(true);
 
   useEffect(() => {
     if (!user?.id) return;
     checkUserStatus();
   }, [user]);
+
+  // Fetch queue count for unpaid verified agents
+  useEffect(() => {
+    const fetchQueueCount = async () => {
+      try {
+        const { count, error } = await supabase
+          .from('service_requests')
+          .select('*', { count: 'exact', head: true })
+          .eq('status', 'open');
+        
+        if (error) throw error;
+        setQueueCount(count);
+      } catch (error) {
+        console.error('Error fetching queue count:', error);
+        setQueueCount(null);
+      } finally {
+        setQueueLoading(false);
+      }
+    };
+
+    fetchQueueCount();
+  }, []);
+
+  // Fetch paid agents count
+  useEffect(() => {
+    const fetchPaidAgentCount = async () => {
+      try {
+        const { count, error } = await supabase
+          .from('agents')
+          .select('*', { count: 'exact', head: true })
+          .eq('payment_status', 'paid');
+        
+        if (error) throw error;
+        setPaidAgentCount(count);
+      } catch (error) {
+        console.error('Error fetching paid agents count:', error);
+        setPaidAgentCount(null);
+      } finally {
+        setPaidAgentLoading(false);
+      }
+    };
+
+    fetchPaidAgentCount();
+  }, []);
 
   async function checkUserStatus() {
     try {
@@ -40,16 +88,17 @@ export default function Dashboard() {
         
         // Handle agent redirects based on status
         if (userData.agent.verification_status === 'approved') {
-          if (userData.agent.payment_status !== 'paid') {
-            router.replace('/agent/payment');
+          if (userData.agent.payment_status === 'paid') {
+            // Redirect paid agents to agent dashboard
+            router.replace('/agent/dashboard');
             return;
           }
-          // Verified and paid - redirect to agent dashboard
-          router.replace('/agent/dashboard');
-          return;
+          // Show payment prompt but don't redirect - user can access dashboard
+          setShowAgentPrompt(false);
+        } else {
+          // If pending or rejected, don't show "Become Agent" prompt
+          setShowAgentPrompt(false);
         }
-        // If pending or rejected, don't show "Become Agent" prompt
-        setShowAgentPrompt(false);
       } else {
         // Show prompt to become agent
         setShowAgentPrompt(true);
@@ -208,6 +257,34 @@ export default function Dashboard() {
                 </div>
               </div>
             )}
+
+            {agentData.verification_status === 'approved' && agentData.payment_status !== 'paid' && (
+              <div className="bg-gradient-to-r from-amber-50 to-orange-50 border-l-4 border-orange-400 rounded-lg p-6">
+                <div className="flex items-start gap-4">
+                
+                  <div className="flex-1">
+                    <h3 className="text-lg font-bold text-orange-900 mb-3">
+                      Clients Are Waiting
+                    </h3>
+                    <div className="text-orange-800 space-y-2 mb-4">
+                      {!queueLoading && queueCount !== null && (
+                        <p><strong>{queueCount}</strong> people are looking for an agent right now.</p>
+                      )}
+                      {queueLoading && <p>Loading live requests...</p>}
+                      {!paidAgentLoading && paidAgentCount !== null && (
+                        <p>Only <strong>{20 - paidAgentCount}/20</strong> paid {20 - paidAgentCount === 1 ? 'spot' : 'spots'} left.</p>
+                      )}
+                    </div>
+                    <Link
+                      href="/agent/payment"
+                      className="inline-block px-6 py-3 bg-orange-500 text-white font-semibold rounded-lg hover:bg-orange-600 transition flex items-center gap-2 w-fit"
+                    >
+                      Claim Your Paid Slot
+                    </Link>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -245,7 +322,11 @@ export default function Dashboard() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
           <div className="bg-white rounded-lg  p-6">
             <div className="text-gray-600 text-sm font-semibold">Total Properties</div>
-            <div className="text-4xl font-bold text-blue-600 mt-2">{stats.properties}</div>
+            <div className="text-4xl font-bold text-blue-600 mt-2">
+              {agentData?.verification_status === 'approved' 
+                ? `${stats.properties}/∞` 
+                : `${stats.properties}/2`}
+            </div>
           </div>
           <div className="bg-white rounded-lg  p-6">
             <div className="text-gray-600 text-sm font-semibold">Active Listings</div>

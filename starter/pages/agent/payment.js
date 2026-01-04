@@ -17,8 +17,8 @@ const PRICING_TIERS = [
 
 export default function AgentPayment() {
   const { loading: authLoading, userData } = useRoleProtection({
-    checkAccess: (data) => isVerifiedAgent(data) && needsAgentPayment(data),
-    redirectTo: '/agent/dashboard',
+    checkAccess: isVerifiedAgent,
+    redirectTo: '/agent/signup',
   });
 
   const { user } = useUser();
@@ -28,6 +28,13 @@ export default function AgentPayment() {
   const [queueLoading, setQueueLoading] = useState(true);
   const [selectedTier, setSelectedTier] = useState(1); // Default to Standard
   const [openFAQ, setOpenFAQ] = useState(null);
+
+  // Redirect paid agents to agent dashboard
+  useEffect(() => {
+    if (userData?.agent?.payment_status === 'paid') {
+      router.replace('/agent/dashboard');
+    }
+  }, [userData, router]);
 
   // Fetch the number of unassigned requests in the queue
   useEffect(() => {
