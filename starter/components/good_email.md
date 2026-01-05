@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useUser } from '@clerk/nextjs';
 import { useRouter } from 'next/router';
 import { supabase } from '../lib/supabase';
-import { Home, DollarSign, Key, Bed, MapPin, Search, Loader2, X, Zap, Copy, Check } from 'lucide-react';
+import { Home, DollarSign, Key, Bed, MapPin, Search, Loader2, X } from 'lucide-react';
 
 export default function VisitorEmailPopup() {
   const { isSignedIn, user } = useUser();
@@ -15,28 +15,6 @@ export default function VisitorEmailPopup() {
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [isAgent, setIsAgent] = useState(false);
-  const [paymentMode, setPaymentMode] = useState('free'); // 'free' or 'premium'
-  const [showPaymentDetails, setShowPaymentDetails] = useState(false);
-  const [copied, setCopied] = useState(false);
-  
-  // Payment constants
-  const PREMIUM_PRICE = 1500; // JMD
-  const PAID_SPOTS_LEFT = 3; // Limited spots this month
-
-  const bankDetails = [
-    {
-      bank: "Scotiabank Jamaica",
-      accountName: "Tahjay Thompson",
-      accountNumber: "010860258",
-      branch: "50575"
-    },
-    {
-      bank: "National Commercial Bank (NCB)",
-      accountName: "Tahjay Thompson",
-      accountNumber: "404386522",
-      branch: "uwi"
-    }
-  ];
   
   // Property preferences
   const [budgetMin, setBudgetMin] = useState(5000000); // 5M JMD default
@@ -130,12 +108,6 @@ export default function VisitorEmailPopup() {
   /* -----------------------------
      Submit handler - Save to both visitor_emails and service_requests
   ------------------------------*/
-  const copyToClipboard = (text, field) => {
-    navigator.clipboard.writeText(text);
-    setCopied(field);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     
@@ -156,7 +128,7 @@ export default function VisitorEmailPopup() {
         property_type: 'house',
         location: area || parish || 'TBD',
         status: 'open',
-        urgency: paymentMode === 'premium' ? 'urgent' : 'normal',
+        urgency: 'normal',
         description: `Lead from homepage popup. Bedrooms: ${bedrooms || 'Not specified'}, Parish: ${parish || 'Not specified'}, Area: ${area || 'Not specified'}, Budget: JMD ${budgetMin.toLocaleString()}`
       };
 
@@ -214,8 +186,8 @@ export default function VisitorEmailPopup() {
   if (!showPopup || submitted) return null;
 
   return (
-    <div className="fixed inset-0 bg-gray-100 flex items-start justify-center z-50 p-4 pt-16 overflow-y-auto">
-      <div className="bg-white max-w-md rounded-2xl w-full overflow-hidden relative shadow-2xl max-h-[90vh] flex flex-col">
+    <div className="fixed inset-0 bg-gray-100  flex items-center justify-center z-50 p-4">
+      <div className="bg-white  max-w-md rounded-2xl w-full overflow-hidden relative">
 
         {/* Close X Button */}
         <button
@@ -459,147 +431,19 @@ export default function VisitorEmailPopup() {
             />
           </div>
 
-          {/* Payment Mode Selector */}
-          <div className="space-y-3 border-t pt-5">
-            {/* Free Option */}
-            <button
-              type="button"
-              onClick={() => setPaymentMode('free')}
-              className={`w-full p-4 rounded-xl border-2 transition transform ${
-                paymentMode === 'free'
-                  ? 'border-blue-500 bg-gradient-to-r from-blue-50 to-blue-100 ring-2 ring-blue-300 shadow-lg'
-                  : 'border-gray-300 bg-white hover:border-blue-400'
-              }`}
-            >
-              <div className="text-left">
-                <div className={`font-semibold mb-1 ${
-                  paymentMode === 'free' ? 'text-blue-700' : 'text-gray-700'
-                }`}>Free Queue</div>
-                <p className={`text-sm ${
-                  paymentMode === 'free' ? 'text-blue-600' : 'text-gray-600'
-                }`}>Join the waitlist • Free</p>
-              </div>
-            </button>
-
-            {/* Premium Option - Green */}
-            <button
-              type="button"
-              onClick={() => setPaymentMode('premium')}
-              className={`w-full p-4 rounded-xl border-2 transition transform  ${
-                paymentMode === 'premium'
-                  ? 'border-emerald-500 bg-gradient-to-r from-emerald-50 to-emerald-100 ring-2 ring-emerald-300 shadow-lg'
-                  : 'border-gray-300 bg-white hover:border-emerald-400'
-              }`}
-            >
-              <div className="flex items-start gap-3 justify-between">
-                <div className="text-left flex-1">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="font-bold text-emerald-700">PREMIUM (Optional)</span>
-                  </div>
-                  <p className="text-xs text-emerald-600 animate-pulse font-bold mb-2">
-                    {PAID_SPOTS_LEFT} Spots Remaining!
-                  </p>
-                  <p className="text-sm text-gray-700"><span><strong>Skip the queue</strong></span>
-</p>
-                  
-                </div>
-                <div className="text-right flex-shrink-0">
-                  <div className="text-2xl font-bold text-emerald-600">J${PREMIUM_PRICE}</div>
-                  <div className="text-xs text-emerald-600 font-bold mt-1">ONE-TIME</div>
-                </div>
-              </div>
-            </button>
-          </div>
-
-          {/* Payment Details - Shows Directly When Premium Selected */}
-          {paymentMode === 'premium' && (
-            <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4 space-y-3 mt-3">
-              <div className="bg-white border-l-4 border-emerald-500 rounded p-3">
-                <h4 className="font-bold text-emerald-900 mb-2 text-xs">How to Pay</h4>
-                <ol className="text-emerald-800 text-xs space-y-1 list-decimal list-inside font-medium">
-                  <li>Transfer <strong>J${PREMIUM_PRICE}</strong> to any bank below</li>
-                  <li>In transfer notes: Your Email + "Premium Lead"</li>
-                  <li>Screenshot your receipt</li>
-                  <li>Complete this form to activate</li>
-                </ol>
-              </div>
-
-              {bankDetails.map((bank, index) => {
-                const cardColors = {
-                  "Scotiabank Jamaica": "bg-emerald-100 border-l-4 border-emerald-500",
-                  "National Commercial Bank (NCB)": "bg-emerald-100 border-l-4 border-emerald-500"
-                };
-                const emailUsername = email?.split('@')[0] || 'your-email';
-                return (
-                  <div key={index} className={`rounded p-2 ${cardColors[bank.bank]}`}>
-                    <h5 className="font-bold text-gray-900 text-xs mb-1">{bank.bank}</h5>
-                    <div className="space-y-1 text-xs">
-                      {Object.entries(bank).filter(([key]) => key !== 'bank').map(([key, value]) => (
-                        <div key={key} className="flex justify-between items-center gap-2">
-                          <span className="text-gray-700 font-medium">{key}:</span>
-                          <button
-                            type="button"
-                            onClick={() => copyToClipboard(value, key)}
-                            className="flex items-center gap-1 font-bold text-gray-900 hover:text-emerald-600 transition"
-                          >
-                            <span>{value}</span>
-                            {copied === key ? (
-                              <Check size={16} className="text-emerald-600" />
-                            ) : (
-                              <Copy size={16} className="text-gray-500" />
-                            )}
-                          </button>
-                        </div>
-                      ))}
-                      <div className="flex justify-between items-center gap-2 pt-1 border-t border-gray-300">
-                        <span className="text-gray-700 font-medium">Email:</span>
-                        <button
-                          type="button"
-                          onClick={() => copyToClipboard(emailUsername, `email-${index}`)}
-                          className="flex items-center gap-1 font-bold text-gray-900 hover:text-emerald-600 transition"
-                        >
-                          <span>{emailUsername}</span>
-                          {copied === `email-${index}` ? (
-                            <Check size={16} className="text-emerald-600" />
-                          ) : (
-                            <Copy size={16} className="text-gray-500" />
-                          )}
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-
           {/* Data Sharing Disclaimer */}
-          <div className={`rounded-lg p-3 text-xs ${
-            paymentMode === 'premium'
-              ? 'bg-emerald-50 border border-emerald-200'
-              : 'bg-blue-50 border border-blue-200'
-          }`}>
-            <p className={`font-medium mb-1 ${
-              paymentMode === 'premium' ? 'text-emerald-900' : 'text-blue-900'
-            }`}>
-              {paymentMode === 'premium' ? '💳 Payment Required' : '📋 Data Sharing Notice'}
-            </p>
-            <p className="text-gray-700">
-              {paymentMode === 'premium'
-                ? `By submitting, you agree to complete the J$${PREMIUM_PRICE} payment via bank transfer and share your information with verified agents.`
-                : 'By submitting, you agree to share your contact information with verified agents.'
-              }
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-xs text-gray-700">
+            <p className="font-medium text-blue-900 mb-1">📋 Data Sharing & Capture Notice</p>
+            <p>
+              By submitting, you agree to share your contact information with verified agents 
+              who can help with your property needs.
             </p> 
           </div>
 
           <button
             type="submit"
             disabled={loading || !intent}
-            className={`w-full py-3 px-4 text-white font-bold rounded-lg hover:shadow-lg transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 ${
-              paymentMode === 'premium'
-                ? 'bg-gradient-to-r from-emerald-600 to-emerald-700 transform hover:scale-105'
-                : 'bg-gradient-to-r from-orange-600 to-orange-700'
-            }`}
+            className="w-full py-3 px-4 bg-gradient-to-r from-orange-600 to-orange-700 text-white font-bold rounded-lg hover:shadow-lg transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
             {loading ? (
               <>
@@ -607,14 +451,7 @@ export default function VisitorEmailPopup() {
                 Saving...
               </>
             ) : intent ? (
-              paymentMode === 'premium' ? (
-                <>
-                  <Zap size={20} />
-                  Submit & Continue to Payment
-                </>
-              ) : (
-                `Connect with ${intent.charAt(0).toUpperCase() + intent.slice(1)} Agent`
-              )
+              `Connect with ${intent.charAt(0).toUpperCase() + intent.slice(1)} Agent`
             ) : (
               'Select an option above'
             )}

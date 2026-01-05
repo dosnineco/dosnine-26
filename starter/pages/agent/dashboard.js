@@ -31,6 +31,7 @@ export default function AgentDashboard() {
   const [agentData, setAgentData] = useState(initialUserData?.agent || null);
   const [requests, setRequests] = useState([]);
   const [filterStatus, setFilterStatus] = useState('all');
+  const [filterUrgency, setFilterUrgency] = useState('all');
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [actionLoading, setActionLoading] = useState(false);
   const [queueCount, setQueueCount] = useState(null);
@@ -101,7 +102,7 @@ export default function AgentDashboard() {
     if (agentData) {
       fetchRequests();
     }
-  }, [filterStatus, agentData]);
+  }, [filterStatus, filterUrgency, agentData]);
 
   async function fetchRequests() {
     setLoading(true);
@@ -172,9 +173,11 @@ export default function AgentDashboard() {
     total: requests.length,
   };
 
-  const filteredRequests = filterStatus === 'all' 
-    ? requests 
-    : requests.filter(r => r.status === filterStatus);
+  const filteredRequests = requests.filter(r => {
+    const statusMatch = filterStatus === 'all' || r.status === filterStatus;
+    const urgencyMatch = filterUrgency === 'all' || r.urgency === filterUrgency;
+    return statusMatch && urgencyMatch;
+  });
 
   return (
     <>
@@ -281,10 +284,10 @@ export default function AgentDashboard() {
           </div>
 
           {/* Filters */}
-          <div className="bg-white rounded-lg shadow p-4 mb-6 overflow-x-auto">
+          <div className="bg-white rounded-lg shadow p-4 mb-6 overflow-x-auto space-y-3">
             <div className="flex items-center gap-2 min-w-max">
               <Filter className="w-5 h-5 text-gray-500 flex-shrink-0" />
-              <span className="text-sm font-medium text-gray-700 flex-shrink-0">Filter:</span>
+              <span className="text-sm font-medium text-gray-700 flex-shrink-0">Status:</span>
               {['all', 'open', 'assigned', 'in_progress', 'completed'].map((status) => (
                 <button
                   key={status}
@@ -296,6 +299,25 @@ export default function AgentDashboard() {
                   }`}
                 >
                   {status.charAt(0).toUpperCase() + status.slice(1).replace('_', ' ')}
+                </button>
+              ))}
+            </div>
+            <div className="flex items-center gap-2 min-w-max">
+              <Filter className="w-5 h-5 text-gray-500 flex-shrink-0" />
+              <span className="text-sm font-medium text-gray-700 flex-shrink-0">Urgency:</span>
+              {['all', 'normal', 'urgent'].map((urgency) => (
+                <button
+                  key={urgency}
+                  onClick={() => setFilterUrgency(urgency)}
+                  className={`px-3 md:px-4 py-2 rounded-lg text-xs md:text-sm font-medium transition whitespace-nowrap ${
+                    filterUrgency === urgency
+                      ? urgency === 'urgent' 
+                        ? 'bg-red-500 text-white' 
+                        : 'bg-accent text-white'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  {urgency.charAt(0).toUpperCase() + urgency.slice(1)}
                 </button>
               ))}
             </div>

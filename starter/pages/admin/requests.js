@@ -13,6 +13,8 @@ export default function AdminRequestsPage() {
   const [assignLoading, setAssignLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [filterType, setFilterType] = useState('all');
+  const [filterUrgency, setFilterUrgency] = useState('all');
 
   useEffect(() => {
     checkAdminAccess();
@@ -219,6 +221,44 @@ export default function AdminRequestsPage() {
             <div className="text-center py-12 text-gray-500">Loading...</div>
           ) : (
             <>
+              {/* Filters */}
+              <div className="bg-white rounded-lg shadow p-4 mb-6 space-y-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-sm font-medium text-gray-700">Type:</span>
+                  {['all', 'buy', 'sell', 'rent'].map((type) => (
+                    <button
+                      key={type}
+                      onClick={() => setFilterType(type)}
+                      className={`px-3 py-2 rounded-lg text-xs md:text-sm font-medium transition whitespace-nowrap ${
+                        filterType === type
+                          ? 'bg-blue-500 text-white'
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      }`}
+                    >
+                      {type.charAt(0).toUpperCase() + type.slice(1)}
+                    </button>
+                  ))}
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-sm font-medium text-gray-700">Urgency:</span>
+                  {['all', 'normal', 'urgent'].map((urgency) => (
+                    <button
+                      key={urgency}
+                      onClick={() => setFilterUrgency(urgency)}
+                      className={`px-3 py-2 rounded-lg text-xs md:text-sm font-medium transition whitespace-nowrap ${
+                        filterUrgency === urgency
+                          ? urgency === 'urgent'
+                            ? 'bg-red-500 text-white'
+                            : 'bg-blue-500 text-white'
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      }`}
+                    >
+                      {urgency.charAt(0).toUpperCase() + urgency.slice(1)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               {/* Stats Overview */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
                 <div className="bg-white rounded-lg shadow p-4">
@@ -246,7 +286,11 @@ export default function AdminRequestsPage() {
                     <p className="text-gray-600">No service requests yet</p>
                   </div>
                 ) : (
-                  requests.map((request) => (
+                  requests.filter(request => {
+                    const typeMatch = filterType === 'all' || request.request_type === filterType;
+                    const urgencyMatch = filterUrgency === 'all' || request.urgency === filterUrgency;
+                    return typeMatch && urgencyMatch;
+                  }).map((request) => (
                     <div key={request.id} className="bg-white rounded-lg shadow-sm p-4 hover:shadow-md transition">
                       <div className="flex justify-between items-start gap-4 mb-3">
                         <div className="flex-1">
