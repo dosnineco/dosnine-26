@@ -18,6 +18,7 @@ export default function VisitorEmailPopup() {
   const [paymentMode, setPaymentMode] = useState('free'); // 'free' or 'premium'
   const [showPaymentDetails, setShowPaymentDetails] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [selectedBank, setSelectedBank] = useState(null); // 'scotiabank' or 'ncb'
   
   // Payment constants
   const PREMIUM_PRICE = 1500; // JMD
@@ -34,7 +35,7 @@ export default function VisitorEmailPopup() {
       bank: "National Commercial Bank (NCB)",
       accountName: "Tahjay Thompson",
       accountNumber: "404386522",
-      branch: "uwi"
+      branch: "UNIVERSITY BRANCH"
     }
   ];
   
@@ -513,63 +514,129 @@ export default function VisitorEmailPopup() {
 
           {/* Payment Details - Shows Directly When Premium Selected */}
           {paymentMode === 'premium' && (
-            <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4 space-y-3 mt-3">
+            <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4 space-y-4 mt-3">
               <div className="bg-white border-l-4 border-emerald-500 rounded p-3">
                 <h4 className="font-bold text-emerald-900 mb-2 text-xs">How to Pay</h4>
                 <ol className="text-emerald-800 text-xs space-y-1 list-decimal list-inside font-medium">
-                  <li>Transfer <strong>J${PREMIUM_PRICE}</strong> to any bank below</li>
-                  <li>In transfer notes: Your Email + "Premium Lead"</li>
-                  <li>Screenshot your receipt</li>
-                  <li>Complete this form to activate</li>
+                  <li>Transfer <strong>J${PREMIUM_PRICE}</strong> to your selected bank</li>
+                  <li>In transfer notes: Your Email should be added"</li>
+                  <li>Complete this form to get at the top of the queue.</li>
                 </ol>
               </div>
 
-              {bankDetails.map((bank, index) => {
-                const cardColors = {
-                  "Scotiabank Jamaica": "bg-emerald-100 border-l-4 border-emerald-500",
-                  "National Commercial Bank (NCB)": "bg-emerald-100 border-l-4 border-emerald-500"
-                };
-                const emailUsername = email?.split('@')[0] || 'your-email';
-                return (
-                  <div key={index} className={`rounded p-2 ${cardColors[bank.bank]}`}>
-                    <h5 className="font-bold text-gray-900 text-xs mb-1">{bank.bank}</h5>
-                    <div className="space-y-1 text-xs">
-                      {Object.entries(bank).filter(([key]) => key !== 'bank').map(([key, value]) => (
-                        <div key={key} className="flex justify-between items-center gap-2">
-                          <span className="text-gray-700 font-medium">{key}:</span>
+              {/* Bank Selection Buttons */}
+              <div className="space-y-2">
+                <p className="text-xs font-semibold text-gray-700">Select Your Bank:</p>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedBank('scotiabank')}
+                    className={`p-3 rounded-lg border-2 font-semibold transition ${
+                      selectedBank === 'scotiabank'
+                        ? 'border-red-600 bg-red-50 text-red-700 shadow-lg'
+                        : 'border-gray-300 bg-white text-gray-700 hover:border-red-400'
+                    }`}
+                  >
+                    🏦 Scotiabank
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedBank('ncb')}
+                    className={`p-3 rounded-lg border-2 font-semibold transition ${
+                      selectedBank === 'ncb'
+                        ? 'border-blue-600 bg-blue-50 text-blue-700 shadow-lg'
+                        : 'border-gray-300 bg-white text-gray-700 hover:border-blue-400'
+                    }`}
+                  >
+                    🏦 NCB
+                  </button>
+                </div>
+              </div>
+
+              {/* Bank Details - Show Only Selected Bank */}
+              {selectedBank && (
+                <div>
+                  {selectedBank === 'scotiabank' && bankDetails[0] && (
+                    <div className="rounded p-3 bg-red-50 border-l-4 border-red-600">
+                      <h5 className="font-bold text-gray-900 text-sm mb-2">{bankDetails[0].bank}</h5>
+                      <div className="space-y-2 text-sm">
+                        {Object.entries(bankDetails[0]).filter(([key]) => key !== 'bank').map(([key, value]) => (
+                          <div key={key} className="flex justify-between items-center gap-2">
+                            <span className="text-gray-700 font-medium capitalize">{key}:</span>
+                            <button
+                              type="button"
+                              onClick={() => copyToClipboard(value, key)}
+                              className="flex items-center gap-2 font-semibold text-gray-900 hover:text-red-600 transition bg-white px-2 py-1 rounded border border-gray-300"
+                            >
+                              <span>{value}</span>
+                              {copied === key ? (
+                                <Check size={16} className="text-red-600" />
+                              ) : (
+                                <Copy size={16} className="text-gray-500" />
+                              )}
+                            </button>
+                          </div>
+                        ))}
+                        <div className="flex justify-between items-center gap-2 pt-2 border-t border-gray-300">
+                          <span className="text-gray-700 font-medium">Email Username:</span>
                           <button
                             type="button"
-                            onClick={() => copyToClipboard(value, key)}
-                            className="flex items-center gap-1 font-bold text-gray-900 hover:text-emerald-600 transition"
+                            onClick={() => copyToClipboard(email?.split('@')[0] || 'your-email', 'email')}
+                            className="flex items-center gap-2 font-semibold text-gray-900 hover:text-red-600 transition bg-white px-2 py-1 rounded border border-gray-300"
                           >
-                            <span>{value}</span>
-                            {copied === key ? (
-                              <Check size={16} className="text-emerald-600" />
+                            <span>{email?.split('@')[0] || 'your-email'}</span>
+                            {copied === 'email' ? (
+                              <Check size={16} className="text-red-600" />
                             ) : (
                               <Copy size={16} className="text-gray-500" />
                             )}
                           </button>
                         </div>
-                      ))}
-                      <div className="flex justify-between items-center gap-2 pt-1 border-t border-gray-300">
-                        <span className="text-gray-700 font-medium">Email:</span>
-                        <button
-                          type="button"
-                          onClick={() => copyToClipboard(emailUsername, `email-${index}`)}
-                          className="flex items-center gap-1 font-bold text-gray-900 hover:text-emerald-600 transition"
-                        >
-                          <span>{emailUsername}</span>
-                          {copied === `email-${index}` ? (
-                            <Check size={16} className="text-emerald-600" />
-                          ) : (
-                            <Copy size={16} className="text-gray-500" />
-                          )}
-                        </button>
                       </div>
                     </div>
-                  </div>
-                );
-              })}
+                  )}
+
+                  {selectedBank === 'ncb' && bankDetails[1] && (
+                    <div className="rounded p-3 bg-blue-50 border-l-4 border-blue-600">
+                      <h5 className="font-bold text-gray-900 text-sm mb-2">{bankDetails[1].bank}</h5>
+                      <div className="space-y-2 text-sm">
+                        {Object.entries(bankDetails[1]).filter(([key]) => key !== 'bank').map(([key, value]) => (
+                          <div key={key} className="flex justify-between items-center gap-2">
+                            <span className="text-gray-700 font-medium capitalize">{key}:</span>
+                            <button
+                              type="button"
+                              onClick={() => copyToClipboard(value, key)}
+                              className="flex items-center gap-2 font-semibold text-gray-900 hover:text-blue-600 transition bg-white px-2 py-1 rounded border border-gray-300"
+                            >
+                              <span>{value}</span>
+                              {copied === key ? (
+                                <Check size={16} className="text-blue-600" />
+                              ) : (
+                                <Copy size={16} className="text-gray-500" />
+                              )}
+                            </button>
+                          </div>
+                        ))}
+                        <div className="flex justify-between items-center gap-2 pt-2 border-t border-gray-300">
+                          <span className="text-gray-700 font-medium">Email Username:</span>
+                          <button
+                            type="button"
+                            onClick={() => copyToClipboard(email?.split('@')[0] || 'your-email', 'email')}
+                            className="flex items-center gap-2 font-semibold text-gray-900 hover:text-blue-600 transition bg-white px-2 py-1 rounded border border-gray-300"
+                          >
+                            <span>{email?.split('@')[0] || 'your-email'}</span>
+                            {copied === 'email' ? (
+                              <Check size={16} className="text-blue-600" />
+                            ) : (
+                              <Copy size={16} className="text-gray-500" />
+                            )}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
 
