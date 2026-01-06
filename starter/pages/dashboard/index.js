@@ -9,7 +9,6 @@ import toast from 'react-hot-toast';
 import { formatMoney } from '../../lib/formatMoney';
 import { getUserProfileByClerkId } from '../../lib/getUserProfile';
 import { AlertCircle, Clock, XCircle, Briefcase, CheckCircle, Activity, DollarSign } from 'lucide-react';
-import ParishRequestAnalytics from '../../components/ParishRequestAnalytics';
 
 export default function Dashboard() {
   const { user, isLoaded } = useUser();
@@ -421,12 +420,7 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* Market Analytics */}
-        {!redirecting && (
-          <div className="mb-8">
-            <ParishRequestAnalytics />
-          </div>
-        )}
+    
 
         {/* Recent Properties */}
         {!redirecting && (
