@@ -5,6 +5,7 @@ import { useUser } from '@clerk/nextjs';
 import { supabase } from '../../lib/supabase';
 import toast from 'react-hot-toast';
 import { FiTrash2 } from 'react-icons/fi';
+import { MessageCircle, Phone as PhoneIcon } from 'lucide-react';
 
 export default function AdminRequestsPage() {
   const { user } = useUser();
@@ -14,6 +15,9 @@ export default function AdminRequestsPage() {
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
   const [filterType, setFilterType] = useState('all');
+  const [selectedRequest, setSelectedRequest] = useState(null);
+  const [showCommentModal, setShowCommentModal] = useState(false);
+  const [commentText, setCommentText] = useState('');
   const [filterUrgency, setFilterUrgency] = useState('all');
 
   useEffect(() => {
@@ -132,16 +136,11 @@ export default function AdminRequestsPage() {
         assigned_at: agentId ? now : null
       };
 
-      console.log('📤 Updating request:', requestId);
-      console.log('📋 Payload:', updatePayload);
-
       const { error: updateError, data } = await supabase
         .from('service_requests')
         .update(updatePayload)
         .eq('id', requestId)
         .select();
-
-      console.log('📥 Response:', { error: updateError, data });
 
       if (updateError) {
         console.error('❌ DB Error:', updateError);
@@ -171,27 +170,135 @@ export default function AdminRequestsPage() {
     }
   };
 
-  const handleDeleteRequest = async (requestId) => {
-    if (!confirm('DELETE this service request?\n\nThis action cannot be undone!')) return;
+  const handleCommentSubmit = async (requestId) => {
+    if (!commentText.trim()) {
+      toast.error('Please enter a comment');
+      return;
+    }
 
     try {
+      const { error } = await supabase
+        .from('service_requests')
+        .update({
+          comment: commentText,
+          comment_updated_at: new Date().toISOString(),
+        })
+        .eq('id', requestId);
 
-      const { error, data } = await supabase
+      if (error) throw error;
+
+      toast.success('Comment saved successfully!');
+      setShowCommentModal(false);
+      setCommentText('');
+      setTimeout(() => fetchData(), 200);
+    } catch (err) {
+      console.error('Comment error:', err);
+      toast.error('Failed to save comment');
+    }
+  };
+
+  const handleContactedToggle = async (requestId, currentStatus) => {
+    try {
+      const { error } = await supabase
+        .from('service_requests')
+        .update({
+          is_contacted: !currentStatus,
+        })
+        .eq('id', requestId);
+
+      if (error) throw error;
+
+      toast.success(`Request marked as ${!currentStatus ? 'contacted' : 'not contacted'}!`);
+      setTimeout(() => fetchData(), 200);
+    } catch (err) {
+      console.error('Contacted toggle error:', err);
+      toast.error('Failed to update contacted status');
+    }
+  };
+
+  const handleReactivateCase = async (requestId) => {
+    if (!confirm('Are you sure you want to reactivate this completed case?')) {
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('service_requests')
+        .update({
+          status: 'assigned',
+        })
+        .eq('id', requestId);
+
+      if (error) throw error;
+
+      toast.success('Case reactivated successfully!');
+      setTimeout(() => fetchData(), 200);
+    } catch (err) {
+      console.error('Reactivate error:', err);
+      toast.error('Failed to reactivate case');
+    }
+  };
+
+  const handleDeleteRequest = async (requestId) => {
+    if (!confirm('Are you sure you want to permanently delete this request?')) {
+      return;
+    }
+
+    try {
+      const { error } = await supabase
         .from('service_requests')
         .delete()
-        .eq('id', requestId)
-        .select();
-
-      console.log('Delete response:', { error, data });
+        .eq('id', requestId);
 
       if (error) throw error;
 
       toast.success('Request deleted successfully!');
       setTimeout(() => fetchData(), 200);
     } catch (err) {
-      console.error(' Delete error:', err);
+      console.error('Delete error:', err);
       toast.error(`Failed to delete: ${err.message}`);
     }
+  };
+
+  // Format phone number for WhatsApp - ensure 11 digits with 1876 prefix
+  const formatWhatsAppNumber = (phone) => {
+    if (!phone) return '';
+    
+    // Remove all non-numeric characters
+    let cleaned = phone.replace(/\D/g, '');
+    
+    // If starts with 1876, it's already correct format
+    if (cleaned.startsWith('1876') && cleaned.length === 11) {
+      return cleaned;
+    }
+    
+    // If starts with 876, add 1 prefix
+    if (cleaned.startsWith('876')) {
+      return '1' + cleaned;
+    }
+    
+    // If starts with 1 and is 11 digits, assume it's correct
+    if (cleaned.startsWith('1') && cleaned.length === 11) {
+      return cleaned;
+    }
+    
+    // If 10 digits starting with 876
+    if (cleaned.length === 10 && cleaned.startsWith('876')) {
+      return '1' + cleaned;
+    }
+    
+    // If 7 digits, add 1876 prefix
+    if (cleaned.length === 7) {
+      return '1876' + cleaned;
+    }
+    
+    // If none of the above, try to make it 1876 + last 7 digits
+    if (cleaned.length >= 7) {
+      return '1876' + cleaned.slice(-7);
+    }
+    
+    // If less than 7 digits, just return what we have
+    return cleaned;
   };
 
   if (!isAdmin && !loading) {
@@ -301,7 +408,7 @@ export default function AdminRequestsPage() {
                     <div key={request.id} className="bg-white rounded-lg shadow-sm p-4 hover:shadow-md transition">
                       <div className="flex justify-between items-start gap-4 mb-3">
                         <div className="flex-1">
-                          <div className="flex items-center gap-3 mb-2">
+                          <div className="flex items-center gap-3 mb-2 flex-wrap">
                             <h3 className="font-bold text-gray-800 text-lg">
                               {request.request_type.toUpperCase()} - {request.property_type}
                             </h3>
@@ -318,6 +425,14 @@ export default function AdminRequestsPage() {
                                 Urgent
                               </span>
                             )}
+                            <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium flex items-center gap-1 ${
+                              request.is_contacted 
+                                ? 'bg-green-100 text-green-800' 
+                                : 'bg-gray-100 text-gray-600'
+                            }`}>
+                              <PhoneIcon size={12} />
+                              {request.is_contacted ? 'contacted' : 'not contacted'}
+                            </span>
                           </div>
                           
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm text-gray-600 mb-3">
@@ -343,7 +458,14 @@ export default function AdminRequestsPage() {
 
                           <div className="flex flex-wrap items-center gap-3 text-sm mb-3">
                             <span className="text-gray-600">📧 {request.client_email}</span>
-                            <span className="text-gray-600">📞 {request.client_phone}</span>
+                            <a 
+                              href={`https://wa.me/${formatWhatsAppNumber(request.client_phone)}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-green-600 hover:text-green-700 hover:underline font-medium"
+                            >
+                              {request.client_phone}
+                            </a>
                           </div>
                         </div>
                       </div>
@@ -358,6 +480,15 @@ export default function AdminRequestsPage() {
                               <p className="text-sm text-gray-600">{request.agent.email}</p>
                             </div>
                             <div className="flex gap-2 flex-wrap">
+                              {request.status === 'completed' && (
+                                <button
+                                  onClick={() => handleReactivateCase(request.id)}
+                                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm font-medium"
+                                  disabled={assignLoading}
+                                >
+                                  Reactivate Case
+                                </button>
+                              )}
                               {request.status !== 'completed' && request.status !== 'cancelled' && (
                                 <>
                                   <button
@@ -380,6 +511,28 @@ export default function AdminRequestsPage() {
                                       </option>
                                     ))}
                                   </select>
+                                  <button
+                                    onClick={() => {
+                                      setSelectedRequest(request);
+                                      setShowCommentModal(true);
+                                      setCommentText(request.comment || '');
+                                    }}
+                                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium flex items-center gap-1"
+                                  >
+                                    <MessageCircle size={16} />
+                                    Comment
+                                  </button>
+                                  <button
+                                    onClick={() => handleContactedToggle(request.id, request.is_contacted)}
+                                    className={`px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-1 ${
+                                      request.is_contacted
+                                        ? 'bg-gray-600 text-white hover:bg-gray-700'
+                                        : 'bg-purple-600 text-white hover:bg-purple-700'
+                                    }`}
+                                  >
+                                    <PhoneIcon size={16} />
+                                    {request.is_contacted ? 'contacted' : 'not contacted'}
+                                  </button>
                                 </>
                               )}
                               <button
@@ -411,6 +564,28 @@ export default function AdminRequestsPage() {
                                 ))}
                               </select>
                               <button
+                                onClick={() => {
+                                  setSelectedRequest(request);
+                                  setShowCommentModal(true);
+                                  setCommentText(request.comment || '');
+                                }}
+                                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium flex items-center gap-1 justify-center"
+                              >
+                                <MessageCircle size={16} />
+                                Comment
+                              </button>
+                              <button
+                                onClick={() => handleContactedToggle(request.id, request.is_contacted)}
+                                className={`px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-1 justify-center ${
+                                  request.is_contacted
+                                    ? 'bg-gray-600 text-white hover:bg-gray-700'
+                                    : 'bg-purple-600 text-white hover:bg-purple-700'
+                                }`}
+                              >
+                                <PhoneIcon size={16} />
+                                {request.is_contacted ? 'contacted' : 'not contacted'}
+                              </button>
+                              <button
                                 onClick={() => handleDeleteRequest(request.id)}
                                 className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm font-medium flex items-center gap-1 justify-center"
                               >
@@ -429,6 +604,88 @@ export default function AdminRequestsPage() {
           )}
         </div>
       </div>
+
+      {/* Comment Modal */}
+      {showCommentModal && selectedRequest && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b sticky top-0 bg-white">
+              <div className="flex items-center justify-between">
+                <h2 className="text-xl font-bold text-gray-900">Add Comment</h2>
+                <button
+                  onClick={() => {
+                    setShowCommentModal(false);
+                    setCommentText('');
+                  }}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+
+            <div className="p-6 space-y-4">
+              <div>
+                <h3 className="font-semibold text-gray-900 mb-2">Request</h3>
+                <p className="text-gray-700">
+                  {selectedRequest.request_type?.toUpperCase() || 'Request'} - {selectedRequest.property_type}
+                </p>
+              </div>
+
+              <div>
+                <h3 className="font-semibold text-gray-900 mb-2">Client: {selectedRequest.client_name}</h3>
+                <p className="text-sm text-gray-600">{selectedRequest.client_email}</p>
+              </div>
+
+              {selectedRequest.comment && (
+                <div>
+                  <h3 className="font-semibold text-gray-900 mb-2">Existing Agent Notes</h3>
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                    <p className="text-sm text-gray-700 mb-2">{selectedRequest.comment}</p>
+                    {selectedRequest.comment_updated_at && (
+                      <p className="text-xs text-gray-500">
+                        Last updated: {new Date(selectedRequest.comment_updated_at).toLocaleDateString()} at {new Date(selectedRequest.comment_updated_at).toLocaleTimeString()}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-900 mb-2">
+                  Your Comment
+                </label>
+                <textarea
+                  value={commentText}
+                  onChange={(e) => setCommentText(e.target.value)}
+                  placeholder="Add any notes or comments about this request..."
+                  rows="6"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                />
+              </div>
+
+              <div className="pt-4 border-t flex gap-3">
+                <button
+                  onClick={() => handleCommentSubmit(selectedRequest.id)}
+                  disabled={!commentText.trim()}
+                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 font-medium"
+                >
+                  Save Comment
+                </button>
+                <button
+                  onClick={() => {
+                    setShowCommentModal(false);
+                    setCommentText('');
+                  }}
+                  className="flex-1 px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 font-medium"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

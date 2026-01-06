@@ -17,7 +17,7 @@ function MyApp({ Component, pageProps }) {
   const router = useRouter();
   
   // Public routes that don't require sign-in
-  const publicRoutes = ['/', '/property','/request','/onboarding', '/advertise', '/ads/[id]', '/ads/request-agent', '/tools', '/blog', '/contact', '/privacy-policy', '/terms-of-service', '/refund-policy', '/about'];
+  const publicRoutes = ['/', '/property','/request','/onboarding', '/market','/advertise', '/ads/[id]', '/ads/request-agent', '/tools', '/blog', '/contact', '/privacy-policy', '/terms-of-service', '/refund-policy', '/about'];
   const isPublicRoute = publicRoutes.some(
     (route) => router.pathname === route || router.pathname.startsWith(`${route}/`)
   );

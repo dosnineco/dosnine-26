@@ -9,12 +9,12 @@ import RequestNotificationPopup from '../../components/RequestNotificationPopup'
 import AgentFeedbackPopup from '../../components/AgentFeedbackPopup';
 import VerifiedBadge from '../../components/VerifiedBadge';
 import { useRoleProtection } from '../../lib/useRoleProtection';
-import { isVerifiedAgent } from '../../lib/rbac';
+import { isVerifiedAgent, isAdmin } from '../../lib/rbac';
 import { supabase } from '../../lib/supabase';
 import { 
   Home, Users, Mail, Phone, MapPin, DollarSign, 
   Bed, Bath, Calendar, Filter, CheckCircle, XCircle,
-  AlertCircle, Clock, Plus, RotateCcw, Trash2, BellDot
+  AlertCircle, Clock, Plus, RotateCcw, Trash2, BellDot, MessageCircle, Phone as PhoneIcon
 } from 'lucide-react';
 
 export default function AgentDashboard() {
@@ -28,12 +28,15 @@ export default function AgentDashboard() {
   const { user } = useUser();
   const router = useRouter();
   const [loading, setLoading] = useState(true);
+  const [userRole, setUserRole] = useState(null);
   const [agentData, setAgentData] = useState(initialUserData?.agent || null);
   const [requests, setRequests] = useState([]);
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterUrgency, setFilterUrgency] = useState('all');
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [actionLoading, setActionLoading] = useState(false);
+  const [showCommentModal, setShowCommentModal] = useState(false);
+  const [commentText, setCommentText] = useState('');
   const [queueCount, setQueueCount] = useState(null);
   const [queueLoading, setQueueLoading] = useState(true);
   const [paidAgentCount, setPaidAgentCount] = useState(null);
@@ -43,6 +46,7 @@ export default function AgentDashboard() {
     if (initialUserData) {
       
       setAgentData(initialUserData.agent);
+      setUserRole(initialUserData.role);
       
       // Redirect unpaid agents to main dashboard
       if (initialUserData.agent?.payment_status !== 'paid') {
@@ -131,16 +135,18 @@ export default function AgentDashboard() {
     }
   }
 
-  async function handleRequestAction(requestId, action) {
+  async function handleRequestAction(requestId, action, commentData = null) {
     if (!user?.id) return;
     
     const actionLabels = {
       complete: 'Mark as Complete',
       release: 'Release to Next Agent',
       remove: 'Remove from Dashboard',
+      contacted: 'Mark as Contacted',
+      comment: 'Save Comment',
     };
 
-    if (!confirm(`Are you sure you want to ${actionLabels[action]}?`)) {
+    if (!['comment'].includes(action) && !confirm(`Are you sure you want to ${actionLabels[action]}?`)) {
       return;
     }
 
@@ -150,6 +156,7 @@ export default function AgentDashboard() {
         clerkId: user.id,
         requestId,
         action,
+        comment: commentData,
       });
 
       toast.success(response.data.message);
@@ -159,11 +166,22 @@ export default function AgentDashboard() {
       
       // Close modal if open
       setSelectedRequest(null);
+      setShowCommentModal(false);
+      setCommentText('');
     } catch (error) {
       toast.error(error.response?.data?.error || 'Failed to update request');
     } finally {
       setActionLoading(false);
     }
+  }
+
+  async function handleCommentSubmit(requestId) {
+    if (!commentText.trim()) {
+      toast.error('Please enter a comment');
+      return;
+    }
+    
+    await handleRequestAction(requestId, 'comment', commentText);
   }
 
   const stats = {
@@ -367,10 +385,10 @@ export default function AgentDashboard() {
                         </div>
 
                         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 md:gap-4 text-xs md:text-sm text-gray-600 mb-3">
-                          <div className="flex items-center gap-2">
+                          {/* <div className="flex items-center gap-2">
                             <MapPin className="w-4 h-4" />
                             {request.location}
-                          </div>
+                          </div> */}
                           {request.budget_min && request.budget_max && (
                             <div className="flex items-center gap-2">
                               <DollarSign className="w-4 h-4" />
@@ -405,14 +423,14 @@ export default function AgentDashboard() {
                             <Mail className="w-4 h-4 flex-shrink-0" />
                             <span className="truncate">{request.client_email}</span>
                           </div>
-                          <div className="flex items-center gap-1">
+                          {/* <div className="flex items-center gap-1">
                             <Phone className="w-4 h-4 flex-shrink-0" />
                             <span className="truncate">{request.client_phone}</span>
-                          </div>
-                            <div className="flex items-center gap-2">
+                          </div> */}
+                            {/* <div className="flex items-center gap-2">
                             <Calendar className="w-4 h-4" />
                             {new Date(request.created_at).toLocaleDateString()}
-                          </div>
+                          </div> */}
                         </div>
                       </div>
 
@@ -442,12 +460,27 @@ export default function AgentDashboard() {
                               <RotateCcw className="w-3 h-3" />
                             </button>
                             <button
-                              onClick={() => handleRequestAction(request.id, 'remove')}
+                              onClick={() => {
+                                setSelectedRequest(request);
+                                setShowCommentModal(true);
+                              }}
                               disabled={actionLoading}
-                              className="px-3 py-1.5 bg-red-600 text-white rounded text-xs hover:bg-red-700 disabled:opacity-50 flex items-center gap-1"
-                              title="Remove from Dashboard"
+                              className="px-3 py-1.5 bg-blue-600 text-white rounded text-xs hover:bg-blue-700 disabled:opacity-50 flex items-center gap-1"
+                              title="Add Comment"
                             >
-                              <Trash2 className="w-3 h-3" />
+                              <MessageCircle className="w-3 h-3" />
+                            </button>
+                            <button
+                              onClick={() => handleRequestAction(request.id, 'contacted')}
+                              disabled={actionLoading}
+                              className={`px-3 py-1.5 rounded text-xs flex items-center gap-1 transition ${
+                                request.is_contacted
+                                  ? 'bg-gray-600 text-white hover:bg-gray-700'
+                                  : 'bg-purple-600 text-white hover:bg-purple-700'
+                              } disabled:opacity-50`}
+                              title={request.is_contacted ? 'Contacted' : 'not contacted'}
+                            >
+                              <PhoneIcon className="w-3 h-3" />
                             </button>
                           </div>
                         )}
@@ -516,13 +549,27 @@ export default function AgentDashboard() {
                 </div>
               )}
 
-              <div className="pt-4 border-t flex gap-3">
+              {selectedRequest.comment && (
+                <div>
+                  <h3 className="font-semibold text-gray-900 mb-2">Agent Notes</h3>
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <p className="text-sm text-gray-700 mb-2">{selectedRequest.comment}</p>
+                    {selectedRequest.comment_updated_at && (
+                      <p className="text-xs text-gray-500">
+                        Last updated: {new Date(selectedRequest.comment_updated_at).toLocaleDateString()} at {new Date(selectedRequest.comment_updated_at).toLocaleTimeString()}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              <div className="pt-4 border-t flex gap-3 flex-wrap">
                 {selectedRequest.status !== 'completed' && (
                   <>
                     <button
                       onClick={() => handleRequestAction(selectedRequest.id, 'complete')}
                       disabled={actionLoading}
-                      className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 flex items-center justify-center gap-2"
+                      className="flex-1 min-w-[100px] px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 flex items-center justify-center gap-2"
                     >
                       <CheckCircle className="w-3 h-3" />
                       Complete
@@ -530,26 +577,118 @@ export default function AgentDashboard() {
                     <button
                       onClick={() => handleRequestAction(selectedRequest.id, 'release')}
                       disabled={actionLoading}
-                      className="flex-1 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:opacity-50 flex items-center justify-center gap-2"
+                      className="flex-1 min-w-[100px] px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:opacity-50 flex items-center justify-center gap-2"
                     >
                       <RotateCcw className="w-3 h-3" />
                       Release
                     </button>
                     <button
-                      onClick={() => handleRequestAction(selectedRequest.id, 'remove')}
+                      onClick={() => setShowCommentModal(true)}
                       disabled={actionLoading}
-                      className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 flex items-center justify-center gap-2"
+                      className="flex-1 min-w-[100px] px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center justify-center gap-2"
                     >
-                      <Trash2 className="w-3 h-3" />
-                      Remove
+                      <MessageCircle className="w-3 h-3" />
+                      Comment
+                    </button>
+                    <button
+                      onClick={() => handleRequestAction(selectedRequest.id, 'contacted')}
+                      disabled={actionLoading}
+                      className={`flex-1 min-w-[100px] px-4 py-2 rounded-lg flex items-center justify-center gap-2 transition disabled:opacity-50 ${
+                        selectedRequest.is_contacted
+                          ? 'bg-gray-600 text-white hover:bg-gray-700'
+                          : 'bg-purple-600 text-white hover:bg-purple-700'
+                      }`}
+                    >
+                      <PhoneIcon className="w-3 h-3" />
+                      {selectedRequest.is_contacted ? 'contacted' : 'not contacted'}
                     </button>
                   </>
                 )}
                 <button
                   onClick={() => setSelectedRequest(null)}
-                  className="flex-1 px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300"
+                  className="flex-1 min-w-[100px] px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300"
                 >
                   Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Comment Modal */}
+      {showCommentModal && selectedRequest && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b sticky top-0 bg-white">
+              <div className="flex items-center justify-between">
+                <h2 className="text-xl font-bold text-gray-900">Add Comment</h2>
+                <button
+                  onClick={() => {
+                    setShowCommentModal(false);
+                    setCommentText('');
+                  }}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+
+            <div className="p-6 space-y-4">
+              <div>
+                <h3 className="font-semibold text-gray-900 mb-2">Request</h3>
+                <p className="text-gray-700">
+                  {selectedRequest.request_type?.toUpperCase() || 'Request'} - {selectedRequest.property_type}
+                </p>
+              </div>
+
+              <div>
+                <h3 className="font-semibold text-gray-900 mb-2">Client: {selectedRequest.client_name}</h3>
+                <p className="text-sm text-gray-600">{selectedRequest.client_email}</p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-900 mb-2">
+                  Your Comment
+                </label>
+                <textarea
+                  value={commentText}
+                  onChange={(e) => setCommentText(e.target.value)}
+                  placeholder="Add any notes or comments about this request..."
+                  rows="6"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                />
+              </div>
+
+              {selectedRequest.comment && (
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  <p className="text-xs text-gray-500 mb-1">Last comment:</p>
+                  <p className="text-sm text-gray-700">{selectedRequest.comment}</p>
+                  {selectedRequest.comment_updated_at && (
+                    <p className="text-xs text-gray-400 mt-2">
+                      {new Date(selectedRequest.comment_updated_at).toLocaleDateString()}
+                    </p>
+                  )}
+                </div>
+              )}
+
+              <div className="pt-4 border-t flex gap-3">
+                <button
+                  onClick={() => handleCommentSubmit(selectedRequest.id)}
+                  disabled={actionLoading || !commentText.trim()}
+                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 font-medium"
+                >
+                  Save Comment
+                </button>
+                <button
+                  onClick={() => {
+                    setShowCommentModal(false);
+                    setCommentText('');
+                  }}
+                  className="flex-1 px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 font-medium"
+                >
+                  Cancel
                 </button>
               </div>
             </div>

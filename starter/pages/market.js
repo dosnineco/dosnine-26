@@ -3,9 +3,29 @@ import Link from 'next/link';
 import { useRouter } from 'next/router';
 import ParishRequestAnalytics from '../components/ParishRequestAnalytics';
 import { MapPin, TrendingUp, Home, Users, DollarSign } from 'lucide-react';
+import { useRoleProtection } from '../lib/useRoleProtection';
+import { isVerifiedAgent } from '../lib/rbac';
 
 export default function MarketAnalyticsPage() {
   const router = useRouter();
+  
+  // Protect route - only verified agents can access
+  const { loading: authLoading, userData } = useRoleProtection({
+    checkAccess: isVerifiedAgent,
+    redirectTo: '/agent/signup',
+    message: 'Agent verification required to access market analytics'
+  });
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
   const breadcrumbs = [
     { label: 'Home', href: '/' },

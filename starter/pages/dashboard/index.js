@@ -12,7 +12,7 @@ import { AlertCircle, Clock, XCircle, Briefcase, CheckCircle, Activity, DollarSi
 import ParishRequestAnalytics from '../../components/ParishRequestAnalytics';
 
 export default function Dashboard() {
-  const { user } = useUser();
+  const { user, isLoaded } = useUser();
   const router = useRouter();
   const [stats, setStats] = useState({ properties: 0, applications: 0, activeListings: 0 });
   const [recentProperties, setRecentProperties] = useState([]);
@@ -25,14 +25,19 @@ export default function Dashboard() {
   const [queueLoading, setQueueLoading] = useState(true);
   const [paidAgentCount, setPaidAgentCount] = useState(null);
   const [paidAgentLoading, setPaidAgentLoading] = useState(true);
+  const [shouldLoadData, setShouldLoadData] = useState(false);
 
+  // SECURITY: Check user status and redirect BEFORE loading any data
   useEffect(() => {
+    if (!isLoaded) return;
     if (!user?.id) return;
     checkUserStatus();
-  }, [user]);
+  }, [user, isLoaded]);
 
-  // Fetch queue count for unpaid verified agents
+  // Only fetch queue count if user should see dashboard (not redirecting)
   useEffect(() => {
+    if (!shouldLoadData) return;
+    
     const fetchQueueCount = async () => {
       try {
         const { count, error } = await supabase
@@ -51,10 +56,12 @@ export default function Dashboard() {
     };
 
     fetchQueueCount();
-  }, []);
+  }, [shouldLoadData]);
 
-  // Fetch paid agents count
+  // Only fetch paid agents count if user should see dashboard (not redirecting)
   useEffect(() => {
+    if (!shouldLoadData) return;
+    
     const fetchPaidAgentCount = async () => {
       try {
         const { count, error } = await supabase
@@ -73,41 +80,44 @@ export default function Dashboard() {
     };
 
     fetchPaidAgentCount();
-  }, []);
+  }, [shouldLoadData]);
 
   async function checkUserStatus() {
     try {
-      // Check if user is an agent
+      setRedirecting(true);
+      
+      // Check if user is an agent - minimal data fetch for redirect check only
       const { data: userData } = await supabase
         .from('users')
-        .select('id, agent:agents(*)')
+        .select('id, agent:agents(verification_status, payment_status)')
         .eq('clerk_id', user.id)
         .single();
 
       if (userData?.agent) {
-        setAgentData(userData.agent);
+        const agent = Array.isArray(userData.agent) ? userData.agent[0] : userData.agent;
         
         // Handle agent redirects based on status
-        if (userData.agent.verification_status === 'approved') {
-          if (userData.agent.payment_status === 'paid') {
-            // Redirect paid agents to agent dashboard
-            router.replace('/agent/dashboard');
-            return;
-          }
-          // Show payment prompt but don't redirect - user can access dashboard
-          setShowAgentPrompt(false);
-        } else {
-          // If pending or rejected, don't show "Become Agent" prompt
-          setShowAgentPrompt(false);
+        if (agent?.verification_status === 'approved' && agent?.payment_status === 'paid') {
+          // Redirect paid agents to agent dashboard immediately - NO data loading
+          router.replace('/agent/dashboard');
+          return;
         }
+        
+        // Non-paid agent can use regular dashboard
+        setAgentData(agent);
+        setShowAgentPrompt(false);
       } else {
         // Show prompt to become agent
         setShowAgentPrompt(true);
       }
 
-      // Regular user - load dashboard
+      // User should see this dashboard - allow data loading
+      setRedirecting(false);
+      setShouldLoadData(true);
       fetchDashboardData();
     } catch (error) {
+      setRedirecting(false);
+      setShouldLoadData(true);
       fetchDashboardData();
     }
   }
@@ -171,6 +181,18 @@ export default function Dashboard() {
     } finally {
       setLoading(false);
     }
+  }
+
+  // Prevent rendering if still checking auth status or redirecting
+  if (!isLoaded || redirecting || !shouldLoadData) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-accent mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
   }
 
   return (

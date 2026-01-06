@@ -9,8 +9,7 @@ import { formatJMD, formatMoney } from '../../lib/formatMoney';
 
 export default function AdminDashboard() {
   const { user } = useUser();
-  const [activeTab, setActiveTab] = useState('properties');
-  const [properties, setProperties] = useState([]);
+  const [activeTab, setActiveTab] = useState('emails');
   const [users, setUsers] = useState([]);
   const [visitorEmails, setVisitorEmails] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -95,13 +94,7 @@ export default function AdminDashboard() {
     try {
       setLoading(true);
 
-      if (activeTab === 'properties') {
-        const { data } = await supabase
-          .from('properties')
-          .select('*')
-          .order('created_at', { ascending: false });
-        setProperties(data || []);
-      } else if (activeTab === 'users') {
+      if (activeTab === 'users') {
         const { data } = await supabase
           .from('users')
           .select('*')
@@ -126,25 +119,6 @@ export default function AdminDashboard() {
   useEffect(() => {
     fetchData();
   }, [activeTab]);
-
-  const handleToggleFeatured = async (id, currentStatus) => {
-    try {
-      const { error } = await supabase
-        .from('properties')
-        .update({ is_featured: !currentStatus })
-        .eq('id', id);
-      
-      if (error) throw error;
-      
-      setProperties(properties.map(p => 
-        p.id === id ? { ...p, is_featured: !currentStatus } : p
-      ));
-      
-      toast.success(currentStatus ? 'Removed from featured' : 'Added to featured');
-    } catch (err) {
-      toast.error('Failed to update featured status');
-    }
-  };
 
   const handleDeleteRequest = async (requestId) => {
     if (!confirm('⚠️ DELETE this service request?\n\nThis action cannot be undone!')) return;
@@ -181,77 +155,6 @@ export default function AdminDashboard() {
     }
   };
 
-  const handleDeleteProperty = async (id) => {
-    try {
-      // Get property to find details
-      const property = properties.find(p => p.id === id);
-      
-      if (!property) {
-        toast.error('Property not found');
-        return;
-      }
-
-      // Check for active boosts
-      const { data: activeBoosts } = await supabase
-        .from('property_boosts')
-        .select('id, amount, boost_end_date')
-        .eq('property_id', id)
-        .eq('status', 'active')
-        .gte('boost_end_date', new Date().toISOString());
-
-      const imageCount = property.image_urls?.length || 0;
-      const boostCount = activeBoosts?.length || 0;
-      
-      // Build detailed confirmation message
-      let confirmMessage = `⚠️ PERMANENTLY DELETE PROPERTY?\n\n`;
-      confirmMessage += `Title: ${property.title}\n`;
-      confirmMessage += `Parish: ${property.parish || 'N/A'}\n`;
-      confirmMessage += `Price: ${formatMoney(property.price)}\n\n`;
-      confirmMessage += `This action CANNOT be undone!\n\n`;
-      confirmMessage += `Will delete:\n`;
-      confirmMessage += `- Property record\n`;
-      confirmMessage += `- ${imageCount} image(s) from storage\n`;
-      
-      if (boostCount > 0) {
-        const totalBoostRevenue = activeBoosts.reduce((sum, b) => sum + (Number(b.amount) || 0), 0);
-        confirmMessage += `- ${boostCount} ACTIVE BOOST(S) (${formatJMD(totalBoostRevenue)} revenue)\n`;
-        confirmMessage += `\n⚠️ WARNING: This will cancel active boosts!\n`;
-      }
-      
-      confirmMessage += `\nType the property ID to confirm:\n${id}`;
-
-      if (!confirm(confirmMessage)) return;
-
-      // Delete images from storage bucket
-      if (property.image_urls && property.image_urls.length > 0) {
-        for (const imageUrl of property.image_urls) {
-          const urlParts = imageUrl.split('/property-images/');
-          if (urlParts.length > 1) {
-            const filePath = urlParts[1];
-            await supabase.storage.from('property-images').remove([filePath]);
-          }
-        }
-      }
-
-      // Delete active boosts first
-      if (boostCount > 0) {
-        await supabase
-          .from('property_boosts')
-          .delete()
-          .eq('property_id', id);
-      }
-      
-      // Delete property
-      const { error } = await supabase.from('properties').delete().eq('id', id);
-      if (error) throw error;
-      
-      toast.success(`Property deleted: ${imageCount} images + ${boostCount} boosts removed`);
-      setProperties(properties.filter((p) => p.id !== id));
-    } catch (err) {
-      toast.error('Failed to delete property');
-    }
-  };
-
   if (!isAdmin && !loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -270,37 +173,16 @@ export default function AdminDashboard() {
       </Head>
       
       <div className="container mx-auto px-4 py-6 max-w-7xl">
-      {/* Quick Actions */}
-      <div className="mb-4 flex gap-3 flex-wrap">
-        <Link 
-          href="/properties/my-listings"
-          className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition font-medium text-sm flex items-center gap-2"
-        >
-          <FiGrid className="w-4 h-4" />
-          All Properties
-        </Link>
-        <Link 
-          href="/properties/bulk-create"
-          className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition font-medium text-sm flex items-center gap-2"
-        >
-          <FiZap className="w-4 h-4" />
-          Bulk Create Listings
-        </Link>
-      </div>
-
+ 
       {/* Simple Tabs */}
       <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
-        <button
-          onClick={() => setActiveTab('properties')}
-          className={`px-3 py-2 rounded-md text-sm font-medium flex items-center gap-1.5 whitespace-nowrap ${
-            activeTab === 'properties'
-              ? 'bg-accent text-white'
-              : 'text-gray-700 hover:bg-gray-100'
-          }`}
+          <Link
+          href="/admin/requests"
+          className="px-3 py-2 rounded-md text-sm font-medium flex items-center gap-1.5 whitespace-nowrap text-gray-700 hover:bg-gray-100"
         >
           <FiGrid size={14} />
-          Properties
-        </button>
+          Requests
+        </Link>
         <Link
           href="/admin/agents"
           className="px-3 py-2 rounded-md text-sm font-medium flex items-center gap-1.5 whitespace-nowrap text-gray-700 hover:bg-gray-100"
@@ -329,13 +211,7 @@ export default function AdminDashboard() {
           <FiTrendingUp size={14} />
           Feedback
         </Link>
-        <Link
-          href="/admin/requests"
-          className="px-3 py-2 rounded-md text-sm font-medium flex items-center gap-1.5 whitespace-nowrap text-gray-700 hover:bg-gray-100"
-        >
-          <FiGrid size={14} />
-          Requests
-        </Link>
+      
         <Link
           href="/admin/users"
           className="px-3 py-2 rounded-md text-sm font-medium flex items-center gap-1.5 whitespace-nowrap text-gray-700 hover:bg-gray-100"
@@ -361,6 +237,13 @@ export default function AdminDashboard() {
               {visitorEmails.length}
             </span>
           )}
+        </Link>
+          <Link 
+          href="/properties/bulk-create"
+          className="px-3 py-2 rounded-md text-sm font-medium flex items-center gap-1.5 whitespace-nowrap text-gray-700 hover:bg-gray-100"
+        >
+          <FiZap className="w-4 h-4" />
+          Bulk Listings
         </Link>
       </div>
 
@@ -418,46 +301,6 @@ export default function AdminDashboard() {
               </div>
             </div>
           )}
-        </div>
-      ) : activeTab === 'properties' ? (
-        /* Mobile-Friendly Property Cards */
-        <div className="space-y-3">
-          {properties.map((prop) => (
-            <div key={prop.id} className="bg-white rounded-lg shadow-sm p-4 hover:shadow-md transition">
-              <div className="flex justify-between items-start gap-4 mb-3">
-                <div className="flex-1 min-w-0">
-                  <h3 className="font-bold text-gray-800 truncate text-lg">{prop.title || 'Untitled'}</h3>
-                  <p className="text-sm text-gray-600">{prop.parish || 'No parish'}</p>
-                  <p className="text-lg font-bold text-gray-800 mt-1">{formatMoney(prop.price)}</p>
-                </div>
-                <div className="flex items-center gap-2 text-sm text-gray-600 flex-shrink-0">
-                  <FiEye size={16} />
-                  {prop.views || 0}
-                </div>
-              </div>
-              
-              <div className="flex flex-wrap gap-2">
-                <button
-                  onClick={() => handleToggleFeatured(prop.id, prop.is_featured)}
-                  className={`px-4 py-2 rounded-lg font-medium text-sm flex items-center gap-1 ${
-                    prop.is_featured 
-                      ? 'bg-gray-800 text-white hover:bg-gray-700' 
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  }`}
-                >
-                  <FiStar size={16} />
-                  {prop.is_featured ? 'Featured' : 'Feature'}
-                </button>
-                <button
-                  onClick={() => handleDeleteProperty(prop.id)}
-                  className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 font-medium text-sm flex items-center gap-1"
-                >
-                  <FiTrash2 size={16} />
-                  Delete
-                </button>
-              </div>
-            </div>
-          ))}
         </div>
       ) : (
         /* Simple Users List */

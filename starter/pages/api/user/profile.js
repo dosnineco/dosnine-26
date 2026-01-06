@@ -29,7 +29,8 @@ export default async function handler(req, res) {
           .from('users')
           .insert({
             clerk_id: clerkId,
-            role: 'user'
+            role: 'user',
+            last_sign_in_at: new Date().toISOString()
           })
           .select(`
             *,
@@ -49,19 +50,33 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: 'Failed to fetch user data' });
     }
 
+    // Update last_sign_in_at timestamp and fetch updated data
+    const { data: updatedUser, error: updateError } = await supabase
+      .from('users')
+      .update({ last_sign_in_at: new Date().toISOString() })
+      .eq('clerk_id', clerkId)
+      .select(`
+        *,
+        agent:agents(*)
+      `)
+      .single();
+
+    // Use updated user data if available, otherwise fall back to original
+    const userData = updatedUser || user;
+
     // Handle agent data structure (could be null, object, or array)
     let agentData = null;
-    if (user.agent) {
-      if (Array.isArray(user.agent)) {
-        agentData = user.agent[0] || null;
+    if (userData.agent) {
+      if (Array.isArray(userData.agent)) {
+        agentData = userData.agent[0] || null;
       } else {
-        agentData = user.agent;
+        agentData = userData.agent;
       }
     }
 
     // Return user with normalized agent data
     return res.status(200).json({
-      ...user,
+      ...userData,
       agent: agentData
     });
 

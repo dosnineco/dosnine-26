@@ -139,7 +139,6 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: 'Failed to create agent profile' });
     }
 
-    console.log('Agent signup complete:', userId);
 
     return res.status(200).json({
       success: true,

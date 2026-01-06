@@ -197,9 +197,7 @@ export default function AdminUsersPage() {
           {/* Header */}
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-4">
-              <Link href="/admin/dashboard" className="text-gray-600 hover:text-gray-900">
-                ← Back to Dashboard
-              </Link>
+              
               <div>
                 <h1 className="text-3xl font-bold text-gray-900">Users</h1>
                 <p className="text-sm text-gray-500">Manage all platform users</p>

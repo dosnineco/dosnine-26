@@ -5,7 +5,7 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { clerkId, requestId, action } = req.body;
+  const { clerkId, requestId, action, comment } = req.body;
 
   if (!clerkId || !requestId || !action) {
     return res.status(400).json({ error: 'Missing required fields' });
@@ -15,7 +15,7 @@ export default async function handler(req, res) {
     // Get user first, then agent
     const { data: user } = await supabase
       .from('users')
-      .select('id')
+      .select('id, role')
       .eq('clerk_id', clerkId)
       .single();
 
@@ -23,29 +23,52 @@ export default async function handler(req, res) {
       return res.status(403).json({ error: 'User not found' });
     }
 
-    // Verify agent exists and is verified + paid
-    const { data: agent, error: agentError } = await supabase
-      .from('agents')
-      .select('id')
-      .eq('user_id', user.id)
-      .eq('verification_status', 'approved')
-      .eq('payment_status', 'paid')
-      .single();
+    // Check if user is admin (for remove action)
+    const isAdmin = user.role === 'admin';
 
-    if (agentError || !agent) {
-      return res.status(403).json({ error: 'Agent not found or not authorized' });
+    // Verify agent exists and is verified + paid (unless admin)
+    let agent = null;
+    if (!isAdmin) {
+      const { data: agentData, error: agentError } = await supabase
+        .from('agents')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('verification_status', 'approved')
+        .eq('payment_status', 'paid')
+        .single();
+
+      if (agentError || !agentData) {
+        return res.status(403).json({ error: 'Agent not found or not authorized' });
+      }
+
+      agent = agentData;
     }
 
-    // Verify the request belongs to this agent
-    const { data: request, error: requestError } = await supabase
-      .from('service_requests')
-      .select('*')
-      .eq('id', requestId)
-      .eq('assigned_agent_id', agent.id)
-      .single();
+    // Verify the request belongs to this agent (or is admin)
+    let request;
+    if (isAdmin) {
+      const { data: req_data, error: requestError } = await supabase
+        .from('service_requests')
+        .select('*')
+        .eq('id', requestId)
+        .single();
 
-    if (requestError || !request) {
-      return res.status(404).json({ error: 'Request not found or not assigned to you' });
+      if (requestError || !req_data) {
+        return res.status(404).json({ error: 'Request not found' });
+      }
+      request = req_data;
+    } else {
+      const { data: req_data, error: requestError } = await supabase
+        .from('service_requests')
+        .select('*')
+        .eq('id', requestId)
+        .eq('assigned_agent_id', agent.id)
+        .single();
+
+      if (requestError || !req_data) {
+        return res.status(404).json({ error: 'Request not found or not assigned to you' });
+      }
+      request = req_data;
     }
 
     let updateData = {};
@@ -56,6 +79,24 @@ export default async function handler(req, res) {
         updateData = {
           status: 'completed',
           completed_at: new Date().toISOString(),
+        };
+        break;
+
+      case 'contacted':
+        // Toggle contacted status
+        updateData = {
+          is_contacted: !request.is_contacted,
+        };
+        break;
+
+      case 'comment':
+        // Save comment
+        if (!comment || !comment.trim()) {
+          return res.status(400).json({ error: 'Comment cannot be empty' });
+        }
+        updateData = {
+          comment: comment,
+          comment_updated_at: new Date().toISOString(),
         };
         break;
 
@@ -117,6 +158,10 @@ export default async function handler(req, res) {
         });
 
       case 'remove':
+        // Only admins can remove
+        if (!isAdmin) {
+          return res.status(403).json({ error: 'Only admins can remove requests' });
+        }
         // Mark as cancelled/removed
         updateData = {
           status: 'cancelled',

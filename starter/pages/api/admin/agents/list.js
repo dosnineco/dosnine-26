@@ -13,8 +13,6 @@ export default async function handler(req, res) {
   }
 
   try {
-    console.log('🔍 API: Checking admin access for clerkId:', clerkId);
-
     // SECURITY: Verify user is admin and has valid data
     const { data: adminUser, error: adminError } = await supabase
       .from('users')
@@ -23,10 +21,7 @@ export default async function handler(req, res) {
       .eq('role', 'admin')
       .single();
 
-    console.log('👤 Admin check result:', { adminUser, adminError });
-
     if (!adminUser) {
-      console.log('❌ User is not admin');
       return res.status(403).json({ error: 'Access denied - Admin only' });
     }
 
@@ -35,8 +30,6 @@ export default async function handler(req, res) {
       console.error('❌ SECURITY: Admin user has NULL data:', adminUser.id);
       return res.status(403).json({ error: 'Access denied - Admin account incomplete' });
     }
-
-    console.log('✅ Admin verified:', adminUser.email);
 
     // Build query for agents
     let query = supabase
@@ -55,11 +48,9 @@ export default async function handler(req, res) {
 
     // Filter by status if provided
     if (status && status !== 'all') {
-      console.log('🔍 Filtering by status:', status);
       query = query.eq('verification_status', status);
     }
 
-    console.log('📊 Querying agents table...');
     const { data: agents, error } = await query;
 
     if (error) {
@@ -71,10 +62,7 @@ export default async function handler(req, res) {
       });
     }
 
-    console.log('✅ Found agents:', agents?.length || 0);
-
     if (!agents || agents.length === 0) {
-      console.log('⚠️ No agents in database');
       return res.status(200).json({ agents: [] });
     }
 
