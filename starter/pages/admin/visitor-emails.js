@@ -22,14 +22,21 @@ export default function AdminVisitorEmails() {
       }
 
       try {
-        // Check if user is admin
+        // Check if user is admin - with security validation
         const { data: userData } = await supabase
           .from('users')
-          .select('role')
+          .select('role, email, full_name')
           .eq('clerk_id', user.id)
           .single();
 
         if (userData?.role !== 'admin') {
+          router.push('/');
+          return;
+        }
+
+        // SECURITY FIX: Verify admin has valid data (not NULL)
+        if (!userData.email || !userData.full_name) {
+          console.error('❌ SECURITY: Admin user has NULL data');
           router.push('/');
           return;
         }

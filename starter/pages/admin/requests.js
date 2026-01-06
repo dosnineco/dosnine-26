@@ -26,13 +26,20 @@ export default function AdminRequestsPage() {
     try {
       const { data: userData, error } = await supabase
         .from('users')
-        .select('role')
+        .select('role, email, full_name')
         .eq('clerk_id', user.id)
         .single();
 
       if (error) throw error;
 
+      // SECURITY FIX: Verify admin has valid data (not NULL)
       if (userData?.role === 'admin') {
+        if (!userData.email || !userData.full_name) {
+          console.error('❌ SECURITY: Admin user has NULL data');
+          setIsAdmin(false);
+          setLoading(false);
+          return;
+        }
         setIsAdmin(true);
         fetchData();
       } else {

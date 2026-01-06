@@ -49,6 +49,11 @@ export default function Footer() {
                   Premium Plans
                 </a>
               </li>
+              <li>
+                <a href="/market" className="text-gray-600 hover:text-blue-600 transition">
+                  Market Analytics
+                </a>
+              </li>
             </ul>
           </div>
 

@@ -26,12 +26,24 @@ export default function AdminDashboard() {
     try {
       const { data } = await supabase
         .from('users')
-        .select('role')
+        .select('role, email, full_name')
         .eq('clerk_id', user.id)
         .single();
 
+      // SECURITY FIX: Verify admin has valid data (not NULL)
       if (data?.role !== 'admin') {
         toast.error('Access denied: Admin only');
+        setIsAdmin(false);
+        // Redirect to home after 1 second
+        setTimeout(() => {
+          window.location.href = '/';
+        }, 1000);
+        return;
+      }
+
+      if (!data.email || !data.full_name) {
+        console.error('❌ SECURITY: Admin user has NULL data');
+        toast.error('Access denied: Admin account incomplete');
         setIsAdmin(false);
         // Redirect to home after 1 second
         setTimeout(() => {

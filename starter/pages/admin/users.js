@@ -99,20 +99,36 @@ export default function AdminUsersPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!formData.full_name || !formData.email) {
-      toast.error('Name and email are required');
+    // SECURITY FIX: Validate all required fields
+    const trimmedName = formData.full_name?.trim() || '';
+    const trimmedEmail = formData.email?.trim() || '';
+
+    if (!trimmedName) {
+      toast.error('User name is required and cannot be empty');
+      return;
+    }
+
+    if (!trimmedEmail) {
+      toast.error('Email address is required and cannot be empty');
+      return;
+    }
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(trimmedEmail)) {
+      toast.error('Please enter a valid email address');
       return;
     }
 
     try {
       if (editingUser) {
-        // Update existing user
+        // Update existing user - cannot update clerk_id
         const { error } = await supabase
           .from('users')
           .update({
-            full_name: formData.full_name,
-            email: formData.email,
-            phone: formData.phone,
+            full_name: trimmedName,
+            email: trimmedEmail,
+            phone: formData.phone?.trim() || null,
             role: formData.role
           })
           .eq('id', editingUser.id);
@@ -120,25 +136,25 @@ export default function AdminUsersPage() {
         if (error) throw error;
         toast.success('User updated successfully!');
       } else {
-        // Create new user
-        const { error } = await supabase
-          .from('users')
-          .insert([{
-            full_name: formData.full_name,
-            email: formData.email,
-            phone: formData.phone,
-            role: formData.role,
-            clerk_id: `manual_${Date.now()}` // Temporary clerk_id for manually created users
-          }]);
-
-        if (error) throw error;
-        toast.success('User created successfully!');
+        // SECURITY FIX: Creating users manually should not be allowed
+        // Users should only be created through Clerk authentication
+        toast.error('❌ Manual user creation is disabled for security. Users must sign up through authentication.');
+        return;
       }
 
       handleCloseModal();
       await fetchUsers();
     } catch (err) {
-      toast.error(err.message || 'Failed to save user');
+      console.error('User save error:', err);
+      
+      // Check for specific database errors
+      if (err.message?.includes('duplicate') || err.message?.includes('email')) {
+        toast.error('❌ Email already exists. Please use a different email address.');
+      } else if (err.message?.includes('not-null')) {
+        toast.error('❌ Name and email cannot be empty');
+      } else {
+        toast.error(err.message || 'Failed to save user');
+      }
     }
   };
 

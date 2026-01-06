@@ -15,10 +15,10 @@ export default async function handler(req, res) {
   try {
     console.log('🔍 API: Checking admin access for clerkId:', clerkId);
 
-    // SECURITY: Verify user is admin
+    // SECURITY: Verify user is admin and has valid data
     const { data: adminUser, error: adminError } = await supabase
       .from('users')
-      .select('id, role, email')
+      .select('id, role, email, full_name')
       .eq('clerk_id', clerkId)
       .eq('role', 'admin')
       .single();
@@ -28,6 +28,12 @@ export default async function handler(req, res) {
     if (!adminUser) {
       console.log('❌ User is not admin');
       return res.status(403).json({ error: 'Access denied - Admin only' });
+    }
+
+    // SECURITY FIX: Verify admin has valid email and name
+    if (!adminUser.email || !adminUser.full_name) {
+      console.error('❌ SECURITY: Admin user has NULL data:', adminUser.id);
+      return res.status(403).json({ error: 'Access denied - Admin account incomplete' });
     }
 
     console.log('✅ Admin verified:', adminUser.email);
