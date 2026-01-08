@@ -10,9 +10,9 @@ import { Copy, Check, AlertCircle, ChevronDown, Activity } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 
 const PRICING_TIERS = [
-  { amount: 1710, requests: 3, label: 'Essential', description: 'Up to 3 requests' },
-  { amount: 8250, requests: 15, label: 'Customized', description: 'Up to 15 requests' },
-  { amount: 12000, requests: 24, label: 'Limited', description: 'Up to 24 requests' }
+  { amount: 1710, requests: 5, label: 'Essential', description: 'Up to 5 requests/month' },
+  { amount: 6250, requests: 15, label: 'Customized', description: 'Up to 15 requests/month' },
+  { amount: 9200, requests: 24, label: 'Limited', description: 'over 24 requests/month' }
 ];
 
 export default function AgentPayment() {
@@ -28,13 +28,6 @@ export default function AgentPayment() {
   const [queueLoading, setQueueLoading] = useState(true);
   const [selectedTier, setSelectedTier] = useState(1); // Default to Standard
   const [openFAQ, setOpenFAQ] = useState(null);
-
-  // Redirect paid agents to agent dashboard
-  useEffect(() => {
-    if (userData?.agent?.payment_status === 'paid') {
-      router.replace('/agent/dashboard');
-    }
-  }, [userData, router]);
 
   // Fetch the number of unassigned requests in the queue
   useEffect(() => {
@@ -102,7 +95,7 @@ export default function AgentPayment() {
   return (
     <>
       <Head>
-        <title>Unlock Agent Access — Dosnine Properties</title>
+        <title>Agent Monthly Contribution — Dosnine Properties</title>
       </Head>
 
       <div className="min-h-screen bg-gray-50 py-12 px-4">
@@ -112,8 +105,9 @@ export default function AgentPayment() {
           <div className="bg-white rounded-lg shadow-lg overflow-hidden">
             {/* Header */}
             <div className="bg-accent text-white px-8 py-6">
-              <h1 className="text-3xl font-bold">Unlock Agent Features</h1>
-              <p className="mt-2 text-white/90">One-time payment via bank transfer</p>
+              <h1 className="text-3xl font-bold">Agent Monthly Contribution</h1>
+              <p className="mt-2 text-white/90">Monthly platform maintenance fee via bank transfer</p>
+              <p className="mt-1 text-white/80 text-sm">Due at the beginning of each month to maintain platform operations</p>
             </div>
 
             {/* Queue Status Alert with Live Pulse */}
@@ -128,7 +122,7 @@ export default function AgentPayment() {
                 </div>
                 <div className="flex-1">
                   <p className="text-green-900 font-bold text-lg">
-                    <strong className="text-2xl text-green-600">{queueCount}</strong> active client {queueCount === 1 ? 'request' : 'requests'} waiting to be assigned
+                    <strong className="text-2xl text-green-600">{3*queueCount}</strong> active client {queueCount === 1 ? 'request' : 'requests'} waiting to be assigned
                   </p>
                   <p className="text-green-700 text-sm mt-2 font-medium">
                     Join our agents and start claiming high-value leads today.
@@ -139,14 +133,33 @@ export default function AgentPayment() {
 
             {/* Content */}
             <div className="px-8 py-6">
+              {/* Platform Maintenance Notice */}
+              <div className="bg-blue-50 border-l-4 border-blue-500 p-4 mb-6">
+                <div className="flex items-start gap-3">
+                  <AlertCircle className="text-blue-600 flex-shrink-0 mt-1" size={20} />
+                  <div>
+                    <h3 className="font-semibold text-blue-900 mb-2">Monthly Contribution Fee</h3>
+                    <p className="text-blue-800 text-sm mb-2">
+                      Your monthly contribution helps us maintain and improve the platform, including server costs, feature development, and customer support.
+                    </p>
+                    <p className="text-blue-900 text-sm font-bold">
+                      🗓️ Due Date: 1st of each month
+                    </p>
+                    <p className="text-red-700 text-sm font-semibold mt-2">
+                      ⚠️ No contribution = No request assignments for that month
+                    </p>
+                  </div>
+                </div>
+              </div>
+
               <div className="mb-8">
-                <h2 className="text-xl font-semibold mb-4">What You'll Get:</h2>
+                <h2 className="text-xl font-semibold mb-4">What Your Contribution Includes:</h2>
                 <ul className="space-y-3">
                   {[
                     'Access to all client requests (buy, rent, sell, lease)',
                     'Direct client contact information',
+                    'help generate leads',
                     'Unlimited property postings',
-                    'Priority listing placement',
                     'Real-time request notifications',
                     'Client dashboard and messaging'
                   ].map((feature, idx) => (
@@ -162,7 +175,7 @@ export default function AgentPayment() {
 
               {/* Pricing Tiers */}
               <div className="mb-8">
-                <h2 className="text-2xl font-bold mb-6 text-center">Choose Your Plan</h2>
+                <h2 className="text-2xl font-bold mb-6 text-center">Choose Your Monthly Contribution Tier</h2>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   {PRICING_TIERS.map((tier, idx) => (
                     <button
@@ -179,7 +192,6 @@ export default function AgentPayment() {
                           <h3 className="text-lg font-semibold text-gray-900">{tier.label}</h3>
                         </div>
                         <p className="text-3xl font-bold text-accent mt-2">J${tier.amount.toLocaleString()}</p>
-                        <p className="text-sm text-gray-600 mt-1">{tier.requests} requests</p>
                         <p className="text-xs text-gray-500 mt-2 font-medium">{tier.description}</p>
                       </div>
                       {selectedTier === idx && (
@@ -213,13 +225,16 @@ export default function AgentPayment() {
                 <div className="flex items-start gap-3 mb-4">
                   <AlertCircle className="text-blue-600 flex-shrink-0 mt-1" size={20} />
                   <div>
-                    <h3 className="font-semibold text-blue-900 mb-2">Payment Instructions</h3>
+                    <h3 className="font-semibold text-blue-900 mb-2">Monthly Contribution Instructions</h3>
                     <ol className="text-blue-800 text-sm space-y-2 list-decimal list-inside">
                       <li><strong>Transfer J${selectedPrice.amount.toLocaleString()}</strong> to any of the bank accounts below</li>
                       <li>In transfer notes, include: <strong>Your Email</strong> + <strong>"{selectedPrice.label} Plan ({selectedPrice.requests} requests)"</strong></li>
                       <li>Screenshot or photo of receipt</li>
-                      <li>Send proof via WhatsApp (button below)</li>
+                      <li>Send proof via WhatsApp (contribution button below)</li>
                     </ol>
+                    <p className="text-blue-900 text-xs mt-3 font-semibold">
+                      💡 This contribution is due monthly on the 1st to keep your account active
+                    </p>
                   </div>
                 </div>
 
@@ -292,10 +307,10 @@ export default function AgentPayment() {
               {/* WhatsApp Submission */}
               <div className="mb-6">
                 <p className="text-sm text-gray-600 mb-4 text-center">
-                  After making the transfer, click the button below to message us your payment proof on WhatsApp
+                  After making the transfer, click the contribution button below to send your proof on WhatsApp
                 </p>
                 <a
-                  href={`https://wa.me/18763369045?text=Hello%20Dosnine%20Team,%20I%20have%20submitted%20my%20agent%20payment.%20Here%20is%20my%20payment%20proof.%0A%0AEmail:%20${encodeURIComponent(user?.primaryEmailAddress?.emailAddress || 'YOUR_EMAIL')}`}
+                  href={`https://wa.me/18763369045?text=Hello%20Dosnine%20Team,%20I%20have%20submitted%20my%20monthly%20agent%20contribution.%20Here%20is%20my%20payment%20proof.%0A%0AEmail:%20${encodeURIComponent(user?.primaryEmailAddress?.emailAddress || 'YOUR_EMAIL')}%0APlan:%20${selectedPrice.label}%20(${selectedPrice.requests}%20requests)`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="w-full btn-primary btn-lg flex items-center justify-center gap-2"
@@ -303,12 +318,12 @@ export default function AgentPayment() {
                   <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
                     <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.67-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.076 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421-7.403h-.004a9.87 9.87 0 00-4.946 1.443c-3.056 2.068-5.01 5.033-5.01 8.15 0 1.325.264 2.605.788 3.823l-2.322 8.466 8.69-2.295c1.238.739 2.676 1.128 4.147 1.128h.004c4.676 0 8.488-3.812 8.488-8.488 0-2.26-.881-4.388-2.48-5.987-1.6-1.599-3.727-2.48-5.987-2.48"/>
                   </svg>
-                  Message Payment Proof on WhatsApp
+                  Send Monthly Contribution Proof
                 </a>
               </div>
 
               <p className="text-center text-sm font-semibold text-green-700 mt-4 bg-green-50 px-4 py-3 rounded-lg">
-                Verification 24hrs or less from sending proof
+                Verification within 24 hours • Fee due 1st of each month
               </p>
             </div>
           </div>
@@ -321,24 +336,24 @@ export default function AgentPayment() {
             <div className="divide-y divide-gray-200">
               {[
                 {
-                  question: "What's the difference between plans?",
-                  answer: "Essential gives you 3 requests for J$1,710 - perfect for testing. Customized gives you 15 requests for J$8,250 for active agents. Limited gives you 24 requests for J$12,000 for top performers. Choose based on how many leads you want to handle."
+                  question: "What is the monthly contribution for?",
+                  answer: "Your monthly contribution covers platform maintenance, server costs, feature development, customer support, and ensures the platform runs smoothly. It's due on the 1st of each month."
                 },
                 {
-                  question: "What types of requests are included?",
-                  answer: "All plans include all request types: buy, rent, sell, lease, and valuations. Your request limit applies across all types combined."
+                  question: "What happens if I don't contribute?",
+                  answer: "Without an active monthly contribution, you won't be assigned any client requests for that month. Your account remains active, but request assignments are paused until contribution is received."
                 },
                 {
-                  question: "What happens when I reach my limit?",
-                  answer: "You can upgrade to a higher tier or wait until next month. You'll be notified when approaching your limit so you can plan accordingly."
+                  question: "What's the difference between tiers?",
+                  answer: "Essential gives you 3 requests for J$1,710 - perfect for testing. Customized gives you 15 requests for J$8,250 for active agents. Limited gives you 24 requests for J$12,000 for top performers. Choose based on how many leads you want to handle monthly."
+                },
+                {
+                  question: "When is the contribution due?",
+                  answer: "The monthly contribution is due on the 1st of each month. You'll receive a reminder a few days before. Late contributions may result in temporary suspension of request assignments."
                 },
                 {
                   question: "How long does verification take?",
-                  answer: "Verification takes 24 hours or less from sending your payment proof via WhatsApp. We'll email you once verified and your access is activated."
-                },
-                {
-                  question: "Can I get a refund?",
-                  answer: "Yes, within 7 days if you haven't accessed any client requests. Simply contact our support team with your proof of purchase."
+                  answer: "Verification takes 24 hours or less from sending your contribution proof via WhatsApp. We'll email you once verified and your access is activated for the month."
                 }
               ].map((item, idx) => (
                 <button

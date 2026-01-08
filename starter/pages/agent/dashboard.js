@@ -14,7 +14,7 @@ import { supabase } from '../../lib/supabase';
 import { 
   Home, Users, Mail, Phone, MapPin, DollarSign, 
   Bed, Bath, Calendar, Filter, CheckCircle, XCircle,
-  AlertCircle, Clock, Plus, RotateCcw, Trash2, BellDot, MessageCircle, Phone as PhoneIcon
+  AlertCircle, Clock, Plus, RotateCcw, Trash2, BellDot, MessageCircle, Phone as PhoneIcon, CreditCard
 } from 'lucide-react';
 
 export default function AgentDashboard() {
@@ -208,6 +208,8 @@ export default function AgentDashboard() {
 
       <div className="min-h-screen bg-gray-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        
+
           {/* Quick Actions */}
           <div className="mb-6 flex gap-3 flex-wrap">
             <Link 
@@ -224,6 +226,15 @@ export default function AgentDashboard() {
               <Plus className="w-4 h-4" />
               Bulk Create Listings
             </Link>
+            {agentData?.payment_status === 'paid' && (
+              <Link 
+                href="/agent/payment"
+                className="px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition font-medium flex items-center gap-2"
+              >
+                <CreditCard className="w-4 h-4" />
+                Monthly Contribution
+              </Link>
+            )}
           </div>
 
           {/* Unpaid Agent Payment Prompt */}
