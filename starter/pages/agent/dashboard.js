@@ -385,10 +385,10 @@ export default function AgentDashboard() {
                         </div>
 
                         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 md:gap-4 text-xs md:text-sm text-gray-600 mb-3">
-                          {/* <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2">
                             <MapPin className="w-4 h-4" />
                             {request.location}
-                          </div> */}
+                          </div>
                           {request.budget_min && request.budget_max && (
                             <div className="flex items-center gap-2">
                               <DollarSign className="w-4 h-4" />
@@ -423,14 +423,14 @@ export default function AgentDashboard() {
                             <Mail className="w-4 h-4 flex-shrink-0" />
                             <span className="truncate">{request.client_email}</span>
                           </div>
-                          {/* <div className="flex items-center gap-1">
+                          <div className="flex items-center gap-1">
                             <Phone className="w-4 h-4 flex-shrink-0" />
                             <span className="truncate">{request.client_phone}</span>
-                          </div> */}
-                            {/* <div className="flex items-center gap-2">
+                          </div>
+                            <div className="flex items-center gap-2">
                             <Calendar className="w-4 h-4" />
                             {new Date(request.created_at).toLocaleDateString()}
-                          </div> */}
+                          </div>
                         </div>
                       </div>
 
@@ -478,7 +478,7 @@ export default function AgentDashboard() {
                                   ? 'bg-gray-600 text-white hover:bg-gray-700'
                                   : 'bg-purple-600 text-white hover:bg-purple-700'
                               } disabled:opacity-50`}
-                              title={request.is_contacted ? 'Contacted' : 'not contacted'}
+                              title={request.is_contacted ? 'Contacted' : 'Not contacted'}
                             >
                               <PhoneIcon className="w-3 h-3" />
                             </button>

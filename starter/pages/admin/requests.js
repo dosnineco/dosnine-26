@@ -19,6 +19,7 @@ export default function AdminRequestsPage() {
   const [showCommentModal, setShowCommentModal] = useState(false);
   const [commentText, setCommentText] = useState('');
   const [filterUrgency, setFilterUrgency] = useState('all');
+  const [filterStatus, setFilterStatus] = useState('all');
 
   useEffect(() => {
     checkAdminAccess();
@@ -375,22 +376,50 @@ export default function AdminRequestsPage() {
 
               {/* Stats Overview */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                <div className="bg-white rounded-lg shadow p-4">
+                <button
+                  type="button"
+                  onClick={() => setFilterStatus('all')}
+                  aria-pressed={filterStatus === 'all'}
+                  className={`bg-white rounded-lg shadow p-4 hover:shadow-md transition cursor-pointer w-full ${
+                    filterStatus === 'all' ? 'ring-2 ring-blue-500' : ''
+                  }`}
+                >
                   <p className="text-sm text-gray-600 mb-1">Total Requests</p>
                   <p className="text-2xl font-bold text-gray-900">{requests.length}</p>
-                </div>
-                <div className="bg-white rounded-lg shadow p-4">
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFilterStatus('open')}
+                  aria-pressed={filterStatus === 'open'}
+                  className={`bg-white rounded-lg shadow p-4 hover:shadow-md transition cursor-pointer w-full ${
+                    filterStatus === 'open' ? 'ring-2 ring-blue-500' : ''
+                  }`}
+                >
                   <p className="text-sm text-gray-600 mb-1">Open</p>
                   <p className="text-2xl font-bold text-orange-600">{requests.filter(r => r.status === 'open').length}</p>
-                </div>
-                <div className="bg-white rounded-lg shadow p-4">
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFilterStatus('assigned')}
+                  aria-pressed={filterStatus === 'assigned'}
+                  className={`bg-white rounded-lg shadow p-4 hover:shadow-md transition cursor-pointer w-full ${
+                    filterStatus === 'assigned' ? 'ring-2 ring-blue-500' : ''
+                  }`}
+                >
                   <p className="text-sm text-gray-600 mb-1">Assigned</p>
                   <p className="text-2xl font-bold text-blue-600">{requests.filter(r => r.status === 'assigned' || r.status === 'in_progress').length}</p>
-                </div>
-                <div className="bg-white rounded-lg shadow p-4">
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFilterStatus('completed')}
+                  aria-pressed={filterStatus === 'completed'}
+                  className={`bg-white rounded-lg shadow p-4 hover:shadow-md transition cursor-pointer w-full ${
+                    filterStatus === 'completed' ? 'ring-2 ring-blue-500' : ''
+                  }`}
+                >
                   <p className="text-sm text-gray-600 mb-1">Completed</p>
                   <p className="text-2xl font-bold text-green-600">{requests.filter(r => r.status === 'completed').length}</p>
-                </div>
+                </button>
               </div>
 
               {/* Request List */}
@@ -403,7 +432,13 @@ export default function AdminRequestsPage() {
                   requests.filter(request => {
                     const typeMatch = filterType === 'all' || request.request_type === filterType;
                     const urgencyMatch = filterUrgency === 'all' || request.urgency === filterUrgency;
-                    return typeMatch && urgencyMatch;
+                    const statusMatch =
+                      filterStatus === 'all'
+                        ? true
+                        : filterStatus === 'assigned'
+                          ? (request.status === 'assigned' || request.status === 'in_progress')
+                          : request.status === filterStatus;
+                    return typeMatch && urgencyMatch && statusMatch;
                   }).map((request) => (
                     <div key={request.id} className="bg-white rounded-lg shadow-sm p-4 hover:shadow-md transition">
                       <div className="flex justify-between items-start gap-4 mb-3">
