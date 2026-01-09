@@ -21,8 +21,8 @@ export default function VisitorEmailPopup() {
   const [selectedBank, setSelectedBank] = useState(null); // 'scotiabank' or 'ncb'
   
   // Payment constants
-  const PREMIUM_PRICE = 1500; // JMD
-  const PAID_SPOTS_LEFT = 3; // Limited spots this month
+  const PREMIUM_PRICE = 1499; // JMD
+  const PAID_SPOTS_LEFT = 7; // Limited spots this month
 
   const bankDetails = [
     {
