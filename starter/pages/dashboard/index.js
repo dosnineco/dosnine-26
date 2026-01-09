@@ -280,33 +280,6 @@ export default function Dashboard() {
               </div>
             )}
 
-            {agentData.verification_status === 'approved' && agentData.payment_status !== 'paid' && (
-              <div className="bg-gradient-to-r from-amber-50 to-orange-50 border-l-4 border-orange-400 rounded-lg p-6">
-                <div className="flex items-start gap-4">
-                
-                  <div className="flex-1">
-                    <h3 className="text-lg font-bold text-orange-900 mb-3">
-                      Clients Are Waiting
-                    </h3>
-                    <div className="text-orange-800 space-y-2 mb-4">
-                      {!queueLoading && queueCount !== null && (
-                        <p><strong>{queueCount}</strong> people are looking for an agent right now.</p>
-                      )}
-                      {queueLoading && <p>Loading live requests...</p>}
-                      {!paidAgentLoading && paidAgentCount !== null && (
-                        <p>Only <strong>{20 - paidAgentCount}/20</strong> paid {20 - paidAgentCount === 1 ? 'spot' : 'spots'} left.</p>
-                      )}
-                    </div>
-                    <Link
-                      href="/agent/payment"
-                      className="inline-block px-6 py-3 bg-orange-500 text-white font-semibold rounded-lg hover:bg-orange-600 transition flex items-center gap-2 w-fit"
-                    >
-                      Claim Your Paid Slot
-                    </Link>
-                  </div>
-                </div>
-              </div>
-            )}
           </div>
         )}
 

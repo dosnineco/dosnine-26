@@ -14,10 +14,25 @@ import { supabase } from '../../lib/supabase';
 import { 
   Home, Users, Mail, Phone, MapPin, DollarSign, 
   Bed, Bath, Calendar, Filter, CheckCircle, XCircle,
-  AlertCircle, Clock, Plus, RotateCcw, Trash2, BellDot, MessageCircle, Phone as PhoneIcon, CreditCard
+  AlertCircle, Clock, Plus, RotateCcw, Trash2, BellDot, MessageCircle, Phone as PhoneIcon, CreditCard, Info
 } from 'lucide-react';
 
 export default function AgentDashboard() {
+  const SectionHint = ({ message }) => (
+    <span
+      className="relative inline-flex items-center group ml-2 align-middle outline-none"
+      tabIndex={0}
+      aria-label="Section explainer"
+    >
+      <Info className="w-4 h-4 text-gray-400 group-hover:text-accent transition" aria-hidden="true" />
+      <span
+        role="tooltip"
+        className="pointer-events-none absolute left-1/2 top-full z-20 mt-2 w-64 -translate-x-1/2 rounded-lg border border-gray-200 bg-white p-3 text-xs text-gray-700 shadow-lg opacity-0 transition group-hover:opacity-100 group-focus-within:opacity-100"
+      >
+        {message}
+      </span>
+    </span>
+  );
   // Protect route - only verified agents can access
   const { loading: authLoading, userData: initialUserData } = useRoleProtection({
     checkAccess: isVerifiedAgent,
@@ -211,6 +226,10 @@ export default function AgentDashboard() {
         
 
           {/* Quick Actions */}
+          <div className="mb-2 flex items-center gap-2">
+            <h2 className="text-lg font-semibold text-gray-900">Quick Actions</h2>
+            <SectionHint message="Jump to your listings or start a bulk upload so you can respond to clients faster." />
+          </div>
           <div className="mb-6 flex gap-3 flex-wrap">
             <Link 
               href="/properties/my-listings"
@@ -243,8 +262,9 @@ export default function AgentDashboard() {
               <div className="flex items-start gap-4">
                
                 <div className="flex-1">
-                  <h3 className="text-lg font-bold text-orange-900 mb-3">
+                  <h3 className="flex items-center text-lg font-bold text-orange-900 mb-3">
                     Clients Are Waiting
+                    <SectionHint message="Unpaid agents are queued. Activating payment moves you into the active rotation for new requests." />
                   </h3>
                   <div className="text-orange-800 space-y-2 mb-4">
                     {!queueLoading && queueCount !== null && (
@@ -270,6 +290,10 @@ export default function AgentDashboard() {
           {/* Stats */}
           {agentData?.payment_status === 'paid' && (
             <>
+          <div className="mb-3 flex items-center gap-2">
+            <h2 className="text-lg font-semibold text-gray-900">Request Stats</h2>
+            <SectionHint message="Snapshot of your pipeline across all client requests: totals, open items, in-progress, and completed." />
+          </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-6 mb-8">
             <div className="bg-white rounded-lg shadow p-4 md:p-6">
               <div className="flex items-center justify-between">
@@ -313,6 +337,10 @@ export default function AgentDashboard() {
           </div>
 
           {/* Filters */}
+          <div className="mb-2 flex items-center gap-2">
+            <h2 className="text-lg font-semibold text-gray-900">Filters</h2>
+            <SectionHint message="Narrow your queue by status and urgency so you can prioritize the right clients first." />
+          </div>
           <div className="bg-white rounded-lg shadow p-4 mb-6 overflow-x-auto space-y-3">
             <div className="flex items-center gap-2 min-w-max">
               <Filter className="w-5 h-5 text-gray-500 flex-shrink-0" />
@@ -353,6 +381,10 @@ export default function AgentDashboard() {
           </div>
 
           {/* Requests List */}
+          <div className="mb-2 flex items-center gap-2">
+            <h2 className="text-lg font-semibold text-gray-900">Requests</h2>
+            <SectionHint message="Active client requests routed to you. Update status, add notes, or release to the next agent." />
+          </div>
           <div className="bg-white rounded-lg shadow overflow-hidden">
             {loading ? (
               <div className="text-center py-12">

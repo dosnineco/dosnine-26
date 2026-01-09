@@ -4,7 +4,7 @@ import { useUser } from '@clerk/nextjs';
 import toast from 'react-hot-toast';
 import { normalizeParish } from '../lib/normalizeParish';
 import { sanitizeText, sanitizePrice, sanitizeNumber, sanitizePhone, sanitizeArea, validateImageFile, generateSafeSlug } from '../lib/sanitize';
-import { Upload, X, Plus, Image as ImageIcon, MapPin, DollarSign, Home } from 'lucide-react';
+import { Upload, X, Plus, Image as ImageIcon, MapPin, DollarSign, Home, Info } from 'lucide-react';
 
 const PARISHES = [
   'Kingston', 'St Andrew', 'St Catherine', 'St James', 'Clarendon',
@@ -14,6 +14,22 @@ const PARISHES = [
 
 export default function BulkListingCreator() {
   const { user } = useUser();
+
+  const SectionHint = ({ message }) => (
+    <span
+      className="relative inline-flex items-center group ml-2 align-middle outline-none"
+      tabIndex={0}
+      aria-label="Section explainer"
+    >
+      <Info className="w-4 h-4 text-gray-400 group-hover:text-accent transition" aria-hidden="true" />
+      <span
+        role="tooltip"
+        className="pointer-events-none absolute left-1/2 top-full z-20 mt-2 w-64 -translate-x-1/2 rounded-lg border border-gray-200 bg-white p-3 text-xs text-gray-700 shadow-lg opacity-0 transition group-hover:opacity-100 group-focus-within:opacity-100"
+      >
+        {message}
+      </span>
+    </span>
+  );
   
   // Base listing template
   const [baseData, setBaseData] = useState({
@@ -323,7 +339,7 @@ export default function BulkListingCreator() {
   }, [photosPerListing, allocationMode]);
 
   return (
-    <div className="max-w-6xl mx-auto p-4 pb-24">
+    <div className="max-w-4xl mx-auto p-4 pb-24">
       <div className="mb-6">
         <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">Bulk Listing Creator</h1>
         <p className="text-gray-600">Create multiple property listings in one go</p>
@@ -331,7 +347,10 @@ export default function BulkListingCreator() {
 
       {/* Base Listing */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6 mb-6">
-        <h2 className="font-bold text-lg mb-4">1. Base Listing Template</h2>
+        <h2 className="font-bold text-lg mb-4">
+          1. Base Listing Template
+          <SectionHint message="Set defaults shared by every listing. Use the template tokens to auto-fill each row's description." />
+        </h2>
         
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
           <div>
@@ -344,6 +363,8 @@ export default function BulkListingCreator() {
               <option value="apartment">Apartment</option>
               <option value="house">House</option>
               <option value="condo">Condo</option>
+              <option value="land">Land</option>
+              <option value="villa">Villa</option>
               <option value="townhouse">Townhouse</option>
               <option value="commercial">Commercial</option>
             </select>
@@ -376,6 +397,8 @@ export default function BulkListingCreator() {
           />
         </div>
 
+
+
         <div>
           <label className="block text-sm font-medium mb-1 text-gray-700">
             Description Template
@@ -395,7 +418,10 @@ export default function BulkListingCreator() {
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6 mb-6">
         <div className="flex items-center gap-2 mb-4">
           <Home className="w-5 h-5 text-accent" />
-          <h2 className="font-bold text-lg">Property Variations</h2>
+          <h2 className="font-bold text-lg">
+            Property Variations
+            <SectionHint message="Each row becomes its own listing. Area and price are required; beds/baths tailor the template copy." />
+          </h2>
           <span className="text-sm text-gray-500">({rows.length} {rows.length === 1 ? 'listing' : 'listings'})</span>
         </div>
         
@@ -605,12 +631,18 @@ export default function BulkListingCreator() {
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6 mb-6">
         <div className="flex items-center gap-2 mb-4">
           <ImageIcon className="w-5 h-5 text-accent" />
-          <h2 className="font-bold text-lg">Upload & Allocate Photos</h2>
+          <h2 className="font-bold text-lg">
+            Upload & Allocate Photos
+            <SectionHint message="Add photos once and decide whether to spread them automatically or assign to specific listings." />
+          </h2>
         </div>
         
         {/* Allocation Mode */}
         <div className="mb-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
-          <label className="block text-sm font-semibold mb-2 text-gray-700">Photo Allocation Mode</label>
+          <label className="block text-sm font-semibold mb-2 text-gray-700">
+            Photo Allocation Mode
+            <SectionHint message="Auto spreads photos evenly in the order you add them using the selected batch size. Manual lets you pick the listing on each photo card." />
+          </label>
           <div className="flex gap-4">
             <label className="flex items-center">
               <input
@@ -635,6 +667,9 @@ export default function BulkListingCreator() {
               <span className="text-sm">Manual (Select per photo)</span>
             </label>
           </div>
+          <p className="mt-2 text-xs text-gray-700">
+            Auto: assigns photos in order across listings in batches of {photosPerListing}. Manual: use the dropdown on each photo to choose its listing.
+          </p>
           
           {allocationMode === 'auto' && (
             <div className="mt-3">
@@ -750,7 +785,11 @@ export default function BulkListingCreator() {
 
       {/* Publish Button */}
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 shadow-lg z-10">
-        <div className="max-w-6xl mx-auto">
+        <div className="max-w-6xl mx-auto space-y-2">
+          <div className="flex items-center justify-between text-sm text-gray-600">
+            <span className="font-medium text-gray-700">Publish all listings</span>
+            <SectionHint message="Runs validation, uploads photos, then creates each listing. Keep this tab open until it finishes." />
+          </div>
           <button
             type="button"
             onClick={publishAll}
