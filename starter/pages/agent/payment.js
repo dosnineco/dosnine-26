@@ -5,15 +5,13 @@ import Head from 'next/head';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 import { useRoleProtection } from '../../lib/useRoleProtection';
-import { isVerifiedAgent, needsAgentPayment } from '../../lib/rbac';
+import { isVerifiedAgent } from '../../lib/rbac';
 import { Copy, Check, AlertCircle, ChevronDown, Activity } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 
-const PRICING_TIERS = [
-  { amount: 1710, requests: 5, label: 'Essential', description: 'Up to 5 requests/month' },
-  { amount: 6250, requests: 15, label: 'Customized', description: 'Up to 15 requests/month' },
-  { amount: 9200, requests: 24, label: 'Limited', description: 'over 24 requests/month' }
-];
+const COST_PER_LEAD = 250;
+const MIN_LEADS = 4;
+const MAX_LEADS = 100;
 
 export default function AgentPayment() {
   const { loading: authLoading, userData } = useRoleProtection({
@@ -26,7 +24,7 @@ export default function AgentPayment() {
   const [copied, setCopied] = useState(false);
   const [queueCount, setQueueCount] = useState(null);
   const [queueLoading, setQueueLoading] = useState(true);
-  const [selectedTier, setSelectedTier] = useState(1); // Default to Standard
+  const [leadCount, setLeadCount] = useState(4);
   const [openFAQ, setOpenFAQ] = useState(null);
 
   // Fetch the number of unassigned requests in the queue
@@ -51,7 +49,7 @@ export default function AgentPayment() {
     fetchQueueCount();
   }, []);
 
-  const selectedPrice = PRICING_TIERS[selectedTier];
+  const totalAmount = leadCount * COST_PER_LEAD;
 
   const bankDetails = [
     {
@@ -173,52 +171,66 @@ export default function AgentPayment() {
                 </ul>
               </div>
 
-              {/* Pricing Tiers */}
+              {/* Contribution Slider */}
               <div className="mb-8">
-                <h2 className="text-2xl font-bold mb-6 text-center">Choose Your Monthly Contribution Tier</h2>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  {PRICING_TIERS.map((tier, idx) => (
-                    <button
-                      key={idx}
-                      onClick={() => setSelectedTier(idx)}
-                      className={`p-6 rounded-lg border-2 transition ${
-                        selectedTier === idx
-                          ? 'border-accent bg-accent/5'
-                          : 'border-gray-200 hover:border-accent/50'
-                      }`}
-                    >
-                      <div className="text-left">
-                        <div className="flex items-center gap-2">
-                          <h3 className="text-lg font-semibold text-gray-900">{tier.label}</h3>
-                        </div>
-                        <p className="text-3xl font-bold text-accent mt-2">J${tier.amount.toLocaleString()}</p>
-                        <p className="text-xs text-gray-500 mt-2 font-medium">{tier.description}</p>
-                      </div>
-                      {selectedTier === idx && (
-                        <div className="mt-3 flex items-center text-accent">
-                          <Check size={20} className="flex-shrink-0" />
-                          <span className="ml-2 font-medium">Selected</span>
-                        </div>
-                      )}
-                    </button>
-                  ))}
+                <div className="text-center mb-4">
+                  <h2 className="text-2xl font-bold">Choose Your Monthly Leads</h2>
+                  <p className="text-gray-600 text-sm mt-2">One lead = J${COST_PER_LEAD.toLocaleString()} JMD. Slide to pick how many leads you want this month.</p>
+                </div>
+
+                <div className="bg-gradient-to-r from-accent/10 via-white to-accent/10 border border-accent/20 rounded-xl p-6 shadow-sm">
+                  <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                    <div>
+                      <p className="text-sm text-gray-700">Leads this month</p>
+                      <p className="text-4xl font-bold text-accent">{leadCount}</p>
+                    </div>
+                    <div className="text-left md:text-right">
+                      <p className="text-sm text-gray-700">Monthly contribution</p>
+                      <p className="text-3xl font-bold text-accent">J${totalAmount.toLocaleString()}</p>
+                      <p className="text-xs text-gray-500">{leadCount} × J${COST_PER_LEAD.toLocaleString()} per lead</p>
+                    </div>
+                  </div>
+
+                  <div className="mt-6">
+                    <div className="relative pt-2">
+                      <input
+                        type="range"
+                        min={MIN_LEADS}
+                        max={MAX_LEADS}
+                        step={1}
+                        value={leadCount}
+                        onChange={(e) => setLeadCount(Number(e.target.value))}
+                        className="w-full h-2 bg-gradient-to-r from-gray-200 to-gray-200 rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:border-4 [&::-webkit-slider-thumb]:border-accent [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:shadow-lg [&::-webkit-slider-thumb]:cursor-grab [&::-webkit-slider-thumb]:active:cursor-grabbing [&::-webkit-slider-thumb]:active:scale-110 [&::-webkit-slider-thumb]:transition [&::-moz-range-thumb]:w-5 [&::-moz-range-thumb]:h-5 [&::-moz-range-thumb]:bg-white [&::-moz-range-thumb]:border-4 [&::-moz-range-thumb]:border-accent [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:shadow-lg [&::-moz-range-thumb]:cursor-grab [&::-moz-range-thumb]:active:cursor-grabbing [&::-moz-range-thumb]:active:scale-110 [&::-moz-range-thumb]:transition [&::-moz-range-track]:bg-transparent [&::-moz-range-track]:border-none"
+                      />
+                      <div className="absolute top-0 h-2 bg-gradient-to-r from-accent via-accent/70 to-accent/50 rounded-lg pointer-events-none" 
+                           style={{ width: `${((leadCount - MIN_LEADS) / (MAX_LEADS - MIN_LEADS)) * 100}%` }}></div>
+                    </div>
+                    <div className="flex justify-between text-xs text-gray-500 mt-3 px-1">
+                      <span className="font-medium">{MIN_LEADS} lead</span>
+                      <span className="font-medium text-accent font-bold">{leadCount} leads</span>
+                      <span className="font-medium">{MAX_LEADS} leads</span>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    {[5, 10, 15, 20, 30, 40].map((option) => (
+                      <button
+                        key={option}
+                        onClick={() => setLeadCount(option)}
+                        className={`px-3 py-1.5 rounded-full text-sm font-medium border transition ${
+                          leadCount === option
+                            ? 'bg-accent text-white border-accent'
+                            : 'bg-white text-gray-700 border-gray-200 hover:border-accent'
+                        }`}
+                      >
+                        {option} leads
+                      </button>
+                    ))}
+                  </div>
+
+                  <p className="mt-3 text-xs text-gray-600">You can adjust this anytime before sending your contribution.</p>
                 </div>
               </div>
-
-              {/* Selected Plan Summary
-              <div className="bg-gradient-to-r from-accent/10 to-accent/5 rounded-lg p-6 mb-8 border-2 border-accent/30">
-                <div className="text-center">
-                  <p className="text-gray-600 text-sm uppercase tracking-widest font-semibold">You Selected</p>
-                  <div className="flex items-center justify-center gap-2 mt-2">
-                    <p className="text-4xl font-bold text-accent">{selectedPrice.label}</p>
-                  </div>
-                  <p className="text-5xl font-bold text-accent mt-3">J${selectedPrice.amount.toLocaleString()}</p>
-                  <div className="mt-4 flex items-center justify-center gap-4 text-sm">
-                    <span className="bg-accent/20 text-accent font-semibold px-3 py-1 rounded-full">{selectedPrice.requests} requests</span>
-                    <span className="text-gray-600">{selectedPrice.description}</span>
-                  </div>
-                </div>
-              </div> */}
 
               {/* Bank Transfer Instructions */}
               <div className="bg-white border-l-4 border-blue-500 rounded-lg p-6 mb-6">
@@ -227,8 +239,8 @@ export default function AgentPayment() {
                   <div>
                     <h3 className="font-semibold text-blue-900 mb-2">Monthly Contribution Instructions</h3>
                     <ol className="text-blue-800 text-sm space-y-2 list-decimal list-inside">
-                      <li><strong>Transfer J${selectedPrice.amount.toLocaleString()}</strong> to any of the bank accounts below</li>
-                      <li>In transfer notes, include: <strong>Your Email</strong> + <strong>"{selectedPrice.label} Plan ({selectedPrice.requests} requests)"</strong></li>
+                      <li><strong>Transfer J${totalAmount.toLocaleString()}</strong> to any of the bank accounts below</li>
+                      <li>In transfer notes, include: <strong>Your Email</strong> + <strong>"{leadCount} leads (J${totalAmount.toLocaleString()})"</strong></li>
                       <li>Screenshot or photo of receipt</li>
                       <li>Send proof via WhatsApp (contribution button below)</li>
                     </ol>
@@ -270,9 +282,9 @@ export default function AgentPayment() {
                       <div className="flex flex-col gap-1 pt-1 md:pt-2">
                         <span className="text-gray-800 text-xs md:text-sm font-bold">Notes to Include:</span>
                         <div className="flex items-start gap-1 md:gap-2">
-                          <span className="font-semibold text-gray-900 text-xs break-words">{selectedPrice.label} Plan ({selectedPrice.requests} requests) - {user?.primaryEmailAddress?.emailAddress?.split('@')[0]}</span>
+                          <span className="font-semibold text-gray-900 text-xs break-words">{leadCount} for (J${totalAmount.toLocaleString()}) - {user?.primaryEmailAddress?.emailAddress?.split('@')[0]}</span>
                           <button
-                            onClick={() => copyToClipboard(`${selectedPrice.label} Plan (${selectedPrice.requests} requests) - ${user?.primaryEmailAddress?.emailAddress?.split('@')[0]}`, `${bank.bank}-notes`)}
+                            onClick={() => copyToClipboard(`${leadCount} for (J${totalAmount.toLocaleString()}) - ${user?.primaryEmailAddress?.emailAddress?.split('@')[0]}`, `${bank.bank}-notes`)}
                             className="text-gray-700 hover:text-gray-900 p-2 md:p-2.5 font-medium flex-shrink-0"
                           >
                             {copied === `${bank.bank}-notes` ? <Check size={18} /> : <Copy size={18} />}
@@ -282,9 +294,9 @@ export default function AgentPayment() {
                       <div className="flex justify-between items-center pt-1 md:pt-2 border-t border-gray-400">
                         <span className="text-gray-800 text-xs md:text-sm font-bold">Amount to Pay:</span>
                         <div className="flex items-center gap-1 md:gap-2">
-                          <span className="font-bold text-gray-900 text-xs md:text-sm">J${selectedPrice.amount.toLocaleString()}</span>
+                          <span className="font-bold text-gray-900 text-xs md:text-sm">J${totalAmount.toLocaleString()}</span>
                           <button
-                            onClick={() => copyToClipboard(selectedPrice.amount.toString(), `${bank.bank}-amount`)}
+                            onClick={() => copyToClipboard(totalAmount.toString(), `${bank.bank}-amount`)}
                             className="text-gray-700 hover:text-gray-900 p-2 md:p-2.5 font-medium"
                           >
                             {copied === `${bank.bank}-amount` ? <Check size={18} /> : <Copy size={18} />}
@@ -310,14 +322,12 @@ export default function AgentPayment() {
                   After making the transfer, click the contribution button below to send your proof on WhatsApp
                 </p>
                 <a
-                  href={`https://wa.me/18763369045?text=Hello%20Dosnine%20Team,%20I%20have%20submitted%20my%20monthly%20agent%20contribution.%20Here%20is%20my%20payment%20proof.%0A%0AEmail:%20${encodeURIComponent(user?.primaryEmailAddress?.emailAddress || 'YOUR_EMAIL')}%0APlan:%20${selectedPrice.label}%20(${selectedPrice.requests}%20requests)`}
+                  href={`https://wa.me/18763369045?text=Hello%20Dosnine%20Team,%20I%20have%20submitted%20my%20monthly%20agent%20contribution.%20Here%20is%20my%20payment%20proof.%0A%0AEmail:%20${encodeURIComponent(user?.primaryEmailAddress?.emailAddress || 'YOUR_EMAIL')}%0ALeads:%20${leadCount}%0AAmount:%20J$${totalAmount.toLocaleString()}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="w-full btn-primary btn-lg flex items-center justify-center gap-2"
                 >
-                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.67-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.076 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421-7.403h-.004a9.87 9.87 0 00-4.946 1.443c-3.056 2.068-5.01 5.033-5.01 8.15 0 1.325.264 2.605.788 3.823l-2.322 8.466 8.69-2.295c1.238.739 2.676 1.128 4.147 1.128h.004c4.676 0 8.488-3.812 8.488-8.488 0-2.26-.881-4.388-2.48-5.987-1.6-1.599-3.727-2.48-5.987-2.48"/>
-                  </svg>
+                
                   Send Monthly Contribution Proof
                 </a>
               </div>
@@ -344,8 +354,8 @@ export default function AgentPayment() {
                   answer: "Without an active monthly contribution, you won't be assigned any client requests for that month. Your account remains active, but request assignments are paused until contribution is received."
                 },
                 {
-                  question: "What's the difference between tiers?",
-                  answer: "Essential gives you 3 requests for J$1,710 - perfect for testing. Customized gives you 15 requests for J$8,250 for active agents. Limited gives you 24 requests for J$12,000 for top performers. Choose based on how many leads you want to handle monthly."
+                  question: "How do I pick the right amount?",
+                  answer: "Use the slider to set how many leads you want for the month. Each lead is J$500, so your contribution scales with your target volume. You can adjust it anytime before sending your payment."
                 },
                 {
                   question: "When is the contribution due?",
