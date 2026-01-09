@@ -9,7 +9,7 @@ import { Upload, X, Plus, Image as ImageIcon, MapPin, DollarSign, Home } from 'l
 const PARISHES = [
   'Kingston', 'St Andrew', 'St Catherine', 'St James', 'Clarendon',
   'Manchester', 'St Ann', 'Portland', 'St Thomas', 'St Elizabeth',
-  'Trelawny', 'Hanover', 'Westmoreland'
+  'Trelawny', 'Hanover', 'Westmoreland', 'St Mary'
 ];
 
 export default function BulkListingCreator() {
@@ -242,6 +242,9 @@ export default function BulkListingCreator() {
         const typeLabel = baseData.type === 'apartment' ? 'Apartment' : 
                          baseData.type === 'house' ? 'House' : 
                          baseData.type === 'condo' ? 'Condo' :
+                         baseData.type === 'land' ? 'Land' :
+                         baseData.type === 'commercial' ? 'Commercial' :
+                         baseData.type === 'villa' ? 'Villa' :
                          baseData.type === 'townhouse' ? 'Townhouse' : 'Property';
         
         const title = sanitizeText(`${sanitizedBedrooms} Bedroom ${typeLabel} - ${sanitizedArea}`);
