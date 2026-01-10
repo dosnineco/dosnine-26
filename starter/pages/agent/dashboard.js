@@ -229,31 +229,40 @@ export default function AgentDashboard() {
       <RequestNotificationPopup />
 
       <div className="min-h-screen bg-gray-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="max-w-7xl mx-auto px-6 sm:px-6 lg:px-8 py-8">
         
 
          
-          <div className="mb-6 flex gap-3 flex-wrap">
+          <div className="mb-10 grid grid-cols-2 sm:flex sm:flex-nowrap gap-3">
             <Link 
               href="/properties/my-listings"
-              className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition font-medium flex items-center gap-2"
+              className="px-4 py-2 bg-white text-black rounded-lg hover:bg-gray-100 transition font-medium flex items-center justify-center gap-1.5 border border-gray-300"
             >
               <Home className="w-4 h-4" />
-              My Properties
+              <span className="hidden sm:inline">My Properties</span>
+              <span className="sm:hidden">Properties</span>
+            </Link>
+            <Link 
+              href="/properties/new"
+              className="px-4 py-2 bg-white text-black rounded-lg hover:bg-gray-100 transition font-medium flex items-center justify-center gap-1.5 border border-gray-300"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Create</span>
             </Link>
             <Link 
               href="/properties/bulk-create"
-              className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition font-medium flex items-center gap-2"
+              className="px-4 py-2 bg-white text-black rounded-lg hover:bg-gray-100 transition font-medium flex items-center justify-center gap-1.5 border border-gray-300 col-span-2 sm:col-span-1"
             >
               <Plus className="w-4 h-4" />
-              Bulk Create Listings
+              <span>Bulk Create</span>
             </Link>
             {agentData?.payment_status === 'paid' && (
               <Link 
                 href="/agent/payment"
-                        className="px-4 py-3 rounded-lg font-medium border border-yellow-300 bg-yellow-100 text-yellow-800 hover:bg-yellow-200"
+                className="px-4 py-2 bg-yellow-400 text-gray-900 rounded-lg hover:bg-yellow-500 transition font-medium flex items-center justify-center border border-yellow-500 col-span-2 sm:col-span-1"
               >
-                Monthly Contribution
+                <span className="hidden sm:inline">Monthly Contribution</span>
+                <span className="sm:hidden">Contribution</span>
               </Link>
             
             )}
@@ -261,7 +270,7 @@ export default function AgentDashboard() {
 
           {/* Unpaid Agent Payment Prompt */}
           {agentData?.payment_status !== 'paid' && (
-            <div className="bg-gradient-to-r from-amber-50 to-orange-50 border-l-4 border-orange-400 rounded-lg p-3 mb-4">
+            <div className="bg-gradient-to-r from-amber-50 to-orange-50 border-l-4 border-orange-400 rounded-lg p-4 sm:p-3 mb-6 sm:mb-4">
               <div className="flex items-start gap-4">
                
                 <div className="flex-1">
@@ -297,89 +306,85 @@ export default function AgentDashboard() {
             <h2 className="text-lg font-semibold text-gray-900">Request Stats</h2>
             <SectionHint message="Snapshot of your pipeline across all client requests: totals, open items, in-progress, and completed." />
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-6 mb-8">
-            <div className="bg-white rounded-lg shadow p-4 md:p-6">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-3 mb-10 sm:mb-8">
+            <div className="bg-white rounded-lg border border-gray-200 p-3">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs md:text-sm text-gray-500">Total Requests</p>
-                  <p className="text-xl md:text-2xl font-bold text-gray-900">{stats.total}</p>
+                  <p className="text-xs text-gray-500">Total Requests</p>
+                  <p className="text-2xl font-bold text-gray-900">{stats.total}</p>
                 </div>
-                <Users className="w-8 h-8 md:w-10 md:h-10 text-gray-400" />
+                <Users className="w-8 h-8 text-gray-400" />
               </div>
             </div>
 
-            <div className="bg-white rounded-lg shadow p-4 md:p-6">
+            <div className="bg-white rounded-lg border border-gray-200 p-3">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs md:text-sm text-gray-500">Open</p>
-                  <p className="text-xl md:text-2xl font-bold text-blue-600">{stats.open}</p>
+                  <p className="text-xs text-gray-500">Open</p>
+                  <p className="text-2xl font-bold text-blue-600">{stats.open}</p>
                 </div>
-                <AlertCircle className="w-8 h-8 md:w-10 md:h-10 text-blue-400" />
+                <AlertCircle className="w-8 h-8 text-blue-400" />
               </div>
             </div>
 
-            <div className="bg-white rounded-lg shadow p-4 md:p-6">
+            <div className="bg-white rounded-lg border border-gray-200 p-3">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs md:text-sm text-gray-500">In Progress</p>
-                  <p className="text-xl md:text-2xl font-bold text-orange-600">{stats.assigned}</p>
+                  <p className="text-xs text-gray-500">In Progress</p>
+                  <p className="text-2xl font-bold text-orange-600">{stats.assigned}</p>
                 </div>
-                <Clock className="w-8 h-8 md:w-10 md:h-10 text-orange-400" />
+                <Clock className="w-8 h-8 text-orange-400" />
               </div>
             </div>
 
-            <div className="bg-white rounded-lg shadow p-4 md:p-6">
+            <div className="bg-white rounded-lg border border-gray-200 p-3">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs md:text-sm text-gray-500">Completed</p>
-                  <p className="text-xl md:text-2xl font-bold text-green-600">{stats.completed}</p>
+                  <p className="text-xs text-gray-500">Completed</p>
+                  <p className="text-2xl font-bold text-green-600">{stats.completed}</p>
                 </div>
-                <CheckCircle className="w-8 h-8 md:w-10 md:h-10 text-green-400" />
+                <CheckCircle className="w-8 h-8 text-green-400" />
               </div>
             </div>
           </div>
 
           {/* Filters */}
-          <div className="mb-2 flex items-center gap-2">
-            <h2 className="text-lg font-semibold text-gray-900">Filters</h2>
-            <SectionHint message="Narrow your queue by status and urgency so you can prioritize the right clients first." />
-          </div>
-          <div className="bg-white rounded-lg shadow p-4 mb-6 overflow-x-auto space-y-3">
-            <div className="flex items-center gap-2 min-w-max">
-              <Filter className="w-5 h-5 text-gray-500 flex-shrink-0" />
-              <span className="text-sm font-medium text-gray-700 flex-shrink-0">Status:</span>
-              {['all', 'open', 'assigned', 'in_progress', 'completed'].map((status) => (
-                <button
-                  key={status}
-                  onClick={() => setFilterStatus(status)}
-                  className={`px-3 md:px-4 py-2 rounded-lg text-xs md:text-sm font-medium transition whitespace-nowrap ${
-                    filterStatus === status
-                      ? 'bg-accent text-white'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  }`}
-                >
-                  {status.charAt(0).toUpperCase() + status.slice(1).replace('_', ' ')}
-                </button>
-              ))}
-            </div>
-            <div className="flex items-center gap-2 min-w-max">
-              <Filter className="w-5 h-5 text-gray-500 flex-shrink-0" />
-              <span className="text-sm font-medium text-gray-700 flex-shrink-0">Urgency:</span>
-              {['all', 'normal', 'urgent'].map((urgency) => (
-                <button
-                  key={urgency}
-                  onClick={() => setFilterUrgency(urgency)}
-                  className={`px-3 md:px-4 py-2 rounded-lg text-xs md:text-sm font-medium transition whitespace-nowrap ${
-                    filterUrgency === urgency
-                      ? urgency === 'urgent' 
-                        ? 'bg-red-500 text-white' 
-                        : 'bg-accent text-white'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  }`}
-                >
-                  {urgency.charAt(0).toUpperCase() + urgency.slice(1)}
-                </button>
-              ))}
+          <div className="mb-8 sm:mb-6">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Status</span>
+                {['all', 'open', 'assigned', 'in_progress', 'completed'].map((status) => (
+                  <button
+                    key={status}
+                    onClick={() => setFilterStatus(status)}
+                    className={`px-3 py-1.5 rounded-full text-xs font-medium transition ${
+                      filterStatus === status
+                        ? 'bg-gray-900 text-white'
+                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                    }`}
+                  >
+                    {status.charAt(0).toUpperCase() + status.slice(1).replace('_', ' ')}
+                  </button>
+                ))}
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Urgency</span>
+                {['all', 'normal', 'urgent'].map((urgency) => (
+                  <button
+                    key={urgency}
+                    onClick={() => setFilterUrgency(urgency)}
+                    className={`px-3 py-1.5 rounded-full text-xs font-medium transition ${
+                      filterUrgency === urgency
+                        ? urgency === 'urgent'
+                          ? 'bg-red-600 text-white'
+                          : 'bg-gray-900 text-white'
+                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                    }`}
+                  >
+                    {urgency.charAt(0).toUpperCase() + urgency.slice(1)}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
 
@@ -483,7 +488,7 @@ export default function AgentDashboard() {
                       <div className="flex md:flex-col gap-2 w-full md:w-auto md:ml-4">
                         <button
                           onClick={() => setSelectedRequest(request)}
-                          className="btn-primary btn-sm whitespace-nowrap flex-1 md:flex-none"
+                          className="px-4 py-2 bg-accent text-white rounded-lg hover:bg-[var(--accent-color-hover)] transition font-medium whitespace-nowrap flex-1 md:flex-none"
                         >
                           View Details
                         </button>
@@ -492,18 +497,18 @@ export default function AgentDashboard() {
                             <button
                               onClick={() => handleRequestAction(request.id, 'complete')}
                               disabled={actionLoading}
-                              className="px-3 py-1.5 bg-green-600 text-white rounded text-xs hover:bg-green-700 disabled:opacity-50 flex items-center gap-1"
+                              className="p-2 bg-gray-100 text-gray-600 rounded-lg hover:bg-accent hover:text-white transition disabled:opacity-50"
                               title="Mark as Complete"
                             >
-                              <CheckCircle className="w-3 h-3" />
+                              <CheckCircle className="w-4 h-4" />
                             </button>
                             <button
                               onClick={() => handleRequestAction(request.id, 'release')}
                               disabled={actionLoading}
-                              className="px-3 py-1.5 bg-orange-600 text-white rounded text-xs hover:bg-orange-700 disabled:opacity-50 flex items-center gap-1"
+                              className="p-2 bg-gray-100 text-gray-600 rounded-lg hover:bg-accent hover:text-white transition disabled:opacity-50"
                               title="Release to Next Agent"
                             >
-                              <RotateCcw className="w-3 h-3" />
+                              <RotateCcw className="w-4 h-4" />
                             </button>
                             <button
                               onClick={() => {
@@ -511,22 +516,22 @@ export default function AgentDashboard() {
                                 setShowCommentModal(true);
                               }}
                               disabled={actionLoading}
-                              className="px-3 py-1.5 bg-blue-600 text-white rounded text-xs hover:bg-blue-700 disabled:opacity-50 flex items-center gap-1"
+                              className="p-2 bg-gray-100 text-gray-600 rounded-lg hover:bg-accent hover:text-white transition disabled:opacity-50"
                               title="Add Comment"
                             >
-                              <MessageCircle className="w-3 h-3" />
+                              <MessageCircle className="w-4 h-4" />
                             </button>
                             <button
                               onClick={() => handleRequestAction(request.id, 'contacted')}
                               disabled={actionLoading}
-                              className={`px-3 py-1.5 rounded text-xs flex items-center gap-1 transition ${
+                              className={`p-2 rounded-lg transition disabled:opacity-50 ${
                                 request.is_contacted
-                                  ? 'bg-gray-600 text-white hover:bg-gray-700'
-                                  : 'bg-purple-600 text-white hover:bg-purple-700'
-                              } disabled:opacity-50`}
+                                  ? 'bg-gray-100 text-gray-600 hover:bg-accent hover:text-white'
+                                  : 'bg-gray-100 text-gray-600 hover:bg-accent hover:text-white'
+                              }`}
                               title={request.is_contacted ? 'Contacted' : 'Not contacted'}
                             >
-                              <PhoneIcon className="w-3 h-3" />
+                              <PhoneIcon className="w-4 h-4" />
                             </button>
                           </div>
                         )}
@@ -615,7 +620,7 @@ export default function AgentDashboard() {
                     <button
                       onClick={() => handleRequestAction(selectedRequest.id, 'complete')}
                       disabled={actionLoading}
-                      className="flex-1 min-w-[100px] px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 flex items-center justify-center gap-2"
+                      className="flex-1 min-w-[100px] px-4 py-2 bg-accent text-white rounded-lg hover:bg-[var(--accent-color-hover)] disabled:opacity-50 flex items-center justify-center gap-2"
                     >
                       <CheckCircle className="w-3 h-3" />
                       Complete
@@ -623,7 +628,7 @@ export default function AgentDashboard() {
                     <button
                       onClick={() => handleRequestAction(selectedRequest.id, 'release')}
                       disabled={actionLoading}
-                      className="flex-1 min-w-[100px] px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:opacity-50 flex items-center justify-center gap-2"
+                      className="flex-1 min-w-[100px] px-4 py-2 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 disabled:opacity-50 flex items-center justify-center gap-2"
                     >
                       <RotateCcw className="w-3 h-3" />
                       Release
@@ -631,7 +636,7 @@ export default function AgentDashboard() {
                     <button
                       onClick={() => setShowCommentModal(true)}
                       disabled={actionLoading}
-                      className="flex-1 min-w-[100px] px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center justify-center gap-2"
+                      className="flex-1 min-w-[100px] px-4 py-2 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 disabled:opacity-50 flex items-center justify-center gap-2"
                     >
                       <MessageCircle className="w-3 h-3" />
                       Comment
@@ -639,11 +644,7 @@ export default function AgentDashboard() {
                     <button
                       onClick={() => handleRequestAction(selectedRequest.id, 'contacted')}
                       disabled={actionLoading}
-                      className={`flex-1 min-w-[100px] px-4 py-2 rounded-lg flex items-center justify-center gap-2 transition disabled:opacity-50 ${
-                        selectedRequest.is_contacted
-                          ? 'bg-gray-600 text-white hover:bg-gray-700'
-                          : 'bg-purple-600 text-white hover:bg-purple-700'
-                      }`}
+                      className="flex-1 min-w-[100px] px-4 py-2 rounded-lg flex items-center justify-center gap-2 transition disabled:opacity-50 bg-gray-100 text-gray-600 hover:bg-gray-200"
                     >
                       <PhoneIcon className="w-3 h-3" />
                       {selectedRequest.is_contacted ? 'contacted' : 'not contacted'}
@@ -723,7 +724,7 @@ export default function AgentDashboard() {
                 <button
                   onClick={() => handleCommentSubmit(selectedRequest.id)}
                   disabled={actionLoading || !commentText.trim()}
-                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 font-medium"
+                  className="flex-1 px-4 py-2 bg-accent text-white rounded-lg hover:bg-[var(--accent-color-hover)] disabled:opacity-50 font-medium"
                 >
                   Save Comment
                 </button>
