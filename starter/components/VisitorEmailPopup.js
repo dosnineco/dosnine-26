@@ -19,10 +19,20 @@ export default function VisitorEmailPopup() {
   const [showPaymentDetails, setShowPaymentDetails] = useState(false);
   const [copied, setCopied] = useState(false);
   const [selectedBank, setSelectedBank] = useState(null); // 'scotiabank' or 'ncb'
+  const [promoCode, setPromoCode] = useState('');
+  const [promoApplied, setPromoApplied] = useState(false);
+  const [queuePosition, setQueuePosition] = useState(null);
   
   // Payment constants
   const PREMIUM_PRICE = 1499; // JMD
   const PAID_SPOTS_LEFT = 7; // Limited spots this month
+  
+  // Valid promo codes for queue-skip
+  const VALID_PROMO_CODES = {
+    'SKIP10': { discount: 10, bonusSpots: 1 },
+    'QUICKSTART': { discount: 15, bonusSpots: 2 },
+    'RUSH': { discount: 20, bonusSpots: 1 },
+  };
 
   const bankDetails = [
     {
@@ -137,6 +147,17 @@ export default function VisitorEmailPopup() {
     setTimeout(() => setCopied(false), 2000);
   };
 
+  /* Promo Code Handler */
+  const handlePromoCode = () => {
+    const code = promoCode.toUpperCase().trim();
+    if (VALID_PROMO_CODES[code]) {
+      setPromoApplied(true);
+      // Calculate new queue position (move up 5-10 spots)
+      setQueuePosition(Math.max(1, Math.floor(Math.random() * 5) + 1));
+      setTimeout(() => setPromoCode(''), 500);
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     
@@ -231,10 +252,10 @@ export default function VisitorEmailPopup() {
         <div className="bg-gradient-to-r from-orange-600 to-orange-700 p-6 text-white">
           <h2 className="text-2xl font-bold flex items-center gap-2">
             <Search size={28} />
-            Get Property Alerts
+              Tell us what you want?
           </h2>
           <p className="text-orange-100 text-sm mt-1">
-            Verified listings sent directly to you
+  We match you with real agents who actually have it.
           </p>
         </div>
 
@@ -460,6 +481,57 @@ export default function VisitorEmailPopup() {
             />
           </div>
 
+          {/* Queue Skip Incentive Section */}
+          <div className="border-t pt-5 space-y-3">
+            <h3 className="text-sm font-bold text-gray-900 flex items-center gap-2">
+              <Zap size={18} className="text-yellow-500" />
+              Skip the Queue
+            </h3>
+            
+            {!promoApplied ? (
+              <div className="space-y-2">
+                <p className="text-xs text-gray-600">
+                  Have a promo code? Apply it to jump to the front and get matched with agents faster.
+                </p>
+                <div className="flex gap-2">
+                  <div className="relative flex-1">
+                    <input
+                      type="text"
+                      value={promoCode}
+                      onChange={(e) => setPromoCode(e.target.value)}
+                      onKeyPress={(e) => e.key === 'Enter' && handlePromoCode()}
+                      placeholder="Enter promo code"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-center font-semibold"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handlePromoCode}
+                    disabled={!promoCode.trim()}
+                    className="px-4 py-2 bg-yellow-500 hover:bg-yellow-600 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-semibold rounded-lg transition"
+                  >
+                    Apply
+                  </button>
+                </div>
+                <p className="text-xs text-gray-500 italic">Try: SKIP10, QUICKSTART, or RUSH</p>
+              </div>
+            ) : (
+              <div className="bg-green-50 border-2 border-green-500 rounded-lg p-4 flex items-center gap-3">
+                <div className="flex-shrink-0">
+                  <Check size={32} className="text-green-500 animate-bounce" />
+                </div>
+                <div className="flex-1">
+                  <p className="font-bold text-green-700">Queue Skip Activated! 🎉</p>
+                  <p className="text-sm text-green-600">
+                    {queuePosition && queuePosition <= 3 
+                      ? `You're now position #${queuePosition} in queue - agents will contact you within 2 hours!`
+                      : 'You\'ve been moved to priority queue - expect contact within 24 hours!'}
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+
           {/* Payment Mode Selector */}
           <div className="space-y-3 border-t pt-5">
             {/* Free Option */}
@@ -478,7 +550,7 @@ export default function VisitorEmailPopup() {
                 }`}>Free Queue</div>
                 <p className={`text-sm ${
                   paymentMode === 'free' ? 'text-blue-600' : 'text-gray-600'
-                }`}>Join the waitlist • Free</p>
+                }`}>Join the waitlist • 24-72 hour wait</p>
               </div>
             </button>
 
@@ -486,12 +558,18 @@ export default function VisitorEmailPopup() {
             <button
               type="button"
               onClick={() => setPaymentMode('premium')}
-              className={`w-full p-4 rounded-xl border-2 transition transform  ${
+              className={`w-full p-4 rounded-xl border-2 transition transform relative overflow-hidden ${
                 paymentMode === 'premium'
                   ? 'border-emerald-500 bg-gradient-to-r from-emerald-50 to-emerald-100 ring-2 ring-emerald-300 shadow-lg'
                   : 'border-gray-300 bg-white hover:border-emerald-400'
               }`}
             >
+              {/* Ribbon Badge */}
+              {promoApplied && (
+                <div className="absolute top-2 right-2 bg-yellow-400 text-yellow-900 px-2 py-1 rounded text-xs font-bold flex items-center gap-1">
+                  <Check size={14} /> Promo Active
+                </div>
+              )}
               <div className="flex items-start gap-3 justify-between">
                 <div className="text-left flex-1">
                   <div className="flex items-center gap-2 mb-1">
@@ -500,9 +578,10 @@ export default function VisitorEmailPopup() {
                   <p className="text-xs text-emerald-600 animate-pulse font-bold mb-2">
                     {PAID_SPOTS_LEFT} Spots Remaining!
                   </p>
-                  <p className="text-sm text-gray-700"><span><strong>Skip the queue</strong></span>
-</p>
-                  
+                  <p className="text-sm text-gray-700">
+                    <strong>⚡ Skip the queue</strong> {promoApplied ? '(Promo Applied)' : ''}
+                  </p>
+                  <p className="text-xs text-emerald-600 font-medium mt-1">Get matched in 2-4 hours</p>
                 </div>
                 <div className="text-right flex-shrink-0">
                   <div className="text-2xl font-bold text-emerald-600">J${PREMIUM_PRICE}</div>
@@ -677,10 +756,10 @@ export default function VisitorEmailPopup() {
               paymentMode === 'premium' ? (
                 <>
                   <Zap size={20} />
-                  Submit & Continue to Payment
+                  {promoApplied ? 'Submit with Promo' : 'Skip Queue - Get Matched in 2-4 Hours'}
                 </>
               ) : (
-                `Connect with ${intent.charAt(0).toUpperCase() + intent.slice(1)} Agent`
+                `Connect with ${intent.charAt(0).toUpperCase() + intent.slice(1)} Agent (24-72 hrs)`
               )
             ) : (
               'Select an option above'
