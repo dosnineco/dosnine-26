@@ -497,7 +497,7 @@ export default function AgentDashboard() {
                             <button
                               onClick={() => handleRequestAction(request.id, 'complete')}
                               disabled={actionLoading}
-                              className="p-2 bg-gray-100 text-gray-600 rounded-lg hover:bg-accent hover:text-white transition disabled:opacity-50"
+                              className="p-2 bg-gray-100 text-gray-600 rounded-lg hover:bg-accent hover:text-orange-700 transition disabled:opacity-50"
                               title="Mark as Complete"
                             >
                               <CheckCircle className="w-4 h-4" />
@@ -505,7 +505,7 @@ export default function AgentDashboard() {
                             <button
                               onClick={() => handleRequestAction(request.id, 'release')}
                               disabled={actionLoading}
-                              className="p-2 bg-gray-100 text-gray-600 rounded-lg hover:bg-accent hover:text-white transition disabled:opacity-50"
+                              className="p-2 bg-gray-100 text-gray-600 rounded-lg hover:bg-accent hover:text-orange-700 transition disabled:opacity-50"
                               title="Release to Next Agent"
                             >
                               <RotateCcw className="w-4 h-4" />
@@ -516,7 +516,7 @@ export default function AgentDashboard() {
                                 setShowCommentModal(true);
                               }}
                               disabled={actionLoading}
-                              className="p-2 bg-gray-100 text-gray-600 rounded-lg hover:bg-accent hover:text-white transition disabled:opacity-50"
+                              className="p-2 bg-gray-100 text-gray-600 rounded-lg hover:bg-accent hover:text-orange-700 transition disabled:opacity-50"
                               title="Add Comment"
                             >
                               <MessageCircle className="w-4 h-4" />
@@ -526,8 +526,8 @@ export default function AgentDashboard() {
                               disabled={actionLoading}
                               className={`p-2 rounded-lg transition disabled:opacity-50 ${
                                 request.is_contacted
-                                  ? 'bg-gray-100 text-gray-600 hover:bg-accent hover:text-white'
-                                  : 'bg-gray-100 text-gray-600 hover:bg-accent hover:text-white'
+                                  ? 'bg-gray-100 text-gray-600 hover:bg-accent hover:text-orange-700'
+                                  : 'bg-gray-100 text-gray-600 hover:bg-accent hover:text-orange-700'
                               }`}
                               title={request.is_contacted ? 'Contacted' : 'Not contacted'}
                             >

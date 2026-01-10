@@ -642,48 +642,47 @@ export default function AdminRequestsPage() {
                             </div>
                           </div>
                         ) : (
-                          <div className="flex flex-col gap-2">
+                          <div className="flex flex-col gap-3">
                             <p className="text-xs font-semibold text-orange-600 uppercase">⚠️ Unassigned Request</p>
-                            <div className="flex flex-col md:flex-row md:items-center gap-3">
-                              <label className="text-sm font-medium text-gray-700">Assign to Agent:</label>
-                              <select
-                                onChange={(e) => e.target.value && handleManualAssign(request.id, e.target.value)}
-                                className="flex-1 px-3 py-2 border-2 border-orange-300 rounded-lg focus:ring-2 focus:ring-accent outline-none bg-white"
-                                disabled={assignLoading}
-                                defaultValue=""
-                              >
-                                <option value="">Select an agent...</option>
-                                {agents.map((agent) => (
-                                  <option key={agent.id} value={agent.id}>
-                                    {agent.full_name} - {agent.email}
-                                    {!agent.last_request_assigned_at && ' (Never assigned)'}
-                                  </option>
-                                ))}
-                              </select>
+                            <select
+                              onChange={(e) => e.target.value && handleManualAssign(request.id, e.target.value)}
+                              className="w-full md:w-auto px-3 py-2 border-2 border-orange-300 rounded-lg focus:ring-2 focus:ring-accent outline-none bg-white text-sm"
+                              disabled={assignLoading}
+                              defaultValue=""
+                            >
+                              <option value="">Select an agent...</option>
+                              {agents.map((agent) => (
+                                <option key={agent.id} value={agent.id}>
+                                  {agent.full_name} - {agent.email}
+                                  {!agent.last_request_assigned_at && ' (Never assigned)'}
+                                </option>
+                              ))}
+                            </select>
+                            <div className="grid grid-cols-4 md:flex md:flex-row gap-2">
                               <button
                                 onClick={() => {
                                   setSelectedRequest(request);
                                   setShowCommentModal(true);
                                   setCommentText(request.comment || '');
                                 }}
-                                className="p-2 bg-gray-100 text-gray-600 rounded-lg hover:bg-accent hover:text-black transition"
+                                className="flex items-center justify-center p-2 bg-gray-100 text-gray-600 rounded-lg hover:bg-blue-100 hover:text-blue-600 transition duration-200"
                                 title="Comment"
                               >
-                                <MessageCircle size={16} />
+                                <MessageCircle size={18} />
                               </button>
                               <button
                                 onClick={() => handleContactedToggle(request.id, request.is_contacted)}
-                                className="p-2 rounded-lg bg-gray-100 text-gray-600 hover:bg-accent hover:text-black transition"
+                                className="flex items-center justify-center p-2 bg-gray-100 text-gray-600 rounded-lg hover:bg-green-100 hover:text-green-600 transition duration-200"
                                 title={request.is_contacted ? 'Contacted' : 'Not contacted'}
                               >
-                                <PhoneIcon size={16} />
+                                <PhoneIcon size={18} />
                               </button>
                               <button
                                 onClick={() => handleDeleteRequest(request.id)}
-                                className="p-2 bg-gray-100 text-gray-600 rounded-lg hover:bg-red-600 hover:text-black transition"
+                                className="flex items-center justify-center p-2 bg-gray-100 text-gray-600 rounded-lg hover:bg-red-100 hover:text-red-600 transition duration-200"
                                 title="Delete"
                               >
-                                <FiTrash2 size={16} />
+                                <FiTrash2 size={18} />
                               </button>
                             </div>
                           </div>
