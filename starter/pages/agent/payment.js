@@ -141,10 +141,10 @@ export default function AgentPayment() {
                       Your monthly contribution helps us maintain and improve the platform, including server costs, feature development, and customer support.
                     </p>
                     <p className="text-blue-900 text-sm font-bold">
-                      🗓️ Due Date: 1st of each month
+                     Due Date: 1st of each month
                     </p>
                     <p className="text-red-700 text-sm font-semibold mt-2">
-                      ⚠️ No contribution = No request assignments for that month
+                     No contribution = No request assignments for that month
                     </p>
                   </div>
                 </div>
@@ -156,10 +156,11 @@ export default function AgentPayment() {
                   {[
                     'Access to all client requests (buy, rent, sell, lease)',
                     'Direct client contact information',
-                    'help generate leads',
+                    'Help generate leads',
                     'Unlimited property postings',
                     'Real-time request notifications',
                     'Client dashboard and messaging'
+
                   ].map((feature, idx) => (
                     <li key={idx} className="flex items-start">
                       <svg className="w-6 h-6 text-accent mr-3 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
@@ -175,7 +176,6 @@ export default function AgentPayment() {
               <div className="mb-8">
                 <div className="text-center mb-4">
                   <h2 className="text-2xl font-bold">Choose Your Monthly Leads</h2>
-                  <p className="text-gray-600 text-sm mt-2">One lead = J${COST_PER_LEAD.toLocaleString()} JMD. Slide to pick how many leads you want this month.</p>
                 </div>
 
                 <div className="bg-gradient-to-r from-accent/10 via-white to-accent/10 border border-accent/20 rounded-xl p-6 shadow-sm">
@@ -187,7 +187,6 @@ export default function AgentPayment() {
                     <div className="text-left md:text-right">
                       <p className="text-sm text-gray-700">Monthly contribution</p>
                       <p className="text-3xl font-bold text-accent">J${totalAmount.toLocaleString()}</p>
-                      <p className="text-xs text-gray-500">{leadCount} × J${COST_PER_LEAD.toLocaleString()} per lead</p>
                     </div>
                   </div>
 
