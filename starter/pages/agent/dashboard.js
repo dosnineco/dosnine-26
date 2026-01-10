@@ -173,6 +173,16 @@ export default function AgentDashboard() {
 
       toast.success(response.data.message);
       
+      // On release: remove immediately and trigger auto-assign (best-effort)
+      if (action === 'release') {
+        setRequests((prev) => prev.filter((r) => r.id !== requestId));
+        try {
+          await axios.post('/api/service-requests/auto-assign', { requestId });
+        } catch (e) {
+          // Non-blocking; ignore failures
+        }
+      }
+      
       // Refresh requests list
       await fetchRequests();
       
@@ -208,18 +218,6 @@ export default function AgentDashboard() {
     const urgencyMatch = filterUrgency === 'all' || r.urgency === filterUrgency;
     return statusMatch && urgencyMatch;
   });
-
-  // Show loading state until auth verification is complete
-  if (authLoading || !initialUserData) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Verifying access...</p>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <>

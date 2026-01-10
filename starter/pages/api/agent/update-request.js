@@ -1,5 +1,4 @@
-import { supabaseAdmin } from '../../../lib/supabaseAdmin';
-const supabase = supabaseAdmin;
+import { supabase } from '../../../lib/supabase';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -103,59 +102,31 @@ export default async function handler(req, res) {
 
       case 'release':
         // Release back to queue - assign to next agent
-        // First, set status to open
+        // Set status to open and clear assignment
         updateData = {
           status: 'open',
           assigned_agent_id: null,
         };
 
-        // Update the request
-        const { error: releaseError } = await supabase
+        // Update the request (guard by assigned agent when not admin)
+        const baseRelease = supabase
           .from('service_requests')
           .update(updateData)
           .eq('id', requestId);
+
+        const { error: releaseError } = isAdmin
+          ? await baseRelease
+          : await baseRelease.eq('assigned_agent_id', agent.id);
 
         if (releaseError) {
           throw releaseError;
         }
 
-        // Now auto-assign to next available agent
-        // Get next agent in queue (oldest last_request_assigned_at)
-        const { data: nextAgent, error: nextAgentError } = await supabase
-          .from('agents')
-          .select('id')
-          .eq('verification_status', 'approved')
-          .eq('payment_status', 'paid')
-          .neq('id', agent.id) // Don't assign back to same agent
-          .order('last_request_assigned_at', { ascending: true, nullsFirst: true })
-          .limit(1)
-          .single();
-
-        if (nextAgent && !nextAgentError) {
-          // Assign to next agent
-          const now = new Date().toISOString();
-          const { error: assignError } = await supabase
-            .from('service_requests')
-            .update({
-              assigned_agent_id: nextAgent.id,
-              status: 'assigned',
-              assigned_at: now,
-            })
-            .eq('id', requestId);
-
-          if (!assignError) {
-            // Update agent's last_request_assigned_at
-            await supabase
-              .from('agents')
-              .update({ last_request_assigned_at: now })
-              .eq('id', nextAgent.id);
-          }
-        }
-
+        // Do not reassign here to avoid RLS conflicts; client may call auto-assign
         return res.status(200).json({ 
           success: true,
-          message: 'Request released and reassigned to next agent',
-          reassigned: !!nextAgent
+          message: 'Request released to queue',
+          reassigned: false
         });
 
       case 'remove':
@@ -175,10 +146,14 @@ export default async function handler(req, res) {
     }
 
     // Update the request
-    const { error: updateError } = await supabase
+    const baseUpdate = supabase
       .from('service_requests')
       .update(updateData)
       .eq('id', requestId);
+
+    const { error: updateError } = isAdmin
+      ? await baseUpdate
+      : await baseUpdate.eq('assigned_agent_id', agent.id);
 
     if (updateError) {
       throw updateError;
