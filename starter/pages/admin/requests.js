@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react';
 import Head from 'next/head';
-import Link from 'next/link';
 import { useUser } from '@clerk/nextjs';
 import { supabase } from '../../lib/supabase';
 import toast from 'react-hot-toast';
 import { FiTrash2 } from 'react-icons/fi';
 import { MessageCircle, Phone as PhoneIcon } from 'lucide-react';
+import AutoAssignModal from '../../components/AutoAssignModal';
 
 export default function AdminRequestsPage() {
   const { user } = useUser();
@@ -20,6 +20,11 @@ export default function AdminRequestsPage() {
   const [commentText, setCommentText] = useState('');
   const [filterUrgency, setFilterUrgency] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
+  const [showAutoAssign, setShowAutoAssign] = useState(false);
+  const [autoAssignAgentId, setAutoAssignAgentId] = useState('');
+  const [autoAssignCount, setAutoAssignCount] = useState(5);
+  const [autoIncludeBuys, setAutoIncludeBuys] = useState(false);
+  const [autoAssignLoading, setAutoAssignLoading] = useState(false);
 
   useEffect(() => {
     checkAdminAccess();
@@ -168,6 +173,64 @@ export default function AdminRequestsPage() {
       toast.error(`Error: ${err.message}`);
     } finally {
       setAssignLoading(false);
+    }
+  };
+
+  const handleAutoAssign = async () => {
+    if (!autoAssignAgentId) {
+      toast.error('Select an agent to assign');
+      return;
+    }
+
+    const limit = Math.max(1, Number(autoAssignCount) || 0);
+    const candidates = requests
+      .filter((r) => r.status === 'open')
+      .filter((r) => (autoIncludeBuys ? true : r.request_type !== 'buy'))
+      .sort((a, b) => new Date(a.created_at) - new Date(b.created_at))
+      .slice(0, limit);
+
+    if (!candidates.length) {
+      toast.error('No matching open requests to assign');
+      return;
+    }
+
+    setAutoAssignLoading(true);
+    const now = new Date().toISOString();
+    const ids = candidates.map((r) => r.id);
+
+    try {
+      const { error } = await supabase
+        .from('service_requests')
+        .update({
+          assigned_agent_id: autoAssignAgentId,
+          status: 'assigned',
+          assigned_at: now,
+        })
+        .in('id', ids)
+        .eq('status', 'open');
+
+      if (error) throw error;
+
+      const { error: agentError } = await supabase
+        .from('agents')
+        .update({ last_request_assigned_at: now })
+        .eq('id', autoAssignAgentId);
+
+      if (agentError) {
+        console.warn('Agent timestamp update failed:', agentError);
+      }
+
+      toast.success(`Assigned ${ids.length} request${ids.length === 1 ? '' : 's'}.`);
+      setShowAutoAssign(false);
+      setAutoAssignAgentId('');
+      setAutoAssignCount(5);
+      setAutoIncludeBuys(false);
+      setTimeout(() => fetchData(), 200);
+    } catch (err) {
+      console.error('Auto-assign error:', err);
+      toast.error('Failed to auto-assign');
+    } finally {
+      setAutoAssignLoading(false);
     }
   };
 
@@ -327,9 +390,14 @@ export default function AdminRequestsPage() {
        
               <div>
                 <h1 className="text-3xl font-bold text-gray-900">Service Requests</h1>
-                <p className="text-sm text-gray-500">All submitted client requests with agent assignments</p>
               </div>
             </div>
+            <button
+              onClick={() => setShowAutoAssign(true)}
+              className="px-4 py-2 bg-gray-200 text-black text-sm rounded-lg hover:bg-gray-200 hover:text-black hover: font-semibold"
+            >
+              AutoAssign
+            </button>
           </div>
 
           {loading ? (
@@ -337,17 +405,17 @@ export default function AdminRequestsPage() {
           ) : (
             <>
               {/* Filters */}
-              <div className="bg-white rounded-lg shadow p-4 mb-6 space-y-3">
+              <div className="bg-white rounded-lg border border-gray-200 p-4 mb-6 space-y-3">
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-sm font-medium text-gray-700">Type:</span>
+                  <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Type</span>
                   {['all', 'buy', 'sell', 'rent'].map((type) => (
                     <button
                       key={type}
                       onClick={() => setFilterType(type)}
-                      className={`px-3 py-2 rounded-lg text-xs md:text-sm font-medium transition whitespace-nowrap ${
+                      className={`px-3 py-1.5 rounded-full text-xs md:text-sm font-medium transition whitespace-nowrap border ${
                         filterType === type
-                          ? 'bg-blue-500 text-white'
-                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                          ? 'bg-accent text-white border-accent'
+                          : 'bg-white text-gray-700 border-gray-200 hover:border-accent hover:text-accent'
                       }`}
                     >
                       {type.charAt(0).toUpperCase() + type.slice(1)}
@@ -355,17 +423,15 @@ export default function AdminRequestsPage() {
                   ))}
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-sm font-medium text-gray-700">Urgency:</span>
+                  <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Urgency</span>
                   {['all', 'normal', 'urgent'].map((urgency) => (
                     <button
                       key={urgency}
                       onClick={() => setFilterUrgency(urgency)}
-                      className={`px-3 py-2 rounded-lg text-xs md:text-sm font-medium transition whitespace-nowrap ${
+                      className={`px-3 py-1.5 rounded-full text-xs md:text-sm font-medium transition whitespace-nowrap border ${
                         filterUrgency === urgency
-                          ? urgency === 'urgent'
-                            ? 'bg-red-500 text-white'
-                            : 'bg-blue-500 text-white'
-                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                          ? 'bg-accent text-white border-accent'
+                          : 'bg-white text-gray-700 border-gray-200 hover:border-accent hover:text-accent'
                       }`}
                     >
                       {urgency.charAt(0).toUpperCase() + urgency.slice(1)}
@@ -518,7 +584,7 @@ export default function AdminRequestsPage() {
                               {request.status === 'completed' && (
                                 <button
                                   onClick={() => handleReactivateCase(request.id)}
-                                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm font-medium"
+                                  className="px-4 py-2 bg-accent text-white rounded-lg hover:bg-[var(--accent-color-hover)] text-sm font-medium"
                                   disabled={assignLoading}
                                 >
                                   Reactivate Case
@@ -528,7 +594,7 @@ export default function AdminRequestsPage() {
                                 <>
                                   <button
                                     onClick={() => handleManualAssign(request.id, null)}
-                                    className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 text-sm font-medium"
+                                    className="px-4 py-2 bg-gray-100 text-gray-600 rounded-lg hover:bg-accent hover:text-black text-sm font-medium transition"
                                     disabled={assignLoading}
                                   >
                                     Unassign
@@ -552,30 +618,26 @@ export default function AdminRequestsPage() {
                                       setShowCommentModal(true);
                                       setCommentText(request.comment || '');
                                     }}
-                                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium flex items-center gap-1"
+                                    className="p-2 bg-gray-100 text-gray-600 rounded-lg hover:bg-accent hover:text-black transition"
+                                    title="Comment"
                                   >
                                     <MessageCircle size={16} />
-                                    Comment
                                   </button>
                                   <button
                                     onClick={() => handleContactedToggle(request.id, request.is_contacted)}
-                                    className={`px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-1 ${
-                                      request.is_contacted
-                                        ? 'bg-gray-600 text-white hover:bg-gray-700'
-                                        : 'bg-purple-600 text-white hover:bg-purple-700'
-                                    }`}
+                                    className="p-2 rounded-lg bg-gray-100 text-gray-600 hover:bg-accent hover:text-black transition"
+                                    title={request.is_contacted ? 'Contacted' : 'Not contacted'}
                                   >
                                     <PhoneIcon size={16} />
-                                    {request.is_contacted ? 'contacted' : 'not contacted'}
                                   </button>
                                 </>
                               )}
                               <button
                                 onClick={() => handleDeleteRequest(request.id)}
-                                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm font-medium flex items-center gap-1"
+                                className="p-2 bg-gray-100 text-gray-600 rounded-lg hover:bg-red-600 hover:text-black transition"
+                                title="Delete"
                               >
                                 <FiTrash2 size={16} />
-                                Delete
                               </button>
                             </div>
                           </div>
@@ -604,28 +666,24 @@ export default function AdminRequestsPage() {
                                   setShowCommentModal(true);
                                   setCommentText(request.comment || '');
                                 }}
-                                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium flex items-center gap-1 justify-center"
+                                className="p-2 bg-gray-100 text-gray-600 rounded-lg hover:bg-accent hover:text-black transition"
+                                title="Comment"
                               >
                                 <MessageCircle size={16} />
-                                Comment
                               </button>
                               <button
                                 onClick={() => handleContactedToggle(request.id, request.is_contacted)}
-                                className={`px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-1 justify-center ${
-                                  request.is_contacted
-                                    ? 'bg-gray-600 text-white hover:bg-gray-700'
-                                    : 'bg-purple-600 text-white hover:bg-purple-700'
-                                }`}
+                                className="p-2 rounded-lg bg-gray-100 text-gray-600 hover:bg-accent hover:text-black transition"
+                                title={request.is_contacted ? 'Contacted' : 'Not contacted'}
                               >
                                 <PhoneIcon size={16} />
-                                {request.is_contacted ? 'contacted' : 'not contacted'}
                               </button>
                               <button
                                 onClick={() => handleDeleteRequest(request.id)}
-                                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm font-medium flex items-center gap-1 justify-center"
+                                className="p-2 bg-gray-100 text-gray-600 rounded-lg hover:bg-red-600 hover:text-black transition"
+                                title="Delete"
                               >
                                 <FiTrash2 size={16} />
-                                Delete
                               </button>
                             </div>
                           </div>
@@ -639,6 +697,25 @@ export default function AdminRequestsPage() {
           )}
         </div>
       </div>
+
+      <AutoAssignModal
+        open={showAutoAssign}
+        agents={agents}
+        agentId={autoAssignAgentId}
+        count={autoAssignCount}
+        includeBuys={autoIncludeBuys}
+        loading={autoAssignLoading}
+        onClose={() => {
+          setShowAutoAssign(false);
+          setAutoAssignAgentId('');
+          setAutoAssignCount(5);
+          setAutoIncludeBuys(false);
+        }}
+        onSubmit={handleAutoAssign}
+        onAgentChange={setAutoAssignAgentId}
+        onCountChange={(value) => setAutoAssignCount(Number(value) || 1)}
+        onIncludeBuysChange={setAutoIncludeBuys}
+      />
 
       {/* Comment Modal */}
       {showCommentModal && selectedRequest && (
@@ -695,7 +772,7 @@ export default function AdminRequestsPage() {
                   onChange={(e) => setCommentText(e.target.value)}
                   placeholder="Add any notes or comments about this request..."
                   rows="6"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-accent focus:border-transparent resize-none"
                 />
               </div>
 
@@ -703,7 +780,7 @@ export default function AdminRequestsPage() {
                 <button
                   onClick={() => handleCommentSubmit(selectedRequest.id)}
                   disabled={!commentText.trim()}
-                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 font-medium"
+                  className="flex-1 px-4 py-2 bg-accent text-white rounded-lg hover:bg-[var(--accent-color-hover)] hover:text-black disabled:opacity-50 font-medium"
                 >
                   Save Comment
                 </button>
