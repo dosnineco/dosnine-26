@@ -1,4 +1,5 @@
-import { supabase } from '../../../lib/supabase';
+import { supabaseAdmin } from '../../../lib/supabaseAdmin';
+const supabase = supabaseAdmin;
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -190,6 +191,7 @@ export default async function handler(req, res) {
 
   } catch (error) {
     console.error('Error updating request:', error);
-    return res.status(500).json({ error: 'Failed to update request' });
+    const message = typeof error?.message === 'string' ? error.message : 'Failed to update request';
+    return res.status(500).json({ error: message });
   }
 }

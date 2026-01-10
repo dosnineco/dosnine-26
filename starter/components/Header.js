@@ -102,25 +102,13 @@ export default function Header() {
           )}
         </div>
 
-        {/* Mobile Menu Button - Only show when signed in */}
-        {isSignedIn && (
-          <button 
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="md:hidden p-2 text-gray-600 hover:bg-gray-100 rounded-lg"
-          >
-            <FiMenu size={24} />
-          </button>
-        )}
-        
-        {/* Mobile Post Button - Show when NOT signed in */}
-        {!isSignedIn && (
-          <Link 
-            href="/properties/new" 
-            className="md:hidden px-4 py-2 bg-gray-800 text-white rounded-lg text-sm font-medium hover:bg-gray-700 transition"
-          >
-            Post a Property
-          </Link>
-        )}
+        {/* Mobile Menu Button - Show for all users */}
+        <button 
+          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+          className="md:hidden p-2 text-gray-600 hover:bg-gray-100 rounded-lg"
+        >
+          <FiMenu size={24} />
+        </button>
       </nav>
 
       {/* Mobile Menu Overlay */}
@@ -158,44 +146,110 @@ export default function Header() {
                   Browse Properties
                 </Link>
                 
-                {isVerifiedAgent ? (
-                  <>
-               
-                    <Link 
-                      href="/agent/dashboard" 
-                      onClick={() => setMobileMenuOpen(false)}
-                      className={`px-4 py-3 rounded-lg font-medium ${router.pathname === '/agent/dashboard' ? 'bg-accent text-white' : 'text-gray-700 hover:bg-gray-50'}`}
-                    >
-                      Agent Dashboard
-                    </Link>
-                  </>
-                ) : (
-                  <Link 
-                    href="/dashboard" 
-                    onClick={() => setMobileMenuOpen(false)}
-                    className={`px-4 py-3 rounded-lg font-medium ${router.pathname === '/dashboard' ? 'bg-accent text-white' : 'text-gray-700 hover:bg-gray-50'}`}
-                  >
-                    Dashboard
-                  </Link>
-                )}
+                   <Link 
+                  href="/agent/signup" 
+                  onClick={() => setMobileMenuOpen(false)}
+                  className={`px-4 py-3 rounded-lg font-medium ${router.pathname === '/tools' ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50'}`}
+                >
+                  Become an Agent
+                </Link>
                 
-                {isAdmin && (
-                  <Link 
-                    href="/admin/dashboard" 
-                    onClick={() => setMobileMenuOpen(false)}
-                    className={`px-4 py-3 rounded-lg font-medium ${router.pathname === '/admin/dashboard' ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50'}`}
-                  >
-                    Admin
-                  </Link>
+                {/* Public Links - Show for everyone */}
+                <Link 
+                  href="/properties/new" 
+                  onClick={() => setMobileMenuOpen(false)}
+                  className={`px-4 py-3 rounded-lg font-medium ${router.pathname === '/properties/new' ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50'}`}
+                >
+                  Post a Property
+                </Link>
+                
+                <Link 
+                  href="/request" 
+                  onClick={() => setMobileMenuOpen(false)}
+                  className={`px-4 py-3 rounded-lg font-medium ${router.pathname === '/request' ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50'}`}
+                >
+                  Request an Agent
+                </Link>
+                
+                <Link 
+                  href="/market" 
+                  onClick={() => setMobileMenuOpen(false)}
+                  className={`px-4 py-3 rounded-lg font-medium ${router.pathname === '/market' ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50'}`}
+                >
+                  Market
+                </Link>
+
+
+                <Link 
+                href='/properties/bulk-create'
+                  onClick={() => setMobileMenuOpen(false)}
+                  className={`px-4 py-3 rounded-lg font-medium ${router.pathname === '/bulk-create' ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50'}`}
+                >
+                  Bulk Create
+                </Link>
+                
+             
+                
+                
+                
+               
+                
+              
+                
+                {/* Divider for authenticated users */}
+                {isSignedIn && (
+                  <>
+                    <div className="border-t border-gray-200 my-2"></div>
+                    
+                    {isVerifiedAgent ? (
+                      <Link 
+                        href="/agent/dashboard" 
+                        onClick={() => setMobileMenuOpen(false)}
+                        className={`px-4 py-3 rounded-lg font-medium ${router.pathname === '/agent/dashboard' ? 'bg-accent text-white' : 'text-gray-700 hover:bg-gray-50'}`}
+                      >
+                        Agent Dashboard
+                      </Link>
+                    ) : (
+                      <Link 
+                        href="/dashboard" 
+                        onClick={() => setMobileMenuOpen(false)}
+                        className={`px-4 py-3 rounded-lg font-medium ${router.pathname === '/dashboard' ? 'bg-accent text-white' : 'text-gray-700 hover:bg-gray-50'}`}
+                      >
+                        Dashboard
+                      </Link>
+                    )}
+                    
+                    {isAdmin && (
+                      <Link 
+                        href="/admin/dashboard" 
+                        onClick={() => setMobileMenuOpen(false)}
+                        className={`px-4 py-3 rounded-lg font-medium ${router.pathname === '/admin/dashboard' ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50'}`}
+                      >
+                        Admin
+                      </Link>
+                    )}
+                  </>
                 )}
               </div>
 
               {/* User Section at Bottom */}
-              <div className="border-t border-gray-200 p-4">
-                <div className="flex items-center justify-center">
-                  <UserButton afterSignOutUrl="/" />
+              {isSignedIn ? (
+                <div className="border-t border-gray-200 p-4">
+                  <div className="flex items-center justify-center">
+                    <UserButton afterSignOutUrl="/" />
+                  </div>
                 </div>
-              </div>
+              ) : (
+                <div className="border-t border-gray-200 p-4">
+                  <Link 
+                    href="/dashboard" 
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="w-full px-4 py-3 bg-accent text-white rounded-lg text-center font-medium hover:bg-accent/90 transition block"
+                  >
+                    Sign In / Sign Up
+                  </Link>
+                </div>
+              )}
             </div>
           </div>
         </>

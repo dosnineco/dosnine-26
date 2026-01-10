@@ -7,9 +7,8 @@ import axios from 'axios';
 import toast from 'react-hot-toast';
 import RequestNotificationPopup from '../../components/RequestNotificationPopup';
 import AgentFeedbackPopup from '../../components/AgentFeedbackPopup';
-import VerifiedBadge from '../../components/VerifiedBadge';
 import { useRoleProtection } from '../../lib/useRoleProtection';
-import { isVerifiedAgent, isAdmin } from '../../lib/rbac';
+import { isVerifiedAgent } from '../../lib/rbac';
 import { supabase } from '../../lib/supabase';
 import { 
   Home, Users, Mail, Phone, MapPin, DollarSign, 
@@ -59,16 +58,14 @@ export default function AgentDashboard() {
 
   useEffect(() => {
     if (initialUserData) {
-      
-      setAgentData(initialUserData.agent);
-      setUserRole(initialUserData.role);
-      
-      // Redirect unpaid agents to main dashboard
+      // Redirect unpaid agents BEFORE setting state to prevent render flash
       if (initialUserData.agent?.payment_status !== 'paid') {
         router.replace('/dashboard');
         return;
       }
       
+      setAgentData(initialUserData.agent);
+      setUserRole(initialUserData.role);
       setLoading(false);
     }
   }, [initialUserData, router]);
@@ -212,6 +209,18 @@ export default function AgentDashboard() {
     return statusMatch && urgencyMatch;
   });
 
+  // Show loading state until auth verification is complete
+  if (authLoading || !initialUserData) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Verifying access...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <>
       <Head>
@@ -225,11 +234,7 @@ export default function AgentDashboard() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         
 
-          {/* Quick Actions */}
-          <div className="mb-2 flex items-center gap-2">
-            <h2 className="text-lg font-semibold text-gray-900">Quick Actions</h2>
-            <SectionHint message="Jump to your listings or start a bulk upload so you can respond to clients faster." />
-          </div>
+         
           <div className="mb-6 flex gap-3 flex-wrap">
             <Link 
               href="/properties/my-listings"
@@ -248,11 +253,11 @@ export default function AgentDashboard() {
             {agentData?.payment_status === 'paid' && (
               <Link 
                 href="/agent/payment"
-                className="px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition font-medium flex items-center gap-2"
+                        className="px-4 py-3 rounded-lg font-medium border border-yellow-300 bg-yellow-100 text-yellow-800 hover:bg-yellow-200"
               >
-                <CreditCard className="w-4 h-4" />
                 Monthly Contribution
               </Link>
+            
             )}
           </div>
 

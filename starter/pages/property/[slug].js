@@ -172,7 +172,60 @@ export default function PropertyPage({ property, similarProperties, isVerifiedAg
   };
 
   // Generate JSON-LD schema for SEO (Property + BreadcrumbList for Feature Snippets)
-  const jsonLdProperty = {
+  const isLand = property.bedrooms == 0 && property.bathrooms == 0;
+  const jsonLdProperty = isLand ? {
+    '@context': 'https://schema.org',
+    '@type': 'RealEstateListing',
+    name: `Land for Sale in ${property.parish}${property.town ? ` - ${property.town}` : ''}`,
+    description: property.description,
+    address: {
+      '@type': 'PostalAddress',
+      streetAddress: property.address || '',
+      addressLocality: property.town || '',
+      addressRegion: property.parish || '',
+      addressCountry: 'JM'
+    },
+    priceRange: `${formatMoney(property.price)}`,
+    priceCurrency: 'JMD',
+    floorSize: property.square_feet ? {
+      '@type': 'QuantitativeValue',
+      value: property.square_feet,
+      unitCode: 'FTK'
+    } : undefined,
+    image: allImages,
+    url: `https://dosnine.com/property/${property.slug}`,
+    offers: {
+      '@type': 'Offer',
+      price: property.price,
+      priceCurrency: 'JMD',
+      availability: 'https://schema.org/InStock',
+      validFrom: property.created_at,
+      priceValidUntil: new Date(new Date().setMonth(new Date().getMonth() + 3)).toISOString().split('T')[0]
+    },
+    interactionStatistic: {
+      '@type': 'InteractionCounter',
+      interactionType: 'https://schema.org/ViewAction',
+      userInteractionCount: property.views || 0
+    },
+    geo: {
+      '@type': 'GeoCoordinates',
+      addressCountry: 'JM'
+    },
+    containedInPlace: {
+      '@type': 'City',
+      name: property.parish,
+      containedInPlace: {
+        '@type': 'Country',
+        name: 'Jamaica'
+      }
+    },
+    isPartOf: {
+      '@type': 'WebSite',
+      name: 'Dosnine Properties',
+      url: 'https://dosnine.com',
+      description: 'Jamaica\'s premier property marketplace'
+    }
+  } : {
     '@context': 'https://schema.org',
     '@type': 'Residence',
     name: `${property.bedrooms} Bedroom ${property.type || 'Property'} for Rent in ${property.parish}`,
@@ -184,7 +237,7 @@ export default function PropertyPage({ property, similarProperties, isVerifiedAg
       addressRegion: property.parish || '',
       addressCountry: 'JM'
     },
-    priceRange: `$${property.price}`,
+    priceRange: `${formatMoney(property.price)}`,
     priceCurrency: 'JMD',
     numberOfBedrooms: property.bedrooms || null,
     numberOfBathrooms: property.bathrooms || null,
@@ -263,7 +316,46 @@ export default function PropertyPage({ property, similarProperties, isVerifiedAg
     ]
   };
 
-  const jsonLdFAQ = {
+  const jsonLdFAQ = isLand ? {
+    '@context': 'https://schema.org',
+    '@type': 'FAQPage',
+    mainEntity: [
+      {
+        '@type': 'Question',
+        name: `How much is this land for sale in ${property.parish}?`,
+        acceptedAnswer: {
+          '@type': 'Answer',
+          text: `This land in ${property.town ? property.town + ', ' : ''}${property.parish} is available for ${formatMoney(property.price)}. Contact the owner or agent directly via WhatsApp or phone for viewing arrangements.`
+        }
+      },
+      {
+        '@type': 'Question',
+        name: `Where is this land located in ${property.parish}?`,
+        acceptedAnswer: {
+          '@type': 'Answer',
+          text: `This land is located at ${property.address}, ${property.town ? property.town + ', ' : ''}${property.parish}, Jamaica.`
+        }
+      },
+      {
+        '@type': 'Question',
+        name: 'What is the lot size?',
+        acceptedAnswer: {
+          '@type': 'Answer',
+          text: property.square_feet 
+            ? `The lot size is approximately ${property.square_feet} square feet.`
+            : 'Lot size information is not provided. Please contact the owner or agent for details.'
+        }
+      },
+      {
+        '@type': 'Question',
+        name: 'How do I contact about this land?',
+        acceptedAnswer: {
+          '@type': 'Answer',
+          text: 'You can contact directly via WhatsApp or phone using the buttons on this page. Never pay a deposit without viewing the property first.'
+        }
+      }
+    ]
+  } : {
     '@context': 'https://schema.org',
     '@type': 'FAQPage',
     mainEntity: [
@@ -315,9 +407,14 @@ export default function PropertyPage({ property, similarProperties, isVerifiedAg
   return (
     <>
       <Seo
-        title={`${property.bedrooms} Bedroom ${property.type === 'house' ? 'House' : 'Apartment'} for Rent in ${property.parish} ${property.town ? `- ${property.town}` : ''} | ${formatMoney(property.price)}/month | Dosnine Properties Jamaica`}
-        
-        description={`${property.bedrooms} bedroom ${property.type || 'property'} for rent in ${property.town ? property.town + ', ' : ''}${property.parish}, Jamaica. ${property.description?.substring(0, 120)}... Contact landlord directly. Available now.`}
+        title={isLand 
+          ? `Land For Sale in ${property.parish} ${property.town ? `- ${property.town}` : ''} | ${formatMoney(property.price)} | Dosnine Properties Jamaica`
+          : `${property.bedrooms} Bedroom ${property.type === 'house' ? 'House' : 'Apartment'} for Rent in ${property.parish} ${property.town ? `- ${property.town}` : ''} | ${formatMoney(property.price)}/month | Dosnine Properties Jamaica`
+        }
+        description={isLand 
+          ? `${property.town ? property.town + ', ' : ''}${property.parish} land for sale. ${property.description?.substring(0, 120)}... Contact owner directly.`
+          : `${property.bedrooms} bedroom ${property.type || 'property'} for rent in ${property.town ? property.town + ', ' : ''}${property.parish}, Jamaica. ${property.description?.substring(0, 120)}... Contact landlord directly. Available now.`
+        }
         image={currentImage}
         url={`https://dosnine.com/property/${property.slug}`}
         structuredData={[jsonLdProperty, jsonLdBreadcrumb, jsonLdFAQ]}
@@ -399,16 +496,22 @@ export default function PropertyPage({ property, similarProperties, isVerifiedAg
                   <div className="text-2xl font-bold text-green-600">{formatMoney(property.price, '$')}</div>
                   <div className="text-sm text-gray-600">{property.type === 'rent' ? '/ month' : null}</div>
                 </div>
-                <div className="flex gap-8">
+                {property.bedrooms === 0 && property.bathrooms === 0 ? (
                   <div className="text-center">
-                    <div className="text-2xl font-bold">🛏️ {property.bedrooms}</div>
-                    <div className="text-sm text-gray-600">Bedrooms</div>
+                    <div className="text-2xl font-bold"> Land</div>
                   </div>
-                  <div className="text-center">
-                    <div className="text-2xl font-bold">🚿 {property.bathrooms}</div>
-                    <div className="text-sm text-gray-600">Bathrooms</div>
+                ) : (
+                  <div className="flex gap-8">
+                    <div className="text-center">
+                      <div className="text-2xl font-bold">🛏️ {property.bedrooms}</div>
+                      <div className="text-sm text-gray-600">Bedrooms</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-2xl font-bold">🚿 {property.bathrooms}</div>
+                      <div className="text-sm text-gray-600">Bathrooms</div>
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
 
               <h2 className="text-2xl font-bold mb-4">About this property</h2>
@@ -516,34 +619,67 @@ export default function PropertyPage({ property, similarProperties, isVerifiedAg
 
         {/* Location-specific SEO content */}
         <div className="mt-12 bg-gray-50 rounded-xl p-6">
-          <h2 className="text-2xl font-bold mb-4">About Renting in {property.parish}, Jamaica</h2>
-          <div className="prose max-w-none text-gray-700">
-            <p className="mb-3">
-              Looking for a <strong>{property.bedrooms} bedroom {property.type || 'property'} for rent in {property.parish}</strong>? 
-              This property in {property.town || property.parish} offers great value at <strong>{formatMoney(property.price)} per month</strong>.
-            </p>
-            <p className="mb-3">
-              {property.parish} is a popular area for rentals in Jamaica, with properties ranging from apartments to houses. 
-              Whether you're searching for <strong>houses for rent in {property.parish} Jamaica</strong> or apartments, 
-              Dosnine Properties connects you directly with landlords for the best rental deals.
-            </p>
-            <div className="mt-4">
-              <h3 className="text-lg font-semibold mb-2">Popular Searches in {property.parish}:</h3>
-              <ul className="list-disc list-inside space-y-1 text-sm">
-                <li><Link href={`/search/1-bedroom-apartment-${property.parish.toLowerCase().replace(/ /g, '-')}`} className="text-accent hover:underline">1 Bedroom for rent in {property.parish}</Link></li>
-                <li><Link href={`/search/2-bedroom-house-${property.parish.toLowerCase().replace(/ /g, '-')}`} className="text-accent hover:underline">2 Bedroom House for rent in {property.parish}</Link></li>
-                <li><Link href={`/search/3-bedroom-house-${property.parish.toLowerCase().replace(/ /g, '-')}`} className="text-accent hover:underline">3 Bedroom House for rent in {property.parish}</Link></li>
-                <li><Link href={`/search/apartments-for-rent-${property.parish.toLowerCase().replace(/ /g, '-')}`} className="text-accent hover:underline">Apartments for rent in {property.parish}</Link></li>
-              </ul>
-            </div>
-          </div>
+          {property.bedrooms === 0 && property.bathrooms === 0 ? (
+            <>
+              <h2 className="text-2xl font-bold mb-4">About Land For Sale in {property.parish}, Jamaica</h2>
+              <div className="prose max-w-none text-gray-700">
+                <p className="mb-3">
+                  Interested in <strong>land for sale in {property.parish}, Jamaica</strong>? 
+                  This property in {property.town || property.parish} is available at <strong>{formatMoney(property.price)}</strong>. 
+                  It's an excellent opportunity to invest in real estate in one of Jamaica's desirable locations.
+                </p>
+                <p className="mb-3">
+                  {property.parish} is a popular area for land investments in Jamaica, offering various development opportunities. 
+                  Whether you're searching for <strong>residential land in {property.parish}</strong>, 
+                  commercial properties, or investment opportunities, Dosnine Properties connects you directly with property owners and developers.
+                </p>
+                <div className="mt-4">
+                  <h3 className="text-lg font-semibold mb-2">Popular Searches in {property.parish}:</h3>
+                  <ul className="list-disc list-inside space-y-1 text-sm">
+                    <li><Link href={`/search/land-for-sale-${property.parish.toLowerCase().replace(/ /g, '-')}`} className="text-accent hover:underline">Land for sale in {property.parish}</Link></li>
+                    <li><Link href={`/search/residential-land-${property.parish.toLowerCase().replace(/ /g, '-')}`} className="text-accent hover:underline">Residential land in {property.parish}</Link></li>
+                    <li><Link href={`/search/commercial-land-${property.parish.toLowerCase().replace(/ /g, '-')}`} className="text-accent hover:underline">Commercial land in {property.parish}</Link></li>
+                    <li><Link href={`/search/property-investment-${property.parish.toLowerCase().replace(/ /g, '-')}`} className="text-accent hover:underline">Property investment in {property.parish}</Link></li>
+                  </ul>
+                </div>
+              </div>
+            </>
+          ) : (
+            <>
+              <h2 className="text-2xl font-bold mb-4">About Renting in {property.parish}, Jamaica</h2>
+              <div className="prose max-w-none text-gray-700">
+                <p className="mb-3">
+                  Looking for a <strong>{property.bedrooms} bedroom {property.type || 'property'} for rent in {property.parish}</strong>? 
+                  This property in {property.town || property.parish} offers great value at <strong>{formatMoney(property.price)} per month</strong>.
+                </p>
+                <p className="mb-3">
+                  {property.parish} is a popular area for rentals in Jamaica, with properties ranging from apartments to houses. 
+                  Whether you're searching for <strong>houses for rent in {property.parish} Jamaica</strong> or apartments, 
+                  Dosnine Properties connects you directly with landlords for the best rental deals.
+                </p>
+                <div className="mt-4">
+                  <h3 className="text-lg font-semibold mb-2">Popular Searches in {property.parish}:</h3>
+                  <ul className="list-disc list-inside space-y-1 text-sm">
+                    <li><Link href={`/search/1-bedroom-apartment-${property.parish.toLowerCase().replace(/ /g, '-')}`} className="text-accent hover:underline">1 Bedroom for rent in {property.parish}</Link></li>
+                    <li><Link href={`/search/2-bedroom-house-${property.parish.toLowerCase().replace(/ /g, '-')}`} className="text-accent hover:underline">2 Bedroom House for rent in {property.parish}</Link></li>
+                    <li><Link href={`/search/3-bedroom-house-${property.parish.toLowerCase().replace(/ /g, '-')}`} className="text-accent hover:underline">3 Bedroom House for rent in {property.parish}</Link></li>
+                    <li><Link href={`/search/apartments-for-rent-${property.parish.toLowerCase().replace(/ /g, '-')}`} className="text-accent hover:underline">Apartments for rent in {property.parish}</Link></li>
+                  </ul>
+                </div>
+              </div>
+            </>
+          )}
         </div>
         <AdList/>
 
         {/* Similar Properties Section */}
         {similarProperties && similarProperties.length > 0 && (
           <div className="mt-12">
-            <h2 className="text-2xl font-bold mb-6">More {property.bedrooms} Bedroom Properties for Rent in {property.parish}</h2>
+            <h2 className="text-2xl font-bold mb-6">
+              {property.bedrooms === 0 && property.bathrooms === 0 
+                ? `More Land for Sale in ${property.parish}` 
+                : `More ${property.bedrooms} Bedroom Properties for Rent in ${property.parish}`}
+            </h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
               {similarProperties.map((prop) => {
                 const firstImage = prop.image_urls?.[0] || prop.property_images?.[0]?.image_url;
@@ -581,8 +717,14 @@ export default function PropertyPage({ property, similarProperties, isVerifiedAg
                       <p className="text-sm text-gray-600 mb-2">{prop.town}, {prop.parish}</p>
                       
                       <div className="flex gap-3 text-sm text-gray-700">
-                        <span>{prop.bedrooms} bed</span>
-                        <span>{prop.bathrooms} bath</span>
+                        {prop.bedrooms === 0 && prop.bathrooms === 0 ? (
+                          <span>Land</span>
+                        ) : (
+                          <>
+                            <span>{prop.bedrooms} bed</span>
+                            <span>{prop.bathrooms} bath</span>
+                          </>
+                        )}
                         <span className="ml-auto text-xs">👁️ {prop.views || 0}</span>
                       </div>
                     </div>

@@ -280,6 +280,28 @@ export default function Dashboard() {
               </div>
             )}
 
+            {agentData.verification_status === 'approved' && agentData.payment_status !== 'paid' && (
+              <div className="bg-yellow-50 border-l-4 border-yellow-500 p-6 rounded-lg">
+                <div className="flex items-start gap-3">
+                  <DollarSign className="w-6 h-6 text-yellow-700 flex-shrink-0 mt-0.5" />
+                  <div className="flex-1">
+                    <h3 className="text-lg font-semibold text-yellow-900 mb-1">
+                      Payment Required to Activate Agent Dashboard
+                    </h3>
+                    <p className="text-yellow-800 mb-3">
+                      Your agent profile is approved. Complete the payment to unlock the Agent Dashboard and start receiving leads.
+                    </p>
+                    <Link
+                      href="/agent/payment"
+                      className="inline-block px-4 py-2 rounded-lg font-semibold border border-yellow-300 bg-yellow-100 text-yellow-900 hover:bg-yellow-200"
+                    >
+                      Complete Payment
+                    </Link>
+                  </div>
+                </div>
+              </div>
+            )}
+
           </div>
         )}
 
