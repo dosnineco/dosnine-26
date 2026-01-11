@@ -7,4 +7,5 @@ out/
 .env.test.local
 .env.production.local
 build/
-/build
+/build.env.local
+.env.local
