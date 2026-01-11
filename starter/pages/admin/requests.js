@@ -6,6 +6,7 @@ import toast from 'react-hot-toast';
 import { FiTrash2 } from 'react-icons/fi';
 import { MessageCircle, Phone as PhoneIcon } from 'lucide-react';
 import AutoAssignModal from '../../components/AutoAssignModal';
+import BudgetRejectionEmailer from '../../components/BudgetRejectionEmailer';
 
 export default function AdminRequestsPage() {
   const { user } = useUser();
@@ -25,6 +26,7 @@ export default function AdminRequestsPage() {
   const [autoAssignCount, setAutoAssignCount] = useState(5);
   const [autoIncludeBuys, setAutoIncludeBuys] = useState(false);
   const [autoAssignLoading, setAutoAssignLoading] = useState(false);
+  const [showBudgetRejectionEmailer, setShowBudgetRejectionEmailer] = useState(false);
 
   useEffect(() => {
     checkAdminAccess();
@@ -392,12 +394,20 @@ export default function AdminRequestsPage() {
                 <h1 className="text-3xl font-bold text-gray-900">Service Requests</h1>
               </div>
             </div>
-            <button
-              onClick={() => setShowAutoAssign(true)}
-              className="px-4 py-2 bg-gray-200 text-black text-sm rounded-lg hover:bg-gray-200 hover:text-black hover: font-semibold"
-            >
-              AutoAssign
-            </button>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setShowAutoAssign(true)}
+                className="px-4 py-2 bg-gray-200 text-black text-sm rounded-lg hover:bg-gray-200 hover:text-black hover: font-semibold"
+              >
+                AutoAssign
+              </button>
+              <button
+                onClick={() => setShowBudgetRejectionEmailer(true)}
+                className="px-4 py-2 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700 font-semibold"
+              >
+                Send
+              </button>
+            </div>
           </div>
 
           {loading ? (
@@ -714,6 +724,16 @@ export default function AdminRequestsPage() {
         onAgentChange={setAutoAssignAgentId}
         onCountChange={(value) => setAutoAssignCount(Number(value) || 1)}
         onIncludeBuysChange={setAutoIncludeBuys}
+      />
+
+      <BudgetRejectionEmailer
+        open={showBudgetRejectionEmailer}
+        onClose={() => setShowBudgetRejectionEmailer(false)}
+        onComplete={() => {
+          setShowBudgetRejectionEmailer(false);
+          fetchData();
+        }}
+        adminClerkId={user?.id}
       />
 
       {/* Comment Modal */}
