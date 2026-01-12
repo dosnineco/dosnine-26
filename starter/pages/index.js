@@ -9,6 +9,7 @@ import { Home as HomeIcon, Users, ArrowRight } from 'lucide-react';
 import { useRouter } from 'next/router';
 import { PARISHES, normalizeParish } from '../lib/normalizeParish';
 import VisitorEmailPopup from '@/components/VisitorEmailPopup';
+import BecomeAgentBanner from '../components/BecomeAgentBanner';
 const PROPERTIES_PER_PAGE = 20;
 import AdList from '../components/AdList';
 
@@ -276,6 +277,9 @@ export default function Home() {
       <div className="container  mx-auto px-4 py-8">
         <h1 className="text-4xl font-bold text-center mb-4 text-gray-900">Find Your Perfect Property</h1>
         <p className="text-center text-gray-600 mb-8">Browse available properties across Jamaica</p>
+
+        {/* Become Agent Banner */}
+        <BecomeAgentBanner />
 
 
 
