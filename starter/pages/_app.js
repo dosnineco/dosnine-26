@@ -31,7 +31,9 @@ const PUBLIC_ROUTES = [
   '/privacy-policy',
   '/terms-of-service',
   '/refund-policy',
-  '/about'
+  '/about',
+  '/requests-marketplace'
+
 ];
 
 // Pages that should not have header/footer

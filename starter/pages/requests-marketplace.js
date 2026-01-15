@@ -1,7 +1,5 @@
 import Head from 'next/head';
 import PropertyRequestsMarketplace from '../components/PropertyRequestsMarketplace';
-// import BecomeAgentBanner from '../components/BecomeAgentBanner';
-import VisitorEmailPopup from '../components/VisitorEmailPopup';
 
 export default function PropertyRequestsPage() {
   return (
@@ -14,9 +12,6 @@ export default function PropertyRequestsPage() {
         <meta property="og:image" content="/og-image.png" />
         <meta property="og:type" content="website" />
       </Head>
-      {/* <BecomeAgentBanner /> */}
-          <VisitorEmailPopup/>
-      
       <PropertyRequestsMarketplace />
     </>
   );
