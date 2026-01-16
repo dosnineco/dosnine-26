@@ -32,7 +32,8 @@ const PUBLIC_ROUTES = [
   '/terms-of-service',
   '/refund-policy',
   '/about',
-  '/requests-marketplace'
+  '/requests-marketplace',
+  '/listing'
 
 ];
 

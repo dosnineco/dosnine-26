@@ -269,7 +269,6 @@ export default function Home() {
         url={process.env.NEXT_PUBLIC_SITE_URL + '/'}
       />
 
-    <VisitorEmailPopup/>
       {/* Beta Banner */}
 
       {/* User Role Selection */}
@@ -279,7 +278,6 @@ export default function Home() {
         <p className="text-center text-gray-600 mb-8">Browse available properties across Jamaica</p>
 
         {/* Become Agent Banner */}
-        <BecomeAgentBanner />
 
 
 

@@ -11,6 +11,31 @@ export default function AdminVisitorEmails() {
   const [loading, setLoading] = useState(true);
   const [totalCount, setTotalCount] = useState(0);
   const [exportData, setExportData] = useState(null);
+  const [deleting, setDeleting] = useState(null);
+
+  const handleDelete = async (emailId) => {
+    if (!confirm('Are you sure you want to delete this email? This cannot be undone.')) {
+      return;
+    }
+
+    setDeleting(emailId);
+    try {
+      const { error } = await supabase
+        .from('visitor_emails')
+        .delete()
+        .eq('id', emailId);
+
+      if (error) throw error;
+
+      setEmails(prev => prev.filter(e => e.id !== emailId));
+      setTotalCount(prev => prev - 1);
+    } catch (err) {
+      console.error('Delete error:', err);
+      alert('Failed to delete email');
+    } finally {
+      setDeleting(null);
+    }
+  };
 
   useEffect(() => {
     if (!isLoaded) return;
@@ -150,12 +175,13 @@ export default function AdminVisitorEmails() {
                     <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Date</th>
                     <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Source</th>
                     <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Device</th>
+                    <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {emails.length === 0 ? (
                     <tr>
-                      <td colSpan="4" className="px-6 py-8 text-center text-gray-600">
+                      <td colSpan="5" className="px-6 py-8 text-center text-gray-600">
                         No visitor emails yet. The popup captures emails from new visitors.
                       </td>
                     </tr>
@@ -171,6 +197,15 @@ export default function AdminVisitorEmails() {
                         </td>
                         <td className="px-6 py-4 text-sm text-gray-600">
                           {email.user_agent?.split(' ')[0] || 'Unknown'}
+                        </td>
+                        <td className="px-6 py-4 text-sm">
+                          <button
+                            onClick={() => handleDelete(email.id)}
+                            disabled={deleting === email.id}
+                            className="text-red-600 hover:text-red-800 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            {deleting === email.id ? 'Deleting...' : 'Delete'}
+                          </button>
                         </td>
                       </tr>
                     ))

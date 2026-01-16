@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase';
 import { useRouter } from 'next/router';
 import toast from 'react-hot-toast';
 import RequestAgentPopup from './RequestAgentPopup';
-import { Search, MapPin, DollarSign, Clock, FileText, CheckCircle, Lock, Users, Home, Smartphone, Star, Circle } from 'lucide-react';
+import { Search, MapPin, DollarSign, Clock, FileText, CheckCircle, Lock, Users, Home, Smartphone, Star, Circle, Building2, Building, Filter, X, ArrowRight } from 'lucide-react';
 
 export default function PropertyRequestsMarketplace() {
   const router = useRouter();
@@ -11,6 +11,8 @@ export default function PropertyRequestsMarketplace() {
   const [filteredRequests, setFilteredRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showPopup, setShowPopup] = useState(false);
+  const [showTypingIndicator, setShowTypingIndicator] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
   
   // Filter state
   const [filters, setFilters] = useState({
@@ -113,6 +115,101 @@ export default function PropertyRequestsMarketplace() {
     };
 
     fetchRequests();
+
+    // Real-time subscription for service_requests
+    const serviceRequestsSubscription = supabase
+      .channel('service_requests_changes')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'service_requests' }, (payload) => {
+        const newRequest = payload.new;
+        if (newRequest.status === 'open' && (!newRequest.is_contacted || newRequest.is_contacted === false)) {
+          const extractedBudget = (!newRequest.budget_min && !newRequest.budget && newRequest.description) 
+            ? extractBudgetFromText(newRequest.description) 
+            : { min: null, max: null };
+          
+          const formattedRequest = {
+            ...newRequest,
+            type: 'service_request',
+            source: 'agent_request',
+            budget_min: newRequest.budget_min || newRequest.budget || extractedBudget.min,
+            budget_max: newRequest.budget_max || extractedBudget.max
+          };
+
+          const budgetValue = formattedRequest.budget_max || formattedRequest.budget_min || 0;
+          if (budgetValue >= 80000) {
+            setRequests(prev => [formattedRequest, ...prev].slice(0, 50));
+          }
+        }
+      })
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'service_requests' }, (payload) => {
+        const updated = payload.new;
+        if (updated.is_contacted || updated.status !== 'open') {
+          setRequests(prev => prev.filter(r => !(r.type === 'service_request' && r.id === updated.id)));
+        }
+      })
+      .subscribe();
+
+    // Real-time subscription for visitor_emails
+    const visitorEmailsSubscription = supabase
+      .channel('visitor_emails_changes')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'visitor_emails' }, (payload) => {
+        const newVisitor = payload.new;
+        if (newVisitor.email_status === 'not_contacted') {
+          const extractedBudget = (!newVisitor.budget_min && !newVisitor.budget && newVisitor.message) 
+            ? extractBudgetFromText(newVisitor.message) 
+            : { min: null, max: null };
+          
+          const formattedVisitor = {
+            ...newVisitor,
+            type: 'visitor_email',
+            source: newVisitor.source || 'homepage_popup',
+            client_name: 'Not provided',
+            client_email: newVisitor.email,
+            client_phone: newVisitor.phone || 'Not provided',
+            request_type: newVisitor.intent || 'inquiry',
+            property_type: 'house',
+            location: newVisitor.parish || newVisitor.area || 'Not specified',
+            budget_min: newVisitor.budget_min || newVisitor.budget || extractedBudget.min,
+            budget_max: newVisitor.budget_max || extractedBudget.max,
+            is_contacted: false
+          };
+
+          const budgetValue = formattedVisitor.budget_max || formattedVisitor.budget_min || 0;
+          if (budgetValue >= 80000) {
+            setRequests(prev => [formattedVisitor, ...prev].slice(0, 50));
+          }
+        }
+      })
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'visitor_emails' }, (payload) => {
+        const updated = payload.new;
+        if (updated.email_status !== 'not_contacted') {
+          setRequests(prev => prev.filter(r => !(r.type === 'visitor_email' && r.id === updated.id)));
+        }
+      })
+      .subscribe();
+
+    // Real-time presence detection for typing indicator
+    const presenceChannel = supabase.channel('request_form_activity')
+      .on('presence', { event: 'sync' }, () => {
+        const state = presenceChannel.presenceState();
+        const activeUsers = Object.keys(state).length;
+        setShowTypingIndicator(activeUsers > 0);
+      })
+      .subscribe();
+
+    // Simulate typing indicator for now (checks if users on request page)
+    const checkActivity = setInterval(() => {
+      // Random chance to show typing to simulate real activity
+      const randomChance = Math.random() > 0.7;
+      setShowTypingIndicator(randomChance);
+    }, 4000);
+
+    // Cleanup subscriptions
+    return () => {
+      supabase.removeChannel(serviceRequestsSubscription);
+      supabase.removeChannel(visitorEmailsSubscription);
+      supabase.removeChannel(presenceChannel);
+      clearInterval(checkActivity);
+    };
   }, []);
 
   // Apply filters
@@ -253,21 +350,29 @@ export default function PropertyRequestsMarketplace() {
     
     if (!minVal && !maxVal) return 'Budget flexible';
     
+    const formatValue = (val) => {
+      if (val >= 1000000) {
+        const millions = val / 1000000;
+        return `${millions.toFixed(millions >= 10 ? 0 : 1)}M`;
+      }
+      return `$${val.toLocaleString()}`;
+    };
+    
     // If min and max are the same or very close, show as single value
     if (minVal && maxVal && Math.abs(minVal - maxVal) < 1000) {
-      return `Up to JMD ${(minVal / 1000).toFixed(0)}k`;
+      return `Up to JMD ${formatValue(minVal)}`;
     }
     
     // If both exist and different, show range
     if (minVal && maxVal) {
-      return `JMD ${(minVal / 1000).toFixed(0)}k - ${(maxVal / 1000).toFixed(0)}k`;
+      return `JMD ${formatValue(minVal)} - ${formatValue(maxVal)}`;
     }
     
     // If only min exists
-    if (minVal) return `JMD ${(minVal / 1000).toFixed(0)}k+`;
+    if (minVal) return `JMD ${formatValue(minVal)}+`;
     
     // If only max exists
-    return `Up to JMD ${(maxVal / 1000).toFixed(0)}k`;
+    return `Up to JMD ${formatValue(maxVal)}`;
   };
 
   const formatBedrooms = (bedrooms) => {
@@ -319,146 +424,176 @@ export default function PropertyRequestsMarketplace() {
   return (
     <div className="min-h-screen bg-gray-50">
   
-      {/* Hero Section */}
-      <div className="bg-white border-b border-gray-200 py-12">
-        <div className="container mx-auto px-4 text-center">
-          <div className="inline-block bg-blue-50 border border-blue-200 text-blue-700 text-sm font-semibold px-4 py-2 rounded-full mb-4">
-            These are REQUESTS from buyers & renters — not property listings
-          </div>
-          <h1 className="text-4xl font-bold text-gray-900 mb-4">
-            Real Buyers & Renters<br />Looking for Properties Right Now
-          </h1>
-          
-          <button
-            onClick={() => router.push('/request')}
-            className="btn-primary btn-lg mb-8 flex items-center gap-2 justify-center mx-auto"
-          >
-            <Search size={20} /> Submit Your Property Request
-          </button>
+      {/* Collapsible Filter Section */}
+      {showFilters && (
+        <div className="bg-white border-b border-gray-200 py-8">
+          <div className="container mx-auto px-4">
+            <div className="max-w-5xl mx-auto animate-fadeIn">
+              <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                  {/* Request Type Filter */}
+                  <select
+                    name="requestType"
+                    value={filters.requestType}
+                    onChange={handleFilterChange}
+                    className="w-full px-3 py-2 text-sm rounded-lg border border-gray-300 text-gray-900 focus:ring-2 focus:ring-red-500 focus:border-transparent bg-white"
+                  >
+                    <option value="">All Types</option>
+                    <option value="buy">Buy</option>
+                    <option value="rent">Rent</option>
+                    <option value="sale">Sale</option>
+                  </select>
 
-          {/* Filter Section */}
-          <div className="max-w-4xl mx-auto mt-8">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-              {/* Request Type Filter */}
-              <select
-                name="requestType"
-                value={filters.requestType}
-                onChange={handleFilterChange}
-                className="w-full px-4 py-2.5 rounded-lg border border-gray-300 text-gray-900 focus:ring-2 focus:ring-red-500 focus:border-transparent"
-              >
-                <option value="">All Types</option>
-                <option value="buy">Buy</option>
-                <option value="rent">Rent</option>
-                <option value="sale">Sale</option>
-              </select>
+                  {/* Parish Filter */}
+                  <select
+                    name="parish"
+                    value={filters.parish}
+                    onChange={handleFilterChange}
+                    className="w-full px-3 py-2 text-sm rounded-lg border border-gray-300 text-gray-900 focus:ring-2 focus:ring-red-500 focus:border-transparent bg-white"
+                  >
+                    <option value="">All Parishes</option>
+                    <option value="Kingston">Kingston</option>
+                    <option value="St. Andrew">St. Andrew</option>
+                    <option value="St. Catherine">St. Catherine</option>
+                    <option value="Clarendon">Clarendon</option>
+                    <option value="Manchester">Manchester</option>
+                    <option value="St. Elizabeth">St. Elizabeth</option>
+                    <option value="Westmoreland">Westmoreland</option>
+                    <option value="Hanover">Hanover</option>
+                    <option value="St. James">St. James</option>
+                    <option value="Trelawny">Trelawny</option>
+                    <option value="St. Ann">St. Ann</option>
+                    <option value="St. Mary">St. Mary</option>
+                    <option value="Portland">Portland</option>
+                    <option value="St. Thomas">St. Thomas</option>
+                  </select>
 
-              {/* Parish Filter */}
-              <select
-                name="parish"
-                value={filters.parish}
-                onChange={handleFilterChange}
-                className="w-full px-4 py-2.5 rounded-lg border border-gray-300 text-gray-900 focus:ring-2 focus:ring-red-500 focus:border-transparent"
-              >
-                <option value="">All Parishes</option>
-                <option value="Kingston">Kingston</option>
-                <option value="St. Andrew">St. Andrew</option>
-                <option value="St. Catherine">St. Catherine</option>
-                <option value="Clarendon">Clarendon</option>
-                <option value="Manchester">Manchester</option>
-                <option value="St. Elizabeth">St. Elizabeth</option>
-                <option value="Westmoreland">Westmoreland</option>
-                <option value="Hanover">Hanover</option>
-                <option value="St. James">St. James</option>
-                <option value="Trelawny">Trelawny</option>
-                <option value="St. Ann">St. Ann</option>
-                <option value="St. Mary">St. Mary</option>
-                <option value="Portland">Portland</option>
-                <option value="St. Thomas">St. Thomas</option>
-              </select>
+                  {/* Bedrooms Filter */}
+                  <select
+                    name="bedrooms"
+                    value={filters.bedrooms}
+                    onChange={handleFilterChange}
+                    className="w-full px-3 py-2 text-sm rounded-lg border border-gray-300 text-gray-900 focus:ring-2 focus:ring-red-500 focus:border-transparent bg-white"
+                  >
+                    <option value="">Bedrooms</option>
+                    <option value="1">1 Bedroom</option>
+                    <option value="2">2 Bedrooms</option>
+                    <option value="3">3 Bedrooms</option>
+                    <option value="4">4 Bedrooms</option>
+                    <option value="5">5+ Bedrooms</option>
+                  </select>
 
-              {/* Bedrooms Filter */}
-              <select
-                name="bedrooms"
-                value={filters.bedrooms}
-                onChange={handleFilterChange}
-                className="w-full px-4 py-2.5 rounded-lg border border-gray-300 text-gray-900 focus:ring-2 focus:ring-red-500 focus:border-transparent"
-              >
-                <option value="">Bedrooms</option>
-                <option value="1">1 Bedroom</option>
-                <option value="2">2 Bedrooms</option>
-                <option value="3">3 Bedrooms</option>
-                <option value="4">4 Bedrooms</option>
-                <option value="5">5+ Bedrooms</option>
-              </select>
+                  {/* Location Search */}
+                  <input
+                    type="text"
+                    name="location"
+                    value={filters.location}
+                    onChange={handleFilterChange}
+                    placeholder="Search Location"
+                    className="w-full px-3 py-2 text-sm rounded-lg border border-gray-300 text-gray-900 focus:ring-2 focus:ring-red-500 focus:border-transparent bg-white"
+                  />
 
-              {/* Min Price Filter */}
-              <input
-                type="number"
-                name="minPrice"
-                value={filters.minPrice}
-                onChange={handleFilterChange}
-                placeholder="Min Price (JMD)"
-                className="w-full px-4 py-2.5 rounded-lg border border-gray-300 text-gray-900 focus:ring-2 focus:ring-red-500 focus:border-transparent"
-              />
+                  {/* Min Price Filter */}
+                  <input
+                    type="number"
+                    name="minPrice"
+                    value={filters.minPrice}
+                    onChange={handleFilterChange}
+                    placeholder="Min Price"
+                    className="w-full px-3 py-2 text-sm rounded-lg border border-gray-300 text-gray-900 focus:ring-2 focus:ring-red-500 focus:border-transparent bg-white"
+                  />
 
-              {/* Max Price Filter */}
-              <input
-                type="number"
-                name="maxPrice"
-                value={filters.maxPrice}
-                onChange={handleFilterChange}
-                placeholder="Max Price (JMD)"
-                className="w-full px-4 py-2.5 rounded-lg border border-gray-300 text-gray-900 focus:ring-2 focus:ring-red-500 focus:border-transparent"
-              />
+                  {/* Max Price Filter */}
+                  <input
+                    type="number"
+                    name="maxPrice"
+                    value={filters.maxPrice}
+                    onChange={handleFilterChange}
+                    placeholder="Max Price"
+                    className="w-full px-3 py-2 text-sm rounded-lg border border-gray-300 text-gray-900 focus:ring-2 focus:ring-red-500 focus:border-transparent bg-white"
+                  />
+                </div>
 
-              {/* Location Search */}
-              <input
-                type="text"
-                name="location"
-                value={filters.location}
-                onChange={handleFilterChange}
-                placeholder="Search Location"
-                className="w-full px-4 py-2.5 rounded-lg border border-gray-300 text-gray-900 focus:ring-2 focus:ring-red-500 focus:border-transparent"
-              />
+                {/* Clear Filters Button */}
+                {(filters.requestType || filters.parish || filters.bedrooms || filters.minPrice || filters.maxPrice || filters.location) && (
+                  <div className="flex justify-center mt-3">
+                    <button
+                      onClick={() => setFilters({
+                        bedrooms: '',
+                        location: '',
+                        budget: '',
+                        requestType: '',
+                        parish: '',
+                        minPrice: '',
+                        maxPrice: ''
+                      })}
+                      className="inline-flex items-center gap-1 px-4 py-1.5 text-sm rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300 transition-colors font-medium"
+                    >
+                      <X size={14} /> Clear All Filters
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
+          </div>
+        </div>
+      )}
 
-            {/* Clear Filters Button */}
-            {(filters.requestType || filters.parish || filters.bedrooms || filters.minPrice || filters.maxPrice || filters.location) && (
-              <div className="flex justify-center mt-4">
-                <button
-                  onClick={() => setFilters({
-                    bedrooms: '',
-                    location: '',
-                    budget: '',
-                    requestType: '',
-                    parish: '',
-                    minPrice: '',
-                    maxPrice: ''
-                  })}
-                  className="px-6 py-2 rounded-lg bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors font-medium"
-                >
-                  Clear Filters
-                </button>
+      {/* Bottom spacing from hero */}
+      <div className="h-20"></div>
+
+      {/* Live Requests Section */}
+      <div className="container mx-auto mb-8">
+        <div className="text-center mb-12">
+          <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
+            Live Property Requests from Buyers & Renters
+          </h1>
+          <p className="text-gray-600 text-base mb-8 leading-relaxed">
+            These are real people looking for properties. Claim a request to get their contact details.
+          </p>
+          
+          {/* Action Links */}
+          <div className="flex flex-wrap justify-center gap-8 mb-12">
+            <a
+              href="/listing"
+              className="flex items-center gap-2 text-sm text-gray-900 font-semibold hover:text-gray-700 transition-colors border-b-2 border-gray-900 hover:border-gray-700 pb-2"
+            >
+              View Listings
+              <ArrowRight size={20} />
+            </a>
+            <a
+              href="/request"
+              className="flex items-center gap-2 text-sm text-gray-900 font-semibold hover:text-gray-700 transition-colors border-b-2 border-gray-900 hover:border-gray-700 pb-2"
+            >
+              Submit a Request
+              <ArrowRight size={20} />
+            </a>
+            <a
+              href="/agent-signup"
+              className="flex items-center gap-2 text-sm text-gray-900 font-semibold hover:text-gray-700 transition-colors border-b-2 border-gray-900 hover:border-gray-700 pb-2"
+            >
+              Become an Agent
+              <ArrowRight size={16} />
+            </a>
+          </div>
+          
+          {/* Live Typing Indicator - Reserved Space */}
+          <div className="h-12 flex items-center justify-center">
+            {showTypingIndicator && (
+              <div className="inline-flex items-center gap-2 bg-green-50 border border-green-200 text-green-700 text-xs font-semibold px-4 py-2 rounded-full animate-pulse">
+                <div className="flex gap-1">
+                  <div className="w-2 h-2 bg-green-500 rounded-full animate-bounce" style={{animationDelay: '0ms'}}></div>
+                  <div className="w-2 h-2 bg-green-500 rounded-full animate-bounce" style={{animationDelay: '150ms'}}></div>
+                  <div className="w-2 h-2 bg-green-500 rounded-full animate-bounce" style={{animationDelay: '300ms'}}></div>
+                </div>
+                <span>Anonymous is typing another request...</span>
               </div>
             )}
           </div>
         </div>
-      </div>
-
-      {/* Live Requests Section */}
-      <div className="container mx-auto px-4 py-12">
-        <div className="text-center mb-8">
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">
-            Live Property Requests from Buyers & Renters
-          </h2>
-          <p className="text-gray-600 text-sm">
-            These are real people looking for properties. Claim a request to get their contact details.
-          </p>
-        </div>
 
         {loading ? (
           <div className="text-center py-12">
-            <div className="inline-block animate-spin">⏳</div>
             <p className="text-gray-600 mt-2">Loading requests...</p>
           </div>
         ) : filteredRequests.length === 0 ? (
@@ -466,7 +601,7 @@ export default function PropertyRequestsMarketplace() {
             <p className="text-gray-600 text-lg">No requests match your filters</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className=" grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {filteredRequests.map(request => {
               const tier = getBudgetTier(request.budget_min, request.budget_max);
               const urgencyBadge = getUrgencyBadge(request.created_at);
@@ -475,93 +610,61 @@ export default function PropertyRequestsMarketplace() {
               <div
                 key={`${request.type}-${request.id}`}
                 className={`bg-white rounded-lg p-6 hover:shadow-lg transition-all relative ${
-                  tier === 'premium' ? 'border-2 border-yellow-400 shadow-md' :
-                  tier === 'mid' ? 'border-2 border-blue-300' :
+                  tier === 'premium' ? 'border-2  shadow-md' :
                   'border border-gray-200'
                 }`}
               >
-                {/* Premium Badge */}
+                {/* Premium Badge - Only for premium tier */}
                 {tier === 'premium' && (
-                  <div className="absolute -top-3 -right-3 bg-gradient-to-r from-yellow-400 to-yellow-500 text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg flex items-center gap-1">
-                    <Star size={14} fill="white" /> Premium
+                  <div className="absolute -top-2 -right-2 bg-gradient-to-r from-gray-700 to-gray-800 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-lg flex items-center gap-1">
+                    <Star size={10} fill="white" /> Premium
                   </div>
                 )}
 
                 {/* Urgency Badge */}
                 {urgencyBadge && (
-                  <div className="inline-block bg-green-50 border border-green-200 text-green-700 text-xs font-semibold px-2 py-1 rounded-full mb-3 flex items-center gap-1">
-                    <Circle size={10} fill="currentColor" /> {urgencyBadge}
+                  <div className="inline-flex bg-green-50 border border-green-200 text-green-700 text-[10px] font-semibold px-2 py-0.5 rounded-full mb-2 items-center gap-1">
+                    <Circle size={8} fill="currentColor" /> {urgencyBadge}
                   </div>
                 )}
 
                 {/* Title */}
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                  Live {request.request_type === 'buy' ? 'Purchase' : request.request_type === 'rent' ? 'Rental' : 'Property'} Request — {formatBedrooms(request.bedrooms)}{formatBedrooms(request.bedrooms) === 'Flexible' ? ' Bedrooms' : '-Bedroom'}
+                <h3 className="text-base font-semibold text-gray-900 mb-2 leading-tight flex items-center gap-2">
+                  {request.request_type === 'buy' ? <Home size={16} className="text-gray-700" /> : request.request_type === 'rent' ? <Building2 size={16} className="text-gray-700" /> : <Building size={16} className="text-gray-700" />}
+                  <span>{request.request_type === 'buy' ? 'Purchase' : request.request_type === 'rent' ? 'Rental' : 'Property'} • {formatBedrooms(request.bedrooms)}{formatBedrooms(request.bedrooms) === 'Flexible' ? ' Bedrooms' : ' Bedroom' + (request.bedrooms > 1 ? 's' : '')}</span>
                 </h3>
-                <p className="text-xs text-gray-500 mb-4 font-medium flex items-center gap-1">
-                  <CheckCircle size={14} className="text-green-600" /> Verified {request.request_type === 'buy' ? 'buyer' : 'renter'}
+                <p className="text-xs text-gray-500 mb-4 font-medium flex items-center gap-2">
+                  <CheckCircle size={12} className="text-green-600" /> Verified {request.request_type === 'buy' ? 'buyer' : 'renter'}
                 </p>
 
                 {/* Location */}
-                <div className="flex items-start gap-3 mb-3">
-                  <MapPin className="text-red-500 flex-shrink-0" size={20} />
-                  <div>
-                    <p className="text-gray-700 font-medium">
-                      {formatLocation(request.location, request.area, request.parish)}
-                    </p>
-                  </div>
+                <div className="flex items-start gap-3 mb-4">
+                  <MapPin className="text-red-500 flex-shrink-0" size={16} />
+                  <p className="text-sm text-gray-700 font-medium leading-relaxed">
+                    {formatLocation(request.location, request.area, request.parish)}
+                  </p>
                 </div>
 
                 {/* Budget */}
-                <div className="flex items-start gap-3 mb-3">
-                  <DollarSign className="text-yellow-500 flex-shrink-0" size={20} />
-                  <div>
-                    <p className="text-gray-700 font-medium">
-                      {formatBudget(request.budget_min, request.budget_max)}
-                    </p>
-                  </div>
+                <div className="flex items-start gap-3 mb-5">
+                  <DollarSign className="text-gray-600 flex-shrink-0" size={16} />
+                  <p className="text-sm text-gray-700 font-medium">
+                    {formatBudget(request.budget_min, request.budget_max)}
+                  </p>
                 </div>
 
-                {/* Urgency Text */}
-     
-
-                {/* Posted */}
-                {/* <div className="flex items-start gap-3 mb-6">
-                  <Clock className="text-gray-500 flex-shrink-0" size={20} />
-                  <div>
-                    <p className="text-gray-600 text-sm">Posted {getTimeAgo(request.created_at)}</p>
-                  </div>
-                </div> */}
-
-                {/* Description if available */}
-                {/* {request.description && (
-                  <p className="text-gray-600 text-sm mb-4 line-clamp-2">
-                    {request.description}
-                  </p>
-                )} */}
-
-                {/* Additional info for visitor leads */}
-                {/* {request.type === 'visitor_email' && (
-                  <p className="text-gray-600 text-sm mb-4">
-                    Lead from {request.source === 'homepage_popup' ? 'homepage popup' : 'visitor form'}. 
-                    Bedrooms: {request.bedrooms || 'Not specified'}, 
-                    Parish: {request.parish || 'Not specified'}, 
-                    Area: {request.area || 'Not specified'}
-                    {request.budget_min && `, Budget: ${formatBudget(request.budget_min, request.budget_max)}`}
-                  </p>
-                )} */}
-
                 {/* Claim button */}
-                <button
+                {/* <button
                   onClick={() => router.push('/agent-signup')}
-                  className={`w-full text-center font-semibold py-3 rounded-lg transition-colors ${
-                    tier === 'premium' ? 'bg-yellow-400 hover:bg-yellow-500 text-gray-900' :
-                    tier === 'mid' ? 'bg-blue-500 hover:bg-blue-600 text-white' :
-                    'bg-gray-200 hover:bg-gray-300 text-gray-800'
+                  className={`w-full text-center font-semibold py-2 text-xs rounded-lg transition-colors ${
+                    tier === 'premium' ? 'bg-gray-700 hover:bg-gray-800 text-white' :
+                    'bg-gray-800 hover:bg-gray-900 text-white'
                   }`}
                 >
-                  Unlock & Respond {tier === 'premium' ? '(Priority)' : tier === 'mid' ? '' : '(Limited Slots)'}
-                </button>
+                  <span className="inline-flex items-center gap-1">
+                    Unlock Contact{tier === 'premium' && <Star size={10} fill="white" />}
+                  </span>
+                </button> */}
               </div>
             );})}
           </div>
@@ -569,7 +672,7 @@ export default function PropertyRequestsMarketplace() {
       </div>
 
       {/* How It Works Section */}
-      <div className="bg-white border-t border-gray-200 py-12">
+      <div className="bg-white border-t border-gray-200  py-20">
         <div className="container mx-auto px-4">
           <h2 className="text-2xl font-bold text-gray-900 text-center mb-12">
             How It Works

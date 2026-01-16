@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useUser } from '@clerk/nextjs';
 import { useRouter } from 'next/router';
 import { supabase } from '../lib/supabase';
-import { Home, DollarSign, Key, Bed, MapPin, Search, Loader2, X, Zap, Copy, Check } from 'lucide-react';
+import { Home, DollarSign, Key, Bed, MapPin, Search, Loader2, X } from 'lucide-react';
 
 export default function VisitorEmailPopup() {
   const { isSignedIn, user } = useUser();
@@ -15,39 +15,6 @@ export default function VisitorEmailPopup() {
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [isAgent, setIsAgent] = useState(false);
-  const [paymentMode, setPaymentMode] = useState('free'); // 'free' or 'premium'
-  const [showPaymentDetails, setShowPaymentDetails] = useState(false);
-  const [copied, setCopied] = useState(false);
-  const [selectedBank, setSelectedBank] = useState(null); // 'scotiabank' or 'ncb'
-  const [promoCode, setPromoCode] = useState('');
-  const [promoApplied, setPromoApplied] = useState(false);
-  const [queuePosition, setQueuePosition] = useState(null);
-  
-  // Payment constants
-  const PREMIUM_PRICE = 1499; // JMD
-  const PAID_SPOTS_LEFT = 7; // Limited spots this month
-  
-  // Valid promo codes for queue-skip
-  const VALID_PROMO_CODES = {
-    'SKIP10': { discount: 10, bonusSpots: 1 },
-    'QUICKSTART': { discount: 15, bonusSpots: 2 },
-    'RUSH': { discount: 20, bonusSpots: 1 },
-  };
-
-  const bankDetails = [
-    {
-      bank: "Scotiabank Jamaica",
-      accountName: "Tahjay Thompson",
-      accountNumber: "010860258",
-      branch: "50575"
-    },
-    {
-      bank: "National Commercial Bank (NCB)",
-      accountName: "Tahjay Thompson",
-      accountNumber: "404386522",
-      branch: "UNIVERSITY BRANCH"
-    }
-  ];
   
   // Property preferences
   const [budgetMin, setBudgetMin] = useState(5000000); // 5M JMD default
@@ -141,23 +108,6 @@ export default function VisitorEmailPopup() {
   /* -----------------------------
      Submit handler - Save to both visitor_emails and service_requests
   ------------------------------*/
-  const copyToClipboard = (text, field) => {
-    navigator.clipboard.writeText(text);
-    setCopied(field);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
-  /* Promo Code Handler */
-  const handlePromoCode = () => {
-    const code = promoCode.toUpperCase().trim();
-    if (VALID_PROMO_CODES[code]) {
-      setPromoApplied(true);
-      // Calculate new queue position (move up 5-10 spots)
-      setQueuePosition(Math.max(1, Math.floor(Math.random() * 5) + 1));
-      setTimeout(() => setPromoCode(''), 500);
-    }
-  };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     
@@ -178,7 +128,7 @@ export default function VisitorEmailPopup() {
         property_type: 'house',
         location: area || parish || 'TBD',
         status: 'open',
-        urgency: paymentMode === 'premium' ? 'urgent' : 'normal',
+        urgency: 'normal',
         description: `Lead from homepage popup. Bedrooms: ${bedrooms || 'Not specified'}, Parish: ${parish || 'Not specified'}, Area: ${area || 'Not specified'}, Budget: JMD ${budgetMin.toLocaleString()}`
       };
 
@@ -236,8 +186,8 @@ export default function VisitorEmailPopup() {
   if (!showPopup || submitted) return null;
 
   return (
-    <div className="fixed inset-0 bg-gray-100 flex items-start justify-center z-50 p-4 pt-16 overflow-y-auto">
-      <div className="bg-white max-w-md rounded-2xl w-full overflow-hidden relative shadow-2xl max-h-[90vh] flex flex-col">
+    <div className="fixed inset-0 bg-gray-100  flex items-center justify-center z-50 p-4">
+      <div className="bg-white  max-w-md rounded-2xl w-full overflow-hidden relative">
 
         {/* Close X Button */}
         <button
@@ -252,10 +202,10 @@ export default function VisitorEmailPopup() {
         <div className="bg-gradient-to-r from-orange-600 to-orange-700 p-6 text-white">
           <h2 className="text-2xl font-bold flex items-center gap-2">
             <Search size={28} />
-              Tell us what you want?
+            Get Property Alerts
           </h2>
           <p className="text-orange-100 text-sm mt-1">
-  We match you with real agents who actually have it.
+            Verified listings sent directly to you
           </p>
         </div>
 
@@ -481,271 +431,19 @@ export default function VisitorEmailPopup() {
             />
           </div>
 
-          {/* Queue Skip Incentive Section */}
-          <div className="border-t pt-5 space-y-3">
-            <h3 className="text-sm font-bold text-gray-900 flex items-center gap-2">
-              <Zap size={18} className="text-yellow-500" />
-              Skip the Queue
-            </h3>
-            
-            {!promoApplied ? (
-              <div className="space-y-2">
-                <p className="text-xs text-gray-600">
-                  Have a promo code? Apply it to jump to the front and get matched with agents faster.
-                </p>
-                <div className="flex gap-2">
-                  <div className="relative flex-1">
-                    <input
-                      type="text"
-                      value={promoCode}
-                      onChange={(e) => setPromoCode(e.target.value)}
-                      onKeyPress={(e) => e.key === 'Enter' && handlePromoCode()}
-                      placeholder="Enter promo code"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 text-center font-semibold"
-                    />
-                  </div>
-                  <button
-                    type="button"
-                    onClick={handlePromoCode}
-                    disabled={!promoCode.trim()}
-                    className="px-4 py-2 bg-yellow-500 hover:bg-yellow-600 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-semibold rounded-lg transition"
-                  >
-                    Apply
-                  </button>
-                </div>
-                <p className="text-xs text-gray-500 italic">Try: SKIP10, QUICKSTART, or RUSH</p>
-              </div>
-            ) : (
-              <div className="bg-green-50 border-2 border-green-500 rounded-lg p-4 flex items-center gap-3">
-                <div className="flex-shrink-0">
-                  <Check size={32} className="text-green-500 animate-bounce" />
-                </div>
-                <div className="flex-1">
-                  <p className="font-bold text-green-700">Queue Skip Activated! 🎉</p>
-                  <p className="text-sm text-green-600">
-                    {queuePosition && queuePosition <= 3 
-                      ? `You're now position #${queuePosition} in queue - agents will contact you within 2 hours!`
-                      : 'You\'ve been moved to priority queue - expect contact within 24 hours!'}
-                  </p>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Payment Mode Selector */}
-          <div className="space-y-3 border-t pt-5">
-            {/* Free Option */}
-            <button
-              type="button"
-              onClick={() => setPaymentMode('free')}
-              className={`w-full p-4 rounded-xl border-2 transition transform ${
-                paymentMode === 'free'
-                  ? 'border-blue-500 bg-gradient-to-r from-blue-50 to-blue-100 ring-2 ring-blue-300 shadow-lg'
-                  : 'border-gray-300 bg-white hover:border-blue-400'
-              }`}
-            >
-              <div className="text-left">
-                <div className={`font-semibold mb-1 ${
-                  paymentMode === 'free' ? 'text-blue-700' : 'text-gray-700'
-                }`}>Free Queue</div>
-                <p className={`text-sm ${
-                  paymentMode === 'free' ? 'text-blue-600' : 'text-gray-600'
-                }`}>Join the waitlist • 24-72 hour wait</p>
-              </div>
-            </button>
-
-            {/* Premium Option - Green */}
-            <button
-              type="button"
-              onClick={() => setPaymentMode('premium')}
-              className={`w-full p-4 rounded-xl border-2 transition transform relative overflow-hidden ${
-                paymentMode === 'premium'
-                  ? 'border-emerald-500 bg-gradient-to-r from-emerald-50 to-emerald-100 ring-2 ring-emerald-300 shadow-lg'
-                  : 'border-gray-300 bg-white hover:border-emerald-400'
-              }`}
-            >
-              {/* Ribbon Badge */}
-              {promoApplied && (
-                <div className="absolute top-2 right-2 bg-yellow-400 text-yellow-900 px-2 py-1 rounded text-xs font-bold flex items-center gap-1">
-                  <Check size={14} /> Promo Active
-                </div>
-              )}
-              <div className="flex items-start gap-3 justify-between">
-                <div className="text-left flex-1">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="font-bold text-emerald-700">PREMIUM (Optional)</span>
-                  </div>
-                  <p className="text-xs text-emerald-600 animate-pulse font-bold mb-2">
-                    {PAID_SPOTS_LEFT} Spots Remaining!
-                  </p>
-                  <p className="text-sm text-gray-700">
-                    <strong>⚡ Skip the queue</strong> {promoApplied ? '(Promo Applied)' : ''}
-                  </p>
-                  <p className="text-xs text-emerald-600 font-medium mt-1">Get matched in 2-4 hours</p>
-                </div>
-                <div className="text-right flex-shrink-0">
-                  <div className="text-2xl font-bold text-emerald-600">J${PREMIUM_PRICE}</div>
-                  <div className="text-xs text-emerald-600 font-bold mt-1">ONE-TIME</div>
-                </div>
-              </div>
-            </button>
-          </div>
-
-          {/* Payment Details - Shows Directly When Premium Selected */}
-          {paymentMode === 'premium' && (
-            <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4 space-y-4 mt-3">
-              <div className="bg-white border-l-4 border-emerald-500 rounded p-3">
-                <h4 className="font-bold text-emerald-900 mb-2 text-xs">How to Pay</h4>
-                <ol className="text-emerald-800 text-xs space-y-1 list-decimal list-inside font-medium">
-                  <li>Transfer <strong>J${PREMIUM_PRICE}</strong> to your selected bank</li>
-                  <li>In transfer notes: Your Email should be added"</li>
-                  <li>Complete this form to get at the top of the queue.</li>
-                </ol>
-              </div>
-
-              {/* Bank Selection Buttons */}
-              <div className="space-y-2">
-                <p className="text-xs font-semibold text-gray-700">Select Your Bank:</p>
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setSelectedBank('scotiabank')}
-                    className={`p-3 rounded-lg border-2 font-semibold transition ${
-                      selectedBank === 'scotiabank'
-                        ? 'border-red-600 bg-red-50 text-red-700 shadow-lg'
-                        : 'border-gray-300 bg-white text-gray-700 hover:border-red-400'
-                    }`}
-                  >
-                    🏦 Scotiabank
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setSelectedBank('ncb')}
-                    className={`p-3 rounded-lg border-2 font-semibold transition ${
-                      selectedBank === 'ncb'
-                        ? 'border-blue-600 bg-blue-50 text-blue-700 shadow-lg'
-                        : 'border-gray-300 bg-white text-gray-700 hover:border-blue-400'
-                    }`}
-                  >
-                    🏦 NCB
-                  </button>
-                </div>
-              </div>
-
-              {/* Bank Details - Show Only Selected Bank */}
-              {selectedBank && (
-                <div>
-                  {selectedBank === 'scotiabank' && bankDetails[0] && (
-                    <div className="rounded p-3 bg-red-50 border-l-4 border-red-600">
-                      <h5 className="font-bold text-gray-900 text-sm mb-2">{bankDetails[0].bank}</h5>
-                      <div className="space-y-2 text-sm">
-                        {Object.entries(bankDetails[0]).filter(([key]) => key !== 'bank').map(([key, value]) => (
-                          <div key={key} className="flex justify-between items-center gap-2">
-                            <span className="text-gray-700 font-medium capitalize">{key}:</span>
-                            <button
-                              type="button"
-                              onClick={() => copyToClipboard(value, key)}
-                              className="flex items-center gap-2 font-semibold text-gray-900 hover:text-red-600 transition bg-white px-2 py-1 rounded border border-gray-300"
-                            >
-                              <span>{value}</span>
-                              {copied === key ? (
-                                <Check size={16} className="text-red-600" />
-                              ) : (
-                                <Copy size={16} className="text-gray-500" />
-                              )}
-                            </button>
-                          </div>
-                        ))}
-                        <div className="flex justify-between items-center gap-2 pt-2 border-t border-gray-300">
-                          <span className="text-gray-700 font-medium">Email Username:</span>
-                          <button
-                            type="button"
-                            onClick={() => copyToClipboard(email?.split('@')[0] || 'your-email', 'email')}
-                            className="flex items-center gap-2 font-semibold text-gray-900 hover:text-red-600 transition bg-white px-2 py-1 rounded border border-gray-300"
-                          >
-                            <span>{email?.split('@')[0] || 'your-email'}</span>
-                            {copied === 'email' ? (
-                              <Check size={16} className="text-red-600" />
-                            ) : (
-                              <Copy size={16} className="text-gray-500" />
-                            )}
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {selectedBank === 'ncb' && bankDetails[1] && (
-                    <div className="rounded p-3 bg-blue-50 border-l-4 border-blue-600">
-                      <h5 className="font-bold text-gray-900 text-sm mb-2">{bankDetails[1].bank}</h5>
-                      <div className="space-y-2 text-sm">
-                        {Object.entries(bankDetails[1]).filter(([key]) => key !== 'bank').map(([key, value]) => (
-                          <div key={key} className="flex justify-between items-center gap-2">
-                            <span className="text-gray-700 font-medium capitalize">{key}:</span>
-                            <button
-                              type="button"
-                              onClick={() => copyToClipboard(value, key)}
-                              className="flex items-center gap-2 font-semibold text-gray-900 hover:text-blue-600 transition bg-white px-2 py-1 rounded border border-gray-300"
-                            >
-                              <span>{value}</span>
-                              {copied === key ? (
-                                <Check size={16} className="text-blue-600" />
-                              ) : (
-                                <Copy size={16} className="text-gray-500" />
-                              )}
-                            </button>
-                          </div>
-                        ))}
-                        <div className="flex justify-between items-center gap-2 pt-2 border-t border-gray-300">
-                          <span className="text-gray-700 font-medium">Email Username:</span>
-                          <button
-                            type="button"
-                            onClick={() => copyToClipboard(email?.split('@')[0] || 'your-email', 'email')}
-                            className="flex items-center gap-2 font-semibold text-gray-900 hover:text-blue-600 transition bg-white px-2 py-1 rounded border border-gray-300"
-                          >
-                            <span>{email?.split('@')[0] || 'your-email'}</span>
-                            {copied === 'email' ? (
-                              <Check size={16} className="text-blue-600" />
-                            ) : (
-                              <Copy size={16} className="text-gray-500" />
-                            )}
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
-
           {/* Data Sharing Disclaimer */}
-          <div className={`rounded-lg p-3 text-xs ${
-            paymentMode === 'premium'
-              ? 'bg-emerald-50 border border-emerald-200'
-              : 'bg-blue-50 border border-blue-200'
-          }`}>
-            <p className={`font-medium mb-1 ${
-              paymentMode === 'premium' ? 'text-emerald-900' : 'text-blue-900'
-            }`}>
-              {paymentMode === 'premium' ? '💳 Payment Required' : '📋 Data Sharing Notice'}
-            </p>
-            <p className="text-gray-700">
-              {paymentMode === 'premium'
-                ? `By submitting, you agree to complete the J$${PREMIUM_PRICE} payment via bank transfer and share your information with verified agents.`
-                : 'By submitting, you agree to share your contact information with verified agents.'
-              }
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-xs text-gray-700">
+            <p className="font-medium text-blue-900 mb-1">📋 Data Sharing & Capture Notice</p>
+            <p>
+              By submitting, you agree to share your contact information with verified agents 
+              who can help with your property needs.
             </p> 
           </div>
 
           <button
             type="submit"
             disabled={loading || !intent}
-            className={`w-full py-3 px-4 text-white font-bold rounded-lg hover:shadow-lg transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 ${
-              paymentMode === 'premium'
-                ? 'bg-gradient-to-r from-emerald-600 to-emerald-700 transform hover:scale-105'
-                : 'bg-gradient-to-r from-orange-600 to-orange-700'
-            }`}
+            className="w-full py-3 px-4 bg-gradient-to-r from-orange-600 to-orange-700 text-white font-bold rounded-lg hover:shadow-lg transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
             {loading ? (
               <>
@@ -753,14 +451,7 @@ export default function VisitorEmailPopup() {
                 Saving...
               </>
             ) : intent ? (
-              paymentMode === 'premium' ? (
-                <>
-                  <Zap size={20} />
-                  {promoApplied ? 'Submit with Promo' : 'Skip Queue - Get Matched in 2-4 Hours'}
-                </>
-              ) : (
-                `Connect with ${intent.charAt(0).toUpperCase() + intent.slice(1)} Agent (24-72 hrs)`
-              )
+              `Connect with ${intent.charAt(0).toUpperCase() + intent.slice(1)} Agent`
             ) : (
               'Select an option above'
             )}
