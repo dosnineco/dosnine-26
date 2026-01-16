@@ -421,6 +421,16 @@ export default function PropertyRequestsMarketplace() {
     return 'Just now';
   };
 
+  // Group similar requests (same type, parish, bedrooms)
+  const getSimilarCount = (currentRequest, allRequests) => {
+    return allRequests.filter(r => 
+      r.id !== currentRequest.id &&
+      r.request_type === currentRequest.request_type &&
+      r.parish === currentRequest.parish &&
+      r.bedrooms === currentRequest.bedrooms
+    ).length;
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
   
@@ -605,11 +615,22 @@ export default function PropertyRequestsMarketplace() {
             {filteredRequests.map(request => {
               const tier = getBudgetTier(request.budget_min, request.budget_max);
               const urgencyBadge = getUrgencyBadge(request.created_at);
+              const similarCount = getSimilarCount(request, filteredRequests);
               
               return (
+              <div key={`${request.type}-${request.id}`} className="relative h-full">
+                {/* Stacked cards effect - show background cards for similar requests */}
+                {similarCount > 0 && (
+                  <>
+                    <div className="absolute top-1 left-1 right-1 bottom-0 bg-gray-100 rounded-lg border border-gray-200 -z-10"></div>
+                    {similarCount > 1 && (
+                      <div className="absolute top-2 left-2 right-2 bottom-0 bg-gray-50 rounded-lg border border-gray-100 -z-20"></div>
+                    )}
+                  </>
+                )}
+                
               <div
-                key={`${request.type}-${request.id}`}
-                className={`bg-white rounded-lg p-6 hover:shadow-lg transition-all relative ${
+                className={`bg-white rounded-lg p-6 hover:shadow-lg transition-all relative h-full flex flex-col ${
                   tier === 'premium' ? 'border-2  shadow-md' :
                   'border border-gray-200'
                 }`}
@@ -625,6 +646,13 @@ export default function PropertyRequestsMarketplace() {
                 {urgencyBadge && (
                   <div className="inline-flex bg-green-50 border border-green-200 text-green-700 text-[10px] font-semibold px-2 py-0.5 rounded-full mb-2 items-center gap-1">
                     <Circle size={8} fill="currentColor" /> {urgencyBadge}
+                  </div>
+                )}
+
+                {/* Similar requests badge */}
+                {similarCount > 0 && (
+                  <div className="inline-flex  text-blue-700 text-[10px] font-semibold px-2 py-0.5 rounded-full mb-2 ml-2 items-center gap-1">
+                    +{similarCount} similar {similarCount === 1 ? 'request' : 'requests'}
                   </div>
                 )}
 
@@ -646,7 +674,7 @@ export default function PropertyRequestsMarketplace() {
                 </div>
 
                 {/* Budget */}
-                <div className="flex items-start gap-3 mb-5">
+                <div className="flex items-start gap-3 mb-5 flex-grow">
                   <DollarSign className="text-gray-600 flex-shrink-0" size={16} />
                   <p className="text-sm text-gray-700 font-medium">
                     {formatBudget(request.budget_min, request.budget_max)}
@@ -656,7 +684,7 @@ export default function PropertyRequestsMarketplace() {
                 {/* Claim button */}
                 {/* <button
                   onClick={() => router.push('/agent-signup')}
-                  className={`w-full text-center font-semibold py-2 text-xs rounded-lg transition-colors ${
+                  className={`w-full text-center font-semibold py-2 text-xs rounded-lg transition-colors mt-auto ${
                     tier === 'premium' ? 'bg-gray-700 hover:bg-gray-800 text-white' :
                     'bg-gray-800 hover:bg-gray-900 text-white'
                   }`}
@@ -665,6 +693,7 @@ export default function PropertyRequestsMarketplace() {
                     Unlock Contact{tier === 'premium' && <Star size={10} fill="white" />}
                   </span>
                 </button> */}
+              </div>
               </div>
             );})}
           </div>
