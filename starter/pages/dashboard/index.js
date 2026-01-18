@@ -88,7 +88,7 @@ export default function Dashboard() {
       // Check if user is an agent - minimal data fetch for redirect check only
       const { data: userData } = await supabase
         .from('users')
-        .select('id, agent:agents(verification_status, payment_status)')
+        .select('id, agent:agents(verification_status, payment_status, access_expiry)')
         .eq('clerk_id', user.id)
         .single();
 
@@ -96,13 +96,17 @@ export default function Dashboard() {
         const agent = Array.isArray(userData.agent) ? userData.agent[0] : userData.agent;
         
         // Handle agent redirects based on status
-        if (agent?.verification_status === 'approved' && agent?.payment_status === 'paid') {
-          // Redirect paid agents to agent dashboard immediately - NO data loading
+        const validPlans = ['free', '7-day', '30-day', '90-day'];
+        const isApproved = agent?.verification_status === 'approved';
+        const hasValidPlan = validPlans.includes(agent?.payment_status);
+        
+        if (isApproved && hasValidPlan) {
+          // Redirect approved agents with valid plans to agent dashboard immediately
           router.replace('/agent/dashboard');
           return;
         }
         
-        // Non-paid agent can use regular dashboard
+        // Non-approved or plan-less agent can use regular dashboard
         setAgentData(agent);
         setShowAgentPrompt(false);
       } else {

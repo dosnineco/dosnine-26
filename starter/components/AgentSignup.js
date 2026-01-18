@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useUser } from '@clerk/nextjs';
+import { useRouter } from 'next/router';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 import { CheckCircle, AlertCircle, Upload, MapPin, Award } from 'lucide-react';
@@ -19,9 +20,35 @@ const SPECIALIZATIONS = [
 
 export default function AgentSignup() {
   const { user } = useUser();
+  const router = useRouter();
   const [step, setStep] = useState(1); // 1: Info, 2: Verification, 3: Confirmation
   const [loading, setLoading] = useState(false);
   const [signupComplete, setSignupComplete] = useState(false);
+  const [agentData, setAgentData] = useState(null);
+
+  // Redirect verified agents with valid plans to dashboard
+  useEffect(() => {
+    const checkAgentStatus = async () => {
+      if (!user?.id) return;
+      try {
+        const { data } = await axios.get('/api/user/profile', {
+          params: { clerkId: user.id }
+        });
+        if (data?.agent) {
+          setAgentData(data.agent);
+          const validPlans = ['free', '7-day', '30-day', '90-day'];
+          const isVerified = data.agent.verification_status === 'approved';
+          const hasValidPlan = validPlans.includes(data.agent.payment_status);
+          if (isVerified && hasValidPlan) {
+            router.replace('/agent/dashboard');
+          }
+        }
+      } catch (error) {
+        console.log('Agent status check failed:', error);
+      }
+    };
+    checkAgentStatus();
+  }, [user, router]);
 
   const [formData, setFormData] = useState({
     fullName: user?.fullName || '',

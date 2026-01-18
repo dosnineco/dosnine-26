@@ -96,7 +96,7 @@ export default function AdminRequestsPage() {
 
       setRequests(flattenedRequests);
 
-      // Fetch all agents for assignment dropdown
+      // Fetch approved agents for assignment dropdown (include plan + expiry)
       const { data: agentsData, error: agentsError } = await supabase
         .from('agents')
         .select(`
@@ -104,13 +104,15 @@ export default function AdminRequestsPage() {
           business_name,
           user_id,
           last_request_assigned_at,
+          payment_status,
+          access_expiry,
+          service_areas,
           users:user_id(
             full_name,
             email
           )
         `)
         .eq('verification_status', 'approved')
-        .eq('payment_status', 'paid')
         .order('last_request_assigned_at', { ascending: true, nullsFirst: true });
 
       if (agentsError) throw agentsError;
@@ -121,7 +123,10 @@ export default function AdminRequestsPage() {
         business_name: agent.business_name,
         full_name: agent.users?.full_name || agent.business_name || 'Unnamed Agent',
         email: agent.users?.email || 'No email',
-        last_request_assigned_at: agent.last_request_assigned_at
+        last_request_assigned_at: agent.last_request_assigned_at,
+        payment_status: agent.payment_status,
+        access_expiry: agent.access_expiry,
+        service_areas: agent.service_areas || ''
       })) || [];
 
       setAgents(flattenedAgents);
@@ -132,9 +137,58 @@ export default function AdminRequestsPage() {
     }
   };
 
+  // Helpers: plan/eligibility checks
+  const isActivePaid = (agent) => {
+    const paid = ['7-day', '30-day', '90-day'].includes(agent.payment_status);
+    if (!paid) return false;
+    if (!agent.access_expiry) return false;
+    return new Date(agent.access_expiry) > new Date();
+  };
+
+  const locationMatchesServiceArea = (agentAreas, requestLocation) => {
+    if (!agentAreas) return false;
+    if (!requestLocation) return true; // If no location, allow
+    const a = String(agentAreas).toLowerCase();
+    const r = String(requestLocation).toLowerCase();
+    return a.includes(r) || r.includes(a);
+  };
+
+  const canAgentHandleRequest = (agent, request) => {
+    // Common: must be approved (queried) and within service area
+    if (!locationMatchesServiceArea(agent.service_areas, request.location)) return false;
+
+    const type = request.request_type;
+    const budget = Number(request.budget_max || request.budget_min || 0);
+
+    // Free: only rentals up to 80k, no buy/sell
+    if (agent.payment_status === 'free') {
+      if (type !== 'rent') return false;
+      return budget <= 80000;
+    }
+
+    // Paid but expired: not eligible
+    if (!isActivePaid(agent)) return false;
+
+    // 7-day restrictions
+    if (agent.payment_status === '7-day') {
+      if (type === 'sell') return false; // No sales leads
+      if (type === 'rent') return budget <= 100000;
+      if (type === 'buy') return budget <= 10000000; // <= J$10M buys
+      return false;
+    }
+
+    // 30-day & 90-day: full access while active
+    return ['30-day', '90-day'].includes(agent.payment_status);
+  };
+
   const handleManualAssign = async (requestId, agentId) => {
     setAssignLoading(true);
     try {
+      const request = requests.find(r => r.id === requestId);
+      const agent = agents.find(a => a.id === agentId);
+      if (agent && request && !canAgentHandleRequest(agent, request)) {
+        throw new Error('Agent plan does not allow this request');
+      }
       const now = new Date().toISOString();
 
       // Only update assignment-related fields - never touch required fields
@@ -185,14 +239,21 @@ export default function AdminRequestsPage() {
     }
 
     const limit = Math.max(1, Number(autoAssignCount) || 0);
+    const selectedAgent = agents.find(a => a.id === autoAssignAgentId);
+    if (!selectedAgent) {
+      toast.error('Selected agent not found');
+      return;
+    }
+
     const candidates = requests
       .filter((r) => r.status === 'open')
       .filter((r) => (autoIncludeBuys ? true : r.request_type !== 'buy'))
+      .filter((r) => canAgentHandleRequest(selectedAgent, r))
       .sort((a, b) => new Date(a.created_at) - new Date(b.created_at))
       .slice(0, limit);
 
     if (!candidates.length) {
-      toast.error('No matching open requests to assign');
+      toast.error('No eligible open requests for this agent');
       return;
     }
 
@@ -616,7 +677,7 @@ export default function AdminRequestsPage() {
                                     defaultValue=""
                                   >
                                     <option value="">Reassign to...</option>
-                                    {agents.filter(a => a.id !== request.agent_id).map((agent) => (
+                                    {agents.filter(a => a.id !== request.agent_id && canAgentHandleRequest(a, request)).map((agent) => (
                                       <option key={agent.id} value={agent.id}>
                                         {agent.full_name}
                                       </option>
@@ -653,7 +714,6 @@ export default function AdminRequestsPage() {
                           </div>
                         ) : (
                           <div className="flex flex-col gap-3">
-                            <p className="text-xs font-semibold text-orange-600 uppercase">⚠️ Unassigned Request</p>
                             <select
                               onChange={(e) => e.target.value && handleManualAssign(request.id, e.target.value)}
                               className="w-full md:w-auto px-3 py-2 border-2 border-orange-300 rounded-lg focus:ring-2 focus:ring-accent outline-none bg-white text-sm"
@@ -661,7 +721,7 @@ export default function AdminRequestsPage() {
                               defaultValue=""
                             >
                               <option value="">Select an agent...</option>
-                              {agents.map((agent) => (
+                              {agents.filter(agent => canAgentHandleRequest(agent, request)).map((agent) => (
                                 <option key={agent.id} value={agent.id}>
                                   {agent.full_name} - {agent.email}
                                   {!agent.last_request_assigned_at && ' (Never assigned)'}

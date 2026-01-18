@@ -45,7 +45,7 @@ export default function AgentDashboard() {
   const [userRole, setUserRole] = useState(null);
   const [agentData, setAgentData] = useState(initialUserData?.agent || null);
   const [requests, setRequests] = useState([]);
-  const [filterStatus, setFilterStatus] = useState('all');
+  const [filterStatus, setFilterStatus] = useState('assigned');
   const [filterUrgency, setFilterUrgency] = useState('all');
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [actionLoading, setActionLoading] = useState(false);
@@ -56,14 +56,27 @@ export default function AgentDashboard() {
   const [paidAgentCount, setPaidAgentCount] = useState(null);
   const [paidAgentLoading, setPaidAgentLoading] = useState(true);
 
+  // Helper: Check if agent access is expired
+  const isAccessExpired = () => {
+    if (!agentData) return false;
+    const paidPlans = ['7-day', '30-day', '90-day'];
+    if (!paidPlans.includes(agentData.payment_status)) return false;
+    if (!agentData.access_expiry) return false;
+    return new Date(agentData.access_expiry) <= new Date();
+  };
+
+  // Helper: Check if agent is on free plan
+  const isFreePlan = () => {
+    return agentData?.payment_status === 'free';
+  };
+
+  // Helper: Check if agent should see upgrade prompt
+  const shouldShowUpgrade = () => {
+    return isFreePlan() || isAccessExpired();
+  };
+
   useEffect(() => {
     if (initialUserData) {
-      // Redirect unpaid agents BEFORE setting state to prevent render flash
-      if (initialUserData.agent?.payment_status !== 'paid') {
-        router.replace('/dashboard');
-        return;
-      }
-      
       setAgentData(initialUserData.agent);
       setUserRole(initialUserData.role);
       setLoading(false);
@@ -99,7 +112,8 @@ export default function AgentDashboard() {
         const { count, error } = await supabase
           .from('agents')
           .select('*', { count: 'exact', head: true })
-          .eq('payment_status', 'paid');
+          .in('payment_status', ['7-day', '30-day', '90-day'])
+          .gt('access_expiry', new Date().toISOString());
         
         if (error) throw error;
         setPaidAgentCount(count);
@@ -256,52 +270,73 @@ export default function AgentDashboard() {
               <Plus className="w-4 h-4" />
               <span>Bulk Create</span>
             </Link>
-            {agentData?.payment_status === 'paid' && (
-              <Link 
-                href="/agent/payment"
-                className="px-4 py-2 bg-yellow-400 text-gray-900 rounded-lg hover:bg-yellow-500 transition font-medium flex items-center justify-center border border-yellow-500 col-span-2 sm:col-span-1"
-              >
-                <span className="hidden sm:inline">Monthly Contribution</span>
-                <span className="sm:hidden">Contribution</span>
-              </Link>
-            
-            )}
+            <Link 
+              href="/agent/payment"
+              onClick={(e) => {
+                if (isAccessExpired()) {
+                  toast.error('Your access has expired. Please upgrade to continue receiving leads.', { duration: 4000 });
+                } else if (isFreePlan()) {
+                  toast('Upgrade to unlock higher-value leads!', {  duration: 4000 });
+                }
+              }}
+              className={`px-4 py-2 rounded-lg transition font-medium flex items-center justify-center gap-1.5 border col-span-2 sm:col-span-1 ${
+                shouldShowUpgrade() 
+                  ? 'bg-orange-500 text-white border-orange-600 hover:bg-orange-600 animate-pulse' 
+                  : 'bg-white text-black border-gray-300 hover:bg-gray-100'
+              }`}
+            >
+              <CreditCard className="w-4 h-4" />
+              <span className="hidden sm:inline">{shouldShowUpgrade() ? 'Upgrade Now' : 'Access Plan'}</span>
+              <span className="sm:hidden">{shouldShowUpgrade() ? 'Upgrade' : 'Plan'}</span>
+            </Link>
           </div>
 
-          {/* Unpaid Agent Payment Prompt */}
-          {agentData?.payment_status !== 'paid' && (
-            <div className="bg-gradient-to-r from-amber-50 to-orange-50 border-l-4 border-orange-400 rounded-lg p-4 sm:p-3 mb-6 sm:mb-4">
-              <div className="flex items-start gap-4">
-               
+          {/* Free Plan Alert */}
+          {isFreePlan() && (
+            <div className=" border-l-4 border-blue-500 rounded-lg p-4 mb-6">
+              <div className="flex items-start gap-3">
+                <AlertCircle className="text-blue-600 flex-shrink-0 mt-0.5" size={20} />
                 <div className="flex-1">
-                  <h3 className="flex items-center text-lg font-bold text-orange-900 mb-3">
-                    Clients Are Waiting
-                    <SectionHint message="Unpaid agents are queued. Activating payment moves you into the active rotation for new requests." />
-                  </h3>
-                  <div className="text-orange-800 space-y-2 mb-4">
-                    {!queueLoading && queueCount !== null && (
-                      <p><strong>{queueCount}</strong> people are looking for an agent right now.</p>
-                    )}
-                    {queueLoading && <p>Loading live requests...</p>}
-                    {!paidAgentLoading && paidAgentCount !== null && (
-                      <p>Only <strong>{20 - paidAgentCount}</strong> paid {20 - paidAgentCount === 1 ? 'spot' : 'spots'} left.</p>
-                    )}
-                  </div>
+                  <h3 className="font-bold text-blue-900 mb-1">Free Plan - Limited Access</h3>
+                  <p className="text-blue-800 text-sm mb-3">
+                    Upgrade your plan to access higher-value properties and buyer inquiries.
+                  </p>
                   <Link
                     href="/agent/payment"
-                    className="inline-block px-6 py-3 bg-orange-500 text-white font-semibold rounded-lg hover:bg-orange-600 transition flex items-center gap-2 w-fit"
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition text-sm"
                   >
-                    <DollarSign className="w-5 h-5" />
-                    Claim Your Paid Slot
+                    <CreditCard className="w-4 h-4" />
+                    Upgrade
                   </Link>
                 </div>
               </div>
             </div>
           )}
 
+          {/* Expiry Alert */}
+          {isAccessExpired() && (
+            <div className="bg-gradient-to-r from-orange-50 to-red-50 border-l-4 border-orange-500 rounded-lg p-4 mb-6">
+              <div className="flex items-start gap-3">
+                <AlertCircle className="text-orange-600 flex-shrink-0 mt-0.5" size={20} />
+                <div className="flex-1">
+                  <h3 className="font-bold text-orange-900 mb-1">Access Expired</h3>
+                  <p className="text-orange-800 text-sm mb-3">
+                    Your {agentData.payment_status} access has expired. Upgrade your plan to continue receiving new client requests.
+                  </p>
+                  <Link
+                    href="/agent/payment"
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-orange-600 text-white font-semibold rounded-lg hover:bg-orange-700 transition text-sm"
+                  >
+                    <CreditCard className="w-4 h-4" />
+                    Upgrade Access Plan
+                  </Link>
+                </div>
+              </div>
+            </div>
+          )}
+        
           {/* Stats */}
-          {agentData?.payment_status === 'paid' && (
-            <>
+          <>
           <div className="mb-3 flex items-center gap-2">
             <h2 className="text-lg font-semibold text-gray-900">Request Stats</h2>
             <SectionHint message="Snapshot of your pipeline across all client requests: totals, open items, in-progress, and completed." />
@@ -543,7 +578,6 @@ export default function AgentDashboard() {
             )}
           </div>
             </>
-          )}
         </div>
       </div>
 

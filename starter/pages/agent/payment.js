@@ -2,16 +2,96 @@ import { useState, useEffect } from 'react';
 import { useUser } from '@clerk/nextjs';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
-import axios from 'axios';
 import toast from 'react-hot-toast';
 import { useRoleProtection } from '../../lib/useRoleProtection';
 import { isVerifiedAgent } from '../../lib/rbac';
 import { Copy, Check, AlertCircle, ChevronDown, Activity } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 
-const COST_PER_LEAD = 250;
-const MIN_LEADS = 4;
-const MAX_LEADS = 100;
+const plans = [
+  {
+    id: 'free',
+    name: 'Free Access',
+    price: 0,
+    duration: 'Free',
+    headline: 'Test the platform on small rentals',
+    included: [
+
+    ],
+    blocked: [
+      'No buyer leads',
+      'No rental leads over J$80,000',
+      'No purchase requests',
+    ],
+    accent: 'bg-gray-50',
+    badge: 'Starter'
+  },
+  {
+    id: '7-day',
+    name: '7-Day Access',
+    price: 3500,
+    duration: '7 days',
+    headline: 'Low-risk entry to more leads',
+    included: [
+      
+    ],
+    blocked: [
+      'No rentals over J$100,000',
+      'No buyer requests over J$10M',
+      'No Sales leads'
+      
+    ],
+    accent: 'bg-blue-50',
+    badge: 'New'
+  },
+  {
+    id: '30-day',
+    name: '30-Day Access',
+    price: 10000,
+    duration: '30 days',
+    headline: 'Full access to all resquest and features',
+    included: [
+ 
+    ],
+    blocked: [
+      'All Access',
+      'All budgets and requests included',
+      'All sales',
+
+    ],
+    accent: 'bg-emerald-50',
+    badge: 'Most Popular'
+  },
+  {
+    id: '90-day',
+    name: '90-Day Access',
+    price: 25000,
+    duration: '90 days',
+    headline: 'Same power, lower cost per day',
+    included: [
+   
+    ],
+    blocked: [
+      'Everything in 30-Day Access',
+      'Discount pricing for 90 days',
+      'Early access to new requests'
+
+    ],
+    accent: 'bg-orange-50',
+    badge: 'Best Value'
+  }
+];
+
+const bankDetails = [
+  {
+    bank: 'Scotiabank Jamaica',
+    accountName: 'Tahjay Thompson',
+    accountNumber: '010860258',
+    branch: '50575'
+  },
+];
+
+const formatCurrency = (amount) => `J$${amount.toLocaleString()}`;
 
 export default function AgentPayment() {
   const { loading: authLoading, userData } = useRoleProtection({
@@ -24,53 +104,30 @@ export default function AgentPayment() {
   const [copied, setCopied] = useState(false);
   const [queueCount, setQueueCount] = useState(null);
   const [queueLoading, setQueueLoading] = useState(true);
-  const [leadCount, setLeadCount] = useState(4);
+  const [selectedPlanId, setSelectedPlanId] = useState('30-day');
   const [openFAQ, setOpenFAQ] = useState(null);
 
-  // Fetch the number of unassigned requests in the queue
+  // Pre-select agent's current plan
   useEffect(() => {
-    const fetchQueueCount = async () => {
-      try {
-        const { count, error } = await supabase
-          .from('service_requests')
-          .select('*', { count: 'exact', head: true })
-          .eq('status', 'open');
-        
-        if (error) throw error;
-        setQueueCount(count);
-      } catch (error) {
-        console.error('Error fetching queue count:', error);
-        setQueueCount(null);
-      } finally {
-        setQueueLoading(false);
+    if (userData?.agent?.payment_status) {
+      const validPlans = ['free', '7-day', '30-day', '90-day'];
+      if (validPlans.includes(userData.agent.payment_status)) {
+        setSelectedPlanId(userData.agent.payment_status);
       }
-    };
-
-    fetchQueueCount();
-  }, []);
-
-  const totalAmount = leadCount * COST_PER_LEAD;
-
-  const bankDetails = [
-    {
-      bank: "Scotiabank Jamaica",
-      accountName: "Tahjay Thompson",
-      accountNumber: "010860258",
-      branch: "50575"
-    },
-    {
-      bank: "National Commercial Bank (NCB)",
-      accountName: "Tahjay Thompson",
-      accountNumber: "404386522",
-      branch: "uwi"
-    },
-    {
-      bank: "Jamaica National Bank (JN)",
-      accountName: "Tahjay Thompson",
-      accountNumber: "2094746895",
-      branch: "Any Branch"
     }
-  ];
+  }, [userData]);
+
+ 
+
+  const selectedPlan = plans.find((plan) => plan.id === selectedPlanId) || plans[2];
+  const userEmail = user?.primaryEmailAddress?.emailAddress || 'YOUR_EMAIL';
+  const emailHandle = userEmail.includes('@') ? userEmail.split('@')[0] : userEmail;
+  const paymentRequired = selectedPlan.price > 0;
+  const whatsappText = encodeURIComponent(
+    paymentRequired
+      ? `Hello Dosnine Team, I want to activate ${selectedPlan.name} (${selectedPlan.duration}). Email: ${userEmail}. Amount: ${formatCurrency(selectedPlan.price)}. I am sending my bank transfer proof now.`
+      : `Hello Dosnine Team, please activate ${selectedPlan.name} for ${userEmail}.`
+  );
 
   const copyToClipboard = (text, field) => {
     navigator.clipboard.writeText(text);
@@ -93,276 +150,257 @@ export default function AgentPayment() {
   return (
     <>
       <Head>
-        <title>Agent Monthly Contribution — Dosnine Properties</title>
+        <title>Agent Access Plans — Dosnine Properties</title>
       </Head>
 
-      <div className="min-h-screen bg-gray-50 py-12 px-4">
-        <div className="max-w-2xl mx-auto">
-       
-
-          <div className="bg-white rounded-lg shadow-lg overflow-hidden">
+      <div className="min-h-screen bg-white py-8 px-4 sm:py-12">
+        <div className="max-w-3xl mx-auto">
+          <div className="bg-white rounded-lg  overflow-hidden">
             {/* Header */}
-            <div className="bg-accent text-white px-8 py-6">
-              <h1 className="text-3xl font-bold">Agent Monthly Contribution</h1>
-              <p className="mt-2 text-white/90">Monthly platform maintenance fee via bank transfer</p>
-              <p className="mt-1 text-white/80 text-sm">Due at the beginning of each month to maintain platform operations</p>
+            <div className="bg-gray-500 text-white px-6 py-8 sm:px-8 sm:py-10 rounded-lg">
+              <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Agent Access Plans</h1>
+              <p className="mt-2 text-gray-300 text-sm sm:text-base">Based on deal value. Choose your plan and get verified in 24 hours.</p>
+              
+              {/* Current Plan Status */}
+              {userData?.agent && (
+                <div className="mt-4 pt-4 border-t border-gray-400">
+                  <div className="flex items-center justify-between flex-wrap gap-2">
+                    <div>
+                      <p className="text-xs text-gray-300">Current Plan</p>
+                      <p className="text-lg font-bold">
+                        {userData.agent.payment_status === 'free' && 'Free Access'}
+                        {userData.agent.payment_status === '7-day' && '7-Day Access'}
+                        {userData.agent.payment_status === '30-day' && ' 30-Day Access'}
+                        {userData.agent.payment_status === '90-day' && ' 90-Day Access'}
+                      </p>
+                    </div>
+                    {userData.agent.access_expiry && (
+                      <div className="text-right">
+                        <p className="text-xs text-gray-300">
+                          {new Date(userData.agent.access_expiry) > new Date() ? 'Renews' : 'Expired'}
+                        </p>
+                        <p className="text-sm font-semibold">
+                          {new Date(userData.agent.access_expiry).toLocaleDateString('en-US', { 
+                            month: 'short', 
+                            day: 'numeric', 
+                            year: 'numeric' 
+                          })}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
 
-            {/* Queue Status Alert with Live Pulse */}
-            {!queueLoading && queueCount !== null && (
-              <div className="bg-gradient-to-r from-green-50 to-emerald-50 border-b-4 border-green-400 px-8 py-6 flex items-center gap-4">
-                <div className="relative flex-shrink-0">
-                  <div className="absolute inset-0 bg-green-400 rounded-full animate-pulse" style={{animationDuration: '1.5s'}}></div>
-                  <div className="absolute inset-0 bg-green-300 rounded-full animate-pulse" style={{animationDuration: '2s', animationDelay: '0.3s'}}></div>
-                  <div className="relative bg-green-500 rounded-full p-3">
-                    <Activity className="w-8 h-8 text-white animate-pulse" style={{animationDuration: '2s'}} />
-                  </div>
-                </div>
-                <div className="flex-1">
-                  <p className="text-green-900 font-bold text-lg">
-                    <strong className="text-2xl text-green-600">{3*queueCount}</strong> active client {queueCount === 1 ? 'request' : 'requests'} waiting to be assigned
-                  </p>
-                  <p className="text-green-700 text-sm mt-2 font-medium">
-                    Join our agents and start claiming high-value leads today.
-                  </p>
-                </div>
-              </div>
-            )}
+         
 
             {/* Content */}
-            <div className="px-8 py-6">
-              {/* Platform Maintenance Notice */}
-              <div className="bg-blue-50 border-l-4 border-blue-500 p-4 mb-6">
+            <div className="px-8 py-6 space-y-8">
+              <div className="bg-gray-100 border-l-4 border-accent p-4 rounded">
                 <div className="flex items-start gap-3">
-                  <AlertCircle className="text-blue-600 flex-shrink-0 mt-1" size={20} />
+                  <AlertCircle className="text-accent flex-shrink-0 mt-0.5" size={18} />
                   <div>
-                    <h3 className="font-semibold text-blue-900 mb-2">Monthly Contribution Fee</h3>
-                    <p className="text-blue-800 text-sm mb-2">
-                      Your monthly contribution helps us maintain and improve the platform, including server costs, feature development, and customer support.
-                    </p>
-                    <p className="text-blue-900 text-sm font-bold">
-                     Due Date: 1st of each month
-                    </p>
-                    <p className="text-red-700 text-sm font-semibold mt-2">
-                     No contribution = No request assignments for that month
+                    <h3 className="font-semibold text-gray-900 mb-1">Access by deal value</h3>
+                    <p className="text-gray-700 text-sm">
+                      Your plan determines rental and buyer budgets. Change anytime before paying.
                     </p>
                   </div>
                 </div>
               </div>
 
-              <div className="mb-8">
-                <h2 className="text-xl font-semibold mb-4">What Your Contribution Includes:</h2>
-                <ul className="space-y-3">
-                  {[
-                    'Access to all client requests (buy, rent, sell, lease)',
-                    'Direct client contact information',
-                    'Help generate leads',
-                    'Unlimited property postings',
-                    'Real-time request notifications',
-                    'Client dashboard and messaging'
+              {/* Plans */}
+              <div className="space-y-8">
+                <h2 className="text-lg sm:text-xl font-bold text-gray-900">Pick your plan</h2>
 
-                  ].map((feature, idx) => (
-                    <li key={idx} className="flex items-start">
-                      <svg className="w-6 h-6 text-accent mr-3 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                      </svg>
-                      <span className="text-gray-700">{feature}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-
-              {/* Contribution Slider */}
-              <div className="mb-8">
-                <div className="text-center mb-4">
-                  <h2 className="text-2xl font-bold">Choose Your Monthly Leads</h2>
-                </div>
-
-                <div className="bg-gradient-to-r from-accent/10 via-white to-accent/10 border border-accent/20 rounded-xl p-6 shadow-sm">
-                  <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                    <div>
-                      <p className="text-sm text-gray-700">Leads this month</p>
-                      <p className="text-4xl font-bold text-accent">{leadCount}</p>
-                    </div>
-                    <div className="text-left md:text-right">
-                      <p className="text-sm text-gray-700">Monthly contribution</p>
-                      <p className="text-3xl font-bold text-accent">J${totalAmount.toLocaleString()}</p>
-                    </div>
-                  </div>
-
-                  <div className="mt-6">
-                    <div className="relative pt-2">
-                      <input
-                        type="range"
-                        min={MIN_LEADS}
-                        max={MAX_LEADS}
-                        step={1}
-                        value={leadCount}
-                        onChange={(e) => setLeadCount(Number(e.target.value))}
-                        className="w-full h-2 bg-gradient-to-r from-gray-200 to-gray-200 rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:border-4 [&::-webkit-slider-thumb]:border-accent [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:shadow-lg [&::-webkit-slider-thumb]:cursor-grab [&::-webkit-slider-thumb]:active:cursor-grabbing [&::-webkit-slider-thumb]:active:scale-110 [&::-webkit-slider-thumb]:transition [&::-moz-range-thumb]:w-5 [&::-moz-range-thumb]:h-5 [&::-moz-range-thumb]:bg-white [&::-moz-range-thumb]:border-4 [&::-moz-range-thumb]:border-accent [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:shadow-lg [&::-moz-range-thumb]:cursor-grab [&::-moz-range-thumb]:active:cursor-grabbing [&::-moz-range-thumb]:active:scale-110 [&::-moz-range-thumb]:transition [&::-moz-range-track]:bg-transparent [&::-moz-range-track]:border-none"
-                      />
-                      <div className="absolute top-0 h-2 bg-gradient-to-r from-accent via-accent/70 to-accent/50 rounded-lg pointer-events-none" 
-                           style={{ width: `${((leadCount - MIN_LEADS) / (MAX_LEADS - MIN_LEADS)) * 100}%` }}></div>
-                    </div>
-                    <div className="flex justify-between text-xs text-gray-500 mt-3 px-1">
-                      <span className="font-medium">{MIN_LEADS} lead</span>
-                      <span className="font-medium text-accent font-bold">{leadCount} leads</span>
-                      <span className="font-medium">{MAX_LEADS} leads</span>
-                    </div>
-                  </div>
-
-                  <div className="mt-4 flex flex-wrap gap-2">
-                    {[5, 10, 15, 20, 30, 40].map((option) => (
+                <div className="space-y-3 sm:grid sm:grid-cols-2 sm:gap-4 sm:space-y-0">
+                  {plans.map((plan) => {
+                    const isSelected = plan.id === selectedPlanId;
+                    return (
                       <button
-                        key={option}
-                        onClick={() => setLeadCount(option)}
-                        className={`px-3 py-1.5 rounded-full text-sm font-medium border transition ${
-                          leadCount === option
-                            ? 'bg-accent text-white border-accent'
-                            : 'bg-white text-gray-700 border-gray-200 hover:border-accent'
+                        key={plan.id}
+                        onClick={() => setSelectedPlanId(plan.id)}
+                        className={`text-left rounded-lg border-2 transition p-4 sm:p-5 ${
+                          isSelected ? 'border-accent bg-accent/5' : 'border-gray-200 bg-white hover:border-gray-300'
                         }`}
                       >
-                        {option} leads
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <h3 className="text-base sm:text-lg font-bold text-gray-900">{plan.name}</h3>
+                              {plan.badge && (
+                                <span className="text-xs font-bold uppercase tracking-wide text-accent">
+                                  {plan.badge}
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-xs sm:text-sm text-gray-600 mt-1">{plan.headline}</p>
+                          </div>
+                          <div className="text-right flex-shrink-0">
+                            <p className="text-xl sm:text-2xl font-bold text-gray-900">{formatCurrency(plan.price)}</p>
+                            <p className="text-xs text-gray-500">{plan.duration}</p>
+                          </div>
+                        </div>
+                        <div className="mt-3 space-y-1">
+                          {plan.included.map((item) => (
+                            <div key={item} className="flex items-start text-xs sm:text-sm text-gray-700">
+                              <span className="text-accent mr-2 font-bold">✓</span>
+                              <span>{item}</span>
+                            </div>
+                          ))}
+                          {plan.blocked.length > 0 && (
+                            <div className="pt-2 border-t border-gray-200 space-y-1">
+                              {plan.blocked.map((item) => (
+                                <div key={item} className="flex items-start text-xs sm:text-sm text-gray-500">
+                                  <span className="mr-2">—</span>
+                                  <span>{item}</span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                        {isSelected && (
+                          <div className="mt-3 text-xs font-bold text-accent">✓ Selected</div>
+                        )}
                       </button>
-                    ))}
-                  </div>
-
-                  <p className="mt-3 text-xs text-gray-600">You can adjust this anytime before sending your contribution.</p>
+                    );
+                  })}
                 </div>
               </div>
 
-              {/* Bank Transfer Instructions */}
-              <div className="bg-white border-l-4 border-blue-500 rounded-lg p-6 mb-6">
-                <div className="flex items-start gap-3 mb-4">
-                  <AlertCircle className="text-blue-600 flex-shrink-0 mt-1" size={20} />
-                  <div>
-                    <h3 className="font-semibold text-blue-900 mb-2">Monthly Contribution Instructions</h3>
-                    <ol className="text-blue-800 text-sm space-y-2 list-decimal list-inside">
-                      <li><strong>Transfer J${totalAmount.toLocaleString()}</strong> to any of the bank accounts below</li>
-                      <li>In transfer notes, include: <strong>Your Email</strong> + <strong>"{leadCount} leads (J${totalAmount.toLocaleString()})"</strong></li>
-                      <li>Screenshot or photo of receipt</li>
-                      <li>Send proof via WhatsApp (contribution button below)</li>
+          
+
+              {/* Bank Transfer Instructions - Only for paid plans */}
+              {paymentRequired && (
+              <div className="bg-gray-100 border-l-4 border-accent rounded-lg p-4 sm:p-6">
+                <div className="flex items-start gap-3">
+                  <AlertCircle className="text-accent flex-shrink-0 mt-0.5" size={18} />
+                  <div className="flex-1">
+                    <h3 className="font-bold text-gray-900 mb-2 text-sm sm:text-base">How to pay</h3>
+                    <ol className="text-gray-700 text-sm space-y-2 list-decimal list-inside">
+                      <li>
+                        Transfer <strong>{formatCurrency(selectedPlan.price)}</strong> to one of the banks below
+                      </li>
+                      <li>
+                        In notes, add: <strong>{selectedPlan.name}</strong> + <strong>{emailHandle}</strong>
+                      </li>
+                      <li>Screenshot the receipt</li>
+                      <li>Upload or send proof (button below)</li>
                     </ol>
-                    <p className="text-blue-900 text-xs mt-3 font-semibold">
-                      💡 This contribution is due monthly on the 1st to keep your account active
+                    <p className="text-gray-600 text-xs mt-3 font-semibold">
+                      Verified within 24 hours. Access starts after confirmation.
                     </p>
                   </div>
                 </div>
 
+                <div className="mt-4 space-y-3">
                 {bankDetails.map((bank, index) => {
-                  const cardColors = {
-                    "Scotiabank Jamaica": "bg-red-200 border-l-4 border-red-500",
-                    "National Commercial Bank (NCB)": "bg-blue-200 border-l-4 border-blue-500",
-                    "Jamaica National Bank (JN)": "bg-yellow-50 border-l-4 border-yellow-500"
-                  };
-                  const headerColors = {
-                    "Scotiabank Jamaica": "text-red-700 border-red-200",
-                    "National Commercial Bank (NCB)": "text-blue-700 border-blue-200",
-                    "Jamaica National Bank (JN)": "text-yellow-700 border-yellow-200"
-                  };
                   return (
-                  <div key={index} className={`rounded-lg p-3 md:p-4 mb-2 md:mb-3 last:mb-0 ${cardColors[bank.bank] || 'bg-white'}`}>
-                    <h4 className={`font-semibold mb-2 md:mb-3 border-b pb-1 md:pb-2 text-sm md:text-base ${headerColors[bank.bank] || 'text-gray-900'}`}>{bank.bank}</h4>
-                    <div className="space-y-1 md:space-y-2">
-                      {Object.entries(bank).filter(([key]) => key !== 'bank').map(([key, value]) => (
-                        <div key={key} className="flex justify-between items-center gap-2">
-                          <span className="text-gray-700 text-xs md:text-sm font-medium capitalize">{key.replace(/([A-Z])/g, ' $1').trim()}:</span>
-                          <div className="flex items-center gap-1 md:gap-2">
-                            <span className="font-semibold text-gray-900 text-xs md:text-sm">{value}</span>
+                    <div key={index} className="bg-white rounded-lg p-4 border border-gray-200">
+                      <h4 className="font-bold text-gray-900 text-sm mb-3">
+                        {bank.bank}
+                      </h4>
+                      <div className="space-y-2 text-sm">
+                        {Object.entries(bank)
+                          .filter(([key]) => key !== 'bank')
+                          .map(([key, value]) => (
+                            <div key={key} className="flex justify-between items-center gap-2">
+                              <span className="text-gray-600 font-medium">{key.replace(/([A-Z])/g, ' $1').trim()}:</span>
+                              <div className="flex items-center gap-2">
+                                <span className="font-mono text-gray-900">{value}</span>
+                                <button
+                                  onClick={() => copyToClipboard(value, `${bank.bank}-${key}`)}
+                                  className="text-gray-400 hover:text-gray-900 transition p-1"
+                                  title="Copy"
+                                >
+                                  {copied === `${bank.bank}-${key}` ? <Check size={16} /> : <Copy size={16} />}
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        <div className="flex flex-col gap-2 pt-2 border-t border-gray-200">
+                          <span className="text-gray-600 font-bold text-xs uppercase tracking-wide">Transfer notes:</span>
+                          <div className="flex items-start gap-2">
+                            <span className="font-mono text-gray-900 text-sm break-words flex-1">{selectedPlan.name} - {emailHandle}</span>
                             <button
-                              onClick={() => copyToClipboard(value, `${bank.bank}-${key}`)}
-                              className="text-gray-700 hover:text-gray-900 p-2 md:p-2.5 font-medium"
+                              onClick={() => copyToClipboard(`${selectedPlan.name} - ${emailHandle}`, `${bank.bank}-notes`)}
+                              className="text-gray-400 hover:text-gray-900 transition p-1 flex-shrink-0"
+                              title="Copy"
                             >
-                              {copied === `${bank.bank}-${key}` ? <Check size={18} /> : <Copy size={18} />}
+                              {copied === `${bank.bank}-notes` ? <Check size={16} /> : <Copy size={16} />}
                             </button>
                           </div>
                         </div>
-                      ))}
-                      <div className="flex flex-col gap-1 pt-1 md:pt-2">
-                        <span className="text-gray-800 text-xs md:text-sm font-bold">Notes to Include:</span>
-                        <div className="flex items-start gap-1 md:gap-2">
-                          <span className="font-semibold text-gray-900 text-xs break-words">{leadCount} for (J${totalAmount.toLocaleString()}) - {user?.primaryEmailAddress?.emailAddress?.split('@')[0]}</span>
-                          <button
-                            onClick={() => copyToClipboard(`${leadCount} for (J${totalAmount.toLocaleString()}) - ${user?.primaryEmailAddress?.emailAddress?.split('@')[0]}`, `${bank.bank}-notes`)}
-                            className="text-gray-700 hover:text-gray-900 p-2 md:p-2.5 font-medium flex-shrink-0"
-                          >
-                            {copied === `${bank.bank}-notes` ? <Check size={18} /> : <Copy size={18} />}
-                          </button>
+                        <div className="flex justify-between items-center pt-2 border-t border-gray-200">
+                          <span className="text-gray-600 font-bold text-xs uppercase tracking-wide">Amount:</span>
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-gray-900 text-lg">{formatCurrency(selectedPlan.price)}</span>
+                            <button
+                              onClick={() => copyToClipboard(selectedPlan.price.toString(), `${bank.bank}-amount`)}
+                              className="text-gray-400 hover:text-gray-900 transition p-1"
+                              title="Copy"
+                            >
+                              {copied === `${bank.bank}-amount` ? <Check size={16} /> : <Copy size={16} />}
+                            </button>
+                          </div>
                         </div>
                       </div>
-                      <div className="flex justify-between items-center pt-1 md:pt-2 border-t border-gray-400">
-                        <span className="text-gray-800 text-xs md:text-sm font-bold">Amount to Pay:</span>
-                        <div className="flex items-center gap-1 md:gap-2">
-                          <span className="font-bold text-gray-900 text-xs md:text-sm">J${totalAmount.toLocaleString()}</span>
-                          <button
-                            onClick={() => copyToClipboard(totalAmount.toString(), `${bank.bank}-amount`)}
-                            className="text-gray-700 hover:text-gray-900 p-2 md:p-2.5 font-medium"
-                          >
-                            {copied === `${bank.bank}-amount` ? <Check size={18} /> : <Copy size={18} />}
-                          </button>
-                        </div>
-                      </div>
-                     
                     </div>
-                  </div>
                   );
                 })}
-
-                {/* <div className="bg-yellow-50 border border-yellow-200 rounded p-3 mt-4">
-                  <p className="text-xs text-yellow-800">
-                    <strong>Important:</strong> Include your email ({user?.primaryEmailAddress?.emailAddress}) in the payment notes so we can verify your payment quickly.
-                  </p>
-                </div> */}
+                </div>
               </div>
+              )}
 
               {/* WhatsApp Submission */}
-              <div className="mb-6">
-                <p className="text-sm text-gray-600 mb-4 text-center">
-                  After making the transfer, click the contribution button below to send your proof on WhatsApp
+              <div className="bg-gray-100 border border-gray-200 rounded-lg p-4 sm:p-6 text-center">
+                <h3 className="text-base sm:text-lg font-bold text-gray-900 mb-3">
+                  {paymentRequired ? 'Ready to proceed?' : 'Ready to get started?'}
+                </h3>
+                <p className="text-sm text-gray-700 mb-4">
+                  {paymentRequired
+                    ? 'Submit your proof to activate your access window. Verified within 24 hours.'
+                    : 'Let us know to enable your free access.'
+                  }
                 </p>
                 <a
-                  href={`https://wa.me/18763369045?text=Hello%20Dosnine%20Team,%20I%20have%20submitted%20my%20monthly%20agent%20contribution.%20Here%20is%20my%20payment%20proof.%0A%0AEmail:%20${encodeURIComponent(user?.primaryEmailAddress?.emailAddress || 'YOUR_EMAIL')}%0ALeads:%20${leadCount}%0AAmount:%20J$${totalAmount.toLocaleString()}`}
+                  href={`https://wa.me/18763369045?text=${whatsappText}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="w-full btn-primary btn-lg flex items-center justify-center gap-2"
+                  className="w-full inline-flex items-center justify-center gap-2 bg-accent hover:bg-accent/90 text-white font-bold py-3 px-4 rounded-lg transition text-sm sm:text-base"
                 >
-                
-                  Send Monthly Contribution Proof
+                  {paymentRequired ? 'Upload Proof on WhatsApp' : 'Enable Free Access'}
                 </a>
               </div>
-
-              <p className="text-center text-sm font-semibold text-green-700 mt-4 bg-green-50 px-4 py-3 rounded-lg">
-                Verification within 24 hours • Fee due 1st of each month
-              </p>
             </div>
           </div>
 
           {/* FAQ */}
-          <div className="mt-8 bg-white rounded-lg shadow overflow-hidden">
+          <div className="mt-8 bg-white rounded-lg border border-gray-200 overflow-hidden">
             <div className="p-6 border-b border-gray-200">
               <h3 className="font-semibold text-lg">Frequently Asked Questions</h3>
             </div>
             <div className="divide-y divide-gray-200">
               {[
                 {
-                  question: "What is the monthly contribution for?",
-                  answer: "Your monthly contribution covers platform maintenance, server costs, feature development, customer support, and ensures the platform runs smoothly. It's due on the 1st of each month."
+                  question: 'How is access determined?',
+                  answer: 'Access is tied to deal value (rental or buyer budgets), not lead count. Pick the plan that matches the budgets you want to work.'
                 },
                 {
-                  question: "What happens if I don't contribute?",
-                  answer: "Without an active monthly contribution, you won't be assigned any client requests for that month. Your account remains active, but request assignments are paused until contribution is received."
+                  question: 'What happens if I do not pay?',
+                  answer: 'Your account stays open but you cannot claim requests beyond the Free Access limits until payment is confirmed.'
                 },
                 {
-                  question: "How do I pick the right amount?",
-                  answer: "Use the slider to set how many leads you want for the month. Each lead is J$500, so your contribution scales with your target volume. You can adjust it anytime before sending your payment."
+                  question: 'When does the access window start?',
+                  answer: 'Within 24 hours of sending payment proof on WhatsApp. The countdown starts at confirmation, not at transfer time.'
                 },
                 {
-                  question: "When is the contribution due?",
-                  answer: "The monthly contribution is due on the 1st of each month. You'll receive a reminder a few days before. Late contributions may result in temporary suspension of request assignments."
+                  question: 'Can I switch plans later?',
+                  answer: 'Yes. Select a new plan and submit a new transfer before your current window ends to avoid downtime.'
                 },
                 {
-                  question: "How long does verification take?",
-                  answer: "Verification takes 24 hours or less from sending your contribution proof via WhatsApp. We'll email you once verified and your access is activated for the month."
+                  question: 'How do I list properties?',
+                  answer: 'All plans include unlimited listings during the active access window.'
                 }
               ].map((item, idx) => (
                 <button

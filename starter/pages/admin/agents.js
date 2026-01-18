@@ -5,7 +5,7 @@ import Head from 'next/head';
 import Link from 'next/link';
 import axios from 'axios';
 import toast from 'react-hot-toast';
-import { Shield, CheckCircle, XCircle, Clock, Eye, FileText, Phone, Mail, Calendar, Building2, Users } from 'lucide-react';
+import { Shield, CheckCircle, XCircle, Clock, Eye, FileText, Phone, Mail, Calendar, Building2 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 
 export default function AdminAgents() {
@@ -19,6 +19,8 @@ export default function AdminAgents() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [documentUrls, setDocumentUrls] = useState({});
   const [loadingDocs, setLoadingDocs] = useState(false);
+  const [realtimeConnected, setRealtimeConnected] = useState(false);
+  const [selectedPlans, setSelectedPlans] = useState({});
 
   useEffect(() => {
     if (!user) return;
@@ -30,6 +32,37 @@ export default function AdminAgents() {
       fetchAgents();
     }
   }, [isAdmin, filterStatus]);
+
+  // Initialize local selected plan state whenever agent list updates
+  useEffect(() => {
+    const validPlans = ['free', '7-day', '30-day', '90-day'];
+    const next = {};
+    agents.forEach(a => {
+      next[a.id] = validPlans.includes(a.payment_status) ? a.payment_status : 'free';
+    });
+    setSelectedPlans(next);
+  }, [agents]);
+
+  // Realtime: subscribe to changes in agents table and refresh list
+  useEffect(() => {
+    if (!isAdmin) return;
+
+    const channel = supabase
+      .channel('admin-agents-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'agents' }, () => {
+        // Refresh the list on any insert/update/delete
+        fetchAgents();
+      })
+      .subscribe((status) => {
+        setRealtimeConnected(status === 'SUBSCRIBED');
+      });
+
+    return () => {
+      try {
+        supabase.removeChannel(channel);
+      } catch (_) {}
+    };
+  }, [isAdmin]);
 
   async function verifyAdminAccess() {
     try {
@@ -100,22 +133,50 @@ export default function AdminAgents() {
     }
   }
 
-  async function togglePaymentStatus(agentId, currentStatus) {
-    const newStatus = currentStatus === 'paid' ? 'unpaid' : 'paid';
-    if (!confirm(`Mark agent as ${newStatus}?`)) {
+  async function togglePaymentStatus(agentId, currentStatus, agent) {
+    const statuses = ['free', '7-day', '30-day', '90-day'];
+    const currentIndex = statuses.indexOf(currentStatus) || 0;
+    const nextIndex = (currentIndex + 1) % statuses.length;
+    const newStatus = statuses[nextIndex];
+    
+    if (!confirm(`Change access plan to ${newStatus}?`)) {
       return;
     }
 
     try {
-      // Update payment status directly in Supabase
+      // Calculate expiry date based on plan
+      let expiryDate = null;
+      const now = new Date();
+      
+      if (newStatus === '7-day') {
+        expiryDate = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+      } else if (newStatus === '30-day') {
+        expiryDate = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+      } else if (newStatus === '90-day') {
+        expiryDate = new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000);
+      }
+
+      // Calculate premium pricing for Kingston, St. Andrew, St. Catherine
+      const premiumParishes = ['kingston', 'st. andrew', 'st andrew', 'st. catherine', 'st catherine'];
+      const serviceAreas = agent.service_areas?.toLowerCase() || '';
+      const hasPremiumParish = premiumParishes.some(parish => serviceAreas.includes(parish));
+      
+      let paymentAmount = 0;
+      if (newStatus === '7-day') {
+        paymentAmount = hasPremiumParish ? 4500 : 3500;
+      } else if (newStatus === '30-day') {
+        paymentAmount = hasPremiumParish ? 12000 : 10000;
+      } else if (newStatus === '90-day') {
+        // Always J$25,000 for 90-day plan
+        paymentAmount = 25000;
+      }
+
       const updateData = {
         payment_status: newStatus,
+        payment_date: newStatus !== 'free' ? new Date().toISOString() : null,
+        payment_amount: paymentAmount > 0 ? paymentAmount : null,
+        access_expiry: expiryDate ? expiryDate.toISOString() : null,
       };
-      
-      // If marking as paid, set payment_date
-      if (newStatus === 'paid') {
-        updateData.payment_date = new Date().toISOString();
-      }
 
       const { error } = await supabase
         .from('agents')
@@ -126,11 +187,69 @@ export default function AdminAgents() {
         throw error;
       }
 
-      toast.success(`Payment status updated to ${newStatus}`);
+      toast.success(`Access plan updated to ${newStatus}${hasPremiumParish ? ' (Premium Parish)' : ''}`);
       fetchAgents(); // Refresh list
     } catch (error) {
-      
       toast.error(error.message || 'Failed to update payment status');
+    }
+  }
+
+  async function setPaymentPlan(agentId, plan, agent) {
+    const validPlans = ['free', '7-day', '30-day', '90-day'];
+    if (!validPlans.includes(plan)) {
+      toast.error('Invalid access plan');
+      return;
+    }
+
+    if (agent.verification_status !== 'approved') {
+      toast.error('Agent must be approved first');
+      return;
+    }
+
+    try {
+      let expiryDate = null;
+      const now = new Date();
+
+      if (plan === '7-day') {
+        expiryDate = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+      } else if (plan === '30-day') {
+        expiryDate = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+      } else if (plan === '90-day') {
+        expiryDate = new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000);
+      }
+
+      const premiumParishes = ['kingston', 'st. andrew', 'st andrew', 'st. catherine', 'st catherine'];
+      const serviceAreas = agent.service_areas?.toLowerCase() || '';
+      const hasPremiumParish = premiumParishes.some(parish => serviceAreas.includes(parish));
+
+      let paymentAmount = null;
+      if (plan === '7-day') {
+        paymentAmount = hasPremiumParish ? 4500 : 3500;
+      } else if (plan === '30-day') {
+        paymentAmount = hasPremiumParish ? 12000 : 10000;
+      } else if (plan === '90-day') {
+        // Always J$25,000 for 90-day plan
+        paymentAmount = 25000;
+      }
+
+      const updateData = {
+        payment_status: plan,
+        payment_date: plan !== 'free' ? new Date().toISOString() : null,
+        payment_amount: paymentAmount,
+        access_expiry: expiryDate ? expiryDate.toISOString() : null,
+      };
+
+      const { error } = await supabase
+        .from('agents')
+        .update(updateData)
+        .eq('id', agentId);
+
+      if (error) throw error;
+
+      toast.success(`Access plan set to ${plan}${hasPremiumParish ? ' (Premium Parish)' : ''}`);
+      fetchAgents();
+    } catch (error) {
+      toast.error(error.message || 'Failed to set access plan');
     }
   }
 
@@ -228,77 +347,78 @@ export default function AdminAgents() {
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <Shield className="w-8 h-8 text-blue-600" />
+                <Shield className="w-8 h-8 text-gray-900" />
                 <div>
-                  <h1 className="text-2xl font-bold text-gray-900">Agent Management</h1>
+                  <div className="flex items-center gap-2">
+                    <h1 className="text-2xl font-bold text-gray-900">Agent Management</h1>
+                    <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border ${realtimeConnected ? 'border-green-600 text-green-700' : 'border-gray-400 text-gray-600'}`}>
+                      <span className={`w-1.5 h-1.5 rounded-full ${realtimeConnected ? 'bg-green-600 animate-pulse' : 'bg-gray-400'}`}></span>
+                      Live
+                    </span>
+                  </div>
                   <p className="text-sm text-gray-500">Admin Dashboard</p>
                 </div>
               </div>
-              <Link
-                href="/admin/dashboard"
-                className="btn-accent  px-4 py-2 text-sm text-white  rounded-lg"
-              >
-                Back
-              </Link>
+             
             </div>
           </div>
         </div>
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           {/* Stats */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-            <div className="bg-white rounded-lg shadow p-6">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+            <div className="bg-white rounded-lg border p-5">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-gray-500">Total Agents</p>
                   <p className="text-2xl font-bold text-gray-900">{stats.total}</p>
                 </div>
-                <Building2 className="w-10 h-10 text-gray-400" />
+                <Building2 className="w-8 h-8 text-gray-400" />
               </div>
             </div>
 
-            <div className="bg-white rounded-lg shadow p-6">
+            <div className="bg-white rounded-lg border p-5">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-gray-500">Pending Review</p>
-                  <p className="text-2xl font-bold text-orange-600">{stats.pending}</p>
+                  <p className="text-2xl font-bold text-gray-900">{stats.pending}</p>
                 </div>
-                <Clock className="w-10 h-10 text-orange-400" />
+                <Clock className="w-8 h-8 text-gray-400" />
               </div>
             </div>
 
-            <div className="bg-white rounded-lg shadow p-6">
+            <div className="bg-white rounded-lg border p-5">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-gray-500">Approved</p>
-                  <p className="text-2xl font-bold text-green-600">{stats.approved}</p>
+                  <p className="text-2xl font-bold text-gray-900">{stats.approved}</p>
                 </div>
-                <CheckCircle className="w-10 h-10 text-green-400" />
+                <CheckCircle className="w-8 h-8 text-gray-400" />
               </div>
             </div>
 
-            <div className="bg-white rounded-lg shadow p-6">
+            <div className="bg-white rounded-lg border p-5">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-gray-500">Rejected</p>
-                  <p className="text-2xl font-bold text-red-600">{stats.rejected}</p>
+                  <p className="text-2xl font-bold text-gray-900">{stats.rejected}</p>
                 </div>
-                <XCircle className="w-10 h-10 text-red-400" />
+                <XCircle className="w-8 h-8 text-gray-400" />
               </div>
             </div>
           </div>
 
           {/* Filters */}
-          <div className="bg-white rounded-lg shadow p-4 mb-6">
-            <div className="flex items-center gap-2">
+          <div className="bg-white rounded-lg border p-3 mb-6">
+            <div className="flex items-center gap-3">
               <span className="text-sm font-medium text-gray-700">Filter:</span>
               {['all', 'pending', 'approved', 'rejected'].map((status) => (
                 <button
                   key={status}
                   onClick={() => setFilterStatus(status)}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
+                  className={`px-3 py-1.5 rounded-md text-sm font-medium transition ${
                     filterStatus === status
-                      ? 'bg-blue-600 text-white'
+                      ? 'bg-gray-900 text-white'
                       : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                   }`}
                 >
@@ -309,10 +429,10 @@ export default function AdminAgents() {
           </div>
 
           {/* Agents List */}
-          <div className="bg-white rounded-lg shadow overflow-hidden">
+          <div className="bg-white rounded-lg border overflow-hidden">
             {loading ? (
               <div className="text-center py-12">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto mb-4"></div>
                 <p className="text-gray-600">Loading agents...</p>
               </div>
             ) : filteredAgents.length === 0 ? (
@@ -328,21 +448,21 @@ export default function AdminAgents() {
             ) : (
               <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
+                  <thead className="bg-gray-100">
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Agent</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Business</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Experience</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Payment</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Submitted</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                      <th className="px-5 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Agent</th>
+                      <th className="px-5 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Business</th>
+                      <th className="px-5 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Experience</th>
+                      <th className="px-5 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Status</th>
+                      <th className="px-5 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Payment</th>
+                      <th className="px-5 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Submitted</th>
+                      <th className="px-5 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
                     {filteredAgents.map((agent) => (
                       <tr key={agent.id} className="hover:bg-gray-50">
-                        <td className="px-6 py-4">
+                        <td className="px-5 py-4">
                           <div>
                             <p className="font-medium text-gray-900">{agent.user?.full_name}</p>
                             <p className="text-sm text-gray-500 flex items-center gap-1">
@@ -355,14 +475,14 @@ export default function AdminAgents() {
                             </p>
                           </div>
                         </td>
-                        <td className="px-6 py-4">
+                        <td className="px-5 py-4">
                           <p className="text-sm font-medium text-gray-900">{agent.business_name}</p>
                           <p className="text-xs text-gray-500">License: {agent.license_number || 'N/A'}</p>
                         </td>
-                        <td className="px-6 py-4 text-sm text-gray-700">
+                        <td className="px-5 py-4 text-sm text-gray-700">
                           {agent.years_experience} years
                         </td>
-                        <td className="px-6 py-4">
+                        <td className="px-5 py-4">
                           <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium ${
                             agent.verification_status === 'approved' 
                               ? 'bg-green-100 text-green-800'
@@ -376,31 +496,44 @@ export default function AdminAgents() {
                             {agent.verification_status}
                           </span>
                         </td>
-                        <td className="px-6 py-4">
-                          <button
-                            onClick={() => togglePaymentStatus(agent.id, agent.payment_status)}
-                            disabled={agent.verification_status !== 'approved'}
-                            className={`inline-flex items-center gap-1 px-3 py-1 rounded-md text-xs font-medium transition disabled:opacity-40 disabled:cursor-not-allowed ${
-                              agent.payment_status === 'paid'
-                                ? 'bg-green-100 text-green-800 hover:bg-green-200'
-                                : 'bg-gray-100 text-gray-800 hover:bg-gray-200'
-                            }`}
-                            title={agent.verification_status !== 'approved' ? 'Agent must be approved first' : 'Toggle payment status'}
-                          >
-                            {agent.payment_status === 'paid' ? '✓ Paid' : 'Unpaid'}
-                          </button>
+                        <td className="px-5 py-4">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <select
+                              value={selectedPlans[agent.id] || 'free'}
+                              onChange={(e) => setSelectedPlans(prev => ({ ...prev, [agent.id]: e.target.value }))}
+                              disabled={agent.verification_status !== 'approved'}
+                              className="text-xs px-2 py-1 border border-gray-300 rounded-md bg-white text-gray-900 disabled:bg-gray-100 disabled:text-gray-500"
+                              title={agent.verification_status !== 'approved' ? 'Agent must be approved first' : 'Choose access plan'}
+                            >
+                              <option value="free">Free</option>
+                              <option value="7-day">7-Day</option>
+                              <option value="30-day">30-Day</option>
+                              <option value="90-day">90-Day</option>
+                            </select>
+                            <button
+                              onClick={() => setPaymentPlan(agent.id, selectedPlans[agent.id] || 'free', agent)}
+                              disabled={agent.verification_status !== 'approved'}
+                              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-semibold bg-gray-900 text-white hover:bg-black disabled:opacity-40 disabled:cursor-not-allowed"
+                              title={agent.verification_status !== 'approved' ? 'Agent must be approved first' : 'Apply selected plan'}
+                            >
+                              Set Plan
+                            </button>
+                          </div>
+                          {agent.payment_amount && (
+                            <p className="text-xs text-gray-500 mt-1">J${agent.payment_amount?.toLocaleString()}</p>
+                          )}
                         </td>
-                        <td className="px-6 py-4 text-sm text-gray-500">
+                        <td className="px-5 py-4 text-sm text-gray-500">
                           <div className="flex items-center gap-1">
                             <Calendar className="w-3 h-3" />
                             {new Date(agent.verification_submitted_at).toLocaleDateString()}
                           </div>
                         </td>
-                        <td className="px-6 py-4">
+                        <td className="px-5 py-4">
                           <div className="flex items-center gap-2">
                             <button
                               onClick={() => viewDocuments(agent)}
-                              className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg"
+                              className="p-2 text-gray-900 hover:bg-gray-100 rounded-lg"
                               title="View Details"
                             >
                               <Eye className="w-4 h-4" />
@@ -410,7 +543,7 @@ export default function AdminAgents() {
                                 <button
                                   onClick={() => updateAgentStatus(agent.id, 'approved')}
                                   disabled={verifying}
-                                  className="p-2 text-green-600 hover:bg-green-50 rounded-lg disabled:opacity-50"
+                                  className="p-2 text-gray-900 hover:bg-gray-100 rounded-lg disabled:opacity-50"
                                   title="Approve"
                                 >
                                   <CheckCircle className="w-4 h-4" />
@@ -418,7 +551,7 @@ export default function AdminAgents() {
                                 <button
                                   onClick={() => updateAgentStatus(agent.id, 'rejected')}
                                   disabled={verifying}
-                                  className="p-2 text-red-600 hover:bg-red-50 rounded-lg disabled:opacity-50"
+                                  className="p-2 text-gray-900 hover:bg-gray-100 rounded-lg disabled:opacity-50"
                                   title="Reject"
                                 >
                                   <XCircle className="w-4 h-4" />
@@ -499,7 +632,17 @@ export default function AdminAgents() {
                   </div>
                   <div className="col-span-2">
                     <span className="text-gray-500">Service Areas:</span>
-                    <p className="font-medium">{selectedAgent.service_areas || 'N/A'}</p>
+                    <p className="font-medium">
+                      {selectedAgent.service_areas || 'N/A'}
+                      {selectedAgent.service_areas && 
+                        ['kingston', 'st. andrew', 'st andrew', 'st. catherine', 'st catherine'].some(
+                          parish => selectedAgent.service_areas.toLowerCase().includes(parish)
+                        ) && (
+                        <span className="ml-2 text-xs font-bold text-orange-600 bg-orange-50 px-2 py-0.5 rounded">
+                          Premium Parish
+                        </span>
+                      )}
+                    </p>
                   </div>
                   <div className="col-span-2">
                     <span className="text-gray-500">Specializations:</span>
@@ -513,6 +656,58 @@ export default function AdminAgents() {
                     <div className="col-span-2">
                       <span className="text-gray-500">About:</span>
                       <p className="font-medium">{selectedAgent.about_me}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Payment Information */}
+              <div>
+                <h3 className="font-semibold text-gray-900 mb-3">Payment & Access</h3>
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <span className="text-gray-500">Access Plan:</span>
+                    <p className="font-medium">
+                      {selectedAgent.payment_status === 'free' && '🆓 Free Access'}
+                      {selectedAgent.payment_status === '7-day' && '⚡ 7-Day Access'}
+                      {selectedAgent.payment_status === '30-day' && '🔁 30-Day Access'}
+                      {selectedAgent.payment_status === '90-day' && '🔒 90-Day Access'}
+                      {!['free', '7-day', '30-day', '90-day'].includes(selectedAgent.payment_status) && 
+                        (selectedAgent.payment_status || 'None')}
+                    </p>
+                  </div>
+                  <div>
+                    <span className="text-gray-500">Amount Paid:</span>
+                    <p className="font-medium">
+                      {selectedAgent.payment_amount 
+                        ? `J$${selectedAgent.payment_amount.toLocaleString()}` 
+                        : 'N/A'}
+                    </p>
+                  </div>
+                  <div>
+                    <span className="text-gray-500">Payment Date:</span>
+                    <p className="font-medium">
+                      {selectedAgent.payment_date 
+                        ? new Date(selectedAgent.payment_date).toLocaleDateString()
+                        : 'N/A'}
+                    </p>
+                  </div>
+                  <div>
+                    <span className="text-gray-500">Access Expires:</span>
+                    <p className="font-medium">
+                      {selectedAgent.access_expiry
+                        ? new Date(selectedAgent.access_expiry).toLocaleDateString()
+                        : selectedAgent.payment_status === 'free' 
+                        ? 'Never (Free Tier)'
+                        : 'N/A'}
+                    </p>
+                  </div>
+                  {selectedAgent.last_request_assigned_at && (
+                    <div className="col-span-2">
+                      <span className="text-gray-500">Last Request Assigned:</span>
+                      <p className="font-medium">
+                        {new Date(selectedAgent.last_request_assigned_at).toLocaleString()}
+                      </p>
                     </div>
                   )}
                 </div>

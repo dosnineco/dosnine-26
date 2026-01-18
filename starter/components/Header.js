@@ -31,9 +31,9 @@ export default function Header() {
         setIsAgent(true);
       }
       
-      // Check if user is verified and paid agent
+      // Check if user is verified agent with valid plan (free, 7-day, 30-day, or 90-day)
       if (data?.agent?.verification_status === 'approved' && 
-          data?.agent?.payment_status === 'paid') {
+          ['free', '7-day', '30-day', '90-day'].includes(data?.agent?.payment_status)) {
         setIsVerifiedAgent(true);
       }
     };
@@ -52,10 +52,10 @@ export default function Header() {
           {isSignedIn ? (
             <>
               <Link 
-                href="/" 
-                className={`px-3 py-2 rounded-lg hover:bg-gray-100 transition text-sm ${router.pathname === '/' ? ' text-gray-900 font-medium' : 'text-gray-600 hover:bg-gray-100'}`}
+                href="/listing" 
+                className={`px-3 py-2 rounded-lg hover:bg-gray-100 transition text-sm ${router.pathname === '/listing' ? ' text-gray-900 font-medium' : 'text-gray-600 hover:bg-gray-100'}`}
               >
-                Browse
+                Browse Properties
               </Link>
               {isVerifiedAgent ? (
                 <>
@@ -139,9 +139,9 @@ export default function Header() {
               {/* Menu Items */}
               <div className="flex-1 flex flex-col p-4 gap-2">
                 <Link 
-                  href="/" 
+                  href="/listing" 
                   onClick={() => setMobileMenuOpen(false)}
-                  className={`px-4 py-3 rounded-lg font-medium ${router.pathname === '/' ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50'}`}
+                  className={`px-4 py-3 rounded-lg font-medium ${router.pathname === '/listing' ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50'}`}
                 >
                   Browse Properties
                 </Link>

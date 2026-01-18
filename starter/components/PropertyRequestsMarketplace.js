@@ -568,7 +568,7 @@ export default function PropertyRequestsMarketplace() {
               href="/listing"
               className="flex items-center gap-2 text-sm text-gray-900 font-semibold hover:text-gray-700 transition-colors border-b-2 border-gray-900 hover:border-gray-700 pb-2"
             >
-              View Listings
+              View Properties
               <ArrowRight size={20} />
             </a>
             <a
@@ -585,6 +585,13 @@ export default function PropertyRequestsMarketplace() {
               Become an Agent
               <ArrowRight size={16} />
             </a>
+            <a
+              href="/advertise"
+              className="flex items-center gap-2 text-sm text-gray-900 font-semibold hover:text-gray-700 transition-colors border-b-2 border-gray-900 hover:border-gray-700 pb-2"
+            >
+              Advertise
+              <ArrowRight size={16} />
+            </a>  
           </div>
           
           {/* Live Typing Indicator - Reserved Space */}
