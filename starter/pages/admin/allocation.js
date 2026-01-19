@@ -29,8 +29,11 @@ export default function AllocationDashboard() {
 
   async function fetchAllocationStats() {
     try {
-      // Get paid agents with request counts
-      const { data: agents, error: agentsError } = await supabase
+      const nowIso = new Date().toISOString();
+      const paidStatuses = ['7-day', '30-day', '90-day'];
+
+      // Get active, verified, paid agents with request counts
+      const { data: agentsRaw, error: agentsError } = await supabase
         .from('agents')
         .select(`
           id,
@@ -38,14 +41,15 @@ export default function AllocationDashboard() {
           last_request_assigned_at,
           verification_status,
           payment_status,
+          access_expiry,
           users:user_id (full_name, email),
           service_requests:service_requests!assigned_agent_id(count)
         `)
         .eq('verification_status', 'approved')
-        .eq('payment_status', 'paid')
+        .in('payment_status', paidStatuses)
         .order('last_request_assigned_at', { ascending: true, nullsFirst: true });
 
-      console.log('Fetched agents:', agents);
+      console.log('Fetched agents:', agentsRaw);
       console.log('Agents error:', agentsError);
 
       // Get ALL agents to show in a helper section
@@ -56,13 +60,20 @@ export default function AllocationDashboard() {
           business_name, 
           verification_status, 
           payment_status,
+          access_expiry,
           users:user_id (full_name, email)
         `);
 
       
-      if (agents && agents.length === 1) {
+      const agents = (agentsRaw || []).filter((a) => {
+        if (!paidStatuses.includes(a.payment_status)) return false;
+        if (a.access_expiry && new Date(a.access_expiry) < new Date(nowIso)) return false;
+        return true;
+      });
+
+      if (agents.length === 1) {
         const agentName = agents[0].users?.full_name || agents[0].business_name;
-      } else if (agents && agents.length > 1) {
+      } else if (agents.length > 1) {
         // Multi-agent system active
       } else {
         // No eligible agents
@@ -79,7 +90,7 @@ export default function AllocationDashboard() {
       const openCount = requests?.filter(r => r.status === 'open').length || 0;
 
       setStats({
-        totalAgents: agents?.length || 0,
+        totalAgents: agents.length || 0,
         totalRequests: requests?.length || 0,
         assignedRequests: assignedCount,
         openRequests: openCount,
@@ -87,7 +98,7 @@ export default function AllocationDashboard() {
       });
 
       // Process agent stats
-      const agentData = agents?.map(agent => ({
+      const agentData = agents.map(agent => ({
         id: agent.id,
         name: agent.users?.full_name || agent.business_name || 'Unnamed Agent',
         email: agent.users?.email || 'No email',
@@ -99,6 +110,11 @@ export default function AllocationDashboard() {
 
       setAgentStats(agentData);
     } catch (error) {
+      console.error('Allocation stats error:', error);
+      setStats((prev) => ({
+        ...prev,
+        error: 'Failed to load allocation stats'
+      }));
     } finally {
       setLoading(false);
     }
@@ -208,7 +224,7 @@ export default function AllocationDashboard() {
                   </div>
                   <h3 className="text-lg font-semibold text-gray-900 mb-2">No Eligible Agents</h3>
                   <p className="text-gray-600 mb-4">
-                    There are no agents with both <strong>verified status</strong> and <strong>paid status</strong>.
+                    There are no agents with both <strong>verified status</strong> and an <strong>active paid plan (7/30/90-day)</strong>.
                   </p>
                   
                   {stats.allAgents && stats.allAgents.length > 0 && (

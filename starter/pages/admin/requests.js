@@ -27,6 +27,8 @@ export default function AdminRequestsPage() {
   const [autoIncludeBuys, setAutoIncludeBuys] = useState(false);
   const [autoAssignLoading, setAutoAssignLoading] = useState(false);
   const [showBudgetRejectionEmailer, setShowBudgetRejectionEmailer] = useState(false);
+  const [autoBudgetMin, setAutoBudgetMin] = useState(10000);
+  const [autoBudgetMax, setAutoBudgetMax] = useState(100000000);
 
   useEffect(() => {
     checkAdminAccess();
@@ -83,9 +85,26 @@ export default function AdminRequestsPage() {
 
       if (requestsError) throw requestsError;
 
+      // Fetch visitor budgets to backfill missing request budgets (two lead sources)
+      const { data: visitorBudgetsData, error: visitorBudgetsError } = await supabase
+        .from('visitor_emails')
+        .select('email, budget_min');
+
+      if (visitorBudgetsError) throw visitorBudgetsError;
+
+      const visitorBudgetMap = Object.create(null);
+      visitorBudgetsData?.forEach((v) => {
+        if (v.email) {
+          visitorBudgetMap[String(v.email).toLowerCase()] = v.budget_min;
+        }
+      });
+
       // Flatten the nested structure for easier access
       const flattenedRequests = requestsData?.map(req => ({
         ...req,
+        // Prefer service_request budget; fallback to visitor_emails budget_min if missing
+        budget_min: req.budget_min ?? visitorBudgetMap[String(req.client_email || '').toLowerCase()] ?? null,
+        budget_max: req.budget_max ?? req.budget_min ?? visitorBudgetMap[String(req.client_email || '').toLowerCase()] ?? null,
         agent: req.agent ? {
           id: req.agent.id,
           business_name: req.agent.business_name,
@@ -248,12 +267,17 @@ export default function AdminRequestsPage() {
     const candidates = requests
       .filter((r) => r.status === 'open')
       .filter((r) => (autoIncludeBuys ? true : r.request_type !== 'buy'))
+      .filter((r) => {
+        // Budget filter: check if request budget falls within the selected range
+        const budgetMax = Number(r.budget_max || r.budget_min || 0);
+        return budgetMax >= autoBudgetMin && budgetMax <= autoBudgetMax;
+      })
       .filter((r) => canAgentHandleRequest(selectedAgent, r))
       .sort((a, b) => new Date(a.created_at) - new Date(b.created_at))
       .slice(0, limit);
 
     if (!candidates.length) {
-      toast.error('No eligible open requests for this agent');
+      toast.error('No eligible open requests for this agent with selected budget range');
       return;
     }
 
@@ -286,6 +310,10 @@ export default function AdminRequestsPage() {
       toast.success(`Assigned ${ids.length} request${ids.length === 1 ? '' : 's'}.`);
       setShowAutoAssign(false);
       setAutoAssignAgentId('');
+      setAutoAssignCount(5);
+      setAutoIncludeBuys(false);
+      setAutoBudgetMin(10000);
+      setAutoBudgetMax(100000000);
       setAutoAssignCount(5);
       setAutoIncludeBuys(false);
       setTimeout(() => fetchData(), 200);
@@ -774,16 +802,22 @@ export default function AdminRequestsPage() {
         count={autoAssignCount}
         includeBuys={autoIncludeBuys}
         loading={autoAssignLoading}
+        budgetMin={autoBudgetMin}
+        budgetMax={autoBudgetMax}
         onClose={() => {
           setShowAutoAssign(false);
           setAutoAssignAgentId('');
           setAutoAssignCount(5);
           setAutoIncludeBuys(false);
+          setAutoBudgetMin(10000);
+          setAutoBudgetMax(100000000);
         }}
         onSubmit={handleAutoAssign}
         onAgentChange={setAutoAssignAgentId}
         onCountChange={(value) => setAutoAssignCount(Number(value) || 1)}
         onIncludeBuysChange={setAutoIncludeBuys}
+        onBudgetMinChange={setAutoBudgetMin}
+        onBudgetMaxChange={setAutoBudgetMax}
       />
 
       <BudgetRejectionEmailer
