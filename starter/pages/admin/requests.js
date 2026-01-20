@@ -115,7 +115,7 @@ export default function AdminRequestsPage() {
 
       setRequests(flattenedRequests);
 
-      // Fetch approved agents for assignment dropdown (include plan + expiry)
+      // Fetch all agents from agent table regardless of payment status
       const { data: agentsData, error: agentsError } = await supabase
         .from('agents')
         .select(`
@@ -131,7 +131,6 @@ export default function AdminRequestsPage() {
             email
           )
         `)
-        .eq('verification_status', 'approved')
         .order('last_request_assigned_at', { ascending: true, nullsFirst: true });
 
       if (agentsError) throw agentsError;
@@ -165,17 +164,20 @@ export default function AdminRequestsPage() {
   };
 
   const locationMatchesServiceArea = (agentAreas, requestLocation) => {
-    if (!agentAreas) return false;
-    if (!requestLocation) return true; // If no location, allow
-    const a = String(agentAreas).toLowerCase();
-    const r = String(requestLocation).toLowerCase();
+    // If agent has no service areas configured, allow them (they can handle any location)
+    if (!agentAreas || agentAreas.trim() === '') return true;
+    if (!requestLocation) return true; // If no location specified, allow
+    
+    // Normalize strings: lowercase and remove periods for consistent matching
+    const normalize = (str) => String(str).toLowerCase().replace(/\./g, '').trim();
+    const a = normalize(agentAreas);
+    const r = normalize(requestLocation);
+    
     return a.includes(r) || r.includes(a);
   };
 
   const canAgentHandleRequest = (agent, request) => {
-    // Common: must be approved (queried) and within service area
-    if (!locationMatchesServiceArea(agent.service_areas, request.location)) return false;
-
+    // Check payment status and budget restrictions only
     const type = request.request_type;
     const budget = Number(request.budget_max || request.budget_min || 0);
 
