@@ -35,7 +35,7 @@ export default function AdminAgents() {
 
   // Initialize local selected plan state whenever agent list updates
   useEffect(() => {
-    const validPlans = ['7-day', '30-day', '90-day'];
+    const validPlans = ['free', '7-day', '30-day', '90-day'];
     const next = {};
     agents.forEach(a => {
       // Default to a paid plan; fall back to 7-day if current status isn't allowed
@@ -197,7 +197,7 @@ export default function AdminAgents() {
   }
 
   async function setPaymentPlan(agentId, plan, agent) {
-    const validPlans = ['7-day', '30-day', '90-day'];
+    const validPlans = ['free', '7-day', '30-day', '90-day'];
     if (!validPlans.includes(plan)) {
       toast.error('Invalid access plan');
       return;
@@ -524,6 +524,7 @@ export default function AdminAgents() {
                               className="text-xs px-2 py-1 border border-gray-300 rounded-md bg-white text-gray-900 disabled:bg-gray-100 disabled:text-gray-500"
                               title={agent.verification_status !== 'approved' ? 'Agent must be approved first' : 'Choose access plan'}
                             >
+                              <option value="free">Free</option>
                               <option value="7-day">7-Day</option>
                               <option value="30-day">30-Day</option>
                               <option value="90-day">90-Day</option>

@@ -45,7 +45,8 @@ export default async function handler(req, res) {
 
     // When approving, set payment_status to unpaid and update user role
     if (status === 'approved') {
-      updateData.payment_status = 'unpaid';
+      // Default newly approved agents to the free plan (aligns with current payment_status constraint)
+      updateData.payment_status = 'free';
       
       // First get the agent's user_id
       const { data: agentData, error: agentFetchError } = await supabase
@@ -73,22 +74,28 @@ export default async function handler(req, res) {
       console.log(`✓ Agent ${agentId} approved - User role updated to 'agent'`);
     }
 
-    const { data, error } = await supabase
+    const { data: updatedAgent, error: agentUpdateError } = await supabase
       .from('agents')
       .update(updateData)
       .eq('id', agentId)
-      .select(`
-        *,
-        user:users!agents_user_id_fkey (
-          email,
-          full_name
-        )
-      `)
+      .select('id, user_id, verification_status, verification_reviewed_at, verification_notes, payment_status')
       .single();
 
-    if (error) {
-      console.error('Failed to update agent:', error);
+    if (agentUpdateError || !updatedAgent) {
+      console.error('Failed to update agent:', agentUpdateError);
       return res.status(500).json({ error: 'Failed to update agent status' });
+    }
+
+    // Fetch user separately to avoid joined select failures under RLS
+    const { data: agentUser, error: agentUserError } = await supabase
+      .from('users')
+      .select('email, full_name')
+      .eq('id', updatedAgent.user_id)
+      .single();
+
+    if (agentUserError || !agentUser) {
+      console.error('Failed to fetch agent user for notification:', agentUserError);
+      return res.status(500).json({ error: 'Failed to fetch agent user' });
     }
     // Send notification email to agent
     try {
@@ -97,8 +104,8 @@ export default async function handler(req, res) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           agentId: agentId,
-          userId: data.user_id,
-          email: data.user.email,
+            userId: updatedAgent.user_id,
+            email: agentUser.email,
           status: status,
           message: notes || (status === 'approved' 
             ? 'Congratulations! Your agent application has been approved. You can now access your agent dashboard to view client requests and post properties.'
@@ -111,7 +118,10 @@ export default async function handler(req, res) {
     }
     return res.status(200).json({ 
       success: true,
-      agent: data,
+      agent: {
+        ...updatedAgent,
+        user: agentUser,
+      },
       message: `Agent ${status} successfully`
     });
 

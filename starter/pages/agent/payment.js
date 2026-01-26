@@ -9,23 +9,7 @@ import { Copy, Check, AlertCircle, ChevronDown, Activity } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 
 const plans = [
-  {
-    id: 'free',
-    name: 'Free Access',
-    price: 0,
-    duration: 'Free',
-    headline: 'Test the platform on small rentals',
-    included: [
-
-    ],
-    blocked: [
-      'No buyer leads',
-      'No rental leads over J$80,000',
-      'No purchase requests',
-    ],
-    accent: 'bg-gray-50',
-    badge: 'Starter'
-  },
+ 
   {
     id: '7-day',
     name: '7-Day Access',
@@ -36,8 +20,8 @@ const plans = [
       
     ],
     blocked: [
-      'No rentals over J$100,000',
-      'No buyer requests over J$10M',
+      'No rentals over J$150,000',
+      'No buyer requests over J$12M',
       'No Sales leads'
       
     ],
@@ -79,6 +63,23 @@ const plans = [
     ],
     accent: 'bg-orange-50',
     badge: 'Best Value'
+  },
+   {
+    id: 'free',
+    name: 'Free Access',
+    price: 0,
+    duration: 'Free',
+    headline: 'Test the platform on small rentals',
+    included: [
+
+    ],
+    blocked: [
+      'No buyer leads',
+      'No rental leads over J$80,000',
+      'No purchase requests',
+    ],
+    accent: 'bg-gray-50',
+    badge: 'Starter'
   }
 ];
 
@@ -106,6 +107,28 @@ export default function AgentPayment() {
   const [queueLoading, setQueueLoading] = useState(true);
   const [selectedPlanId, setSelectedPlanId] = useState('30-day');
   const [openFAQ, setOpenFAQ] = useState(null);
+  const [sessionToken, setSessionToken] = useState(null);
+
+  // Generate and track session token for upgrade flow
+  useEffect(() => {
+    if (user?.id) {
+      // Generate a unique session token linking this agent upgrade attempt
+      const token = `upgrade_${user.id}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      setSessionToken(token);
+      
+      // Store in sessionStorage (survives page reload, cleared on browser close)
+      sessionStorage.setItem('agent_upgrade_token', token);
+      sessionStorage.setItem('agent_upgrade_plan', selectedPlanId);
+      sessionStorage.setItem('agent_upgrade_timestamp', new Date().toISOString());
+    }
+  }, [user?.id]);
+
+  // Update stored plan in session whenever it changes
+  useEffect(() => {
+    if (sessionToken && selectedPlanId) {
+      sessionStorage.setItem('agent_upgrade_plan', selectedPlanId);
+    }
+  }, [selectedPlanId, sessionToken]);
 
   // Pre-select agent's current plan
   useEffect(() => {
@@ -123,10 +146,12 @@ export default function AgentPayment() {
   const userEmail = user?.primaryEmailAddress?.emailAddress || 'YOUR_EMAIL';
   const emailHandle = userEmail.includes('@') ? userEmail.split('@')[0] : userEmail;
   const paymentRequired = selectedPlan.price > 0;
+  
+  // Include session token in WhatsApp message for payment tracking
   const whatsappText = encodeURIComponent(
     paymentRequired
-      ? `Hello Dosnine Team, I want to activate ${selectedPlan.name} (${selectedPlan.duration}). Email: ${userEmail}. Amount: ${formatCurrency(selectedPlan.price)}. I am sending my bank transfer proof now.`
-      : `Hello Dosnine Team, please activate ${selectedPlan.name} for ${userEmail}.`
+      ? `Hello Dosnine Team, I want to activate ${selectedPlan.name} (${selectedPlan.duration}). Email: ${userEmail}. Amount: ${formatCurrency(selectedPlan.price)}. Session: ${sessionToken}. I am sending my bank transfer proof now.`
+      : `Hello Dosnine Team, please activate ${selectedPlan.name} for ${userEmail}. Session: ${sessionToken}.`
   );
 
   const copyToClipboard = (text, field) => {
@@ -290,6 +315,13 @@ export default function AgentPayment() {
                     <p className="text-gray-600 text-xs mt-3 font-semibold">
                       Verified within 24 hours. Access starts after confirmation.
                     </p>
+                    {sessionToken && (
+                      <p className="text-gray-500 text-xs mt-3 bg-gray-50 p-2 rounded border border-gray-200">
+                        <strong>Session Token:</strong> <code className="font-mono">{sessionToken}</code>
+                        <br />
+                        <em>Included in WhatsApp message—helps us track your upgrade request.</em>
+                      </p>
+                    )}
                   </div>
                 </div>
 
