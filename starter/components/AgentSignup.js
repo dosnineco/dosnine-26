@@ -270,8 +270,9 @@ export default function AgentSignup() {
             href="/dashboard"
             className="inline-block w-full btn-accent px-4 py-2 rounded-lg font-semibold transition"
           >
-            Go to Dashboard
+            Dashboard
           </a>
+
         </div>
       </div>
     );

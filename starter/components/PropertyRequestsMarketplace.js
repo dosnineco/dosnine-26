@@ -13,6 +13,8 @@ export default function PropertyRequestsMarketplace() {
   const [showPopup, setShowPopup] = useState(false);
   const [showTypingIndicator, setShowTypingIndicator] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
+    const [featuredProperty, setFeaturedProperty] = useState(null);
+    const [loadingProperty, setLoadingProperty] = useState(true);
   
   // Filter state
   const [filters, setFilters] = useState({
@@ -24,6 +26,34 @@ export default function PropertyRequestsMarketplace() {
     minPrice: '',
     maxPrice: ''
   });
+  // Fetch the most recent property
+  useEffect(() => {
+    const fetchFeaturedProperty = async () => {
+      try {
+        setLoadingProperty(true);
+        const { data, error } = await supabase
+          .from('properties')
+          .select('*')
+          .eq('status', 'active')
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .single();
+
+        if (error) {
+          console.error('Error fetching property:', error);
+        } else {
+          setFeaturedProperty(data);
+        }
+      } catch (err) {
+        console.error('Error:', err);
+      } finally {
+        setLoadingProperty(false);
+      }
+    };
+
+    fetchFeaturedProperty();
+  }, []);
+
 
   // Fetch requests from both service_requests and visitor_emails tables
   useEffect(() => {
@@ -579,7 +609,7 @@ export default function PropertyRequestsMarketplace() {
               <ArrowRight size={20} />
             </a>
             <a
-              href="/agent-signup"
+              href="/agent/signup"
               className="flex items-center gap-2 text-sm text-gray-900 font-semibold hover:text-gray-700 transition-colors border-b-2 border-gray-900 hover:border-gray-700 pb-2"
             >
               Become an Agent
@@ -690,7 +720,7 @@ export default function PropertyRequestsMarketplace() {
 
                 {/* Claim button */}
                 {/* <button
-                  onClick={() => router.push('/agent-signup')}
+                  onClick={() => router.push('/agent/signup')}
                   className={`w-full text-center font-semibold py-2 text-xs rounded-lg transition-colors mt-auto ${
                     tier === 'premium' ? 'bg-gray-700 hover:bg-gray-800 text-white' :
                     'bg-gray-800 hover:bg-gray-900 text-white'

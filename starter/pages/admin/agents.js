@@ -35,10 +35,12 @@ export default function AdminAgents() {
 
   // Initialize local selected plan state whenever agent list updates
   useEffect(() => {
-    const validPlans = ['free', '7-day', '30-day', '90-day'];
+    const validPlans = ['7-day', '30-day', '90-day'];
     const next = {};
     agents.forEach(a => {
-      next[a.id] = validPlans.includes(a.payment_status) ? a.payment_status : 'free';
+      // Default to a paid plan; fall back to 7-day if current status isn't allowed
+      const plan = validPlans.includes(a.payment_status) ? a.payment_status : '7-day';
+      next[a.id] = plan;
     });
     setSelectedPlans(next);
   }, [agents]);
@@ -195,7 +197,7 @@ export default function AdminAgents() {
   }
 
   async function setPaymentPlan(agentId, plan, agent) {
-    const validPlans = ['free', '7-day', '30-day', '90-day'];
+    const validPlans = ['7-day', '30-day', '90-day'];
     if (!validPlans.includes(plan)) {
       toast.error('Invalid access plan');
       return;
@@ -516,19 +518,18 @@ export default function AdminAgents() {
                         <td className="px-5 py-4">
                           <div className="flex items-center gap-2 flex-wrap">
                             <select
-                              value={selectedPlans[agent.id] || 'free'}
+                              value={selectedPlans[agent.id] || '7-day'}
                               onChange={(e) => setSelectedPlans(prev => ({ ...prev, [agent.id]: e.target.value }))}
                               disabled={agent.verification_status !== 'approved'}
                               className="text-xs px-2 py-1 border border-gray-300 rounded-md bg-white text-gray-900 disabled:bg-gray-100 disabled:text-gray-500"
                               title={agent.verification_status !== 'approved' ? 'Agent must be approved first' : 'Choose access plan'}
                             >
-                              <option value="free">Free</option>
                               <option value="7-day">7-Day</option>
                               <option value="30-day">30-Day</option>
                               <option value="90-day">90-Day</option>
                             </select>
                             <button
-                              onClick={() => setPaymentPlan(agent.id, selectedPlans[agent.id] || 'free', agent)}
+                              onClick={() => setPaymentPlan(agent.id, selectedPlans[agent.id] || '7-day', agent)}
                               disabled={agent.verification_status !== 'approved'}
                               className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-semibold bg-gray-900 text-white hover:bg-black disabled:opacity-40 disabled:cursor-not-allowed"
                               title={agent.verification_status !== 'approved' ? 'Agent must be approved first' : 'Apply selected plan'}

@@ -26,6 +26,12 @@ export default function Dashboard() {
   const [paidAgentLoading, setPaidAgentLoading] = useState(true);
   const [shouldLoadData, setShouldLoadData] = useState(false);
 
+  const formatDate = (value) => {
+    if (!value) return 'Not available';
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? 'Not available' : date.toLocaleDateString();
+  };
+
   // SECURITY: Check user status and redirect BEFORE loading any data
   useEffect(() => {
     if (!isLoaded) return;
@@ -88,7 +94,7 @@ export default function Dashboard() {
       // Check if user is an agent - minimal data fetch for redirect check only
       const { data: userData } = await supabase
         .from('users')
-        .select('id, agent:agents(verification_status, payment_status, access_expiry)')
+        .select('id, agent:agents(verification_status, payment_status, access_expiry, verification_submitted_at, created_at)')
         .eq('clerk_id', user.id)
         .single();
 
@@ -255,7 +261,7 @@ export default function Dashboard() {
                       We're reviewing your application. You'll receive an email within 24 hours.
                     </p>
                     <p className="text-sm text-yellow-600">
-                      Submitted: {new Date(agentData.submitted_at || agentData.created_at).toLocaleDateString()}
+                      Submitted: {formatDate(agentData.verification_submitted_at || agentData.created_at)}
                     </p>
                   </div>
                 </div>
@@ -284,7 +290,7 @@ export default function Dashboard() {
               </div>
             )}
 
-            {agentData.verification_status === 'approved' && agentData.payment_status !== 'paid' && (
+            {agentData.verification_status === 'approved' && !['paid', '7-day', '30-day', '90-day'].includes(agentData.payment_status) && (
               <div className="bg-yellow-50 border-l-4 border-yellow-500 p-6 rounded-lg">
                 <div className="flex items-start gap-3">
                   <DollarSign className="w-6 h-6 text-yellow-700 flex-shrink-0 mt-0.5" />
