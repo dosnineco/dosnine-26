@@ -1,10 +1,20 @@
 import { useUser, SignedOut, SignedIn } from '@clerk/nextjs';
 import AgentSignup from '@/components/AgentSignup';
 import Link from 'next/link';
+import Seo from '@/components/Seo';
 
 export default function AgentSignupPage() {
+  const pageUrl = 'https://dosnine.com/agent/signup';
+  const ogImage = 'https://dosnine.com/dosnine_preview.png';
+  
   return (
     <>
+      <Seo
+        title="Become a Real Estate Agent | Dosnine Properties"
+        description="Join Dosnine as a verified real estate agent. Connect with property seekers, manage listings, and grow your business in Jamaica's leading property platform."
+        image={ogImage}
+        url={pageUrl}
+      />
       <SignedOut>
         <div className="min-h-screen bg-gradient-to-br from-purple-50 to-blue-50 p-4 flex items-center">
           <div className="max-w-md mx-auto bg-white rounded-lg shadow-2xl p-8 text-center">
