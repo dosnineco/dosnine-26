@@ -26,19 +26,27 @@ export default async function handler(req, res) {
     // Check if user is admin (for remove action)
     const isAdmin = user.role === 'admin';
 
-    // Verify agent exists and is verified + paid (unless admin)
+    // Verify agent exists and is verified (unless admin)
     let agent = null;
     if (!isAdmin) {
       const { data: agentData, error: agentError } = await supabase
         .from('agents')
-        .select('id')
+        .select('id, payment_status, access_expiry')
         .eq('user_id', user.id)
         .eq('verification_status', 'approved')
-        .eq('payment_status', 'paid')
         .single();
 
       if (agentError || !agentData) {
         return res.status(403).json({ error: 'Agent not found or not authorized' });
+      }
+
+      // Check if paid agent access has expired
+      const paidPlans = ['7-day', '30-day', '90-day'];
+      if (paidPlans.includes(agentData.payment_status) && agentData.access_expiry) {
+        const isExpired = new Date(agentData.access_expiry) <= new Date();
+        if (isExpired) {
+          return res.status(403).json({ error: 'Your agent access has expired. Please renew to continue.' });
+        }
       }
 
       agent = agentData;

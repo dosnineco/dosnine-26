@@ -10,6 +10,8 @@ export default function SiteProtection() {
 
     // Disable F12, Ctrl+Shift+I, Ctrl+Shift+J, Ctrl+U
     const handleKeyDown = (e) => {
+      // TEMPORARILY DISABLED - DevTools enabled for debugging
+      return;
       // F12
       if (e.keyCode === 123) {
         e.preventDefault();

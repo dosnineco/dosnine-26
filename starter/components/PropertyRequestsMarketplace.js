@@ -8,52 +8,9 @@ import { Search, MapPin, DollarSign, Clock, FileText, CheckCircle, Lock, Users, 
 export default function PropertyRequestsMarketplace() {
   const router = useRouter();
   const [requests, setRequests] = useState([]);
-  const [filteredRequests, setFilteredRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showPopup, setShowPopup] = useState(false);
   const [showTypingIndicator, setShowTypingIndicator] = useState(false);
-  const [showFilters, setShowFilters] = useState(false);
-    const [featuredProperty, setFeaturedProperty] = useState(null);
-    const [loadingProperty, setLoadingProperty] = useState(true);
-  
-  // Filter state
-  const [filters, setFilters] = useState({
-    bedrooms: '',
-    location: '',
-    budget: '',
-    requestType: '', // buy, rent, sale
-    parish: '',
-    minPrice: '',
-    maxPrice: ''
-  });
-  // Fetch the most recent property
-  useEffect(() => {
-    const fetchFeaturedProperty = async () => {
-      try {
-        setLoadingProperty(true);
-        const { data, error } = await supabase
-          .from('properties')
-          .select('*')
-          .eq('status', 'active')
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .single();
-
-        if (error) {
-          console.error('Error fetching property:', error);
-        } else {
-          setFeaturedProperty(data);
-        }
-      } catch (err) {
-        console.error('Error:', err);
-      } finally {
-        setLoadingProperty(false);
-      }
-    };
-
-    fetchFeaturedProperty();
-  }, []);
-
 
   // Fetch requests from both service_requests and visitor_emails tables
   useEffect(() => {
@@ -64,19 +21,18 @@ export default function PropertyRequestsMarketplace() {
         // Fetch from service_requests - only open and non-contacted
         const { data: serviceRequests, error: serviceError } = await supabase
           .from('service_requests')
-          .select('*')
+          .select('id, request_type, bedrooms, location, budget_min, budget_max, created_at')
           .eq('status', 'open')
           .or('is_contacted.is.null,is_contacted.eq.false')
           .order('created_at', { ascending: false })
-          .limit(50);
+          .limit(25);
 
         // Fetch from visitor_emails (recent, non-contacted leads only)
         const { data: visitorEmails, error: visitorError } = await supabase
           .from('visitor_emails')
-          .select('*')
-          .eq('email_status', 'not_contacted')
+          .select('id, created_at, bedrooms, area, parish, budget_min')
           .order('created_at', { ascending: false })
-          .limit(50);
+          .limit(25);
 
         if (serviceError) {
           console.error('Service requests fetch error:', serviceError);
@@ -87,38 +43,26 @@ export default function PropertyRequestsMarketplace() {
 
         // Combine and format data
         const combinedRequests = [
-          ...(serviceRequests || []).map(req => {
-            const extractedBudget = (!req.budget_min && !req.budget && req.description) 
-              ? extractBudgetFromText(req.description) 
-              : { min: null, max: null };
-            
-            return {
-              ...req,
-              type: 'service_request',
-              source: 'agent_request',
-              is_contacted: req.is_contacted,
-              budget_min: req.budget_min || req.budget || extractedBudget.min,
-              budget_max: req.budget_max || extractedBudget.max
-            };
-          }),
+          ...(serviceRequests || []).map(req => ({
+            ...req,
+            type: 'service_request',
+            source: 'agent_request',
+            area: null,
+            parish: null
+          })),
           ...(visitorEmails || []).map(visitor => {
-            const extractedBudget = (!visitor.budget_min && !visitor.budget && visitor.message) 
-              ? extractBudgetFromText(visitor.message) 
-              : { min: null, max: null };
-            
             return {
-              ...visitor,
+              id: visitor.id,
+              created_at: visitor.created_at,
               type: 'visitor_email',
-              source: visitor.source || 'homepage_popup',
-              client_name: 'Not provided',
-              client_email: visitor.email,
-              client_phone: visitor.phone || 'Not provided',
-              request_type: visitor.intent || 'inquiry',
-              property_type: 'house',
-              location: visitor.parish || visitor.area || 'Not specified',
-              budget_min: visitor.budget_min || visitor.budget || extractedBudget.min,
-              budget_max: visitor.budget_max || extractedBudget.max,
-              is_contacted: visitor.email_status === 'emailed'
+              source: 'visitor_email',
+              request_type: 'property_inquiry',
+              bedrooms: visitor.bedrooms,
+              location: null, // visitor_emails doesn't have a location field
+              area: visitor.area,
+              parish: visitor.parish,
+              budget_min: visitor.budget_min,
+              budget_max: null // visitor_emails doesn't track budget_max
             };
           })
         ];
@@ -126,16 +70,9 @@ export default function PropertyRequestsMarketplace() {
         // Sort by created_at descending and limit to 50 total
         combinedRequests.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
         
-        // Filter to only show requests with budget >= 80k
-        const premiumRequests = combinedRequests.filter(req => {
-          const budgetValue = req.budget_max || req.budget_min || 0;
-          return budgetValue >= 80000;
-        });
-        
-        const limitedRequests = premiumRequests.slice(0, 50);
+        const limitedRequests = combinedRequests.slice(0, 25);
 
         setRequests(limitedRequests);
-        setFilteredRequests(limitedRequests);
       } catch (err) {
         console.error('Error fetching requests:', err);
         toast.error('Failed to load requests');
@@ -152,22 +89,13 @@ export default function PropertyRequestsMarketplace() {
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'service_requests' }, (payload) => {
         const newRequest = payload.new;
         if (newRequest.status === 'open' && (!newRequest.is_contacted || newRequest.is_contacted === false)) {
-          const extractedBudget = (!newRequest.budget_min && !newRequest.budget && newRequest.description) 
-            ? extractBudgetFromText(newRequest.description) 
-            : { min: null, max: null };
-          
           const formattedRequest = {
             ...newRequest,
             type: 'service_request',
-            source: 'agent_request',
-            budget_min: newRequest.budget_min || newRequest.budget || extractedBudget.min,
-            budget_max: newRequest.budget_max || extractedBudget.max
+            source: 'agent_request'
           };
 
-          const budgetValue = formattedRequest.budget_max || formattedRequest.budget_min || 0;
-          if (budgetValue >= 80000) {
-            setRequests(prev => [formattedRequest, ...prev].slice(0, 50));
-          }
+          setRequests(prev => [formattedRequest, ...prev].slice(0, 25));
         }
       })
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'service_requests' }, (payload) => {
@@ -183,31 +111,14 @@ export default function PropertyRequestsMarketplace() {
       .channel('visitor_emails_changes')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'visitor_emails' }, (payload) => {
         const newVisitor = payload.new;
-        if (newVisitor.email_status === 'not_contacted') {
-          const extractedBudget = (!newVisitor.budget_min && !newVisitor.budget && newVisitor.message) 
-            ? extractBudgetFromText(newVisitor.message) 
-            : { min: null, max: null };
-          
-          const formattedVisitor = {
-            ...newVisitor,
-            type: 'visitor_email',
-            source: newVisitor.source || 'homepage_popup',
-            client_name: 'Not provided',
-            client_email: newVisitor.email,
-            client_phone: newVisitor.phone || 'Not provided',
-            request_type: newVisitor.intent || 'inquiry',
-            property_type: 'house',
-            location: newVisitor.parish || newVisitor.area || 'Not specified',
-            budget_min: newVisitor.budget_min || newVisitor.budget || extractedBudget.min,
-            budget_max: newVisitor.budget_max || extractedBudget.max,
-            is_contacted: false
-          };
+        const formattedVisitor = {
+          ...newVisitor,
+          type: 'visitor_email',
+          source: 'visitor_email',
+          request_type: 'property_inquiry'
+        };
 
-          const budgetValue = formattedVisitor.budget_max || formattedVisitor.budget_min || 0;
-          if (budgetValue >= 80000) {
-            setRequests(prev => [formattedVisitor, ...prev].slice(0, 50));
-          }
-        }
+        setRequests(prev => [formattedVisitor, ...prev].slice(0, 25));
       })
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'visitor_emails' }, (payload) => {
         const updated = payload.new;
@@ -235,82 +146,11 @@ export default function PropertyRequestsMarketplace() {
 
     // Cleanup subscriptions
     return () => {
-      supabase.removeChannel(serviceRequestsSubscription);
       supabase.removeChannel(visitorEmailsSubscription);
       supabase.removeChannel(presenceChannel);
       clearInterval(checkActivity);
     };
   }, []);
-
-  // Apply filters
-  useEffect(() => {
-    let filtered = requests;
-
-    // Filter by request type (buy, rent, sale)
-    if (filters.requestType) {
-      filtered = filtered.filter(req =>
-        req.request_type && req.request_type.toLowerCase() === filters.requestType.toLowerCase()
-      );
-    }
-
-    // Filter by bedrooms
-    if (filters.bedrooms) {
-      filtered = filtered.filter(req => req.bedrooms === parseInt(filters.bedrooms));
-    }
-
-    // Filter by parish
-    if (filters.parish) {
-      filtered = filtered.filter(req =>
-        (req.parish && req.parish.toLowerCase().includes(filters.parish.toLowerCase())) ||
-        (req.location && req.location.toLowerCase().includes(filters.parish.toLowerCase()))
-      );
-    }
-
-    // Filter by location (general search)
-    if (filters.location) {
-      filtered = filtered.filter(req =>
-        req.location.toLowerCase().includes(filters.location.toLowerCase())
-      );
-    }
-
-    // Filter by minimum price
-    if (filters.minPrice) {
-      const minAmount = parseFloat(filters.minPrice);
-      filtered = filtered.filter(req => {
-        const reqMin = req.budget_min || 0;
-        const reqMax = req.budget_max || Infinity;
-        return reqMax >= minAmount;
-      });
-    }
-
-    // Filter by maximum price
-    if (filters.maxPrice) {
-      const maxAmount = parseFloat(filters.maxPrice);
-      filtered = filtered.filter(req => {
-        const reqMin = req.budget_min || 0;
-        return reqMin <= maxAmount;
-      });
-    }
-
-    // Legacy budget filter
-    if (filters.budget) {
-      const budgetAmount = parseFloat(filters.budget);
-      filtered = filtered.filter(req =>
-        (req.budget_max && req.budget_max >= budgetAmount) ||
-        (!req.budget_max && req.budget_min <= budgetAmount)
-      );
-    }
-
-    setFilteredRequests(filtered);
-  }, [filters, requests]);
-
-  const handleFilterChange = (e) => {
-    const { name, value } = e.target;
-    setFilters(prev => ({
-      ...prev,
-      [name]: value
-    }));
-  };
 
   // Extract budget from description text using regex
   const extractBudgetFromText = (text) => {
@@ -464,121 +304,6 @@ export default function PropertyRequestsMarketplace() {
   return (
     <div className="min-h-screen bg-gray-50">
   
-      {/* Collapsible Filter Section */}
-      {showFilters && (
-        <div className="bg-white border-b border-gray-200 py-8">
-          <div className="container mx-auto px-4">
-            <div className="max-w-5xl mx-auto animate-fadeIn">
-              <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-                  {/* Request Type Filter */}
-                  <select
-                    name="requestType"
-                    value={filters.requestType}
-                    onChange={handleFilterChange}
-                    className="w-full px-3 py-2 text-sm rounded-lg border border-gray-300 text-gray-900 focus:ring-2 focus:ring-red-500 focus:border-transparent bg-white"
-                  >
-                    <option value="">All Types</option>
-                    <option value="buy">Buy</option>
-                    <option value="rent">Rent</option>
-                    <option value="sale">Sale</option>
-                  </select>
-
-                  {/* Parish Filter */}
-                  <select
-                    name="parish"
-                    value={filters.parish}
-                    onChange={handleFilterChange}
-                    className="w-full px-3 py-2 text-sm rounded-lg border border-gray-300 text-gray-900 focus:ring-2 focus:ring-red-500 focus:border-transparent bg-white"
-                  >
-                    <option value="">All Parishes</option>
-                    <option value="Kingston">Kingston</option>
-                    <option value="St. Andrew">St. Andrew</option>
-                    <option value="St. Catherine">St. Catherine</option>
-                    <option value="Clarendon">Clarendon</option>
-                    <option value="Manchester">Manchester</option>
-                    <option value="St. Elizabeth">St. Elizabeth</option>
-                    <option value="Westmoreland">Westmoreland</option>
-                    <option value="Hanover">Hanover</option>
-                    <option value="St. James">St. James</option>
-                    <option value="Trelawny">Trelawny</option>
-                    <option value="St. Ann">St. Ann</option>
-                    <option value="St. Mary">St. Mary</option>
-                    <option value="Portland">Portland</option>
-                    <option value="St. Thomas">St. Thomas</option>
-                  </select>
-
-                  {/* Bedrooms Filter */}
-                  <select
-                    name="bedrooms"
-                    value={filters.bedrooms}
-                    onChange={handleFilterChange}
-                    className="w-full px-3 py-2 text-sm rounded-lg border border-gray-300 text-gray-900 focus:ring-2 focus:ring-red-500 focus:border-transparent bg-white"
-                  >
-                    <option value="">Bedrooms</option>
-                    <option value="1">1 Bedroom</option>
-                    <option value="2">2 Bedrooms</option>
-                    <option value="3">3 Bedrooms</option>
-                    <option value="4">4 Bedrooms</option>
-                    <option value="5">5+ Bedrooms</option>
-                  </select>
-
-                  {/* Location Search */}
-                  <input
-                    type="text"
-                    name="location"
-                    value={filters.location}
-                    onChange={handleFilterChange}
-                    placeholder="Search Location"
-                    className="w-full px-3 py-2 text-sm rounded-lg border border-gray-300 text-gray-900 focus:ring-2 focus:ring-red-500 focus:border-transparent bg-white"
-                  />
-
-                  {/* Min Price Filter */}
-                  <input
-                    type="number"
-                    name="minPrice"
-                    value={filters.minPrice}
-                    onChange={handleFilterChange}
-                    placeholder="Min Price"
-                    className="w-full px-3 py-2 text-sm rounded-lg border border-gray-300 text-gray-900 focus:ring-2 focus:ring-red-500 focus:border-transparent bg-white"
-                  />
-
-                  {/* Max Price Filter */}
-                  <input
-                    type="number"
-                    name="maxPrice"
-                    value={filters.maxPrice}
-                    onChange={handleFilterChange}
-                    placeholder="Max Price"
-                    className="w-full px-3 py-2 text-sm rounded-lg border border-gray-300 text-gray-900 focus:ring-2 focus:ring-red-500 focus:border-transparent bg-white"
-                  />
-                </div>
-
-                {/* Clear Filters Button */}
-                {(filters.requestType || filters.parish || filters.bedrooms || filters.minPrice || filters.maxPrice || filters.location) && (
-                  <div className="flex justify-center mt-3">
-                    <button
-                      onClick={() => setFilters({
-                        bedrooms: '',
-                        location: '',
-                        budget: '',
-                        requestType: '',
-                        parish: '',
-                        minPrice: '',
-                        maxPrice: ''
-                      })}
-                      className="inline-flex items-center gap-1 px-4 py-1.5 text-sm rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300 transition-colors font-medium"
-                    >
-                      <X size={14} /> Clear All Filters
-                    </button>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Bottom spacing from hero */}
       <div className="h-20"></div>
 
@@ -643,16 +368,16 @@ export default function PropertyRequestsMarketplace() {
           <div className="text-center py-12">
             <p className="text-gray-600 mt-2">Loading requests...</p>
           </div>
-        ) : filteredRequests.length === 0 ? (
+        ) : requests.length === 0 ? (
           <div className="text-center py-12">
-            <p className="text-gray-600 text-lg">No requests match your filters</p>
+            <p className="text-gray-600 text-lg">No requests available</p>
           </div>
         ) : (
           <div className=" grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {filteredRequests.map(request => {
+            {requests.map(request => {
               const tier = getBudgetTier(request.budget_min, request.budget_max);
               const urgencyBadge = getUrgencyBadge(request.created_at);
-              const similarCount = getSimilarCount(request, filteredRequests);
+              const similarCount = getSimilarCount(request, requests);
               
               return (
               <div key={`${request.type}-${request.id}`} className="relative h-full">
@@ -667,31 +392,13 @@ export default function PropertyRequestsMarketplace() {
                 )}
                 
               <div
-                className={`bg-white rounded-lg p-6 hover:shadow-lg transition-all relative h-full flex flex-col ${
-                  tier === 'premium' ? 'border-2  shadow-md' :
-                  'border border-gray-200'
-                }`}
+                className='bg-white rounded-lg p-6 border border-gray-200 transition-all relative h-full flex flex-col'
+              
               >
-                {/* Premium Badge - Only for premium tier */}
-                {tier === 'premium' && (
-                  <div className="absolute -top-2 -right-2 bg-gradient-to-r from-gray-700 to-gray-800 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-lg flex items-center gap-1">
-                    <Star size={10} fill="white" /> Premium
-                  </div>
-                )}
+            
 
-                {/* Urgency Badge */}
-                {urgencyBadge && (
-                  <div className="inline-flex bg-green-50 border border-green-200 text-green-700 text-[10px] font-semibold px-2 py-0.5 rounded-full mb-2 items-center gap-1">
-                    <Circle size={8} fill="currentColor" /> {urgencyBadge}
-                  </div>
-                )}
 
-                {/* Similar requests badge */}
-                {similarCount > 0 && (
-                  <div className="inline-flex  text-blue-700 text-[10px] font-semibold px-2 py-0.5 rounded-full mb-2 ml-2 items-center gap-1">
-                    +{similarCount} similar {similarCount === 1 ? 'request' : 'requests'}
-                  </div>
-                )}
+               
 
                 {/* Title */}
                 <h3 className="text-base font-semibold text-gray-900 mb-2 leading-tight flex items-center gap-2">
@@ -718,18 +425,14 @@ export default function PropertyRequestsMarketplace() {
                   </p>
                 </div>
 
-                {/* Claim button */}
-                {/* <button
-                  onClick={() => router.push('/agent/signup')}
-                  className={`w-full text-center font-semibold py-2 text-xs rounded-lg transition-colors mt-auto ${
-                    tier === 'premium' ? 'bg-gray-700 hover:bg-gray-800 text-white' :
-                    'bg-gray-800 hover:bg-gray-900 text-white'
-                  }`}
-                >
-                  <span className="inline-flex items-center gap-1">
-                    Unlock Contact{tier === 'premium' && <Star size={10} fill="white" />}
-                  </span>
-                </button> */}
+                 {/* Similar requests badge */}
+                {similarCount > 0 && (
+                  <div className="inline-flex  text-blue-700 text-[10px] font-semibold  py-0.5 rounded-full mb-2 ml-2 items-center gap-1">
+                    +{similarCount} similar {similarCount === 1 ? 'request' : 'requests'}
+                  </div>
+                )}
+
+               
               </div>
               </div>
             );})}
