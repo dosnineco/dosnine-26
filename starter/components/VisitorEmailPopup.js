@@ -24,9 +24,9 @@ export default function VisitorEmailPopup() {
 
   // Budget ranges based on intent
   const budgetRanges = {
-    buy: { min: 500000, max: 150000000, default: 5000000 },
+    buy: { min: 4000000, max: 150000000, default: 5000000 },
     sell: { min: 500000, max: 150000000, default: 5000000 },
-    rent: { min: 10000, max: 1200000, default: 100000 }
+    rent: { min: 70000, max: 1200000, default: 100000 }
   };
 
   // Update budget when intent changes
@@ -113,6 +113,18 @@ export default function VisitorEmailPopup() {
     
     // Validate required fields including phone
     if (!email || !phone || !intent) {
+      return;
+    }
+
+    // Prevent low-quality rental leads below JMD 70,000
+    if (intent === 'rent' && budgetMin < 70000) {
+      alert('⚠️ Minimum rental budget is JMD 70,000\n\nTo maintain quality service, we focus on rentals above this threshold. This helps us connect you with verified properties that meet professional standards.');
+      return;
+    }
+
+    // Prevent low-quality buy leads below JMD 4,000,000
+    if (intent === 'buy' && budgetMin < 4000000) {
+      alert('⚠️ Minimum buy budget is JMD 4,000,000\n\nTo maintain quality service, we focus on properties above this threshold. This helps us connect you with verified properties that meet professional standards.');
       return;
     }
 
@@ -205,7 +217,7 @@ export default function VisitorEmailPopup() {
             Get Property Alerts
           </h2>
           <p className="text-orange-100 text-sm mt-1">
-            Verified listings sent directly to you
+            An agent will contact you with verified listings
           </p>
         </div>
 
@@ -263,6 +275,71 @@ export default function VisitorEmailPopup() {
               <DollarSign size={18} className="text-orange-600" />
               Budget: <span className="text-orange-600 font-bold">{intent ? budgetRanges[intent] ? budgetMin.toLocaleString('en-US', { style: 'currency', currency: 'JMD' }).replace('JMD', 'JMD') : 'Select intent' : 'Select intent'}</span>
             </label>
+          {/* Low Budget Warning for Rentals */}
+          {intent === 'rent' && budgetMin < 70000 && (
+            <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4">
+              <div className="flex items-start">
+                <div className="ml-3">
+                  <p className="text-sm font-medium text-yellow-800">
+                    ⚠️ Budget Below Minimum
+                  </p>
+                  <p className="text-xs text-yellow-700 mt-1">
+                    Minimum rental budget is <strong>JMD 70,000</strong> to ensure quality service and verified property matches.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Low Budget Warning for Buy */}
+          {intent === 'buy' && budgetMin < 4000000 && (
+            <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4">
+              <div className="flex items-start">
+                <div className="ml-3">
+                  <p className="text-sm font-medium text-yellow-800">
+                    ⚠️ Budget Below Minimum
+                  </p>
+                  <p className="text-xs text-yellow-700 mt-1">
+                    Minimum buy budget is <strong>JMD 4,000,000</strong> to ensure quality service and verified property matches.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Minimum Budget Notice for Rentals */}
+          {intent === 'rent' && budgetMin === 70000 && (
+            <div className="bg-blue-50 border-l-4 border-blue-400 p-4">
+              <div className="flex items-start">
+                <div className="ml-3">
+                  <p className="text-sm font-medium text-blue-800">
+                    ℹ️ Minimum Budget for Property Alerts
+                  </p>
+                  <p className="text-xs text-blue-700 mt-1">
+                    <strong>JMD 70,000</strong> is the minimum for rental property alerts. We don't have verified listings below this amount.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Minimum Budget Notice for Buy */}
+          {intent === 'buy' && budgetMin === 4000000 && (
+            <div className="bg-blue-50 border-l-4 border-blue-400 p-4">
+              <div className="flex items-start">
+                <div className="ml-3">
+                  <p className="text-sm font-medium text-blue-800">
+                    ℹ️ Minimum Budget for Property Alerts
+                  </p>
+                  <p className="text-xs text-blue-700 mt-1">
+                    <strong>JMD 4,000,000</strong> is the minimum for buy property alerts. We don't have verified listings below this amount.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+
             {intent && budgetRanges[intent] ? (
               <>
                 <div className="flex items-center gap-4">
@@ -287,10 +364,10 @@ export default function VisitorEmailPopup() {
                     <>
                       <button
                         type="button"
-                        onClick={() => setBudgetMin(50000)}
+                        onClick={() => setBudgetMin(100000)}
                         className="text-xs px-3 py-1 bg-gray-100 hover:bg-orange-100 rounded transition font-medium"
                       >
-                        50K
+                        100K
                       </button>
                       <button
                         type="button"
@@ -410,6 +487,7 @@ export default function VisitorEmailPopup() {
             </div>
           </div>
 
+
           {/* Contact Info */}
           <div className="border-t pt-5 space-y-3">
             <input
@@ -442,7 +520,7 @@ export default function VisitorEmailPopup() {
 
           <button
             type="submit"
-            disabled={loading || !intent}
+            disabled={loading || !intent || (intent === 'rent' && budgetMin < 70000) || (intent === 'buy' && budgetMin < 4000000)}
             className="w-full py-3 px-4 bg-gradient-to-r from-orange-600 to-orange-700 text-white font-bold rounded-lg hover:shadow-lg transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
             {loading ? (
