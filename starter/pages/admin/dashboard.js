@@ -245,13 +245,7 @@ export default function AdminDashboard() {
             </span>
           )}
         </Link>
-          <Link 
-          href="/properties/bulk-create"
-          className="px-3 py-2 rounded-md text-sm font-medium flex items-center gap-1.5 whitespace-nowrap text-gray-700 hover:bg-gray-100"
-        >
-          <FiZap className="w-4 h-4" />
-          Bulk Listings
-        </Link>
+         
       </div>
 
       {loading ? (

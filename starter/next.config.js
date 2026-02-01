@@ -19,11 +19,6 @@ const nextConfig = {
         destination: '/properties/new',
         permanent: true,
       },
-      {
-        source: '/landlord/boost-property',
-        destination: '/properties/boost-property',
-        permanent: true,
-      },
     ]
   },
 };

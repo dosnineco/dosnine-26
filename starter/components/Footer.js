@@ -40,11 +40,6 @@ export default function Footer() {
                 </a>
               </li>
               <li>
-                <a href="/landlord/boost-property" className="text-gray-600 hover:text-blue-600 transition">
-                  Boost Listing
-                </a>
-              </li>
-              <li>
                 <a href="/pro" className="text-gray-600 hover:text-blue-600 transition">
                   Premium Plans
                 </a>

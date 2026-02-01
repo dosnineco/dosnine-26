@@ -26,25 +26,38 @@ export default function BulkCreatePage() {
     try {
       const { data } = await supabase
         .from('users')
-        .select('role, agents(verification_status, payment_status)')
+        .select('role, agents(verification_status, payment_status, access_expiry)')
         .eq('clerk_id', user.id)
         .single();
 
-      // Check if user is verified agent or admin
-      const isAgent = data?.agents?.verification_status === 'approved' && 
-                      data?.agents?.payment_status === 'paid';
+      // Check if user is admin
       const isAdmin = data?.role === 'admin';
+      
+      // Check if user is verified agent with paid plan
+      const paidPlans = ['7-day', '30-day', '90-day'];
+      const hasPaidPlan = paidPlans.includes(data?.agents?.payment_status);
+      const isVerifiedAgent = data?.agents?.verification_status === 'approved';
+      
+      // Check if access is not expired (for paid plans)
+      const hasValidAccess = !data?.agents?.access_expiry || 
+                            new Date(data?.agents?.access_expiry) > new Date();
+      
+      const isAgent = isVerifiedAgent && hasPaidPlan && hasValidAccess;
 
       if (isAgent || isAdmin) {
         setIsVerified(true);
-      } else if (data?.agents?.verification_status === 'approved' && data?.agents?.payment_status !== 'paid') {
-        toast.error('Payment required to access bulk create. Please complete your payment.');
+      } else if (isVerifiedAgent && hasPaidPlan && !hasValidAccess) {
+        toast.error('Your access has expired. Please renew your plan to continue.');
+        setTimeout(() => router.push('/agent/payment'), 2000);
+      } else if (isVerifiedAgent && !hasPaidPlan) {
+        toast.error('Upgrade required to access bulk create. Please upgrade your plan.');
         setTimeout(() => router.push('/agent/payment'), 2000);
       } else {
-        toast.error('Access denied: Verified paid agents only');
+        toast.error('Access denied: Verified agents with paid plans only');
         setTimeout(() => router.push('/'), 2000);
       }
     } catch (error) {
+      console.error('Access check error:', error);
       toast.error('Failed to verify access');
       setTimeout(() => router.push('/'), 2000);
     } finally {
@@ -83,10 +96,10 @@ export default function BulkCreatePage() {
               <div className="text-6xl mb-4">🔒</div>
               <h1 className="text-2xl font-bold text-gray-900 mb-2">Access Restricted</h1>
               <p className="text-gray-600 mb-4">
-                This feature is only available to verified agents.
+                This feature is only available to verified agents with an active paid plan.
               </p>
               <p className="text-sm text-gray-500">
-                Redirecting to home...
+                Redirecting...
               </p>
             </div>
           </div>

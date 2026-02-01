@@ -108,7 +108,7 @@ export default function MyPropertiesPage() {
             Add Property
           </Link>
           <Link 
-            href="/properties/bulk-new" 
+            href="/properties/bulk-create" 
             className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition font-medium flex items-center justify-center gap-2 text-lg"
           >
             <FiPlusCircle size={20} />
@@ -178,13 +178,6 @@ export default function MyPropertiesPage() {
                         className="flex-1 sm:flex-none bg-gray-800 text-white text-center px-6 py-2.5 rounded-lg hover:bg-gray-700 transition font-medium text-sm"
                       >
                         View
-                      </Link>
-                      <Link
-                        href="/properties/boost-property"
-                        className="flex-1 sm:flex-none bg-yellow-500 text-white text-center px-6 py-2.5 rounded-lg hover:bg-yellow-600 transition font-medium text-sm flex items-center justify-center gap-2"
-                      >
-                        <FiZap size={16} />
-                        Boost
                       </Link>
                       <button
                         onClick={() => handleDelete(property.id)}

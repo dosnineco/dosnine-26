@@ -142,7 +142,7 @@ export default function PropertyRequestsMarketplace() {
       // Random chance to show typing to simulate real activity
       const randomChance = Math.random() > 0.7;
       setShowTypingIndicator(randomChance);
-    }, 4000);
+    }, 3000);
 
     // Cleanup subscriptions
     return () => {

@@ -3,7 +3,6 @@ import { ClerkProvider, SignedIn, SignedOut, SignInButton, SignUpButton, useUser
 import '../styles/globals.css';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
-import BoostedPropertyBanner from '../components/BoostedPropertyBanner';
 import VisitorEmailPopup from '../components/VisitorEmailPopup';
 import Seo from '../components/Seo';
 import SiteProtection from '../components/SiteProtection';
@@ -241,8 +240,6 @@ function AppContent({ Component, pageProps }) {
       <SiteProtection />
       <Toaster position="top-center" />
       {!hideLayout && <Header />}
-      {/* Show boost banner on all pages */}
-      {!hideLayout && <BoostedPropertyBanner />}
       
       {isCurrentPagePublic ? (
         <main className="min-h-screen">

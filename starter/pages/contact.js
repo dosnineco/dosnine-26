@@ -150,11 +150,6 @@ export default function ContactPage() {
                       Refund Policy
                     </a>
                   </li>
-                  <li>
-                      <a href="/properties/boost-property" className="text-accent hover:underline">
-                      Boost Your Property
-                    </a>
-                  </li>
                 </ul>
               </div>
             </div>

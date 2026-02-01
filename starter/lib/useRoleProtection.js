@@ -1,8 +1,12 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { useRouter } from 'next/router';
 import { useUser } from '@clerk/nextjs';
 import axios from 'axios';
 import toast from 'react-hot-toast';
+
+// Global cache for user data to persist across component remounts
+const userDataCache = new Map();
+const verificationCache = new Map();
 
 /**
  * Hook to protect routes based on role requirements
@@ -24,15 +28,22 @@ export function useRoleProtection({
   const [userData, setUserData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [hasAccess, setHasAccess] = useState(false);
+  const hasCheckedRef = useRef(false);
+  const isCheckingRef = useRef(false);
 
   useEffect(() => {
     async function checkUserAccess() {
       // Wait for Clerk to load
       if (!isLoaded) return;
 
+      // Prevent duplicate checks
+      if (hasCheckedRef.current || isCheckingRef.current) return;
+      isCheckingRef.current = true;
+
       // Check if auth is required
       if (requireAuth && !user) {
         router.push('/');
+        isCheckingRef.current = false;
         return;
       }
 
@@ -40,7 +51,27 @@ export function useRoleProtection({
       if (!user && !requireAuth) {
         setLoading(false);
         setHasAccess(true);
+        hasCheckedRef.current = true;
+        isCheckingRef.current = false;
         return;
+      }
+
+      const cacheKey = user.id;
+      const cachedData = userDataCache.get(cacheKey);
+      const cachedVerification = verificationCache.get(cacheKey);
+
+      // Use cached data if available and recent (within 5 minutes)
+      if (cachedData && cachedVerification !== undefined) {
+        const cacheAge = Date.now() - (cachedData._cacheTime || 0);
+        if (cacheAge < 5 * 60 * 1000) { // 5 minutes
+          console.log('useRoleProtection - Using cached data');
+          setUserData(cachedData);
+          setHasAccess(cachedVerification);
+          setLoading(false);
+          hasCheckedRef.current = true;
+          isCheckingRef.current = false;
+          return;
+        }
       }
 
       try {
@@ -49,17 +80,23 @@ export function useRoleProtection({
           params: { clerkId: user.id }
         });
 
-        console.log('useRoleProtection - Fetched user data:', data);
+        console.log('useRoleProtection - Fetched fresh user data:', data);
         console.log('useRoleProtection - Agent data:', data?.agent);
         console.log('useRoleProtection - User role:', data?.role);
 
-        setUserData(data);
+        // Cache the data with timestamp
+        const dataWithCache = { ...data, _cacheTime: Date.now() };
+        userDataCache.set(cacheKey, dataWithCache);
+        setUserData(dataWithCache);
 
         // Check access using provided function
         const access = checkAccess ? checkAccess(data) : true;
         console.log('useRoleProtection - Access check result:', access);
         
+        // Cache verification result
+        verificationCache.set(cacheKey, access);
         setHasAccess(access);
+        hasCheckedRef.current = true;
 
         if (!access) {
           toast.error(message);
@@ -71,13 +108,23 @@ export function useRoleProtection({
         router.push('/');
       } finally {
         setLoading(false);
+        isCheckingRef.current = false;
       }
     }
 
     checkUserAccess();
-  }, [user, isLoaded, checkAccess, redirectTo, message, requireAuth]);
+  }, [user?.id, isLoaded, requireAuth]);
 
-  return { loading, hasAccess, userData, user };
+  // Memoized function to clear cache (useful for logout or when user data changes)
+  const clearCache = useCallback(() => {
+    if (user?.id) {
+      userDataCache.delete(user.id);
+      verificationCache.delete(user.id);
+      hasCheckedRef.current = false;
+    }
+  }, [user?.id]);
+
+  return { loading, hasAccess, userData, user, clearCache };
 }
 
 /**
@@ -104,4 +151,25 @@ export function withRoleProtection(Component, options) {
 
     return <Component {...props} userData={userData} user={user} />;
   };
+}
+
+/**
+ * Clear all cached user data and verification results
+ * Call this on logout or when user data needs to be refreshed globally
+ */
+export function clearAllVerificationCache() {
+  userDataCache.clear();
+  verificationCache.clear();
+  console.log('Cleared all verification cache');
+}
+
+/**
+ * Clear cache for a specific user
+ */
+export function clearUserCache(userId) {
+  if (userId) {
+    userDataCache.delete(userId);
+    verificationCache.delete(userId);
+    console.log('Cleared cache for user:', userId);
+  }
 }

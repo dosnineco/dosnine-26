@@ -23,7 +23,7 @@ export default function AgentDashboard() {
       tabIndex={0}
       aria-label="Section explainer"
     >
-      <Info className="w-4 h-4 text-gray-400 group-hover:text-accent transition" aria-hidden="true" />
+      <Info className="w-5 h-5 text-gray-400 group-hover:text-accent transition" aria-hidden="true" />
       <span
         role="tooltip"
         className="pointer-events-none absolute left-1/2 top-full z-20 mt-2 w-64 -translate-x-1/2 rounded-lg border border-gray-200 bg-white p-3 text-xs text-gray-700 shadow-lg opacity-0 transition group-hover:opacity-100 group-focus-within:opacity-100"
@@ -132,7 +132,7 @@ export default function AgentDashboard() {
     if (agentData) {
       fetchRequests();
     }
-  }, [filterStatus, filterUrgency, agentData]);
+  }, [agentData]);
 
   async function fetchRequests() {
     setLoading(true);
@@ -140,7 +140,7 @@ export default function AgentDashboard() {
       const response = await axios.get('/api/agent/requests', {
         params: {
           clerkId: user.id,
-          status: filterStatus,
+          status: 'all',
         }
       });
       setRequests(response.data.requests || []);
@@ -228,7 +228,14 @@ export default function AgentDashboard() {
   };
 
   const filteredRequests = requests.filter(r => {
-    const statusMatch = filterStatus === 'all' || r.status === filterStatus;
+    let statusMatch = filterStatus === 'all';
+    if (!statusMatch) {
+      if (filterStatus === 'assigned') {
+        statusMatch = r.status === 'assigned' || r.status === 'in_progress';
+      } else {
+        statusMatch = r.status === filterStatus;
+      }
+    }
     const urgencyMatch = filterUrgency === 'all' || r.urgency === filterUrgency;
     return statusMatch && urgencyMatch;
   });
@@ -252,7 +259,7 @@ export default function AgentDashboard() {
               href="/properties/my-listings"
               className="px-4 py-2 bg-white text-black rounded-lg hover:bg-gray-100 transition font-medium flex items-center justify-center gap-1.5 border border-gray-300"
             >
-              <Home className="w-4 h-4" />
+              <Home className="w-5 h-5" />
               <span className="hidden sm:inline">My Properties</span>
               <span className="sm:hidden">Properties</span>
             </Link>
@@ -260,14 +267,14 @@ export default function AgentDashboard() {
               href="/properties/new"
               className="px-4 py-2 bg-white text-black rounded-lg hover:bg-gray-100 transition font-medium flex items-center justify-center gap-1.5 border border-gray-300"
             >
-              <Plus className="w-4 h-4" />
+              <Plus className="w-5 h-5" />
               <span>Create</span>
             </Link>
             <Link 
               href="/properties/bulk-create"
               className="px-4 py-2 bg-white text-black rounded-lg hover:bg-gray-100 transition font-medium flex items-center justify-center gap-1.5 border border-gray-300 col-span-2 sm:col-span-1"
             >
-              <Plus className="w-4 h-4" />
+              <Plus className="w-5 h-5" />
               <span>Bulk Create</span>
             </Link>
             <Link 
@@ -285,7 +292,7 @@ export default function AgentDashboard() {
                   : 'bg-white text-black border-gray-300 hover:bg-gray-100'
               }`}
             >
-              <CreditCard className="w-4 h-4" />
+              <CreditCard className="w-5 h-5" />
               <span className="hidden sm:inline">{shouldShowUpgrade() ? 'Upgrade Now' : 'Access Plan'}</span>
               <span className="sm:hidden">{shouldShowUpgrade() ? 'Upgrade' : 'Plan'}</span>
             </Link>
@@ -295,7 +302,7 @@ export default function AgentDashboard() {
           {isFreePlan() && (
             <div className=" border-l-4 border-blue-500 rounded-lg p-4 mb-6">
               <div className="flex items-start gap-3">
-                <AlertCircle className="text-blue-600 flex-shrink-0 mt-0.5" size={20} />
+                <AlertCircle className="text-blue-600 flex-shrink-0 mt-0.5" size={24} />
                 <div className="flex-1">
                   <h3 className="font-bold text-blue-900 mb-1">Free Plan - Limited Access</h3>
                   <p className="text-blue-800 text-sm mb-3">
@@ -305,7 +312,7 @@ export default function AgentDashboard() {
                     href="/agent/payment"
                     className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition text-sm"
                   >
-                    <CreditCard className="w-4 h-4" />
+                    <CreditCard className="w-5 h-5" />
                     Upgrade
                   </Link>
                 </div>
@@ -317,7 +324,7 @@ export default function AgentDashboard() {
           {isAccessExpired() && (
             <div className="bg-gradient-to-r from-orange-50 to-red-50 border-l-4 border-orange-500 rounded-lg p-4 mb-6">
               <div className="flex items-start gap-3">
-                <AlertCircle className="text-orange-600 flex-shrink-0 mt-0.5" size={20} />
+                <AlertCircle className="text-orange-600 flex-shrink-0 mt-0.5" size={24} />
                 <div className="flex-1">
                   <h3 className="font-bold text-orange-900 mb-1">Access Expired</h3>
                   <p className="text-orange-800 text-sm mb-3">
@@ -327,7 +334,7 @@ export default function AgentDashboard() {
                     href="/agent/payment"
                     className="inline-flex items-center gap-2 px-4 py-2 bg-orange-600 text-white font-semibold rounded-lg hover:bg-orange-700 transition text-sm"
                   >
-                    <CreditCard className="w-4 h-4" />
+                    <CreditCard className="w-5 h-5" />
                     Upgrade Access Plan
                   </Link>
                 </div>
@@ -339,26 +346,16 @@ export default function AgentDashboard() {
           <>
           <div className="mb-3 flex items-center gap-2">
             <h2 className="text-lg font-semibold text-gray-900">Request Stats</h2>
-            <SectionHint message="Snapshot of your pipeline across all client requests: totals, open items, in-progress, and completed." />
+            <SectionHint message="Snapshot of your pipeline across all client requests: totals, in-progress, and completed." />
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-3 mb-10 sm:mb-8">
+          <div className="grid grid-cols-3 gap-4 sm:gap-3 mb-10 sm:mb-8">
             <div className="bg-white rounded-lg border border-gray-200 p-3">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-xs text-gray-500">Total Requests</p>
                   <p className="text-2xl font-bold text-gray-900">{stats.total}</p>
                 </div>
-                <Users className="w-8 h-8 text-gray-400" />
-              </div>
-            </div>
-
-            <div className="bg-white rounded-lg border border-gray-200 p-3">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs text-gray-500">Open</p>
-                  <p className="text-2xl font-bold text-blue-600">{stats.open}</p>
-                </div>
-                <AlertCircle className="w-8 h-8 text-blue-400" />
+                <Users className="w-10 h-10 text-gray-400" />
               </div>
             </div>
 
@@ -368,7 +365,7 @@ export default function AgentDashboard() {
                   <p className="text-xs text-gray-500">In Progress</p>
                   <p className="text-2xl font-bold text-orange-600">{stats.assigned}</p>
                 </div>
-                <Clock className="w-8 h-8 text-orange-400" />
+                <Clock className="w-10 h-10 text-orange-400" />
               </div>
             </div>
 
@@ -378,7 +375,7 @@ export default function AgentDashboard() {
                   <p className="text-xs text-gray-500">Completed</p>
                   <p className="text-2xl font-bold text-green-600">{stats.completed}</p>
                 </div>
-                <CheckCircle className="w-8 h-8 text-green-400" />
+                <CheckCircle className="w-10 h-10 text-green-400" />
               </div>
             </div>
           </div>
@@ -388,7 +385,7 @@ export default function AgentDashboard() {
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <div className="flex flex-wrap items-center gap-2">
                 <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Status</span>
-                {['all', 'open', 'assigned', 'in_progress', 'completed'].map((status) => (
+                {['all', 'assigned', 'in_progress', 'completed'].map((status) => (
                   <button
                     key={status}
                     onClick={() => setFilterStatus(status)}
@@ -398,8 +395,7 @@ export default function AgentDashboard() {
                         : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
                     }`}
                   >
-                    {status.charAt(0).toUpperCase() + status.slice(1).replace('_', ' ')}
-                  </button>
+                    {status.charAt(0).toUpperCase() + status.slice(1).replace('_', ' ')}                    {status === 'completed' && ` (${stats.completed})`}                  </button>
                 ))}
               </div>
               <div className="flex flex-wrap items-center gap-2">
@@ -436,7 +432,7 @@ export default function AgentDashboard() {
               </div>
             ) : filteredRequests.length === 0 ? (
               <div className="text-center py-12">
-                <Users className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                <Users className="w-20 h-20 text-gray-300 mx-auto mb-4" />
                 <p className="text-gray-500 mb-2">No client requests found</p>
                 <p className="text-sm text-gray-400">
                   {filterStatus !== 'all' 
@@ -472,24 +468,24 @@ export default function AgentDashboard() {
 
                         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 md:gap-4 text-xs md:text-sm text-gray-600 mb-3">
                           <div className="flex items-center gap-2">
-                            <MapPin className="w-4 h-4" />
+                            <MapPin className="w-5 h-5" />
                             {request.location}
                           </div>
                           {request.budget_min && request.budget_max && (
                             <div className="flex items-center gap-2">
-                              <DollarSign className="w-4 h-4" />
+                              <DollarSign className="w-5 h-5" />
                               ${request.budget_min?.toLocaleString()} - ${request.budget_max?.toLocaleString()}
                             </div>
                           )}
                           {request.bedrooms && (
                             <div className="flex items-center gap-2">
-                              <Bed className="w-4 h-4" />
+                              <Bed className="w-5 h-5" />
                               {request.bedrooms} beds
                             </div>
                           )}
                           {request.bathrooms && (
                             <div className="flex items-center gap-2">
-                              <Bath className="w-4 h-4" />
+                              <Bath className="w-5 h-5" />
                               {request.bathrooms} baths
                             </div>
                           )}
@@ -502,19 +498,19 @@ export default function AgentDashboard() {
 
                         <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-xs md:text-sm text-gray-600">
                           <div className="flex items-center gap-1">
-                            <Users className="w-4 h-4 flex-shrink-0" />
+                            <Users className="w-5 h-5 flex-shrink-0" />
                             <span className="truncate">{request.client_name}</span>
                           </div>
                           <div className="flex items-center gap-1">
-                            <Mail className="w-4 h-4 flex-shrink-0" />
+                            <Mail className="w-5 h-5 flex-shrink-0" />
                             <span className="truncate">{request.client_email}</span>
                           </div>
                           <div className="flex items-center gap-1">
-                            <Phone className="w-4 h-4 flex-shrink-0" />
+                            <Phone className="w-5 h-5 flex-shrink-0" />
                             <span className="truncate">{request.client_phone}</span>
                           </div>
                             <div className="flex items-center gap-2">
-                            <Calendar className="w-4 h-4" />
+                            <Calendar className="w-5 h-5" />
                             {new Date(request.created_at).toLocaleDateString()}
                           </div>
                         </div>
@@ -535,7 +531,7 @@ export default function AgentDashboard() {
                               className="p-2 bg-gray-100 text-gray-600 rounded-lg hover:bg-accent hover:text-orange-700 transition disabled:opacity-50"
                               title="Mark as Complete"
                             >
-                              <CheckCircle className="w-4 h-4" />
+                              <CheckCircle className="w-5 h-5" />
                             </button>
                             <button
                               onClick={() => handleRequestAction(request.id, 'release')}
@@ -543,7 +539,7 @@ export default function AgentDashboard() {
                               className="p-2 bg-gray-100 text-gray-600 rounded-lg hover:bg-accent hover:text-orange-700 transition disabled:opacity-50"
                               title="Release to Next Agent"
                             >
-                              <RotateCcw className="w-4 h-4" />
+                              <RotateCcw className="w-5 h-5" />
                             </button>
                             <button
                               onClick={() => {
@@ -554,7 +550,7 @@ export default function AgentDashboard() {
                               className="p-2 bg-gray-100 text-gray-600 rounded-lg hover:bg-accent hover:text-orange-700 transition disabled:opacity-50"
                               title="Add Comment"
                             >
-                              <MessageCircle className="w-4 h-4" />
+                              <MessageCircle className="w-5 h-5" />
                             </button>
                             <button
                               onClick={() => handleRequestAction(request.id, 'contacted')}
@@ -563,10 +559,10 @@ export default function AgentDashboard() {
                                 request.is_contacted
                                   ? 'bg-gray-100 text-gray-600 hover:bg-accent hover:text-orange-700'
                                   : 'bg-gray-100 text-gray-600 hover:bg-accent hover:text-orange-700'
-                              }`}
+              }`}
                               title={request.is_contacted ? 'Contacted' : 'Not contacted'}
                             >
-                              <PhoneIcon className="w-4 h-4" />
+                              <PhoneIcon className="w-5 h-5" />
                             </button>
                           </div>
                         )}
@@ -656,7 +652,7 @@ export default function AgentDashboard() {
                       disabled={actionLoading}
                       className="flex-1 min-w-[100px] px-4 py-2 bg-accent text-white rounded-lg hover:bg-[var(--accent-color-hover)] disabled:opacity-50 flex items-center justify-center gap-2"
                     >
-                      <CheckCircle className="w-3 h-3" />
+                      <CheckCircle className="w-4 h-4" />
                       Complete
                     </button>
                     <button
@@ -664,7 +660,7 @@ export default function AgentDashboard() {
                       disabled={actionLoading}
                       className="flex-1 min-w-[100px] px-4 py-2 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 disabled:opacity-50 flex items-center justify-center gap-2"
                     >
-                      <RotateCcw className="w-3 h-3" />
+                      <RotateCcw className="w-4 h-4" />
                       Release
                     </button>
                     <button
@@ -672,7 +668,7 @@ export default function AgentDashboard() {
                       disabled={actionLoading}
                       className="flex-1 min-w-[100px] px-4 py-2 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 disabled:opacity-50 flex items-center justify-center gap-2"
                     >
-                      <MessageCircle className="w-3 h-3" />
+                      <MessageCircle className="w-4 h-4" />
                       Comment
                     </button>
                     <button
@@ -680,7 +676,7 @@ export default function AgentDashboard() {
                       disabled={actionLoading}
                       className="flex-1 min-w-[100px] px-4 py-2 rounded-lg flex items-center justify-center gap-2 transition disabled:opacity-50 bg-gray-100 text-gray-600 hover:bg-gray-200"
                     >
-                      <PhoneIcon className="w-3 h-3" />
+                      <PhoneIcon className="w-4 h-4" />
                       {selectedRequest.is_contacted ? 'contacted' : 'not contacted'}
                     </button>
                   </>
@@ -708,6 +704,7 @@ export default function AgentDashboard() {
                   onClick={() => {
                     setShowCommentModal(false);
                     setCommentText('');
+                    setSelectedRequest(null);
                   }}
                   className="text-gray-400 hover:text-gray-600"
                 >
@@ -766,6 +763,7 @@ export default function AgentDashboard() {
                   onClick={() => {
                     setShowCommentModal(false);
                     setCommentText('');
+                    setSelectedRequest(null);
                   }}
                   className="flex-1 px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 font-medium"
                 >

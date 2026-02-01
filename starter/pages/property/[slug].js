@@ -535,21 +535,6 @@ export default function PropertyPage({ property, similarProperties, isVerifiedAg
           {/* Sidebar: Contact Info */}
           <div>
             <div className="bg-white rounded-xl  p-6 relative top-4">
-              {isOwner && !property.is_featured ? (
-                <div className="mb-6">
-                  <h3 className="text-xl font-bold mb-4">Boost Your Property</h3>
-                  <p className="text-gray-600 mb-4 text-sm">Get more visibility by featuring this property on the homepage banner!</p>
-                  <Link
-                    href="/properties/boost-property"
-                    className="block w-full btn-primary"
-                  >
-                    <Zap className="inline w-5 h-5 mr-2" />
-                    Boost This Property
-                  </Link>
-                  <p className="text-xs text-gray-500 mt-2 text-center">Featured on rotating banner for 10 days</p>
-                  <div className="border-t mt-6 pt-6"></div>
-                </div>
-              ) : null}
               
               <h3 className="text-xl font-bold mb-4">{isVerifiedAgent ? 'Contact Agent' : 'Contact Landlord'}</h3>
               
