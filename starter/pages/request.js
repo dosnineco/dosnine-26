@@ -51,6 +51,18 @@ export default function RequestAgentPage() {
       return;
     }
 
+    // Prevent low-quality rental leads below JMD 70,000
+    if (formData.requestType === 'rent' && formData.budgetMin && parseInt(formData.budgetMin) < 70000) {
+      toast.error('⚠️ Minimum rental budget is JMD 70,000\n\nTo maintain quality service, we focus on rentals above this threshold.');
+      return;
+    }
+
+    // Prevent low-quality buy leads below JMD 4,000,000
+    if (formData.requestType === 'buy' && formData.budgetMin && parseInt(formData.budgetMin) < 4000000) {
+      toast.error('⚠️ Minimum buy budget is JMD 4,000,000\n\nTo maintain quality service, we focus on properties above this threshold.');
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -374,6 +386,46 @@ export default function RequestAgentPage() {
                 <p className="text-sm text-gray-600">Optional - Help agents find better matches for you</p>
                 <p className="text-xs text-orange-600 font-semibold mt-1">You can skip this step if you prefer</p>
               </div>
+
+              {/* Low Budget Warning for Rentals */}
+              {formData.requestType === 'rent' && formData.budgetMin && parseInt(formData.budgetMin) < 70000 && (
+                <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded">
+                  <p className="text-sm font-medium text-yellow-800">⚠️ Budget Below Minimum</p>
+                  <p className="text-xs text-yellow-700 mt-1">
+                    Minimum rental budget is <strong>JMD 70,000</strong> to ensure quality service and verified property matches.
+                  </p>
+                </div>
+              )}
+
+              {/* Low Budget Warning for Buy */}
+              {formData.requestType === 'buy' && formData.budgetMin && parseInt(formData.budgetMin) < 4000000 && (
+                <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded">
+                  <p className="text-sm font-medium text-yellow-800">⚠️ Budget Below Minimum</p>
+                  <p className="text-xs text-yellow-700 mt-1">
+                    Minimum buy budget is <strong>JMD 4,000,000</strong> to ensure quality service and verified property matches.
+                  </p>
+                </div>
+              )}
+
+              {/* Minimum Budget Notice for Rentals */}
+              {formData.requestType === 'rent' && formData.budgetMin && parseInt(formData.budgetMin) === 70000 && (
+                <div className="bg-blue-50 border-l-4 border-blue-400 p-4 rounded">
+                  <p className="text-sm font-medium text-blue-800">ℹ️ Minimum Budget for Property Alerts</p>
+                  <p className="text-xs text-blue-700 mt-1">
+                    <strong>JMD 70,000</strong> is the minimum for rental property alerts. We don't have verified listings below this amount.
+                  </p>
+                </div>
+              )}
+
+              {/* Minimum Budget Notice for Buy */}
+              {formData.requestType === 'buy' && formData.budgetMin && parseInt(formData.budgetMin) === 4000000 && (
+                <div className="bg-blue-50 border-l-4 border-blue-400 p-4 rounded">
+                  <p className="text-sm font-medium text-blue-800">ℹ️ Minimum Budget for Property Alerts</p>
+                  <p className="text-xs text-blue-700 mt-1">
+                    <strong>JMD 4,000,000</strong> is the minimum for buy property alerts. We don't have verified listings below this amount.
+                  </p>
+                </div>
+              )}
             
               <div className="grid grid-cols-2 gap-4">
                 <div>

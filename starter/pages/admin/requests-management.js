@@ -405,6 +405,37 @@ export default function RequestsManagementPage() {
     }
   };
 
+  const bulkRemoveComments = async () => {
+    if (!window.confirm(`Remove comments from ${selectedRequests.size} requests?`)) {
+      return;
+    }
+
+    setBulkActionLoading(true);
+    try {
+      const updates = Array.from(selectedRequests).map(id => ({
+        id,
+        comment: null,
+        updated_at: new Date().toISOString()
+      }));
+
+      for (const update of updates) {
+        await supabase
+          .from('service_requests')
+          .update(update)
+          .eq('id', update.id);
+      }
+
+      toast.success(`Removed comments from ${updates.length} requests`);
+      setSelectedRequests(new Set());
+      fetchRequests();
+    } catch (err) {
+      console.error('Error removing comments:', err);
+      toast.error('Failed to remove comments');
+    } finally {
+      setBulkActionLoading(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -579,6 +610,14 @@ export default function RequestsManagementPage() {
                     className="px-4 py-2 bg-slate-600 text-white text-sm font-medium rounded-lg hover:bg-slate-700 disabled:opacity-50"
                   >
                     Mark Uncontacted
+                  </button>
+
+                  <button
+                    onClick={bulkRemoveComments}
+                    disabled={bulkActionLoading}
+                    className="px-4 py-2 bg-orange-600 text-white text-sm font-medium rounded-lg hover:bg-orange-700 disabled:opacity-50"
+                  >
+                    Remove Comments
                   </button>
 
                   <button
