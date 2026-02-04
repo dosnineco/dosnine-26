@@ -220,18 +220,13 @@ export default function AdminAgents() {
         expiryDate = new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000);
       }
 
-      const premiumParishes = ['kingston', 'st. andrew', 'st andrew', 'st. catherine', 'st catherine'];
-      const serviceAreas = agent.service_areas?.toLowerCase() || '';
-      const hasPremiumParish = premiumParishes.some(parish => serviceAreas.includes(parish));
-
       let paymentAmount = null;
       if (plan === '7-day') {
-        paymentAmount = hasPremiumParish ? 4500 : 3500;
+        paymentAmount = 1500;
       } else if (plan === '30-day') {
-        paymentAmount = hasPremiumParish ? 12000 : 10000;
+        paymentAmount = 6000;
       } else if (plan === '90-day') {
-        // Always J$25,000 for 90-day plan
-        paymentAmount = 25000;
+        paymentAmount = 15000;
       }
 
       const updateData = {
@@ -248,7 +243,7 @@ export default function AdminAgents() {
 
       if (error) throw error;
 
-      toast.success(`Access plan set to ${plan}${hasPremiumParish ? ' (Premium Parish)' : ''}`);
+      toast.success(`Access plan set to ${plan}`);
       fetchAgents();
     } catch (error) {
       toast.error(error.message || 'Failed to set access plan');

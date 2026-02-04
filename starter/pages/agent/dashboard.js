@@ -13,7 +13,7 @@ import { supabase } from '../../lib/supabase';
 import { 
   Home, Users, Mail, Phone, MapPin, DollarSign, 
   Bed, Bath, Calendar, Filter, CheckCircle, XCircle,
-  AlertCircle, Clock, Plus, RotateCcw, Trash2, BellDot, MessageCircle, Phone as PhoneIcon, CreditCard, Info
+  AlertCircle, Clock, Plus, RotateCcw, Trash2, BellDot, MessageCircle, Phone as PhoneIcon, CreditCard, Info, MessageSquare
 } from 'lucide-react';
 
 export default function AgentDashboard() {
@@ -240,6 +240,33 @@ export default function AgentDashboard() {
     return statusMatch && urgencyMatch;
   });
 
+  // Helper to check if request is newly assigned to agent today
+  const isNewAssignment = (assignedDate) => {
+    if (!assignedDate) return false;
+    const now = new Date();
+    const assigned = new Date(assignedDate);
+    
+    // Check if assigned today (within last 24 hours)
+    const diffInHours = (now - assigned) / (1000 * 60 * 60);
+    return diffInHours <= 24;
+  };
+
+  // Helper to format relative time
+  const getRelativeTime = (date) => {
+    if (!date) return '';
+    const now = new Date();
+    const diffInMs = now - new Date(date);
+    const diffInMinutes = Math.floor(diffInMs / 60000);
+    const diffInHours = Math.floor(diffInMs / 3600000);
+    const diffInDays = Math.floor(diffInMs / 86400000);
+
+    if (diffInMinutes < 1) return 'just now';
+    if (diffInMinutes < 60) return `${diffInMinutes}m ago`;
+    if (diffInHours < 24) return `${diffInHours}h ago`;
+    if (diffInDays < 7) return `${diffInDays}d ago`;
+    return new Date(date).toLocaleDateString();
+  };
+
   return (
     <>
       <Head>
@@ -442,8 +469,17 @@ export default function AgentDashboard() {
               </div>
             ) : (
               <div className="divide-y divide-gray-200">
-                {filteredRequests.map((request) => (
-                  <div key={request.id} className="p-4 md:p-6 hover:bg-gray-50">
+                {filteredRequests.map((request) => {
+                  const isNew = isNewAssignment(request.assigned_at);
+                  return (
+                  <div key={request.id} className={`p-4 md:p-6 hover:bg-gray-50 relative`}>
+                    {isNew && (
+                      <div className="absolute bottom-0 right-0 z-10">
+                        <span className="inline-flex items-center  p-1 text-xs font-semibold bg-green-100 text-green-600">
+                          NEWLY ASSIGNED
+                        </span>
+                      </div>
+                    )}
                     <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
                       <div className="flex-1">
                         <div className="flex flex-wrap items-center gap-2 mb-3">
@@ -514,6 +550,36 @@ export default function AgentDashboard() {
                             {new Date(request.created_at).toLocaleDateString()}
                           </div>
                         </div>
+
+                        {/* Comments Section */}
+                        {request.comment && (
+                          <div className="mt-4 flex items-center justify-between gap-4 py-3 px-4 bg-gray-50 rounded-lg border border-gray-200">
+                            <div className="flex items-center gap-3 flex-1">
+                              <span className="text-sm font-semibold text-gray-700">Comments:</span>
+                              <p className="text-sm text-gray-700 flex-1">
+                                {request.comment}
+                                <span className="text-gray-500"> — {agentData?.name || 'Agent'}</span>
+                                {request.comment_updated_at && (
+                                  <span className="text-gray-400"> / {getRelativeTime(request.comment_updated_at)}</span>
+                                )}
+                              </p>
+                            </div>
+                            <div className="flex items-center gap-3 flex-shrink-0">
+                              <button
+                                onClick={() => {
+                                  setSelectedRequest(request);
+                                  setShowCommentModal(true);
+                                }}
+                                className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-700 bg-white hover:bg-gray-100 rounded-md border border-gray-300 transition font-medium"
+                                title="View Comments"
+                              >
+                                <MessageSquare className="w-4 h-4" />
+                                <span>See Comments </span>
+                              </button>
+                           
+                            </div>
+                          </div>
+                        )}
                       </div>
 
                       <div className="flex md:flex-col gap-2 w-full md:w-auto md:ml-4">
@@ -569,7 +635,8 @@ export default function AgentDashboard() {
                       </div>
                     </div>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
@@ -683,8 +750,9 @@ export default function AgentDashboard() {
                 )}
                 <button
                   onClick={() => setSelectedRequest(null)}
-                  className="flex-1 min-w-[100px] px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300"
+                  className="flex-1 min-w-[100px] px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 flex items-center justify-center gap-2"
                 >
+                  <XCircle className="w-4 h-4" />
                   Close
                 </button>
               </div>
