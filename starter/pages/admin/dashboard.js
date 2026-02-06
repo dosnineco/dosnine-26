@@ -245,6 +245,13 @@ export default function AdminDashboard() {
             </span>
           )}
         </Link>
+        <Link
+          href="/admin/course"
+          className="px-3 py-2 rounded-md text-sm font-medium flex items-center gap-1.5 whitespace-nowrap text-gray-700 hover:bg-gray-100"
+        >
+          <FiDollarSign size={14} />
+          Course
+        </Link>
          
       </div>
 
