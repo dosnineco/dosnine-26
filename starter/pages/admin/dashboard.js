@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useUser } from '@clerk/nextjs';
 import { supabase } from '../../lib/supabase';
 import toast from 'react-hot-toast';
-import { FiStar, FiTrash2, FiEye, FiGrid, FiUsers, FiZap, FiDollarSign, FiClock, FiTrendingUp, FiMail } from 'react-icons/fi';
+import { FiStar, FiTrash2, FiEye, FiGrid, FiUsers, FiZap, FiDollarSign, FiClock, FiTrendingUp, FiMail, FiPackage } from 'react-icons/fi';
 import { formatJMD, formatMoney } from '../../lib/formatMoney';
 
 export default function AdminDashboard() {
@@ -217,6 +217,13 @@ export default function AdminDashboard() {
         >
           <FiTrendingUp size={14} />
           Feedback
+        </Link>
+        <Link
+          href="/admin/htv"
+          className="px-3 py-2 rounded-md text-sm font-medium flex items-center gap-1.5 whitespace-nowrap text-gray-700 hover:bg-gray-100"
+        >
+          <FiPackage size={14} />
+          HTV Orders
         </Link>
       
         <Link

@@ -33,11 +33,12 @@ const PUBLIC_ROUTES = [
   '/about',
   '/requests-marketplace',
   '/listing',
-  '/course'
+  '/course',
+  '/logo'
 ];
 
 // Pages that should not have header/footer
-const NO_LAYOUT_PAGES = ['/advertise', '/ads/[id]', '/ads/request-agent', '/course'];
+const NO_LAYOUT_PAGES = ['/advertise', '/ads/[id]', '/ads/request-agent', '/course', '/logo'];
 
 // Helper function to check if a route is public (fixes pathname collision issue)
 const isPublicRoute = (pathname) => {
