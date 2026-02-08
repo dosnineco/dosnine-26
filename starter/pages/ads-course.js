@@ -214,9 +214,9 @@ export default function AdsCourse() {
           {/* Hero Section */}
           <div className="text-center h-screen flex flex-col items-center justify-center">
             <div className="mb-8 px-4">
-              <h1 className="text-lg font-bold">
-                <span className="block text-4xl text-accent">Get More</span>
-                <span className="block text-4xl bg-gradient-to-r from-orange-500 via-yellow-500 to-orange-400 bg-clip-text text-transparent">Customers</span>
+              <h1 className="text-6xl lg:text-7xl font-bold">
+                <span className="block sm:7xl lg:text-9xl text-accent">Get More</span>
+                <span className="block text-7xl bg-gradient-to-r from-orange-500 via-yellow-500 to-orange-400 bg-clip-text text-transparent">Customers</span>
                 <span className="block text-4xl text-gray-800">Using Instagram.</span>
               </h1>
             </div>
