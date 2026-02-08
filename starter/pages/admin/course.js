@@ -11,7 +11,8 @@ export default function AdminCourseSignups() {
   const [signups, setSignups] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
-  const [stats, setStats] = useState({ total: 0, paid: 0, pending: 0, revenue: 0, potentialRevenue: 0, totalPotential: 0 });
+  const [stats, setStats] = useState({ total: 0, paid: 0, pending: 0, revenue: 0, potentialRevenue: 0, totalPotential: 0, adsCourse: 0 });
+  const [filterCourse, setFilterCourse] = useState('all'); // 'all', 'ads', 'original'
 
   useEffect(() => {
     checkAdminAccess();
@@ -82,13 +83,14 @@ export default function AdminCourseSignups() {
 
       // Calculate stats
       const total = data?.length || 0;
+      const adsCourse = data?.filter(s => s.price_choice?.includes('Instagram/Facebook Ads')).length || 0;
       const paid = data?.filter(s => s.payment_confirmed).length || 0;
       const pending = total - paid;
       const revenue = data?.filter(s => s.payment_confirmed).reduce((sum, s) => sum + (s.discounted_amount || 0), 0) || 0;
       const potentialRevenue = data?.filter(s => !s.payment_confirmed).reduce((sum, s) => sum + (s.discounted_amount || 0), 0) || 0;
       const totalPotential = revenue + potentialRevenue;
       
-      setStats({ total, paid, pending, revenue, potentialRevenue, totalPotential });
+      setStats({ total, paid, pending, revenue, potentialRevenue, totalPotential, adsCourse });
       
       if (total === 0) {
         console.warn('⚠️ No signups found in database');
@@ -178,18 +180,29 @@ export default function AdminCourseSignups() {
               <FiArrowLeft />
               Back to Dashboard
             </Link>
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <div>
                 <h1 className="text-3xl font-bold text-gray-900">Course Signups</h1>
                 <p className="mt-2 text-sm text-gray-600">Manage and track all course preorders</p>
               </div>
-              <button
-                onClick={exportCSV}
-                className="mt-4 sm:mt-0 inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700"
-              >
-                <FiDownload />
-                Export CSV
-              </button>
+              <div className="flex flex-col sm:flex-row gap-3">
+                <select
+                  value={filterCourse}
+                  onChange={(e) => setFilterCourse(e.target.value)}
+                  className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                >
+                  <option value="all">All Courses</option>
+                  <option value="ads">Instagram/Facebook Ads</option>
+                  <option value="original">Original Course</option>
+                </select>
+                <button
+                  onClick={exportCSV}
+                  className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700"
+                >
+                  <FiDownload />
+                  Export CSV
+                </button>
+              </div>
             </div>
           </div>
 
@@ -198,10 +211,14 @@ export default function AdminCourseSignups() {
             <h2 className="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-2">
               📊 Course Signups Summary
             </h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
                 <p className="text-sm text-gray-600 mb-1">Total Signups</p>
                 <p className="text-3xl font-bold text-gray-900">{stats.total}</p>
+              </div>
+              <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
+                <p className="text-sm text-gray-600 mb-1">📱 Ads Course (FREE)</p>
+                <p className="text-3xl font-bold text-blue-600">{stats.adsCourse}</p>
               </div>
               <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
                 <p className="text-sm text-gray-600 mb-1">✅ Paid</p>
@@ -242,7 +259,16 @@ export default function AdminCourseSignups() {
                 </div>
               </div>
               <div className="space-y-3">
-                {signups.filter(s => !s.payment_confirmed).map((signup, index) => (
+                {signups
+                  .filter(s => !s.payment_confirmed)
+                  .filter(s => {
+                    if (filterCourse === 'all') return true;
+                    const isAdsCourse = s.price_choice?.includes('Instagram/Facebook Ads');
+                    return filterCourse === 'ads' ? isAdsCourse : !isAdsCourse;
+                  })
+                  .map((signup, index) => {
+                    const isAdsCourse = signup.price_choice?.includes('Instagram/Facebook Ads');
+                    return (
                   <div key={signup.id} className="bg-white rounded-lg p-4 border border-amber-200 hover:border-amber-400 transition-colors">
                     <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
                       <div className="flex-1 min-w-0">
@@ -251,6 +277,11 @@ export default function AdminCourseSignups() {
                             {index + 1}
                           </span>
                           <span className="font-semibold text-gray-900 truncate">{signup.name}</span>
+                          {isAdsCourse && (
+                            <span className="text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full font-medium">
+                              📱 Ads Course
+                            </span>
+                          )}
                           <span className="text-xs text-gray-500 flex-shrink-0">
                             {new Date(signup.created_at).toLocaleDateString()}
                           </span>
@@ -289,7 +320,8 @@ export default function AdminCourseSignups() {
                       </div>
                     </div>
                   </div>
-                ))}
+                    );
+                  })}
               </div>
             </div>
           )}
@@ -318,6 +350,7 @@ export default function AdminCourseSignups() {
                     <tr>
                       <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Date</th>
                       <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Name</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Course</th>
                       <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Contact</th>
                       <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Amount</th>
                       <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Buy Now</th>
@@ -326,7 +359,15 @@ export default function AdminCourseSignups() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200 bg-white">
-                    {signups.map((signup) => (
+                    {signups
+                      .filter(signup => {
+                        if (filterCourse === 'all') return true;
+                        const isAdsCourse = signup.price_choice?.includes('Instagram/Facebook Ads');
+                        return filterCourse === 'ads' ? isAdsCourse : !isAdsCourse;
+                      })
+                      .map((signup) => {
+                        const isAdsCourse = signup.price_choice?.includes('Instagram/Facebook Ads');
+                        return (
                       <tr 
                         key={signup.id} 
                         className={`hover:bg-gray-50 transition-colors ${
@@ -351,6 +392,17 @@ export default function AdminCourseSignups() {
                               </span>
                             )}
                           </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          {isAdsCourse ? (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2 py-1 text-xs font-semibold text-blue-800">
+                              📱 Ads Course (FREE)
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-purple-100 px-2 py-1 text-xs font-semibold text-purple-800">
+                              📚 Original Course
+                            </span>
+                          )}
                         </td>
                         <td className="px-6 py-4">
                           <div className="space-y-1">
@@ -415,7 +467,8 @@ export default function AdminCourseSignups() {
                           </button>
                         </td>
                       </tr>
-                    ))}
+                        );
+                      })}
                   </tbody>
                 </table>
               )}
