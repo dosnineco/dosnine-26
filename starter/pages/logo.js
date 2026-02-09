@@ -20,9 +20,9 @@ const DELIVERY = {
 }
 
 const BULK_DISCOUNTS = [
-  { min: 10, max: 19, discount: 0.10, label: '10-19 logos → 10% off' },
-  { min: 20, max: 49, discount: 0.15, label: '20-49 logos → 15% off' },
-  { min: 50, max: Infinity, discount: 0.20, label: '50+ logos → 20% off' }
+  { min: 10, max: 19, discount: 0.05, label: '10-19 logos → 5% off' },
+  { min: 20, max: 49, discount: 0.10, label: '20-49 logos → 10% off' },
+  { min: 50, max: Infinity, discount: 0.15, label: '50+ logos → 15% off' }
 ]
 
 export default function LogoCutting() {
@@ -33,7 +33,7 @@ export default function LogoCutting() {
     email: '',
     size: 'medium',
     color: 'black',
-    quantity: 4,
+    quantity: 6,
     deliveryArea: 'halfWayTree',
     rush: false,
     logoFile: null
@@ -408,9 +408,469 @@ export default function LogoCutting() {
             </div>
           </div>
 
-         
+          {/* Before & After Gallery */}
+          <div className="mt-20">
+            <h2 className="mb-4 text-center text-3xl font-black text-black sm:text-4xl">See The Transformation</h2>
+            <p className="mx-auto mb-10 max-w-2xl text-center text-base sm:text-lg text-gray-700">
+              Real customer logos we've converted from complex designs to clean, press-ready HTV cuts
+            </p>
 
-        
+            <div className="grid gap-4 sm:gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+              {/* Example 1: Wata Pon Dryland */}
+              <div className="rounded-2xl bg-gray-100 p-4 sm:p-6">
+                <div className="mb-3 flex items-center justify-between">
+                  <span className="text-xs font-medium text-gray-500">3D Effects</span>
+                </div>
+                <div className="aspect-square rounded-xl bg-gradient-to-br from-blue-500 to-blue-700 p-4 flex items-center justify-center overflow-hidden relative">
+                  <img 
+                    src="/logos/wata-pon-before.jpg" 
+                    alt="Wata Pon Dryland 3D logo" 
+                    className="absolute inset-0 w-full h-full object-contain z-10" 
+                    onLoad={(e) => { e.target.nextSibling.style.display = 'none'; }}
+                    onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }} 
+                  />
+                  <div className="absolute inset-0 flex items-center justify-center text-center p-4">
+                    <div className="text-white">
+                      <div className="text-2xl font-black mb-2">WATA PON</div>
+                      <div className="text-sm opacity-90">🏖️ 3D + Gradients + Colors</div>
+                    </div>
+                  </div>
+                </div>
+                <div className="mt-4 text-xs text-gray-600">3D effects, gradients, multiple colors — not HTV ready</div>
+              </div>
+
+              <div className="rounded-2xl bg-gray-100 p-4 sm:p-6">
+                <div className="mb-3 flex items-center justify-between">
+                  <span className="text-xs font-medium text-gray-500">Single Layer</span>
+                </div>
+                <div className="aspect-square rounded-xl bg-gray-900 p-4 flex items-center justify-center overflow-hidden relative">
+                  <img 
+                    src="/logos/wata-pon-after.jpg" 
+                    alt="Wata Pon cut in Cricut" 
+                    className="absolute inset-0 w-full h-full object-contain z-10" 
+                    onLoad={(e) => { e.target.nextSibling.style.display = 'none'; }}
+                    onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }} 
+                  />
+                  <div className="absolute inset-0 flex items-center justify-center text-center p-4">
+                    <div className="text-white">
+                      <div className="text-2xl font-black mb-2">✂️</div>
+                      <div className="text-sm">Single Layer Cut</div>
+                      <div className="text-xs opacity-70 mt-1">In Cricut</div>
+                    </div>
+                  </div>
+                </div>
+                <div className="mt-4 text-xs text-gray-600">Flat, single-color, perfect for HTV cutting → Press ready!</div>
+              </div>
+
+              {/* Example 2: T&M Air Conditioning */}
+              <div className="rounded-2xl bg-gray-100 p-4 sm:p-6">
+                <div className="mb-3 flex items-center justify-between">
+                  <span className="text-xs font-medium text-gray-500">Multi-Color</span>
+                </div>
+                <div className="aspect-square rounded-xl bg-gradient-to-br from-blue-400 via-yellow-300 to-blue-500 p-4 flex items-center justify-center overflow-hidden relative">
+                  <img 
+                    src="/logos/tm-before.jpg" 
+                    alt="T&M Air Conditioning colored logo" 
+                    className="absolute inset-0 w-full h-full object-contain z-10" 
+                    onLoad={(e) => { e.target.nextSibling.style.display = 'none'; }}
+                    onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }} 
+                  />
+                  <div className="absolute inset-0 flex items-center justify-center text-center p-4">
+                    <div className="text-white">
+                      <div className="text-2xl font-black mb-2">T&M</div>
+                      <div className="text-sm opacity-90">❄️ Blue + Yellow Logo</div>
+                    </div>
+                  </div>
+                </div>
+                <div className="mt-4 text-xs text-gray-600">Multiple colors, gradient effects — needs conversion</div>
+              </div>
+
+              <div className="rounded-2xl bg-gray-100 p-4 sm:p-6">
+                <div className="mb-3 flex items-center justify-between">
+                  <span className="text-xs font-medium text-gray-500">White Vinyl</span>
+                </div>
+                <div className="aspect-square rounded-xl bg-gray-900 p-4 flex items-center justify-center overflow-hidden relative">
+                  <img 
+                    src="/logos/tm-after.jpg" 
+                    alt="T&M white vinyl cut" 
+                    className="absolute inset-0 w-full h-full object-contain z-10" 
+                    onLoad={(e) => { e.target.nextSibling.style.display = 'none'; }}
+                    onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }} 
+                  />
+                  <div className="absolute inset-0 flex items-center justify-center text-center p-4">
+                    <div className="text-white">
+                      <div className="text-2xl font-black mb-2">⚪</div>
+                      <div className="text-sm">White Vinyl</div>
+                      <div className="text-xs opacity-70 mt-1">On Dark Surface</div>
+                    </div>
+                  </div>
+                </div>
+                <div className="mt-4 text-xs text-gray-600">Single white vinyl → Clean, professional, ready to press</div>
+              </div>
+
+              {/* Example 3: Skinz & Tattooz */}
+              <div className="rounded-2xl bg-gray-100 p-4 sm:p-6">
+                <div className="mb-3 flex items-center justify-between">
+                  <span className="text-xs font-medium text-gray-500">Complex</span>
+                </div>
+                <div className="aspect-square rounded-xl bg-gradient-to-br from-purple-500 via-pink-500 to-purple-600 p-4 flex items-center justify-center overflow-hidden relative">
+                  <img 
+                    src="/logos/skinz-before.jpg" 
+                    alt="Skinz & Tattooz colored logo" 
+                    className="absolute inset-0 w-full h-full object-contain z-10" 
+                    onLoad={(e) => { e.target.nextSibling.style.display = 'none'; }}
+                    onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }} 
+                  />
+                  <div className="absolute inset-0 flex items-center justify-center text-center p-4">
+                    <div className="text-white">
+                      <div className="text-2xl font-black mb-2">SKINZ</div>
+                      <div className="text-sm opacity-90">💜 Pink + Gold + Patterns</div>
+                    </div>
+                  </div>
+                </div>
+                <div className="mt-4 text-xs text-gray-600">Gradients, background patterns — too complex for HTV</div>
+              </div>
+
+              <div className="rounded-2xl bg-gray-100 p-4 sm:p-6">
+                <div className="mb-3 flex items-center justify-between">
+                  <span className="text-xs font-medium text-gray-500">Clean Outline</span>
+                </div>
+                <div className="aspect-square rounded-xl bg-white p-4 flex items-center justify-center overflow-hidden relative border-2 border-gray-200">
+                  <img 
+                    src="/logos/skinz-after.jpg" 
+                    alt="Skinz & Tattooz black outline" 
+                    className="absolute inset-0 w-full h-full object-contain z-10" 
+                    onLoad={(e) => { e.target.nextSibling.style.display = 'none'; }}
+                    onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }} 
+                  />
+                  <div className="absolute inset-0 flex items-center justify-center text-center p-4">
+                    <div className="text-black">
+                      <div className="text-2xl font-black mb-2">⚫</div>
+                      <div className="text-sm">Black Outline</div>
+                      <div className="text-xs opacity-70 mt-1">Clean & Sharp</div>
+                    </div>
+                  </div>
+                </div>
+                <div className="mt-4 text-xs text-gray-600">Clean outline, perfect for caps, shirts, bags → Sharp!</div>
+              </div>
+
+              {/* Example 4: e.a Big Deal */}
+              <div className="rounded-2xl bg-gray-100 p-4 sm:p-6">
+                <div className="mb-3 flex items-center justify-between">
+                  <span className="text-xs font-medium text-gray-500">Two Colors</span>
+                </div>
+                <div className="aspect-square rounded-xl bg-gradient-to-br from-blue-600 to-black p-4 flex items-center justify-center overflow-hidden relative">
+                  <img 
+                    src="/logos/ea-before.jpg" 
+                    alt="e.a Big Deal two-color logo" 
+                    className="absolute inset-0 w-full h-full object-contain z-10" 
+                    onLoad={(e) => { e.target.nextSibling.style.display = 'none'; }}
+                    onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }} 
+                  />
+                  <div className="absolute inset-0 flex items-center justify-center text-center p-4">
+                    <div className="text-white">
+                      <div className="text-2xl font-black mb-2">e.a Big Deal</div>
+                      <div className="text-sm opacity-90">🚗 Blue + Black</div>
+                    </div>
+                  </div>
+                </div>
+                <div className="mt-4 text-xs text-gray-600">Two-color design — needs simplification</div>
+              </div>
+
+              <div className="rounded-2xl bg-gray-100 p-4 sm:p-6">
+                <div className="mb-3 flex items-center justify-between">
+                  <span className="text-xs font-medium text-gray-500">Black Only</span>
+                </div>
+                <div className="aspect-square rounded-xl bg-gray-200 p-4 flex items-center justify-center overflow-hidden relative">
+                  <img 
+                    src="/logos/ea-after.jpg" 
+                    alt="e.a Big Deal on white cap" 
+                    className="absolute inset-0 w-full h-full object-contain z-10" 
+                    onLoad={(e) => { e.target.nextSibling.style.display = 'none'; }}
+                    onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }} 
+                  />
+                  <div className="absolute inset-0 flex items-center justify-center text-center p-4">
+                    <div className="text-black">
+                      <div className="text-2xl font-black mb-2">🧢</div>
+                      <div className="text-sm">On White Cap</div>
+                      <div className="text-xs opacity-70 mt-1">Perfect Result</div>
+                    </div>
+                  </div>
+                </div>
+                <div className="mt-4 text-xs text-gray-600">Single color, looks pro on caps, shirts, uniforms!</div>
+              </div>
+
+              {/* Example 5: WLP */}
+              <div className="rounded-2xl bg-gray-100 p-4 sm:p-6">
+                <div className="mb-3 flex items-center justify-between">
+                  <span className="text-xs font-medium text-gray-500">Complex</span>
+                </div>
+                <div className="aspect-square rounded-xl bg-gradient-to-br from-red-500 to-black p-4 flex items-center justify-center overflow-hidden relative">
+                  <img 
+                    src="/logos/wlp-before.jpg" 
+                    alt="WLP two-color logo" 
+                    className="absolute inset-0 w-full h-full object-contain z-10" 
+                    onLoad={(e) => { e.target.nextSibling.style.display = 'none'; }}
+                    onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }} 
+                  />
+                  <div className="absolute inset-0 flex items-center justify-center text-center p-4">
+                    <div className="text-white">
+                      <div className="text-2xl font-black mb-2">WLP</div>
+                      <div className="text-sm opacity-90">❌ Red + Black Layers</div>
+                    </div>
+                  </div>
+                </div>
+                <div className="mt-4 text-xs text-gray-600">Two-color logo with complex layering effect</div>
+              </div>
+
+              <div className="rounded-2xl bg-gray-100 p-4 sm:p-6">
+                <div className="mb-3 flex items-center justify-between">
+                  <span className="text-xs font-medium text-gray-500">Single Layer</span>
+                </div>
+                <div className="aspect-square rounded-xl bg-white p-4 flex items-center justify-center overflow-hidden relative border-2 border-gray-200">
+                  <img 
+                    src="/logos/wlp-after.jpg" 
+                    alt="WLP single-color cut" 
+                    className="absolute inset-0 w-full h-full object-contain z-10" 
+                    onLoad={(e) => { e.target.nextSibling.style.display = 'none'; }}
+                    onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }} 
+                  />
+                  <div className="absolute inset-0 flex items-center justify-center text-center p-4">
+                    <div className="text-black">
+                      <div className="text-2xl font-black mb-2">🖥️</div>
+                      <div className="text-sm">Single Layer</div>
+                      <div className="text-xs opacity-70 mt-1">Cricut Ready</div>
+                    </div>
+                  </div>
+                </div>
+                <div className="mt-4 text-xs text-gray-600">Converted to single layer → Perfect for vinyl cutting</div>
+              </div>
+
+              {/* Example 6: READY */}
+              <div className="rounded-2xl bg-gray-100 p-4 sm:p-6">
+                <div className="mb-3 flex items-center justify-between">
+                  <span className="text-xs font-medium text-gray-500">Photo BG</span>
+                </div>
+                <div className="aspect-square rounded-xl bg-gradient-to-br from-gray-100 to-gray-300 p-4 flex items-center justify-center overflow-hidden relative">
+                  <img 
+                    src="/logos/ready-before.jpg" 
+                    alt="READY with product photo" 
+                    className="absolute inset-0 w-full h-full object-contain z-10" 
+                    onLoad={(e) => { e.target.nextSibling.style.display = 'none'; }}
+                    onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }} 
+                  />
+                  <div className="absolute inset-0 flex items-center justify-center text-center p-4">
+                    <div className="text-black">
+                      <div className="text-2xl font-black mb-2">READY</div>
+                      <div className="text-sm opacity-90">📸 Text + Photo</div>
+                    </div>
+                  </div>
+                </div>
+                <div className="mt-4 text-xs text-gray-600">Text with product photo — not suitable for HTV</div>
+              </div>
+
+              <div className="rounded-2xl bg-gray-100 p-4 sm:p-6">
+                <div className="mb-3 flex items-center justify-between">
+                  <span className="text-xs font-medium text-gray-500">Text Only</span>
+                </div>
+                <div className="aspect-square rounded-xl bg-white p-4 flex items-center justify-center overflow-hidden relative border-2 border-gray-200">
+                  <img 
+                    src="/logos/ready-after.jpg" 
+                    alt="READY text-only vinyl" 
+                    className="absolute inset-0 w-full h-full object-contain z-10" 
+                    onLoad={(e) => { e.target.nextSibling.style.display = 'none'; }}
+                    onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }} 
+                  />
+                  <div className="absolute inset-0 flex items-center justify-center text-center p-4">
+                    <div className="text-black">
+                      <div className="text-2xl font-black mb-2">🍾</div>
+                      <div className="text-sm">On Bottle</div>
+                      <div className="text-xs opacity-70 mt-1">Clean Text Only</div>
+                    </div>
+                  </div>
+                </div>
+                <div className="mt-4 text-xs text-gray-600">Clean text extraction → Works on any colored garment</div>
+              </div>
+            </div>
+
+            {/* What We Do */}
+            <div className="mt-8 rounded-2xl bg-gradient-to-br from-yellow-50 to-yellow-100 p-6 sm:p-8">
+              <h3 className="mb-4 text-center text-xl font-black text-black">🎨 We Handle The Conversion For You</h3>
+              <div className="mx-auto max-w-3xl grid gap-3 sm:grid-cols-2 md:grid-cols-3">
+                <div className="rounded-lg bg-white p-4 text-center">
+                  <div className="text-2xl">🎨</div>
+                  <div className="mt-2 text-sm font-bold text-black">Remove Colors</div>
+                  <div className="mt-1 text-xs text-gray-600">Make it black or white</div>
+                </div>
+                <div className="rounded-lg bg-white p-4 text-center">
+                  <div className="text-2xl">✂️</div>
+                  <div className="mt-2 text-sm font-bold text-black">Simplify Design</div>
+                  <div className="mt-1 text-xs text-gray-600">Flatten effects & gradients</div>
+                </div>
+                <div className="rounded-lg bg-white p-4 text-center">
+                  <div className="text-2xl">🎯</div>
+                  <div className="mt-2 text-sm font-bold text-black">Optimize for HTV</div>
+                  <div className="mt-1 text-xs text-gray-600">Perfect for vinyl cutting</div>
+                </div>
+                <div className="rounded-lg bg-white p-4 text-center">
+                  <div className="text-2xl">🪄</div>
+                  <div className="mt-2 text-sm font-bold text-black">Remove Backgrounds</div>
+                  <div className="mt-1 text-xs text-gray-600">Clean, transparent edges</div>
+                </div>
+                <div className="rounded-lg bg-white p-4 text-center">
+                  <div className="text-2xl">✨</div>
+                  <div className="mt-2 text-sm font-bold text-black">Sharp Edges</div>
+                  <div className="mt-1 text-xs text-gray-600">Clean cuts, no blur</div>
+                </div>
+                <div className="rounded-lg bg-white p-4 text-center">
+                  <div className="text-2xl">🎁</div>
+                  <div className="mt-2 text-sm font-bold text-black">Cut + Weeded</div>
+                  <div className="mt-1 text-xs text-gray-600">Ready to press!</div>
+                </div>
+              </div>
+              <p className="mt-6 text-center text-sm text-gray-700">
+                Just send us your logo (any format) → We clean it up → You get press-ready HTV cuts in 1-2 days
+              </p>
+            </div>
+
+            {/* Real Results */}
+            <div className="mt-12 rounded-2xl bg-gray-100 p-6 sm:p-8">
+              <h3 className="mb-6 text-center text-2xl font-black text-black">Real Customer Results</h3>
+              
+              <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+                {/* Result 1: T&M on dark surface */}
+                <div className="rounded-xl bg-white p-4">
+                  <div className="aspect-square rounded-lg bg-gray-900 flex items-center justify-center mb-3 overflow-hidden relative">
+                    <img 
+                      src="/logos/tm-after.jpg" 
+                      alt="T&M white vinyl on dark surface" 
+                      className="absolute inset-0 w-full h-full object-cover z-10" 
+                      onLoad={(e) => { e.target.nextSibling.style.display = 'none'; }}
+                      onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }} 
+                    />
+                    <div className="absolute inset-0 flex items-center justify-center text-center p-3">
+                      <div className="text-white">
+                        <div className="text-3xl mb-1">⚪</div>
+                        <div className="text-xs font-bold">T&M</div>
+                        <div className="text-[10px] opacity-75">White on Dark</div>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="inline-block rounded-full bg-gray-200 px-2 py-1 text-[10px] font-bold text-gray-700">WHITE VINYL</span>
+                    <span className="text-xs text-gray-500">⭐⭐⭐⭐⭐</span>
+                  </div>
+                  <p className="text-xs text-gray-700 font-medium">T&M Air Conditioning</p>
+                  <p className="text-xs text-gray-500 mt-1">Clean white cut on dark surface</p>
+                </div>
+
+                {/* Result 2: e.a Big Deal on cap */}
+                <div className="rounded-xl bg-white p-4">
+                  <div className="aspect-square rounded-lg bg-gray-200 flex items-center justify-center mb-3 overflow-hidden relative">
+                    <img 
+                      src="/logos/ea-after.jpg" 
+                      alt="e.a Big Deal on white cap" 
+                      className="absolute inset-0 w-full h-full object-cover z-10" 
+                      onLoad={(e) => { e.target.nextSibling.style.display = 'none'; }}
+                      onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }} 
+                    />
+                    <div className="absolute inset-0 flex items-center justify-center text-center p-3">
+                      <div className="text-black">
+                        <div className="text-3xl mb-1">🧢</div>
+                        <div className="text-xs font-bold">e.a Big Deal</div>
+                        <div className="text-[10px] opacity-75">On Cap</div>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="inline-block rounded-full bg-black px-2 py-1 text-[10px] font-bold text-white">BLACK VINYL</span>
+                    <span className="text-xs text-gray-500">⭐⭐⭐⭐⭐</span>
+                  </div>
+                  <p className="text-xs text-gray-700 font-medium">e.a Big Deal Auto Sales</p>
+                  <p className="text-xs text-gray-500 mt-1">Perfect for caps & uniforms</p>
+                </div>
+
+                {/* Result 3: READY on bottle */}
+                <div className="rounded-xl bg-white p-4">
+                  <div className="aspect-square rounded-lg bg-gray-100 flex items-center justify-center mb-3 overflow-hidden relative border border-gray-300">
+                    <img 
+                      src="/logos/ready-after.jpg" 
+                      alt="READY vinyl on bottle" 
+                      className="absolute inset-0 w-full h-full object-cover z-10" 
+                      onLoad={(e) => { e.target.nextSibling.style.display = 'none'; }}
+                      onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }} 
+                    />
+                    <div className="absolute inset-0 flex items-center justify-center text-center p-3">
+                      <div className="text-black">
+                        <div className="text-3xl mb-1">🍾</div>
+                        <div className="text-xs font-bold">READY</div>
+                        <div className="text-[10px] opacity-75">On Bottle</div>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="inline-block rounded-full bg-gray-200 px-2 py-1 text-[10px] font-bold text-gray-700">BLACK TEXT</span>
+                    <span className="text-xs text-gray-500">⭐⭐⭐⭐⭐</span>
+                  </div>
+                  <p className="text-xs text-gray-700 font-medium">READY Premium Hydration</p>
+                  <p className="text-xs text-gray-500 mt-1">Works on any surface</p>
+                </div>
+
+                {/* Result 4: Exquisite Backyard */}
+                <div className="rounded-xl bg-white p-4">
+                  <div className="aspect-square rounded-lg bg-black flex items-center justify-center mb-3 overflow-hidden relative">
+                    <img 
+                      src="/logos/exquisite-after.jpg" 
+                      alt="Exquisite Backyard  vinyl" 
+                      className="absolute inset-0 w-full h-full object-cover z-10" 
+                      onLoad={(e) => { e.target.nextSibling.style.display = 'none'; }}
+                      onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }} 
+                    />
+                    <div className="absolute inset-0 flex items-center justify-center text-center p-3">
+                      <div className="text-white">
+                        <div className="text-3xl mb-1">✨</div>
+                        <div className="text-xs font-bold">Exquisite</div>
+                        <div className="text-[10px] opacity-75">White Vinyl</div>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="inline-block rounded-full bg-white px-2 py-1 text-[10px] font-bold text-black">WHITE VINYL</span>
+                    <span className="text-xs text-gray-500">⭐⭐⭐⭐⭐</span>
+                  </div>
+                  <p className="text-xs text-gray-700 font-medium">Exquisite Backyard Vibz</p>
+                  <p className="text-xs text-gray-500 mt-1">Complex logo → Pro result</p>
+                </div>
+              </div>
+
+              {/* Success Stats */}
+              <div className="mt-6 grid grid-cols-4 gap-2 sm:gap-4 text-center">
+                <div>
+                  <div className="text-lg sm:text-2xl font-black text-black">100%</div>
+                  <div className="text-[10px] sm:text-xs text-gray-600">Clean Cuts</div>
+                </div>
+                <div>
+                  <div className="text-lg sm:text-2xl font-black text-black">Sharp</div>
+                  <div className="text-[10px] sm:text-xs text-gray-600">Edges</div>
+                </div>
+                <div>
+                  <div className="text-lg sm:text-2xl font-black text-black">Any</div>
+                  <div className="text-[10px] sm:text-xs text-gray-600">Surface</div>
+                </div>
+                <div>
+                  <div className="text-lg sm:text-2xl font-black text-black">Pro</div>
+                  <div className="text-[10px] sm:text-xs text-gray-600">Results</div>
+                </div>
+              </div>
+
+              {/* CTA Banner */}
+              <div className="mt-6 rounded-xl bg-gradient-to-r from-green-500 to-green-600 p-4 text-center text-white">
+                <p className="text-sm sm:text-base font-bold">
+                  ✨ Your Logo Can Look This Good • Upload Below & We'll Handle Everything • From JMD 800/logo
+                </p>
+              </div>
+            </div>
+          </div>
 
           {/* Order Form - Step by Step */}
           <div ref={formRef} className="mt-20 scroll-mt-4 rounded-2xl bg-gray-100 p-6 sm:p-10">
@@ -431,66 +891,90 @@ export default function LogoCutting() {
                 <div className="space-y-6">
                   <h3 className="text-lg font-bold text-black">Step 1: Order Details</h3>
                   
-                  <div className="grid gap-4 sm:grid-cols-3">
+                  <div className="space-y-6">
+                    {/* Size Selection */}
                     <div>
-                      <label className="mb-2 block text-sm font-bold text-black">Size</label>
-                      <select
-                        value={formData.size}
-                        onChange={e => setFormData({ ...formData, size: e.target.value })}
-                        className="block w-full rounded-lg bg-gray-50 px-4 py-3 text-black focus:outline-none"
-                      >
+                      <label className="mb-3 block text-sm font-bold text-black">Size</label>
+                      <div className="grid gap-3 sm:grid-cols-3">
                         {Object.entries(PRICING).map(([key, data]) => (
-                          <option key={key} value={key}>
-                            {data.label} — JMD {data.price}
-                          </option>
+                          <button
+                            key={key}
+                            type="button"
+                            onClick={() => setFormData({ ...formData, size: key })}
+                            className={`rounded-xl p-4 transition-all ${
+                              formData.size === key
+                                ? 'bg-accent text-white ring-4 ring-accent/20 scale-105'
+                                : 'bg-gray-100 text-black hover:bg-gray-200'
+                            }`}
+                          >
+                            <div className="text-xs font-bold uppercase tracking-wide opacity-80">
+                              {data.label}
+                            </div>
+                            <div className="mt-1 text-xs opacity-70">{data.size}</div>
+                            <div className="mt-2 text-lg font-black">
+                              JMD {data.price.toLocaleString()}
+                            </div>
+                          </button>
                         ))}
-                      </select>
+                      </div>
+                    </div>
+
+                    {/* Color Selection */}
+                    <div>
+                      <label className="mb-3 block text-sm font-bold text-black">Color</label>
+                      <div className="grid gap-3 grid-cols-2">
+                        <button
+                          type="button"
+                          onClick={() => setFormData({ ...formData, color: 'black' })}
+                          className={`rounded-xl p-6 transition-all ${
+                            formData.color === 'black'
+                              ? 'bg-black text-white ring-4 ring-black/30 scale-105'
+                              : 'bg-gray-100 text-black hover:bg-gray-200 border-2 border-gray-300'
+                          }`}
+                        >
+                          <div className="text-3xl mb-2">⚫</div>
+                          <div className="text-base font-bold">Black Vinyl</div>
+                          <div className={`mt-1 text-xs ${formData.color === 'black' ? 'opacity-80' : 'opacity-60'}`}>
+                            Perfect for light surfaces
+                          </div>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setFormData({ ...formData, color: 'white' })}
+                          className={`rounded-xl p-6 transition-all ${
+                            formData.color === 'white'
+                              ? 'bg-white text-black ring-4 ring-gray-400 scale-105 border-2 border-gray-400'
+                              : 'bg-gray-100 text-black hover:bg-gray-200 border-2 border-gray-300'
+                          }`}
+                        >
+                          <div className="text-3xl mb-2">⚪</div>
+                          <div className="text-base font-bold">White Vinyl</div>
+                          <div className="mt-1 text-xs opacity-60">
+                            Perfect for dark surfaces
+                          </div>
+                        </button>
+                      </div>
                     </div>
 
                     <div>
-                      <label className="mb-2 block text-sm font-bold text-black">Color</label>
-                      <select
-                        value={formData.color}
-                        onChange={e => setFormData({ ...formData, color: e.target.value })}
-                        className="block w-full rounded-lg bg-gray-50 px-4 py-3 text-black focus:outline-none"
-                      >
-                        <option value="black">⚫ Black</option>
-                        <option value="white">⚪ White</option>
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="mb-2 block text-sm font-bold text-black">Quantity (min 4)</label>
-                      <div className="flex items-center gap-3">
-                        <button
-                          type="button"
-                          onClick={() => setFormData({ ...formData, quantity: Math.max(4, formData.quantity - 1) })}
-                          className="flex h-12 w-12 items-center justify-center rounded-lg bg-gray-200 text-black hover:bg-gray-300 transition-colors"
-                        >
-                          <FiMinus className="h-5 w-5" />
-                        </button>
-                        <input
-                          required
-                          type="number"
-                          min="4"
-                          value={formData.quantity}
-                          onChange={e => {
-                            const val = parseInt(e.target.value) || 4
-                            setFormData({ ...formData, quantity: Math.max(4, val) })
-                          }}
-                          onBlur={e => {
-                            const val = parseInt(e.target.value) || 4
-                            if (val < 4) setFormData({ ...formData, quantity: 4 })
-                          }}
-                          className="block w-full rounded-lg bg-gray-50 px-4 py-3 text-center text-black focus:outline-none"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setFormData({ ...formData, quantity: formData.quantity + 1 })}
-                          className="flex h-12 w-12 items-center justify-center rounded-lg bg-accent text-white hover:bg-accent/90 transition-colors"
-                        >
-                          <FiPlus className="h-5 w-5" />
-                        </button>
+                      <label className="mb-2 flex items-center justify-between text-sm font-bold text-black">
+                        <span>Quantity</span>
+                        <span className="rounded-full bg-accent px-3 py-1 text-sm font-black text-white">{formData.quantity}</span>
+                      </label>
+                      <input
+                        type="range"
+                        min="4"
+                        max="100"
+                        value={formData.quantity}
+                        onChange={e => setFormData({ ...formData, quantity: parseInt(e.target.value) })}
+                        className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-accent"
+                        style={{
+                          background: `linear-gradient(to right, var(--accent-color) 0%, var(--accent-color) ${((formData.quantity - 4) / (100 - 4)) * 100}%, #e5e7eb ${((formData.quantity - 4) / (100 - 4)) * 100}%, #e5e7eb 100%)`
+                        }}
+                      />
+                      <div className="mt-2 flex justify-between text-xs text-gray-500">
+                        <span>Min: 4</span>
+                        <span>Max: 100</span>
                       </div>
                     </div>
                   </div>
