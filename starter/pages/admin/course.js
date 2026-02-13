@@ -4,7 +4,6 @@ import Link from 'next/link';
 import { useUser } from '@clerk/nextjs';
 import { supabase } from '../../lib/supabase';
 import AdminLayout from '../../components/AdminLayout';
-import AdminHeader from '../../components/AdminHeader';
 import toast from 'react-hot-toast';
 import { FiDownload, FiCalendar, FiMail, FiPhone, FiDollarSign, FiCheckCircle, FiClock, FiArrowLeft } from 'react-icons/fi';
 
@@ -184,9 +183,7 @@ export default function AdminCourseSignups() {
               Back to Dashboard
             </Link>
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-              <div>
-                <AdminHeader title="Course Signups" subtitle="Manage and track all course preorders" />
-              </div>
+          
               <div className="flex flex-col sm:flex-row gap-3">
                 <select
                   value={filterCourse}

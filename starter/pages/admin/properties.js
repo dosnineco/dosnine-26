@@ -4,7 +4,6 @@ import Link from 'next/link';
 import { useUser } from '@clerk/nextjs';
 import { supabase } from '../../lib/supabase';
 import AdminLayout from '../../components/AdminLayout';
-import AdminHeader from '../../components/AdminHeader';
 import toast from 'react-hot-toast';
 import { FiTrash2, FiEdit2 } from 'react-icons/fi';
 
@@ -217,14 +216,7 @@ export default function AdminPropertiesPage() {
       <div className="min-h-screen bg-gray-50">
         <div className="container mx-auto px-4 py-6 max-w-7xl">
           {/* Header */}
-          <div className="mb-6">
-            <div className="flex items-center gap-4 mb-4">
-              <Link href="/admin/dashboard" className="text-gray-600 hover:text-gray-900">
-                ← Back to Dashboard
-              </Link>
-            </div>
-            <AdminHeader title="Properties" subtitle="Manage property listings" />
-          </div>
+                   <AdminLayout />
 
           {loading ? (
             <div className="text-center py-12 text-gray-500">Loading...</div>

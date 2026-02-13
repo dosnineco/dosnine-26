@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react';
 import Head from 'next/head';
 import { supabase } from '../../lib/supabase';
 import AdminLayout from '../../components/AdminLayout';
-import AdminHeader from '../../components/AdminHeader';
 
 export default function AdminVisitorEmails() {
   const router = useRouter();
@@ -136,10 +135,7 @@ export default function AdminVisitorEmails() {
       <main className="min-h-screen bg-gray-50 py-8">
         <div className="container mx-auto px-4">
           <AdminLayout />
-          <div className="mb-8">
-            <AdminHeader title="Visitor Emails" subtitle="Captured visitor contacts" />
-            <p className="text-gray-600">Emails captured from site visitors via popup</p>
-          </div>
+          
 
           {/* Stats */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
