@@ -97,8 +97,8 @@ export default function Footer() {
       
         <div className="bg-red-50 border-l-4 border-red-600 p-4 mt-4 mb-4">
           <p className="text-gray-700 text-xs leading-relaxed">
-            <strong>Disclaimer:</strong> Dosnine.com is an independent property listing and discovery platform. 
-            Dosnine does not act as a real estate agent, broker, intermediary, negotiator, or representative for buyers, sellers, landlords, tenants, or agents. By using this platform, users acknowledge that Dosnine's role is limited to providing visibility and facilitating direct connections only.
+            <strong>Disclaimer:</strong> Dosnine Ltd (dosnine.com) is an independent property listing and discovery platform. 
+            Dosnine Ltd does not act as a real estate agent, broker, intermediary, negotiator, or representative for buyers, sellers, landlords, tenants, or agents. By using this platform, users acknowledge that Dosnine Ltd's role is limited to providing visibility and facilitating direct connections only.
           </p>
         </div> 
       </div>
@@ -106,7 +106,7 @@ export default function Footer() {
         {/* Bottom Bar */}
         <div className="border-t border-gray-300 pt-4 text-center text-sm">
           <p className="text-gray-600">
-            &copy; {new Date().getFullYear()} Dosnine Properties. All rights reserved.
+            &copy; {new Date().getFullYear()} Dosnine Ltd. All rights reserved.
           </p>
         </div>
       

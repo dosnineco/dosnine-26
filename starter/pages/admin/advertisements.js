@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useUser } from '@clerk/nextjs'
 import { supabase } from '@/lib/supabase'
 import toast from 'react-hot-toast'
+import AdminLayout from '../../components/AdminLayout';
 
 export default function AdminAdvertisements() {
   const { user } = useUser()
@@ -248,9 +249,9 @@ export default function AdminAdvertisements() {
   }
 
   return (
-    <div className="p-8 max-w-7xl mx-auto">
-      <h1 className="text-3xl font-bold mb-2">Advertisement Manager</h1>
-      <p className="text-gray-600 mb-6">Manage ads and approve submissions</p>
+    <>
+      <AdminLayout />
+      <div className="p-8 max-w-7xl mx-auto">
 
       {/* Tabs */}
       <div className="flex gap-4 mb-8 border-b">
@@ -651,5 +652,6 @@ export default function AdminAdvertisements() {
         </div>
       )}
     </div>
+    </>
   )
 }

@@ -3,6 +3,7 @@ import { useUser } from '@clerk/nextjs';
 import Head from 'next/head';
 import Link from 'next/link';
 import { supabase } from '../../lib/supabase';
+import AdminLayout from '../../components/AdminLayout';
 import { useRoleProtection } from '../../lib/useRoleProtection';
 import { canAccessAdmin } from '../../lib/rbac';
 import { Users, TrendingUp, Clock, CheckCircle } from 'lucide-react';
@@ -139,17 +140,7 @@ export default function AllocationDashboard() {
 
       <div className="min-h-screen bg-gray-50">
         <div className="max-w-7xl mx-auto px-4 py-8">
-          {/* Header */}
-          <div className="mb-8">
-            <div className="flex items-center justify-between mb-2">
-              <h1 className="text-3xl font-bold text-gray-900">Allocation</h1>
-              <Link href="/admin/dashboard" className="btn-accent  px-4 py-2 text-sm text-white  rounded-lg"
->
-                Back
-              </Link>
-            </div>
-            <p className="text-gray-600">Equal opportunities for all agents</p>
-          </div>
+          <AdminLayout />
 
           {/* Stats Cards */}
           {agentStats.length === 1 && (

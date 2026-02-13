@@ -4,6 +4,7 @@ import { useRouter } from 'next/router';
 import toast from 'react-hot-toast';
 import RequestAgentPopup from './RequestAgentPopup';
 import { Search, MapPin, DollarSign, Clock, FileText, CheckCircle, Lock, Users, Home, Smartphone, Star, Circle, Building2, Building, Filter, X, ArrowRight } from 'lucide-react';
+import AdList from './AdList';
 
 export default function PropertyRequestsMarketplace() {
   const router = useRouter();
@@ -348,7 +349,8 @@ export default function PropertyRequestsMarketplace() {
               <ArrowRight size={16} />
             </a>  
           </div>
-          
+          {/* <AdList/> */}
+
           {/* Live Typing Indicator - Reserved Space */}
           <div className="h-12 flex items-center justify-center">
             {showTypingIndicator && (

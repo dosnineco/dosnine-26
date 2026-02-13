@@ -7,6 +7,7 @@ import axios from 'axios';
 import toast from 'react-hot-toast';
 import { Shield, CheckCircle, XCircle, Clock, Eye, FileText, Phone, Mail, Calendar, Building2 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
+import AdminLayout from '../../components/AdminLayout';
 
 export default function AdminAgents() {
   const { user } = useUser();
@@ -342,27 +343,8 @@ export default function AdminAgents() {
       </Head>
 
       <div className="min-h-screen bg-gray-50">
-        {/* Header */}
-        <div className="bg-white border-b">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <Shield className="w-8 h-8 text-gray-900" />
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h1 className="text-2xl font-bold text-gray-900">Agent Management</h1>
-                    <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border ${realtimeConnected ? 'border-green-600 text-green-700' : 'border-gray-400 text-gray-600'}`}>
-                      <span className={`w-1.5 h-1.5 rounded-full ${realtimeConnected ? 'bg-green-600 animate-pulse' : 'bg-gray-400'}`}></span>
-                      Live
-                    </span>
-                  </div>
-                  <p className="text-sm text-gray-500">Admin Dashboard</p>
-                </div>
-              </div>
-             
-            </div>
-          </div>
-        </div>
+        <AdminLayout />
+    
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           {/* Stats */}

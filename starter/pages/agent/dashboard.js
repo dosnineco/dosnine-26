@@ -13,7 +13,7 @@ import { supabase } from '../../lib/supabase';
 import { 
   Home, Users, Mail, Phone, MapPin, DollarSign, 
   Bed, Bath, Calendar, Filter, CheckCircle, XCircle,
-  AlertCircle, Clock, Plus, RotateCcw, Trash2, BellDot, MessageCircle, Phone as PhoneIcon, CreditCard, Info, MessageSquare
+  AlertCircle, Clock, Plus, RotateCcw, Trash2, BellDot, MessageCircle, Phone as PhoneIcon, CreditCard, Info, MessageSquare, Search
 } from 'lucide-react';
 
 export default function AgentDashboard() {
@@ -133,6 +133,8 @@ export default function AgentDashboard() {
       fetchRequests();
     }
   }, [agentData]);
+
+
 
   async function fetchRequests() {
     setLoading(true);
@@ -305,6 +307,24 @@ export default function AgentDashboard() {
               <span>Bulk Create</span>
             </Link>
             <Link 
+              href="/agent/parish-requests"
+              className="px-4 py-2 bg-white text-black rounded-lg hover:bg-gray-100 transition font-medium flex items-center justify-center gap-1.5 border border-gray-300 col-span-2 sm:col-span-1"
+            >
+              <Search className="w-5 h-5" />
+              <span className="hidden sm:inline">Parish Search</span>
+              <span className="sm:hidden">Search</span>
+            </Link>
+            <Link 
+              href="/agent/my-applications"
+              className="px-4 py-2 bg-white text-black rounded-lg hover:bg-gray-100 transition font-medium flex items-center justify-center gap-1.5 border border-gray-300 col-span-2 sm:col-span-1"
+            >
+              <Mail className="w-5 h-5" />
+              <span className="hidden sm:inline">My Applications</span>
+              <span className="sm:hidden">Applications</span>
+            </Link>
+            
+            
+            <Link 
               href="/agent/payment"
               onClick={(e) => {
                 if (isAccessExpired()) {
@@ -324,6 +344,8 @@ export default function AgentDashboard() {
               <span className="sm:hidden">{shouldShowUpgrade() ? 'Upgrade' : 'Plan'}</span>
             </Link>
           </div>
+
+
 
           {/* Free Plan Alert */}
           {isFreePlan() && (
@@ -446,7 +468,6 @@ export default function AgentDashboard() {
             </div>
           </div>
 
-          {/* Requests List */}
           <div className="mb-2 flex items-center gap-2">
             <h2 className="text-lg font-semibold text-gray-900">Requests</h2>
             <SectionHint message="Active client requests routed to you. Update status, add notes, or release to the next agent." />

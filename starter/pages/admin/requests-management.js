@@ -4,6 +4,7 @@ import { useRouter } from 'next/router';
 import { supabase } from '../../lib/supabase';
 import Head from 'next/head';
 import toast from 'react-hot-toast';
+import AdminLayout from '../../components/AdminLayout';
 
 export default function RequestsManagementPage() {
   const { isSignedIn, user } = useUser();
@@ -102,6 +103,8 @@ export default function RequestsManagementPage() {
       console.error('Error fetching agents:', err);
     }
   };
+
+
 
   /* Filter and Sort Logic */
   const getFilteredRequests = () => {
@@ -461,18 +464,11 @@ export default function RequestsManagementPage() {
       </Head>
 
       <div className="min-h-screen bg-gray-50">
+
         {/* Header */}
         <div className="bg-white border-b border-gray-200 sticky top-0 z-10">
           <div className="max-w-7xl mx-auto px-6 py-4">
-            <div className="flex items-center justify-between mb-4">
-              <h1 className="text-3xl font-bold text-gray-900">Service Requests Management</h1>
-              <button
-                onClick={() => router.push('/admin')}
-                className="px-4 py-2 text-gray-600 hover:text-gray-900 font-medium"
-              >
-                ← Back to Admin
-              </button>
-            </div>
+           <AdminLayout />
 
             {/* Filters */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -527,25 +523,8 @@ export default function RequestsManagementPage() {
               </div>
             </div>
 
-            {/* Clear Filters */}
-            {(filterDate || searchQuery || statusFilter !== 'all') && (
-              <div className="mt-3">
-                <button
-                  onClick={() => {
-                    setFilterDate('');
-                    setSearchQuery('');
-                    setStatusFilter('all');
-                  }}
-                  className="text-sm text-orange-600 hover:text-orange-700 font-medium"
-                >
-                  Clear Filters
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
 
-        <div className="max-w-7xl mx-auto px-6 py-6">
+
           {/* Bulk Actions Bar */}
           {selectedCount > 0 && (
             <div className="mb-6 bg-orange-50 border border-orange-200 rounded-lg p-4">
@@ -555,30 +534,6 @@ export default function RequestsManagementPage() {
                 </div>
 
                 <div className="flex gap-2 flex-wrap">
-                  <button
-                    onClick={() => setShowAssignModal(true)}
-                    disabled={bulkActionLoading}
-                    className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50"
-                  >
-                    Assign to Agent
-                  </button>
-
-                  <button
-                    onClick={bulkMarkCompleted}
-                    disabled={bulkActionLoading}
-                    className="px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 disabled:opacity-50"
-                  >
-                    Mark Completed
-                  </button>
-
-                  <button
-                    onClick={bulkMarkIncomplete}
-                    disabled={bulkActionLoading}
-                    className="px-4 py-2 bg-yellow-600 text-white text-sm font-medium rounded-lg hover:bg-yellow-700 disabled:opacity-50"
-                  >
-                    Mark Incomplete
-                  </button>
-
                   <button
                     onClick={bulkUnassignToQueue}
                     disabled={bulkActionLoading}
@@ -775,7 +730,10 @@ export default function RequestsManagementPage() {
             </div>
           )}
         </div>
+
+        </div>
       </div>
     </>
+    
   );
 }

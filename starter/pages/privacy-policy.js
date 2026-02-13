@@ -4,8 +4,8 @@ export default function PrivacyPolicy() {
   return (
     <>
       <Head>
-        <title>Privacy Policy | Dosnine Properties</title>
-        <meta name="description" content="Privacy Policy for Dosnine Properties. Learn how we collect, use, and protect your personal information." />
+        <title>Privacy Policy | Dosnine Ltd</title>
+        <meta name="description" content="Privacy Policy for Dosnine Ltd. Learn how we collect, use, and protect your personal information." />
         <meta name="robots" content="index, follow" />
         <link rel="canonical" href="https://www.dosnine.com/privacy-policy" />
       </Head>
@@ -58,7 +58,7 @@ export default function PrivacyPolicy() {
                 <div className="bg-yellow-100 border-2 border-yellow-600 p-4 rounded mt-4">
                   <p className="text-gray-900 font-bold mb-2">Legal Protection and Disclaimer:</p>
                   <p className="text-sm text-gray-800">
-                    Dosnine Properties acts solely as a platform connecting agents and clients. We are NOT responsible for:
+                    Dosnine Ltd acts solely as a platform connecting agents and clients. We are NOT responsible for:
                   </p>
                   <ul className="list-disc pl-6 text-sm text-gray-800 space-y-1 mt-2">
                     <li>How agents use client contact information</li>
@@ -68,7 +68,7 @@ export default function PrivacyPolicy() {
                     <li>Misuse of shared data by either party</li>
                   </ul>
                   <p className="text-sm text-gray-800 font-semibold mt-3">
-                    BY USING THIS PLATFORM, YOU RELEASE DOSNINE PROPERTIES FROM ANY AND ALL LIABILITY RELATED TO DATA SHARING BETWEEN AGENTS AND CLIENTS.
+                    BY USING THIS PLATFORM, YOU RELEASE DOSNINE LTD FROM ANY AND ALL LIABILITY RELATED TO DATA SHARING BETWEEN AGENTS AND CLIENTS.
                   </p>
                 </div>
               </section>
@@ -76,10 +76,10 @@ export default function PrivacyPolicy() {
               <section className="mb-8">
                 <h2 className="text-2xl font-bold text-gray-900 mb-4">1. Introduction</h2>
                 <p className="text-gray-700 mb-4">
-                  Welcome to Dosnine Properties ("we," "our," or "us"). We are committed to protecting your privacy and ensuring the security of your personal information. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our website and services.
+                  Welcome to Dosnine Ltd ("we," "our," or "us"). We are committed to protecting your privacy and ensuring the security of your personal information. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our website and services.
                 </p>
                 <p className="text-gray-700 mb-6">
-                  By using Dosnine Properties, you agree to the collection and use of information in accordance with this policy. If you do not agree with our policies and practices, please do not use our services.
+                  By using Dosnine Ltd, you agree to the collection and use of information in accordance with this policy. If you do not agree with our policies and practices, please do not use our services.
                 </p>
               </section>
 

@@ -4,6 +4,7 @@ import Head from 'next/head';
 import Link from 'next/link';
 import axios from 'axios';
 import toast from 'react-hot-toast';
+import AdminLayout from '../../components/AdminLayout';
 import { MessageCircle, Send, Users, Eye, CheckCircle2, Clock } from 'lucide-react';
 
 export default function AdminFeedbackPage() {
@@ -144,21 +145,8 @@ export default function AdminFeedbackPage() {
 
       <div className="min-h-screen bg-gray-50">
         <div className="container mx-auto px-4 py-6 max-w-7xl">
-          {/* Header */}
-          <div className="mb-6">
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-4">
-           
-                <h1 className="text-3xl font-bold text-gray-900">Agent Feedback</h1>
-              
-              </div>
-              {unreadResponses > 0 && (
-                <span className="px-4 py-2 bg-green-600 text-white font-bold rounded-full animate-pulse">
-                  {unreadResponses} New Response{unreadResponses > 1 ? 's' : ''}
-                </span>
-              )}
-            </div>
-          </div>
+          <AdminLayout />
+
 
           {/* Main Content Card */}
           <div className="bg-white rounded-lg shadow-lg">

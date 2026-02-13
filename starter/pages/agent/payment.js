@@ -7,6 +7,7 @@ import { useRoleProtection } from '../../lib/useRoleProtection';
 import { isVerifiedAgent } from '../../lib/rbac';
 import { Copy, Check, AlertCircle, ChevronDown, Activity } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
+import { getSiteSettings } from '../../lib/siteSettings';
 
 const plans = [
  
@@ -141,6 +142,26 @@ export default function AgentPayment() {
   }, [userData]);
 
  
+
+    // Allow override of plan prices via site settings
+  useEffect(() => {
+    let mounted = true;
+    async function applySitePrices() {
+      try {
+        const s = await getSiteSettings();
+        if (!mounted) return;
+        if (s.plan_prices) {
+          plans.forEach(p => {
+            if (s.plan_prices[p.id] !== undefined) p.price = s.plan_prices[p.id];
+          });
+        }
+      } catch (e) {
+        console.error('Failed to load plan prices:', e);
+      }
+    }
+    applySitePrices();
+    return () => { mounted = false; };
+  }, []);
 
   const selectedPlan = plans.find((plan) => plan.id === selectedPlanId) || plans[2];
   const userEmail = user?.primaryEmailAddress?.emailAddress || 'YOUR_EMAIL';

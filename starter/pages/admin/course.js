@@ -3,6 +3,8 @@ import Head from 'next/head';
 import Link from 'next/link';
 import { useUser } from '@clerk/nextjs';
 import { supabase } from '../../lib/supabase';
+import AdminLayout from '../../components/AdminLayout';
+import AdminHeader from '../../components/AdminHeader';
 import toast from 'react-hot-toast';
 import { FiDownload, FiCalendar, FiMail, FiPhone, FiDollarSign, FiCheckCircle, FiClock, FiArrowLeft } from 'react-icons/fi';
 
@@ -174,7 +176,8 @@ export default function AdminCourseSignups() {
 
       <div className="min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-7xl">
-          {/* Header */}
+          <AdminLayout />
+
           <div className="mb-8">
             <Link href="/admin/dashboard" className="inline-flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900 mb-4">
               <FiArrowLeft />
@@ -182,8 +185,7 @@ export default function AdminCourseSignups() {
             </Link>
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <div>
-                <h1 className="text-3xl font-bold text-gray-900">Course Signups</h1>
-                <p className="mt-2 text-sm text-gray-600">Manage and track all course preorders</p>
+                <AdminHeader title="Course Signups" subtitle="Manage and track all course preorders" />
               </div>
               <div className="flex flex-col sm:flex-row gap-3">
                 <select

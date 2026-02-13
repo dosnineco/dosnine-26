@@ -2,16 +2,33 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { useUser } from '@clerk/nextjs'
 
+
 export default function VerifiedLeadsMarketplace() {
   const { user } = useUser()
   const [leads, setLeads] = useState([])
   const [filter, setFilter] = useState('verified') // verified, all
   const [loading, setLoading] = useState(true)
   const [purchasing, setPurchasing] = useState(null)
+  const [leadCost, setLeadCost] = useState(500)
 
   useEffect(() => {
     loadLeads()
   }, [filter])
+
+  useEffect(() => {
+    let mounted = true;
+    async function loadSettings() {
+      try {
+        const s = await getSiteSettings();
+        if (!mounted) return;
+        setLeadCost(s.verified_lead_cost?.amount ?? 500);
+      } catch (e) {
+        console.error('Failed to load site settings:', e);
+      }
+    }
+    loadSettings();
+    return () => { mounted = false; };
+  }, [])
 
   const loadLeads = async () => {
     setLoading(true)
@@ -38,7 +55,7 @@ export default function VerifiedLeadsMarketplace() {
   }
 
   const purchaseLead = async (leadId) => {
-    if (!confirm('Purchase this verified lead for J$500? This charge will be deducted from your account.')) {
+    if (!confirm(`Purchase this verified lead for J$${leadCost.toLocaleString()}? This charge will be deducted from your account.`)) {
       return
     }
 
@@ -101,8 +118,7 @@ export default function VerifiedLeadsMarketplace() {
           🎯 Hot Verified Leads
         </h2>
         <p className="text-gray-600 mb-4">
-          Pre-screened tenants with verified income & documents. Only J$500 per lead!
-        </p>
+          Pre-screened tenants with verified income & documents. Only J${leadCost.toLocaleString()} per lead!
         
         <div className="flex gap-3">
           <button

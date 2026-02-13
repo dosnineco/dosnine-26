@@ -3,6 +3,7 @@ import { useUser } from '@clerk/nextjs';
 import { useState, useEffect, useRef } from 'react';
 import Head from 'next/head';
 import { supabase } from '../../lib/supabase';
+import AdminLayout from '../../components/AdminLayout';
 import { FiPackage, FiCheck, FiX, FiClock, FiZap, FiExternalLink, FiImage, FiDownload, FiAlertCircle } from 'react-icons/fi';
 
 export default function AdminHTVOrders() {
@@ -602,13 +603,8 @@ export default function AdminHTVOrders() {
       <div className="min-h-screen bg-gray-50 p-6">
         <div className="mx-auto max-w-7xl">
           {/* Header */}
-          <div className="mb-8 flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-black text-black">HTV Logo Orders</h1>
-              <p className="mt-1 text-sm text-gray-600">Manage logo cutting submissions</p>
-            </div>
-    
-          </div>
+                <AdminLayout/>
+
 
           {/* Stats Cards */}
           <div className="mb-6 grid gap-4 sm:grid-cols-4">

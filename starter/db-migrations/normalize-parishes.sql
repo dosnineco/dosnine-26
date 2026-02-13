@@ -20,9 +20,9 @@ BEGIN
   SELECT ARRAY_AGG(DISTINCT parish) INTO invalid_parishes
   FROM public.properties
   WHERE parish NOT IN (
-    'Kingston', 'St Andrew', 'St Catherine', 'St James', 'Clarendon',
-    'Manchester', 'St Ann', 'Portland', 'St Thomas', 'St Elizabeth',
-    'Trelawny', 'Hanover'
+    'Kingston', 'St Andrew', 'St Catherine', 'St James', 'St Mary', 'St Ann', 
+    'Trelawny', 'Portland', 'St Thomas', 'Clarendon', 'Manchester', 'St Elizabeth',
+    'Hanover', 'Westmoreland'
   ) AND parish IS NOT NULL;
   
   IF array_length(invalid_parishes, 1) > 0 THEN

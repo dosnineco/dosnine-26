@@ -15,7 +15,7 @@ export function normalizeParish(parish) {
 }
 
 /**
- * Standard parish list for Jamaica
+ * Standard parish list for Jamaica (all 14 parishes)
  * Use this constant throughout the application for consistency
  */
 export const PARISHES = [
@@ -23,12 +23,14 @@ export const PARISHES = [
   'St Andrew',
   'St Catherine',
   'St James',
-  'Clarendon',
-  'Manchester',
+  'St Mary',
   'St Ann',
+  'Trelawny',
   'Portland',
   'St Thomas',
+  'Clarendon',
+  'Manchester',
   'St Elizabeth',
-  'Trelawny',
-  'Hanover'
+  'Hanover',
+  'Westmoreland'
 ];

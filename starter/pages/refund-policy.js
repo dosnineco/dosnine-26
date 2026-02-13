@@ -4,8 +4,8 @@ export default function RefundPolicy() {
   return (
     <>
       <Head>
-        <title>Refund Policy | Dosnine Properties</title>
-        <meta name="description" content="Refund Policy for Dosnine Properties boost advertising services. Learn about our cancellation and refund procedures." />
+        <title>Refund Policy | Dosnine Ltd</title>
+        <meta name="description" content="Refund Policy for Dosnine Ltd boost advertising services. Learn about our cancellation and refund procedures." />
         <meta name="robots" content="index, follow" />
         <link rel="canonical" href="https://www.dosnine.com/refund-policy" />
       </Head>
@@ -254,7 +254,7 @@ export default function RefundPolicy() {
                   For refund requests or questions about this policy:
                 </p>
                 <div className="bg-gray-50 p-6 rounded-lg">
-                  <p className="text-gray-700 mb-2"><strong>Dosnine Properties - Refunds Department</strong></p>
+                  <p className="text-gray-700 mb-2"><strong>Dosnine Ltd - Refunds Department</strong></p>
                   <p className="text-gray-700 mb-2">Email: <a href="mailto:info@dosnine.com" className="text-blue-600 hover:underline">info@dosnine.com</a></p>
                   <p className="text-gray-700 mb-2">Subject Line: "Refund Request - [Your Name]"</p>
                   <p className="text-gray-700 mb-2">Phone: <a href="tel:+18765551234" className="text-blue-600 hover:underline">+1 (876) 555-1234</a></p>

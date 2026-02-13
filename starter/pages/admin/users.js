@@ -3,6 +3,7 @@ import Head from 'next/head';
 import Link from 'next/link';
 import { useUser } from '@clerk/nextjs';
 import { supabase } from '../../lib/supabase';
+import AdminLayout from '../../components/AdminLayout';
 import toast from 'react-hot-toast';
 import { FiEdit2, FiTrash2, FiPlus, FiX } from 'react-icons/fi';
 
@@ -191,17 +192,14 @@ export default function AdminUsersPage() {
       <Head>
         <title>Users — Admin Dashboard</title>
       </Head>
-      
+      <AdminLayout />      
       <div className="min-h-screen bg-gray-50">
         <div className="container mx-auto px-4 py-6 max-w-7xl">
           {/* Header */}
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-4">
               
-              <div>
-                <h1 className="text-3xl font-bold text-gray-900">Users</h1>
-                <p className="text-sm text-gray-500">Manage all platform users</p>
-              </div>
+            
             </div>
             <button
               onClick={() => handleOpenModal()}

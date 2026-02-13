@@ -4,8 +4,8 @@ export default function TermsOfService() {
   return (
     <>
       <Head>
-        <title>Terms of Service | Dosnine Properties</title>
-        <meta name="description" content="Terms of Service for Dosnine Properties. Read our terms and conditions for using our rental property platform." />
+        <title>Terms of Service | Dosnine Ltd</title>
+        <meta name="description" content="Terms of Service for Dosnine Ltd. Read our terms and conditions for using our rental property platform." />
         <meta name="robots" content="index, follow" />
         <link rel="canonical" href="https://www.dosnine.com/terms-of-service" />
       </Head>
@@ -20,17 +20,17 @@ export default function TermsOfService() {
               <section className="mb-8">
                 <h2 className="text-2xl font-bold text-gray-900 mb-4">1. Agreement to Terms</h2>
                 <p className="text-gray-700 mb-4">
-                  Welcome to Dosnine Properties. By accessing or using our website and services, you agree to be bound by these Terms of Service ("Terms"). If you do not agree to these Terms, please do not use our services.
+                  Welcome to Dosnine Ltd. By accessing or using our website and services, you agree to be bound by these Terms of Service ("Terms"). If you do not agree to these Terms, please do not use our services.
                 </p>
                 <p className="text-gray-700 mb-6">
-                  These Terms constitute a legally binding agreement between you and Dosnine Properties ("we," "us," or "our"). We reserve the right to update these Terms at any time, and your continued use constitutes acceptance of such changes.
+                  These Terms constitute a legally binding agreement between you and Dosnine Ltd ("we," "us," or "our"). We reserve the right to update these Terms at any time, and your continued use constitutes acceptance of such changes.
                 </p>
               </section>
 
               <section className="mb-8">
                 <h2 className="text-2xl font-bold text-gray-900 mb-4">2. Description of Service</h2>
                 <p className="text-gray-700 mb-4">
-                  Dosnine Properties provides an online platform that connects property owners (landlords) with potential renters in Jamaica. Our services include:
+                  Dosnine Ltd provides an online platform that connects property owners (landlords) with potential renters in Jamaica. Our services include:
                 </p>
                 <ul className="list-disc pl-6 mb-4 text-gray-700 space-y-2">
                   <li>Property listing and search functionality</li>

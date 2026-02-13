@@ -7,6 +7,7 @@ import { FiTrash2 } from 'react-icons/fi';
 import { MessageCircle, Phone as PhoneIcon } from 'lucide-react';
 import AutoAssignModal from '../../components/AutoAssignModal';
 import BudgetRejectionEmailer from '../../components/BudgetRejectionEmailer';
+import AdminLayout from '@/components/AdminLayout';
 
 export default function AdminRequestsPage() {
   const { user } = useUser();
@@ -477,6 +478,7 @@ export default function AdminRequestsPage() {
       
       <div className="min-h-screen bg-gray-50">
         <div className="container mx-auto px-4 py-6 max-w-7xl">
+          <AdminLayout />
           {/* Header */}
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-4">

@@ -6,6 +6,7 @@ import { supabase } from '../../lib/supabase';
 import toast from 'react-hot-toast';
 import { FiStar, FiTrash2, FiEye, FiGrid, FiUsers, FiZap, FiDollarSign, FiClock, FiTrendingUp, FiMail, FiPackage } from 'react-icons/fi';
 import { formatJMD, formatMoney } from '../../lib/formatMoney';
+import AdminLayout from '../../components/AdminLayout';
 
 export default function AdminDashboard() {
   const { user } = useUser();
@@ -174,93 +175,8 @@ export default function AdminDashboard() {
       
       <div className="container mx-auto px-4 py-6 max-w-7xl">
  
-      {/* Simple Tabs */}
-      <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
-          <Link
-          href="/admin/requests"
-          className="px-3 py-2 rounded-md text-sm font-medium flex items-center gap-1.5 whitespace-nowrap text-gray-700 hover:bg-gray-100"
-        >
-          <FiGrid size={14} />
-          Requests
-        </Link>
-        <Link
-          href="/admin/requests-management"
-          className="px-3 py-2 rounded-md text-sm font-medium flex items-center gap-1.5 whitespace-nowrap text-gray-700 hover:bg-gray-100"
-        >
-          <FiZap size={14} />
-          Manage Requests
-        </Link>
-        <Link
-          href="/admin/agents"
-          className="px-3 py-2 rounded-md text-sm font-medium flex items-center gap-1.5 whitespace-nowrap text-gray-700 hover:bg-gray-100"
-        >
-          <FiUsers size={14} />
-          Agents
-        </Link>
-          <Link
-          href="/admin/advertisements"
-          className="px-3 py-2 rounded-md text-sm font-medium flex items-center gap-1.5 whitespace-nowrap text-gray-700 hover:bg-gray-100"
-        >
-          <FiUsers size={14} />
-          Advertisements
-        </Link>
-        <Link
-          href="/admin/allocation"
-          className="px-3 py-2 rounded-md text-sm font-medium flex items-center gap-1.5 whitespace-nowrap text-gray-700 hover:bg-gray-100"
-        >
-          <FiTrendingUp size={14} />
-          Allocation
-        </Link>
-        <Link
-          href="/admin/feedback"
-          className="px-3 py-2 rounded-md text-sm font-medium flex items-center gap-1.5 whitespace-nowrap text-gray-700 hover:bg-gray-100"
-        >
-          <FiTrendingUp size={14} />
-          Feedback
-        </Link>
-        <Link
-          href="/admin/htv"
-          className="px-3 py-2 rounded-md text-sm font-medium flex items-center gap-1.5 whitespace-nowrap text-gray-700 hover:bg-gray-100"
-        >
-          <FiPackage size={14} />
-          HTV Orders
-        </Link>
-      
-        <Link
-          href="/admin/users"
-          className="px-3 py-2 rounded-md text-sm font-medium flex items-center gap-1.5 whitespace-nowrap text-gray-700 hover:bg-gray-100"
-        >
-          <FiUsers size={14} />
-          Users
-        </Link>
-        <Link
-          href="/admin/properties"
-          className="px-3 py-2 rounded-md text-sm font-medium flex items-center gap-1.5 whitespace-nowrap text-gray-700 hover:bg-gray-100"
-        >
-          <FiGrid size={14} />
-          Properties
-        </Link>
-        <Link
-          href="/admin/visitor-emails"
-          className="px-3 py-2 rounded-md text-sm font-medium flex items-center gap-1.5 whitespace-nowrap text-gray-700 hover:bg-gray-100"
-        >
-          <FiMail size={14} />
-          Emails
-          {visitorEmails.length > 0 && (
-            <span className="bg-blue-600 text-white px-1.5 py-0.5 rounded-full text-xs ml-1">
-              {visitorEmails.length}
-            </span>
-          )}
-        </Link>
-        <Link
-          href="/admin/course"
-          className="px-3 py-2 rounded-md text-sm font-medium flex items-center gap-1.5 whitespace-nowrap text-gray-700 hover:bg-gray-100"
-        >
-          <FiDollarSign size={14} />
-          Course
-        </Link>
-         
-      </div>
+      <AdminLayout />
+
 
       {loading ? (
         <div className="text-center py-12 text-gray-500">Loading...</div>

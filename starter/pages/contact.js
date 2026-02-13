@@ -45,8 +45,8 @@ export default function ContactPage() {
   return (
     <>
       <Head>
-        <title>Contact Us | Dosnine Properties</title>
-        <meta name="description" content="Get in touch with Dosnine Properties. Contact us for property listings, questions about boosting your ads, or general inquiries about renting in Jamaica." />
+        <title>Contact Us | Dosnine Ltd</title>
+        <meta name="description" content="Get in touch with Dosnine Ltd. Contact us for property listings, questions about boosting your ads, or general inquiries about renting in Jamaica." />
         <meta name="robots" content="index, follow" />
         <link rel="canonical" href="https://www.dosnine.com/contact" />
       </Head>
@@ -108,7 +108,7 @@ export default function ContactPage() {
                     <div>
                       <h3 className="font-semibold text-gray-900">Address</h3>
                       <p className="text-gray-700">
-                        Dosnine Properties<br />
+                        Dosnine Ltd<br />
                         Kingston, Jamaica
                       </p>
                     </div>

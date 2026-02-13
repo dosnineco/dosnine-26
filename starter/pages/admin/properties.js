@@ -3,6 +3,8 @@ import Head from 'next/head';
 import Link from 'next/link';
 import { useUser } from '@clerk/nextjs';
 import { supabase } from '../../lib/supabase';
+import AdminLayout from '../../components/AdminLayout';
+import AdminHeader from '../../components/AdminHeader';
 import toast from 'react-hot-toast';
 import { FiTrash2, FiEdit2 } from 'react-icons/fi';
 
@@ -221,8 +223,7 @@ export default function AdminPropertiesPage() {
                 ← Back to Dashboard
               </Link>
             </div>
-            <h1 className="text-3xl font-bold text-gray-900">Properties</h1>
-            <p className="text-sm text-gray-500">Manage property listings</p>
+            <AdminHeader title="Properties" subtitle="Manage property listings" />
           </div>
 
           {loading ? (
