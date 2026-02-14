@@ -22,6 +22,24 @@ export default function VisitorEmailPopup() {
   const [parish, setParish] = useState('');
   const [area, setArea] = useState('');
 
+    const parishes = [
+      "Kingston",
+      "St. Andrew",
+      "St. Thomas",
+      "Portland",
+      "St. Mary",
+      "St. Ann",
+      "Trelawny",
+      "St. James",
+      "Hanover",
+      "Westmoreland",
+      "Manchester",
+      "Clarendon",
+      "St. Catherine",
+      "St. Elizabeth",
+    ];
+
+
   // Budget ranges based on intent
   const budgetRanges = {
     buy: { min: 4000000, max: 150000000, default: 5000000 },
@@ -35,6 +53,22 @@ export default function VisitorEmailPopup() {
       setBudgetMin(budgetRanges[intent].default);
     }
   }, [intent]);
+
+  useEffect(() => {
+  if (showPopup) {
+    document.body.style.overflow = "hidden";
+    document.body.style.height = "100vh";
+  } else {
+    document.body.style.overflow = "";
+    document.body.style.height = "";
+  }
+
+  return () => {
+    document.body.style.overflow = "";
+    document.body.style.height = "";
+  };
+}, [showPopup]);
+
 
   /* -----------------------------
      Check if signed-in user is agent
@@ -55,6 +89,10 @@ export default function VisitorEmailPopup() {
       }
     };
 
+
+
+
+    
     if (isSignedIn) {
       checkAgent();
     }
@@ -133,7 +171,7 @@ export default function VisitorEmailPopup() {
     try {
       // First, create a service_request entry from the visitor email
       const requestData = {
-        client_name: 'Website Visitor',
+        client_name: 'Website Submitted',
         client_email: email,
         client_phone: phone,
         request_type: intent, // buy, sell, rent
@@ -197,345 +235,205 @@ export default function VisitorEmailPopup() {
 
   if (!showPopup || submitted) return null;
 
-  return (
-    <div className="fixed inset-0 bg-gray-100  flex items-center justify-center z-50 p-4">
-      <div className="bg-white  max-w-md rounded-2xl w-full overflow-hidden relative">
 
-        {/* Close X Button */}
+return (
+<div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm">
+
+  <div
+    className="
+      w-full h-full sm:h-auto sm:max-h-[90vh]
+      sm:max-w-lg
+      bg-white
+      sm:rounded-2xl rounded-none
+      shadow-none sm:shadow-2xl
+      overflow-hidden
+      animate-in fade-in zoom-in-95 duration-200
+    "
+  >
+      {/* Header */}
+      <div className="relative px-6 pt-6 pb-4 border-b bg-accent">
         <button
           onClick={handleDismiss}
-          className="absolute top-4 right-4 z-10 w-8 h-8 flex items-center justify-center rounded-full bg-white/20 hover:bg-white/30 text-white transition"
-          aria-label="Close popup"
+          className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 transition"
         >
-          <X size={20} />
+          <X size={18} />
         </button>
 
-        {/* Header */}
-        <div className="bg-gradient-to-r from-orange-600 to-orange-700 p-6 text-white">
-          <h2 className="text-2xl font-bold flex items-center gap-2">
-            <Search size={28} />
-            Get Property Alerts
-          </h2>
-          <p className="text-orange-100 text-sm mt-1">
-            An agent will contact you with verified listings
-          </p>
+        <h2 className="text-xl font-bold text-white">
+          Find Your Perfect Property
+        </h2>
+        <p className="text-sm text-white mt-1">
+          Tell us what you're looking for and a verified agent will contact you.
+        </p>
+      </div>
+
+      {/* Scrollable Form Area */}
+      <form
+        onSubmit={handleSubmit}
+        className="px-6 py-6 space-y-6 max-h-[75vh] overflow-y-auto"
+      >
+
+        {/* Intent */}
+        <div>
+          <label className="block text-sm font-semibold text-gray-800 mb-3">
+            What do you want to do?
+          </label>
+
+          <div className="grid grid-cols-3 gap-2">
+            {["buy", "sell", "rent"].map((type) => (
+              <button
+                key={type}
+                type="button"
+                onClick={() => setIntent(type)}
+                className={`py-3 rounded-xl border text-sm font-semibold transition-all
+                  ${
+                    intent === type
+                      ? "bg-accent text-white border-accent shadow-md"
+                      : "bg-white border-gray-300 hover:border-accent"
+                  }`}
+              >
+                {type.charAt(0).toUpperCase() + type.slice(1)}
+              </button>
+            ))}
+          </div>
         </div>
 
-        {/* Form */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-5 max-h-[80vh] overflow-y-auto">
-          
-          {/* Intent Buttons */}
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-3">
-              I'm interested in:
+        {/* Budget */}
+        <div>
+          <div className="flex justify-between items-center mb-2">
+            <label className="text-sm font-semibold text-gray-800">
+              Budget
             </label>
-            <div className="grid grid-cols-3 gap-2">
-              <button
-                type="button"
-                onClick={() => setIntent('buy')}
-                className={`px-4 py-3 rounded-lg border-2 font-semibold transition flex items-center justify-center gap-2 ${
-                  intent === 'buy'
-                    ? 'border-orange-600 bg-orange-50 text-orange-700'
-                    : 'border-gray-300 text-gray-700 hover:border-orange-400'
-                }`}
-              >
-                <Home size={18} />
-                Buy
-              </button>
-              <button
-                type="button"
-                onClick={() => setIntent('sell')}
-                className={`px-4 py-3 rounded-lg border-2 font-semibold transition flex items-center justify-center gap-2 ${
-                  intent === 'sell'
-                    ? 'border-orange-600 bg-orange-50 text-orange-700'
-                    : 'border-gray-300 text-gray-700 hover:border-orange-400'
-                }`}
-              >
-                <DollarSign size={18} />
-                Sell
-              </button>
-              <button
-                type="button"
-                onClick={() => setIntent('rent')}
-                className={`px-4 py-3 rounded-lg border-2 font-semibold transition flex items-center justify-center gap-2 ${
-                  intent === 'rent'
-                    ? 'border-orange-600 bg-orange-50 text-orange-700'
-                    : 'border-gray-300 text-gray-700 hover:border-orange-400'
-                }`}
-              >
-                <Key size={18} />
-                Rent
-              </button>
-            </div>
+            <span className="text-sm font-bold text-accent">
+              {intent
+                ? `JMD ${budgetMin.toLocaleString()}`
+                : ""}
+            </span>
           </div>
 
-          {/* Budget Slider */}
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
-              <DollarSign size={18} className="text-orange-600" />
-              Budget: <span className="text-orange-600 font-bold">{intent ? budgetRanges[intent] ? budgetMin.toLocaleString('en-US', { style: 'currency', currency: 'JMD' }).replace('JMD', 'JMD') : 'Select intent' : 'Select intent'}</span>
-            </label>
-          {/* Low Budget Warning for Rentals */}
-          {intent === 'rent' && budgetMin < 70000 && (
-            <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4">
-              <div className="flex items-start">
-                <div className="ml-3">
-                  <p className="text-sm font-medium text-yellow-800">
-                    ⚠️ Budget Below Minimum
-                  </p>
-                  <p className="text-xs text-yellow-700 mt-1">
-                    Minimum rental budget is <strong>JMD 70,000</strong> to ensure quality service and verified property matches.
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Low Budget Warning for Buy */}
-          {intent === 'buy' && budgetMin < 4000000 && (
-            <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4">
-              <div className="flex items-start">
-                <div className="ml-3">
-                  <p className="text-sm font-medium text-yellow-800">
-                    ⚠️ Budget Below Minimum
-                  </p>
-                  <p className="text-xs text-yellow-700 mt-1">
-                    Minimum buy budget is <strong>JMD 4,000,000</strong> to ensure quality service and verified property matches.
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Minimum Budget Notice for Rentals */}
-          {intent === 'rent' && budgetMin === 70000 && (
-            <div className="bg-blue-50 border-l-4 border-blue-400 p-4">
-              <div className="flex items-start">
-                <div className="ml-3">
-                  <p className="text-sm font-medium text-blue-800">
-                    ℹ️ Minimum Budget for Property Alerts
-                  </p>
-                  <p className="text-xs text-blue-700 mt-1">
-                    <strong>JMD 70,000</strong> is the minimum for rental property alerts. We don't have verified listings below this amount.
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Minimum Budget Notice for Buy */}
-          {intent === 'buy' && budgetMin === 4000000 && (
-            <div className="bg-blue-50 border-l-4 border-blue-400 p-4">
-              <div className="flex items-start">
-                <div className="ml-3">
-                  <p className="text-sm font-medium text-blue-800">
-                    ℹ️ Minimum Budget for Property Alerts
-                  </p>
-                  <p className="text-xs text-blue-700 mt-1">
-                    <strong>JMD 4,000,000</strong> is the minimum for buy property alerts. We don't have verified listings below this amount.
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
-
-
-            {intent && budgetRanges[intent] ? (
-              <>
-                <div className="flex items-center gap-4">
-                  <span className="text-xs text-gray-500 font-medium whitespace-nowrap">
-                    JMD {budgetRanges[intent].min.toLocaleString()}
-                  </span>
-                  <input
-                    type="range"
-                    min={budgetRanges[intent].min}
-                    max={budgetRanges[intent].max}
-                    step={intent === 'rent' ? 5000 : 50000}
-                    value={budgetMin}
-                    onChange={(e) => setBudgetMin(parseInt(e.target.value))}
-                    className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-orange-600"
-                  />
-                  <span className="text-xs text-gray-500 font-medium whitespace-nowrap">
-                    JMD {budgetRanges[intent].max.toLocaleString()}
-                  </span>
-                </div>
-                <div className="mt-3 grid grid-cols-3 gap-2">
-                  {intent === 'rent' ? (
-                    <>
-                      <button
-                        type="button"
-                        onClick={() => setBudgetMin(100000)}
-                        className="text-xs px-3 py-1 bg-gray-100 hover:bg-orange-100 rounded transition font-medium"
-                      >
-                        100K
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setBudgetMin(300000)}
-                        className="text-xs px-3 py-1 bg-gray-100 hover:bg-orange-100 rounded transition font-medium"
-                      >
-                        300K
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setBudgetMin(800000)}
-                        className="text-xs px-3 py-1 bg-gray-100 hover:bg-orange-100 rounded transition font-medium"
-                      >
-                        800K
-                      </button>
-                    </>
-                  ) : (
-                    <>
-                      <button
-                        type="button"
-                        onClick={() => setBudgetMin(5000000)}
-                        className="text-xs px-3 py-1 bg-gray-100 hover:bg-orange-100 rounded transition font-medium"
-                      >
-                        5M
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setBudgetMin(30000000)}
-                        className="text-xs px-3 py-1 bg-gray-100 hover:bg-orange-100 rounded transition font-medium"
-                      >
-                        30M
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setBudgetMin(100000000)}
-                        className="text-xs px-3 py-1 bg-gray-100 hover:bg-orange-100 rounded transition font-medium"
-                      >
-                        100M
-                      </button>
-                    </>
-                  )}
-                </div>
-              </>
-            ) : (
-              <p className="text-sm text-gray-500 italic">Select Buy, Sell, or Rent above</p>
-            )}
-          </div>
-
-          {/* Property Details Section */}
-          <div className="border-t pt-5">
-            <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
-              <MapPin size={18} className="text-orange-600" />
-              Property Preferences
-            </h3>
-            
-            {/* Bedrooms */}
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-                <Bed size={16} />
-                Bedrooms
-              </label>
-              <select
-                value={bedrooms}
-                onChange={(e) => setBedrooms(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 bg-white"
-              >
-                <option value="">Any</option>
-                <option value="1">1 Bedroom</option>
-                <option value="2">2 Bedrooms</option>
-                <option value="3">3 Bedrooms</option>
-                <option value="4">4 Bedrooms</option>
-                <option value="5">5+ Bedrooms</option>
-              </select>
-            </div>
-
-            {/* Parish */}
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-                <MapPin size={16} />
-                Parish
-              </label>
-              <select
-                value={parish}
-                onChange={(e) => setParish(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 bg-white"
-              >
-                <option value="">Select Parish</option>
-                <option value="Kingston">Kingston</option>
-                <option value="St. Andrew">St. Andrew</option>
-                <option value="St. Thomas">St. Thomas</option>
-                <option value="Portland">Portland</option>
-                <option value="St. Mary">St. Mary</option>
-                <option value="St. Ann">St. Ann</option>
-                <option value="Trelawny">Trelawny</option>
-                <option value="St. James">St. James</option>
-                <option value="Hanover">Hanover</option>
-                <option value="Westmoreland">Westmoreland</option>
-                <option value="Manchester">Manchester</option>
-                <option value="Clarendon">Clarendon</option>
-                <option value="St. Catherine">St. Catherine</option>
-              </select>
-            </div>
-
-            {/* Area */}
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-                <MapPin size={16} />
-                Area in {parish || 'Parish'}
-              </label>
+          {intent ? (
+            <>
               <input
-                type="text"
-                value={area}
-                onChange={(e) => setArea(e.target.value)}
-                placeholder="e.g., New Kingston, Half Way Tree, Constant Spring"
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+                type="range"
+                min={budgetRanges[intent].min}
+                max={budgetRanges[intent].max}
+                step={intent === "rent" ? 5000 : 50000}
+                value={budgetMin}
+                onChange={(e) =>
+                  setBudgetMin(parseInt(e.target.value))
+                }
+                className="w-full accent-accent"
               />
-            </div>
-          </div>
 
+              <div className="flex justify-between text-xs text-gray-500 mt-1">
+                <span>
+                  {budgetRanges[intent].min.toLocaleString()}
+                </span>
+                <span>
+                  {budgetRanges[intent].max.toLocaleString()}
+                </span>
+              </div>
+            </>
+          ) : (
+            <p className="text-sm text-gray-400">
+              Select one above first 
+            </p>
+          )}
+        </div>
 
-          {/* Contact Info */}
-          <div className="border-t pt-5 space-y-3">
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="Email address"
-              required
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
-            />
+        {/* Property Preferences */}
+        <div className="space-y-4 border-t pt-6">
+          {/* <h3 className="text-sm font-semibold text-gray-800">
+            Property Preferences
+          </h3> */}
 
-            <input
-              type="tel"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              placeholder="Phone number"
-              required
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
-            />
-          </div>
-
-          {/* Data Sharing Disclaimer */}
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-xs text-gray-700">
-            <p className="font-medium text-blue-900 mb-1">📋 Data Sharing & Capture Notice</p>
-            <p>
-              By submitting, you agree to share your contact information with verified agents 
-              who can help with your property needs.
-            </p> 
-          </div>
-
-          <button
-            type="submit"
-            disabled={loading || !intent || (intent === 'rent' && budgetMin < 70000) || (intent === 'buy' && budgetMin < 4000000)}
-            className="w-full py-3 px-4 bg-gradient-to-r from-orange-600 to-orange-700 text-white font-bold rounded-lg hover:shadow-lg transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+          <select
+            value={bedrooms}
+            onChange={(e) => setBedrooms(e.target.value)}
+            className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm focus:ring-2 focus:ring-accent focus:outline-none"
           >
-            {loading ? (
-              <>
-                <Loader2 size={20} className="animate-spin" />
-                Saving...
-              </>
-            ) : intent ? (
-              `Connect with ${intent.charAt(0).toUpperCase() + intent.slice(1)} Agent`
-            ) : (
-              'Select an option above'
-            )}
-          </button>
-        </form>
-      </div>
+            <option value="">Bedrooms (Any)</option>
+            <option value="1">1 Bedroom</option>
+            <option value="2">2 Bedrooms</option>
+            <option value="3">3 Bedrooms</option>
+            <option value="4">4 Bedrooms</option>
+            <option value="5">5+ Bedrooms</option>
+          </select>
+
+            <select
+              value={parish}
+              onChange={(e) => setParish(e.target.value)}
+              className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm focus:ring-2 focus:ring-accent focus:outline-none"
+            >
+              <option value="">Select Parish</option>
+              {parishes.map((p) => (
+                <option key={p} value={p}>
+                  {p}
+                </option>
+              ))}
+            </select>
+
+
+          <input
+            type="text"
+            value={area}
+            onChange={(e) => setArea(e.target.value)}
+            placeholder="Specific Area - eg. Patrick city"
+            className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm focus:ring-2 focus:ring-accent focus:outline-none"
+          />
+        </div>
+
+        {/* Contact */}
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="eg. johnbrown@gmail.com"
+            required
+            className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm focus:ring-2 focus:ring-accent focus:outline-none"
+          />
+
+          <input
+            type="tel"
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+            placeholder="eg. 8761234567"
+            required
+            className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm focus:ring-2 focus:ring-accent focus:outline-none"
+          />
+
+        {/* Privacy */}
+        <p className="text-xs text-gray-500 leading-relaxed">
+          By submitting, you agree to our{" "}
+          <a
+            href="/privacy-policy"
+            className="text-accent font-medium hover:underline"
+          >
+            Privacy Policy
+          </a>.
+        </p>
+
+        {/* Submit */}
+        <button
+          type="submit"
+          disabled={
+            loading ||
+            !intent ||
+            (intent === "rent" && budgetMin < 70000) ||
+            (intent === "buy" && budgetMin < 4000000)
+          }
+          className="w-full py-3 rounded-xl bg-accent hover:bg-orange-700 text-white font-semibold transition-all shadow-md disabled:opacity-50"
+        >
+          {loading
+            ? "Saving..."
+            : intent
+            ? `Connect with ${intent} agent`
+            : "Select option above"}
+        </button>
+
+      </form>
     </div>
-  );
+  </div>
+);
+
 }

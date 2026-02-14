@@ -166,156 +166,166 @@ export default function RequestAgentPage() {
     );
   }
 
-  return (
-    <>
-      <Head>
-        <title>Request an Agent - DoSnine</title>
-        <meta name="description" content="Connect with verified real estate agents in Jamaica" />
-      </Head>
-      
-      <div className="min-h-screen bg-gradient-to-br from-orange-50 to-orange-100 flex items-center justify-center p-4">
-        <div className="bg-white rounded-2xl shadow-xl max-w-md w-full overflow-hidden">
+ return (
+  <>
+    <Head>
+      <title>Request an Agent - Dosnine</title>
+      <meta
+        name="description"
+        content="Connect with verified real estate agents in Jamaica"
+      />
+    </Head>
 
-          {/* Header */}
-          <div className="bg-gradient-to-r from-orange-600 to-orange-700 p-8 text-white">
-            <h1 className="text-3xl font-bold mb-2">Connect with an Agent</h1>
-            <p className="text-orange-100 mb-4">
-              Get matched with verified real estate professionals
-            </p>
-            
-            {/* Progress Indicator */}
-            <div className="flex items-center justify-center gap-2">
-              <div className={`w-10 h-10 rounded-full flex items-center justify-center font-semibold ${step >= 1 ? 'bg-white text-orange-600' : 'bg-orange-500 text-white'}`}>
-                1
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center sm:p-6">
+      <div className="bg-white sm:rounded-2xl w-full max-w-4xl overflow-hidden">
+
+        {/* Header */}
+        <div className="bg-accent p-10 text-white">
+          <h1 className="text-3xl font-bold mb-2">Connect with an Agent</h1>
+          <p className="opacity-90 mb-6">
+            Get matched with verified real estate professionals
+          </p>
+
+          {/* Progress Indicator */}
+          <div className="flex items-center justify-center gap-4">
+            {[1, 2, 3].map((num, index) => (
+              <div key={num} className="flex items-center gap-4">
+                <div
+                  className={`w-10 h-10 rounded-full flex items-center justify-center font-semibold transition
+                    ${
+                      step >= num
+                        ? "bg-white text-accent"
+                        : "bg-white/30 text-white"
+                    }`}
+                >
+                  {num}
+                </div>
+                {index < 2 && (
+                  <div
+                    className={`h-1 w-16 transition ${
+                      step > num ? "bg-white" : "bg-white/40"
+                    }`}
+                  ></div>
+                )}
               </div>
-              <div className={`h-1 w-12 ${step >= 2 ? 'bg-white' : 'bg-orange-500'}`}></div>
-              <div className={`w-10 h-10 rounded-full flex items-center justify-center font-semibold ${step >= 2 ? 'bg-white text-orange-600' : 'bg-orange-500 text-white'}`}>
-                2
-              </div>
-              <div className={`h-1 w-12 ${step >= 3 ? 'bg-white' : 'bg-orange-500'}`}></div>
-              <div className={`w-10 h-10 rounded-full flex items-center justify-center font-semibold ${step >= 3 ? 'bg-white text-orange-600' : 'bg-orange-500 text-white'}`}>
-                3
-              </div>
-            </div>
-            <div className="flex justify-between text-xs text-orange-100 mt-2">
-              <span>Your Info</span>
-              <span>Property</span>
-              <span>Details</span>
-            </div>
+            ))}
           </div>
 
-          {/* Form */}
-          <form onSubmit={handleSubmit} className="p-8 space-y-6">
-          
-          {/* STEP 1: Basic Info & Request Type */}
+          <div className="flex justify-between text-xs opacity-90 mt-3 max-w-md mx-auto">
+            <span>Your Info</span>
+            <span>Property</span>
+            <span>Details</span>
+          </div>
+        </div>
+
+        {/* FORM */}
+        <form onSubmit={handleSubmit} className="p-10">
+
+          {/* STEP 1 */}
           {step === 1 && (
-            <>
-              <div className="text-center mb-4">
-                <h2 className="text-xl font-bold text-gray-900">Let's get started</h2>
-                <p className="text-sm text-gray-600">We'll need a few details to connect you with the right agent</p>
+            <div className="grid md:grid-cols-2 gap-10">
+
+              {/* LEFT */}
+              <div>
+                <h2 className="text-2xl font-bold text-gray-900 mb-2">
+                  Let's get started
+                </h2>
+                <p className="text-gray-600 mb-6">
+                  We need a few details to connect you with the right agent.
+                </p>
+
+                <div className="space-y-5">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Full Name *
+                    </label>
+                    <input
+                      type="text"
+                      name="name"
+                      value={formData.name}
+                      onChange={handleInputChange}
+                      required
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-accent focus:border-accent outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Email Address *
+                    </label>
+                    <input
+                      type="email"
+                      name="email"
+                      value={formData.email}
+                      onChange={handleInputChange}
+                      required
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-accent focus:border-accent outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Phone Number *
+                    </label>
+                    <input
+                      type="tel"
+                      name="phone"
+                      value={formData.phone}
+                      onChange={handleInputChange}
+                      required
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-accent focus:border-accent outline-none"
+                    />
+                  </div>
+                </div>
               </div>
 
-              {/* Request Type Buttons */}
+              {/* RIGHT */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-3">
+                <label className="block text-sm font-medium text-gray-700 mb-4">
                   What do you need help with? *
                 </label>
-                <div className="grid grid-cols-3 gap-3">
-                  {['buy', 'rent', 'sell'].map(type => (
+
+                <div className="grid grid-cols-2 gap-4">
+                  {["buy", "rent", "sell", "lease", "valuation"].map(type => (
                     <button
                       key={type}
                       type="button"
-                      onClick={() => setFormData(prev => ({ ...prev, requestType: type }))}
-                      className={`px-4 py-4 rounded-lg border-2 font-semibold transition ${
-                        formData.requestType === type
-                          ? 'border-orange-600 bg-orange-50 text-orange-700 shadow-md'
-                          : 'border-gray-300 text-gray-700 hover:border-orange-400 hover:bg-orange-50'
-                      }`}
+                      onClick={() =>
+                        setFormData(prev => ({
+                          ...prev,
+                          requestType: type
+                        }))
+                      }
+                      className={`px-5 py-4 rounded-lg border-2 font-semibold transition
+                        ${
+                          formData.requestType === type
+                            ? "border-accent bg-accent/10 text-accent"
+                            : "border-gray-300 text-gray-700 hover:border-accent hover:bg-accent/5"
+                        }`}
                     >
                       {type.charAt(0).toUpperCase() + type.slice(1)}
                     </button>
                   ))}
                 </div>
-                <div className="grid grid-cols-2 gap-3 mt-3">
-                  {['lease', 'valuation'].map(type => (
-                    <button
-                      key={type}
-                      type="button"
-                      onClick={() => setFormData(prev => ({ ...prev, requestType: type }))}
-                      className={`px-4 py-3 rounded-lg border-2 font-semibold transition text-sm ${
-                        formData.requestType === type
-                          ? 'border-orange-600 bg-orange-50 text-orange-700 shadow-md'
-                          : 'border-gray-300 text-gray-700 hover:border-orange-400 hover:bg-orange-50'
-                      }`}
-                    >
-                      {type.charAt(0).toUpperCase() + type.slice(1)}
-                    </button>
-                  ))}
-                </div>
-              </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Full Name *
-                </label>
-                <input
-                  type="text"
-                  name="name"
-                  value={formData.name}
-                  onChange={handleInputChange}
-                  placeholder="John Doe"
-                  required
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                />
+                <button
+                  type="button"
+                  onClick={nextStep}
+                  className="mt-8 w-full bg-accent text-white py-4 rounded-lg font-semibold hover:opacity-90 transition"
+                >
+                  Continue
+                </button>
               </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Email Address *
-                </label>
-                <input
-                  type="email"
-                  name="email"
-                  value={formData.email}
-                  onChange={handleInputChange}
-                  placeholder="your@email.com"
-                  required
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Phone Number *
-                </label>
-                <input
-                  type="tel"
-                  name="phone"
-                  value={formData.phone}
-                  onChange={handleInputChange}
-                  placeholder="876-XXX-XXXX"
-                  required
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                />
-              </div>
-
-              <button
-                type="button"
-                onClick={nextStep}
-                className="w-full btn-primary py-4 text-lg"
-              >
-                Continue
-              </button>
-            </>
+            </div>
           )}
 
-          {/* STEP 2: Property Details */}
+          {/* STEP 2 */}
           {step === 2 && (
-            <>
-              <div className="text-center mb-4">
-                <h2 className="text-xl font-bold text-gray-900">Property Details</h2>
-                <p className="text-sm text-gray-600">Help us match you with the perfect property</p>
-              </div>
+            <div className="space-y-6 max-w-2xl mx-auto">
+
+              <h2 className="text-2xl font-bold text-gray-900 text-center">
+                Property Details
+              </h2>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -326,7 +336,7 @@ export default function RequestAgentPage() {
                   value={formData.propertyType}
                   onChange={handleInputChange}
                   required
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-accent focus:border-accent outline-none"
                 >
                   <option value="house">House</option>
                   <option value="apartment">Apartment</option>
@@ -345,230 +355,96 @@ export default function RequestAgentPage() {
                   name="location"
                   value={formData.location}
                   onChange={handleInputChange}
-                  placeholder="e.g., Kingston, Montego Bay, Portmore..."
                   required
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-accent focus:border-accent outline-none"
                 />
               </div>
 
-              <div className="flex gap-3">
+              <div className="flex gap-4">
                 <button
                   type="button"
                   onClick={prevStep}
-                  className="flex-1 px-6 py-4 border-2 border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition font-semibold"
+                  className="flex-1 border border-gray-300 py-4 rounded-lg font-semibold hover:bg-gray-100 transition"
                 >
                   Back
                 </button>
+
                 <button
                   type="button"
                   onClick={nextStep}
-                  className="flex-1 btn-primary py-4 text-lg"
+                  className="flex-1 bg-accent text-white py-4 rounded-lg font-semibold hover:opacity-90 transition"
                 >
                   Continue
                 </button>
               </div>
-
-              <button
-                type="button"
-                onClick={skipToSubmit}
-                className="w-full text-sm text-gray-600 hover:text-gray-900 underline"
-              >
-                Skip optional details and submit now
-              </button>
-            </>
-          )}
-
-          {/* STEP 3: Optional Details (Skippable) */}
-          {step === 3 && (
-            <>
-              <div className="text-center mb-4">
-                <h2 className="text-xl font-bold text-gray-900">Additional Details</h2>
-                <p className="text-sm text-gray-600">Optional - Help agents find better matches for you</p>
-                <p className="text-xs text-orange-600 font-semibold mt-1">You can skip this step if you prefer</p>
-              </div>
-
-              {/* Low Budget Warning for Rentals */}
-              {formData.requestType === 'rent' && formData.budgetMin && parseInt(formData.budgetMin) < 70000 && (
-                <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded">
-                  <p className="text-sm font-medium text-yellow-800">⚠️ Budget Below Minimum</p>
-                  <p className="text-xs text-yellow-700 mt-1">
-                    Minimum rental budget is <strong>JMD 70,000</strong> to ensure quality service and verified property matches.
-                  </p>
-                </div>
-              )}
-
-              {/* Low Budget Warning for Buy */}
-              {formData.requestType === 'buy' && formData.budgetMin && parseInt(formData.budgetMin) < 4000000 && (
-                <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 rounded">
-                  <p className="text-sm font-medium text-yellow-800">⚠️ Budget Below Minimum</p>
-                  <p className="text-xs text-yellow-700 mt-1">
-                    Minimum buy budget is <strong>JMD 4,000,000</strong> to ensure quality service and verified property matches.
-                  </p>
-                </div>
-              )}
-
-              {/* Minimum Budget Notice for Rentals */}
-              {formData.requestType === 'rent' && formData.budgetMin && parseInt(formData.budgetMin) === 70000 && (
-                <div className="bg-blue-50 border-l-4 border-blue-400 p-4 rounded">
-                  <p className="text-sm font-medium text-blue-800">ℹ️ Minimum Budget for Property Alerts</p>
-                  <p className="text-xs text-blue-700 mt-1">
-                    <strong>JMD 70,000</strong> is the minimum for rental property alerts. We don't have verified listings below this amount.
-                  </p>
-                </div>
-              )}
-
-              {/* Minimum Budget Notice for Buy */}
-              {formData.requestType === 'buy' && formData.budgetMin && parseInt(formData.budgetMin) === 4000000 && (
-                <div className="bg-blue-50 border-l-4 border-blue-400 p-4 rounded">
-                  <p className="text-sm font-medium text-blue-800">ℹ️ Minimum Budget for Property Alerts</p>
-                  <p className="text-xs text-blue-700 mt-1">
-                    <strong>JMD 4,000,000</strong> is the minimum for buy property alerts. We don't have verified listings below this amount.
-                  </p>
-                </div>
-              )}
-            
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm text-gray-600 mb-2">
-                    Budget Min (JMD)
-                  </label>
-                  <input
-                    type="number"
-                    name="budgetMin"
-                    value={formData.budgetMin}
-                    onChange={handleInputChange}
-                    placeholder="50,000"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm text-gray-600 mb-2">
-                    Budget Max (JMD)
-                  </label>
-                  <input
-                    type="number"
-                    name="budgetMax"
-                    value={formData.budgetMax}
-                    onChange={handleInputChange}
-                    placeholder="150,000"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm text-gray-600 mb-2">
-                    Bedrooms
-                  </label>
-                  <select
-                    name="bedrooms"
-                    value={formData.bedrooms}
-                    onChange={handleInputChange}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                  >
-                    <option value="">Any</option>
-                    <option value="1">1</option>
-                    <option value="2">2</option>
-                    <option value="3">3</option>
-                    <option value="4">4</option>
-                    <option value="5">5+</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm text-gray-600 mb-2">
-                    Bathrooms
-                  </label>
-                  <select
-                    name="bathrooms"
-                    value={formData.bathrooms}
-                    onChange={handleInputChange}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                  >
-                    <option value="">Any</option>
-                    <option value="1">1</option>
-                    <option value="2">2</option>
-                    <option value="3">3</option>
-                    <option value="4">4+</option>
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm text-gray-600 mb-2">
-                  Additional Details/Requirements
-                </label>
-                <textarea
-                  name="description"
-                  value={formData.description}
-                  onChange={handleInputChange}
-                  placeholder="Any specific requirements, preferences, or timeline..."
-                  rows="3"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm text-gray-600 mb-2">
-                  Urgency
-                </label>
-                <select
-                  name="urgency"
-                  value={formData.urgency}
-                  onChange={handleInputChange}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                >
-                  <option value="urgent">Urgent - ASAP</option>
-                  <option value="low">Low - Just browsing</option>
-                  <option value="normal">Normal - Within a few months</option>
-                  <option value="high">High - Within a few weeks</option>
-                </select>
-              </div>
-
-              <div className="flex gap-3">
-                <button
-                  type="button"
-                  onClick={prevStep}
-                  className="flex-1 px-6 py-4 border-2 border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition font-semibold"
-                >
-                  Back
-                </button>
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="flex-1 btn-primary py-4 text-lg disabled:opacity-50"
-                >
-                  {loading ? 'Submitting...' : 'Submit Request'}
-                </button>
-              </div>
-
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full text-sm text-gray-600 hover:text-gray-900 underline"
-              >
-                Skip and submit now
-              </button>
-            </>
-          )}
-
-          {/* Data Sharing Disclaimer */}
-          {step === 3 && (
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-xs text-gray-700">
-              <p className="font-semibold text-blue-900 mb-2">📋 Privacy Notice</p>
-              <p>
-                By submitting this form, you consent to share your contact information with verified agents 
-                who will reach out to assist with your property needs. We respect your privacy and never spam.
-              </p>
             </div>
           )}
 
-          <p className="text-center text-xs text-gray-500">
+          {/* STEP 3 */}
+          {step === 3 && (
+            <div className="space-y-6 max-w-3xl mx-auto">
+
+              <h2 className="text-2xl font-bold text-gray-900 text-center">
+                Additional Details
+              </h2>
+
+              <div className="grid md:grid-cols-2 gap-6">
+                <input
+                  type="number"
+                  name="budgetMin"
+                  value={formData.budgetMin}
+                  onChange={handleInputChange}
+                  placeholder="Budget Min (JMD)"
+                  className="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-accent focus:border-accent outline-none"
+                />
+
+                <input
+                  type="number"
+                  name="budgetMax"
+                  value={formData.budgetMax}
+                  onChange={handleInputChange}
+                  placeholder="Budget Max (JMD)"
+                  className="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-accent focus:border-accent outline-none"
+                />
+              </div>
+
+              <textarea
+                name="description"
+                value={formData.description}
+                onChange={handleInputChange}
+                rows="4"
+                placeholder="Any additional requirements..."
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-accent focus:border-accent outline-none"
+              />
+
+              <div className="flex gap-4">
+                <button
+                  type="button"
+                  onClick={prevStep}
+                  className="flex-1 border border-gray-300 py-4 rounded-lg font-semibold hover:bg-gray-100 transition"
+                >
+                  Back
+                </button>
+
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="flex-1 bg-accent text-white py-4 rounded-lg font-semibold hover:opacity-90 transition disabled:opacity-50"
+                >
+                  {loading ? "Submitting..." : "Submit Request"}
+                </button>
+              </div>
+            </div>
+          )}
+
+          <p className="text-center text-xs text-gray-500 mt-8">
             Response time: Usually within 24 hours
           </p>
+
         </form>
       </div>
     </div>
-    </>
-  );
+  </>
+);
+
 }

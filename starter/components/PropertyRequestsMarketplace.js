@@ -26,14 +26,14 @@ export default function PropertyRequestsMarketplace() {
           .eq('status', 'open')
           .or('is_contacted.is.null,is_contacted.eq.false')
           .order('created_at', { ascending: false })
-          .limit(25);
+          .limit(24);
 
         // Fetch from visitor_emails (recent, non-contacted leads only)
         const { data: visitorEmails, error: visitorError } = await supabase
           .from('visitor_emails')
           .select('id, created_at, bedrooms, area, parish, budget_min')
           .order('created_at', { ascending: false })
-          .limit(25);
+          .limit(24);
 
         if (serviceError) {
           console.error('Service requests fetch error:', serviceError);
@@ -418,6 +418,12 @@ export default function PropertyRequestsMarketplace() {
                     {formatLocation(request.location, request.area, request.parish)}
                   </p>
                 </div>
+
+                {urgencyBadge && (
+                  <div className="absolute top-3 right-3 bg-accent text-white text-[10px] font-semibold px-2 py-1 rounded-full">
+                    {urgencyBadge}
+                  </div>
+                )}
 
                 {/* Budget */}
                 <div className="flex items-start gap-3 mb-5 flex-grow">
