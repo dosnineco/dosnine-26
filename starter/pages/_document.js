@@ -13,6 +13,7 @@ class MyDocument extends Document {
           <link rel="shortcut icon" type="image/png" href="/DOSNINE_FAVICON.png" />
           <link rel="apple-touch-icon" href="/DOSNINE_FAVICON.png" />
           <meta name="theme-color" content="#ff6b35"/>
+          <meta name="google-adsense-account" content="ca-pub-8738700447584361"/>
           <script
             async
             src={`https://www.googletagmanager.com/gtag/js?id=${gtag}`}
