@@ -500,21 +500,7 @@ export default function PropertyRequestsMarketplace() {
             Dosnine is where renters and buyers post requests, and agents respond.
           </p>
 
-          {/* Trust Badges */}
-          <div className="flex flex-wrap justify-center gap-8">
-            <div className="flex items-center gap-2">
-              <CheckCircle size={24} className="text-green-600" />
-              <span className="font-semibold text-gray-900">Verified Agents</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Lock size={24} className="text-blue-600" />
-              <span className="font-semibold text-gray-900">Secure & Private</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Users size={24} className="text-purple-600" />
-              <span className="font-semibold text-gray-900">Trusted by Thousands</span>
-            </div>
-          </div>
+      
         </div>
       </div>
 

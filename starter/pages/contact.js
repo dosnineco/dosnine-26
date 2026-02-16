@@ -76,7 +76,7 @@ export default function ContactPage() {
                     <div>
                       <h3 className="font-semibold text-gray-900">Email</h3>
                         <a href="mailto:info@dosnine.com" className="text-accent hover:underline">
-                        info@dosnine.com
+                        dosnineco@gmail.com
                       </a>
                       <p className="text-sm text-gray-600 mt-1">
                         We respond within 24 hours
@@ -92,7 +92,7 @@ export default function ContactPage() {
                     <div>
                       <h3 className="font-semibold text-gray-900">Phone</h3>
                         <a href="tel:+18765551234" className="text-accent hover:underline">
-                        +1 (876) 555-1234
+                        +1 (876) 336-9045
                       </a>
                       <p className="text-sm text-gray-600 mt-1">
                         Mon-Fri: 9am - 6pm (Jamaica Time)
@@ -122,9 +122,9 @@ export default function ContactPage() {
                     <div>
                       <h3 className="font-semibold text-gray-900">Support Hours</h3>
                       <p className="text-gray-700">
-                        Monday - Friday: 9:00 AM - 6:00 PM<br />
-                        Saturday: 10:00 AM - 4:00 PM<br />
-                        Sunday: Closed
+                        Monday - Friday: 24hr Online<br />
+                        Saturday: 24hr Online<br />
+                        Sunday: 24hr Online
                       </p>
                     </div>
                   </div>

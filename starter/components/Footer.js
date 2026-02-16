@@ -13,8 +13,8 @@ export default function Footer() {
             <h3 className="font-bold text-gray-900 mb-3">Company</h3>
             <ul className="space-y-2 text-sm">
               <li>
-                <a href="/about" className="text-gray-600 hover:text-blue-600 transition">
-                  About Us
+                <a href="/listing" className="text-gray-600 hover:text-blue-600 transition">
+                  View Properties
                 </a>
               </li>
               <li>
@@ -40,8 +40,8 @@ export default function Footer() {
                 </a>
               </li>
               <li>
-                <a href="/pro" className="text-gray-600 hover:text-blue-600 transition">
-                  Premium Plans
+                <a href="/agent/signup" className="text-gray-600 hover:text-blue-600 transition">
+                  Register as a Agent
                 </a>
               </li>
               <li>
