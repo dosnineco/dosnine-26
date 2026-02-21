@@ -3,7 +3,7 @@ import Head from 'next/head';
 import { useUser } from '@clerk/nextjs';
 import { supabase } from '../../lib/supabase';
 import toast from 'react-hot-toast';
-import { CheckCircle, XCircle, Clock } from 'lucide-react';
+import { CheckCircle, XCircle, Clock, Copy, Check, Trash2, Phone, Mail, User, Loader2 } from 'lucide-react';
 import { useRoleProtection } from '../../lib/useRoleProtection';
 import { isVerifiedAgent } from '../../lib/rbac';
 
@@ -15,6 +15,9 @@ export default function MyApplicationsPage() {
   const [requests, setRequests] = useState({});
   const [loading, setLoading] = useState(true);
   const [agentId, setAgentId] = useState(null);
+  const [requestCost, setRequestCost] = useState(500);
+  const [copied, setCopied] = useState(null);
+  const [activeTab, setActiveTab] = useState('all');
 
   useEffect(() => {
     if (initialUserData?.agent?.id) {
@@ -27,6 +30,19 @@ export default function MyApplicationsPage() {
       fetchApplications();
     }
   }, [agentId]);
+
+  // Load request cost setting
+  useEffect(() => {
+    async function loadSettings() {
+      const { data } = await supabase
+        .from('site_settings')
+        .select('request_cost')
+        .single();
+
+      if (data?.request_cost) setRequestCost(data.request_cost);
+    }
+    loadSettings();
+  }, []);
 
   const fetchApplications = async () => {
     try {
@@ -46,7 +62,7 @@ export default function MyApplicationsPage() {
       if (requestIds.length > 0) {
         const { data, error } = await supabase
           .from('service_requests')
-          .select('id, client_name, client_email, property_type, location, budget_min, budget_max, bedrooms, bathrooms, request_type, created_at')
+          .select('id, client_name, client_email, client_phone, property_type, location, budget_min, budget_max, bedrooms, bathrooms, request_type, created_at')
           .in('id', requestIds);
 
         if (error) throw error;
@@ -69,10 +85,43 @@ export default function MyApplicationsPage() {
     }
   };
 
+  const copyToClipboard = (text, key) => {
+    navigator.clipboard.writeText(text);
+    setCopied(key);
+    setTimeout(() => setCopied(null), 1500);
+  };
+
+  const withdrawApplication = async (appId) => {
+    if (!confirm('Are you sure you want to withdraw this application?')) return;
+    const toastId = toast.loading('Withdrawing...');
+    try {
+      const { error } = await supabase
+        .from('agent_request_applications')
+        .delete()
+        .eq('id', appId);
+
+      if (error) throw error;
+      toast.success('Application withdrawn', { id: toastId });
+      fetchApplications();
+    } catch (err) {
+      console.error('Error withdrawing application:', err);
+      toast.error('Failed to withdraw application', { id: toastId });
+    }
+  };
+
+  const bankDetails = [
+    {
+      bank: 'Scotiabank Jamaica',
+      accountName: 'Tahjay Thompson',
+      accountNumber: '010860258',
+      branch: '50575'
+    }
+  ];
+
   if (loading || authLoading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="animate-spin">Loading...</div>
+        <Loader2 className="w-12 h-12 animate-spin text-accent" />
       </div>
     );
   }
@@ -89,6 +138,31 @@ export default function MyApplicationsPage() {
     rejected: applications.filter(a => a.status === 'rejected').length,
   };
 
+  const pendingApplications = applications.filter(a => a.status === 'pending');
+
+  const totalDue = pendingApplications.reduce((sum, app) => {
+    const req = requests[app.request_id];
+    if (!req) return sum + requestCost;
+    
+    const budget = req.budget_max || req.budget_min || 0;
+    if (req.request_type === 'buy') return sum + 1100;
+    if (req.request_type === 'rent' && budget >= 200000) return sum + 750;
+    return sum + requestCost;
+  }, 0);
+
+  const pendingIds = pendingApplications.map(a => a.request_id).join(', ');
+
+  const tabs = [
+    { id: 'all', label: 'All Applications' },
+    { id: 'pending', label: 'Pending' },
+    { id: 'approved', label: 'Approved' },
+    { id: 'rejected', label: 'Rejected' }
+  ];
+
+  const filteredApplications = applications.filter(app => 
+    activeTab === 'all' ? true : app.status === activeTab
+  );
+
   return (
     <>
       <Head>
@@ -99,31 +173,93 @@ export default function MyApplicationsPage() {
           <h1 className="text-3xl font-bold mb-2">My Request Applications</h1>
           <p className="text-gray-600 mb-8">Track your submitted requests for parish listings</p>
 
-          {/* Stats */}
-          <div className="grid grid-cols-3 gap-4 mb-8">
-            <div className="bg-white rounded-lg p-4 border border-yellow-200 bg-yellow-50">
-              <p className="text-2xl font-bold text-yellow-600">{stats.pending}</p>
-              <p className="text-sm text-yellow-700">Pending</p>
+          {/* Payment Section for Pending Requests */}
+          {totalDue > 0 && (
+            <div className="mb-10 bg-white border-l-4 border-accent p-6 rounded-lg shadow-sm">
+              <div className="flex justify-between items-start flex-wrap gap-4 mb-6">
+                <div>
+                  <h3 className="text-xl font-bold text-gray-900">Payment Required</h3>
+                  <p className="text-gray-600">You have {pendingApplications.length} pending application(s).</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-sm text-gray-500">Total Due</p>
+                  <p className="text-3xl font-bold text-accent">J${totalDue.toLocaleString()}</p>
+                </div>
+              </div>
+
+              <div className="grid md:grid-cols-2 gap-6">
+                {bankDetails.map((bank, i) => (
+                  <div key={i} className="bg-gray-50 p-4 rounded border">
+                    <h4 className="font-bold mb-3">{bank.bank}</h4>
+                    {Object.entries(bank)
+                      .filter(([k]) => k !== 'bank')
+                      .map(([k, v]) => (
+                        <div key={k} className="flex justify-between text-sm mb-2">
+                          <span className="text-gray-600 capitalize">{k.replace(/([A-Z])/g, ' $1').trim()}</span>
+                          <div className="flex gap-2 items-center">
+                            <span className="font-mono font-medium">{v}</span>
+                            <button onClick={() => copyToClipboard(v, `${i}-${k}`)} className="text-gray-400 hover:text-accent">
+                              {copied === `${i}-${k}` ? <Check size={14} /> : <Copy size={14} />}
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                  </div>
+                ))}
+
+                <div className="flex flex-col justify-between">
+                  <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 p-4 rounded text-sm mb-4">
+                    <strong>Instructions:</strong> Transfer the total amount and upload proof via WhatsApp.
+                    <br />Include your Agent Name and the Request IDs below.
+                  </div>
+                  
+                  <a
+                    href={`https://wa.me/18763369045?text=Payment proof for pending requests.%0AAgent: ${initialUserData?.agent?.name}%0ATotal: J$${totalDue}%0ARequest IDs: ${pendingIds}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="block text-center bg-accent hover:bg-accent/90 text-white py-3 rounded-lg font-bold transition"
+                  >
+                    Upload Proof on WhatsApp
+                  </a>
+                </div>
+              </div>
             </div>
-            <div className="bg-white rounded-lg p-4 border border-green-200 bg-green-50">
-              <p className="text-2xl font-bold text-green-600">{stats.approved}</p>
-              <p className="text-sm text-green-700">Approved</p>
-            </div>
-            <div className="bg-white rounded-lg p-4 border border-red-200 bg-red-50">
-              <p className="text-2xl font-bold text-red-600">{stats.rejected}</p>
-              <p className="text-sm text-red-700">Rejected</p>
-            </div>
+          )}
+
+          {/* Tabs */}
+          <div className="border-b border-gray-200 mb-6">
+            <nav className="-mb-px flex space-x-8 overflow-x-auto">
+              {tabs.map(tab => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`
+                    whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2
+                    ${activeTab === tab.id
+                      ? 'border-accent text-accent'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}
+                  `}
+                >
+                  {tab.label}
+                  <span className={`py-0.5 px-2.5 rounded-full text-xs ${
+                    activeTab === tab.id ? 'bg-accent/10 text-accent' : 'bg-gray-100 text-gray-900'
+                  }`}>
+                    {tab.id === 'all' ? applications.length : applications.filter(a => a.status === tab.id).length}
+                  </span>
+                </button>
+              ))}
+            </nav>
           </div>
 
           {/* Applications List */}
-          {applications.length === 0 ? (
+          {filteredApplications.length === 0 ? (
             <div className="bg-white rounded-lg p-12 text-center border border-gray-200">
-              <p className="text-gray-600 mb-3">No applications yet</p>
+              <p className="text-gray-600 mb-3">No {activeTab !== 'all' ? activeTab : ''} applications found</p>
               <p className="text-sm text-gray-500">Go to <a href="/agent/parish-requests" className="text-accent hover:underline">Parish Requests</a> to find requests</p>
             </div>
           ) : (
             <div className="space-y-4">
-              {applications.map(app => {
+              {filteredApplications.map(app => {
                 const request = requests[app.request_id];
                 const statusInfo = statusConfig[app.status];
                 const StatusIcon = statusInfo.icon;
@@ -131,7 +267,7 @@ export default function MyApplicationsPage() {
                 return (
                   <div
                     key={app.id}
-                    className={`rounded-lg border p-6 ${statusInfo.bg} ${statusInfo.border}`}
+                    className={`rounded-lg border p-6 bg-white shadow-sm transition hover:shadow-md ${statusInfo.border}`}
                   >
                     <div className="flex items-start justify-between gap-4 flex-wrap">
                       <div className="flex-1 min-w-[250px]">
@@ -154,9 +290,28 @@ export default function MyApplicationsPage() {
                               💰 J${request.budget_min?.toLocaleString()} - J${request.budget_max?.toLocaleString()}
                             </p>
                           )}
-                          {request?.client_name && (
-                            <p className="text-sm text-gray-600 mb-1">Client: {request.client_name}</p>
+
+                          {/* Client Data - Only for Approved */}
+                          {app.status === 'approved' && (
+                            <div className="mt-4 p-4 bg-green-50 rounded-lg border border-green-100">
+                              <h4 className="text-sm font-bold text-green-900 mb-2">Client Contact Details</h4>
+                              <div className="grid sm:grid-cols-3 gap-3 text-sm">
+                                <div className="flex items-center gap-2 text-gray-700">
+                                  <User size={16} className="text-green-600" />
+                                  <span>{request?.client_name || 'N/A'}</span>
+                                </div>
+                                <div className="flex items-center gap-2 text-gray-700">
+                                  <Mail size={16} className="text-green-600" />
+                                  <a href={`mailto:${request?.client_email}`} className="hover:underline">{request?.client_email || 'N/A'}</a>
+                                </div>
+                                <div className="flex items-center gap-2 text-gray-700">
+                                  <Phone size={16} className="text-green-600" />
+                                  <a href={`tel:${request?.client_phone}`} className="hover:underline">{request?.client_phone || 'N/A'}</a>
+                                </div>
+                              </div>
+                            </div>
                           )}
+
                           <p className="text-xs text-gray-500 mt-3">
                             Applied: {new Date(app.applied_at).toLocaleDateString()} at {new Date(app.applied_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                             {app.reviewed_at && (
@@ -170,6 +325,20 @@ export default function MyApplicationsPage() {
                           )}
                         </div>
                       </div>
+
+                      {/* Actions */}
+                      {app.status === 'pending' && (
+                        <div className="flex-shrink-0">
+                          <button
+                            onClick={() => withdrawApplication(app.id)}
+                            className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition border border-red-200"
+                            title="Withdraw Application"
+                          >
+                            <Trash2 size={16} />
+                            Withdraw
+                          </button>
+                        </div>
+                      )}
                     </div>
                   </div>
                 );
