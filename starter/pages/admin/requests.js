@@ -476,27 +476,27 @@ export default function AdminRequestsPage() {
         <title>Service Requests — Admin Dashboard</title>
       </Head>
       
-      <div className="admin-page">
-        <div className="admin-container">
+      <div className="min-h-screen bg-gray-50">
+        <div className="container mx-auto px-4 py-6 max-w-7xl">
           <AdminLayout />
           {/* Header */}
-          <div className="dashboard-header">
+          <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-4">
        
               <div>
-                <h1 className="dashboard-title">Service Requests</h1>
+                <h1 className="text-3xl font-bold text-gray-900">Service Requests</h1>
               </div>
             </div>
             <div className="flex gap-2">
               <button
                 onClick={() => setShowAutoAssign(true)}
-                className="btn btn-secondary"
+                className="px-4 py-2 bg-gray-200 text-black text-sm rounded-lg hover:bg-gray-200 hover:text-black hover: font-semibold"
               >
                 AutoAssign
               </button>
               <button
                 onClick={() => setShowBudgetRejectionEmailer(true)}
-                className="btn btn-primary bg-red-600 hover:bg-red-700 border-none"
+                className="px-4 py-2 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700 font-semibold"
               >
                 Send
               </button>
@@ -508,33 +508,33 @@ export default function AdminRequestsPage() {
           ) : (
             <>
               {/* Filters */}
-              <div className="filter-section">
-                <div className="filter-group">
-                  <span className="filter-label">Type</span>
+              <div className="bg-white rounded-lg border border-gray-200 p-4 mb-6 space-y-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Type</span>
                   {['all', 'buy', 'sell', 'rent'].map((type) => (
                     <button
                       key={type}
                       onClick={() => setFilterType(type)}
-                      className={`filter-chip ${
+                      className={`px-3 py-1.5 rounded-full text-xs md:text-sm font-medium transition whitespace-nowrap border ${
                         filterType === type
-                          ? 'active'
-                          : ''
+                          ? 'bg-accent text-white border-accent'
+                          : 'bg-white text-gray-700 border-gray-200 hover:border-accent hover:text-accent'
                       }`}
                     >
                       {type.charAt(0).toUpperCase() + type.slice(1)}
                     </button>
                   ))}
                 </div>
-                <div className="filter-group">
-                  <span className="filter-label">Urgency</span>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Urgency</span>
                   {['all', 'normal', 'urgent'].map((urgency) => (
                     <button
                       key={urgency}
                       onClick={() => setFilterUrgency(urgency)}
-                      className={`filter-chip ${
+                      className={`px-3 py-1.5 rounded-full text-xs md:text-sm font-medium transition whitespace-nowrap border ${
                         filterUrgency === urgency
-                          ? 'active'
-                          : ''
+                          ? 'bg-accent text-white border-accent'
+                          : 'bg-white text-gray-700 border-gray-200 hover:border-accent hover:text-accent'
                       }`}
                     >
                       {urgency.charAt(0).toUpperCase() + urgency.slice(1)}
@@ -544,57 +544,57 @@ export default function AdminRequestsPage() {
               </div>
 
               {/* Stats Overview */}
-              <div className="stat-grid">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
                 <button
                   type="button"
                   onClick={() => setFilterStatus('all')}
                   aria-pressed={filterStatus === 'all'}
-                  className={`stat-card ${
-                    filterStatus === 'all' ? 'active' : ''
+                  className={`bg-white rounded-lg shadow p-4 hover:shadow-md transition cursor-pointer w-full ${
+                    filterStatus === 'all' ? 'ring-2 ring-blue-500' : ''
                   }`}
                 >
-                  <p className="stat-label">Total Requests</p>
-                  <p className="stat-value">{requests.length}</p>
+                  <p className="text-sm text-gray-600 mb-1">Total Requests</p>
+                  <p className="text-2xl font-bold text-gray-900">{requests.length}</p>
                 </button>
                 <button
                   type="button"
                   onClick={() => setFilterStatus('open')}
                   aria-pressed={filterStatus === 'open'}
-                  className={`stat-card ${
-                    filterStatus === 'open' ? 'active' : ''
+                  className={`bg-white rounded-lg shadow p-4 hover:shadow-md transition cursor-pointer w-full ${
+                    filterStatus === 'open' ? 'ring-2 ring-blue-500' : ''
                   }`}
                 >
-                  <p className="stat-label">Open</p>
-                  <p className="stat-value text-orange-600">{requests.filter(r => r.status === 'open').length}</p>
+                  <p className="text-sm text-gray-600 mb-1">Open</p>
+                  <p className="text-2xl font-bold text-orange-600">{requests.filter(r => r.status === 'open').length}</p>
                 </button>
                 <button
                   type="button"
                   onClick={() => setFilterStatus('assigned')}
                   aria-pressed={filterStatus === 'assigned'}
-                  className={`stat-card ${
-                    filterStatus === 'assigned' ? 'active' : ''
+                  className={`bg-white rounded-lg shadow p-4 hover:shadow-md transition cursor-pointer w-full ${
+                    filterStatus === 'assigned' ? 'ring-2 ring-blue-500' : ''
                   }`}
                 >
-                  <p className="stat-label">Assigned</p>
-                  <p className="stat-value text-blue-600">{requests.filter(r => r.status === 'assigned' || r.status === 'in_progress').length}</p>
+                  <p className="text-sm text-gray-600 mb-1">Assigned</p>
+                  <p className="text-2xl font-bold text-blue-600">{requests.filter(r => r.status === 'assigned' || r.status === 'in_progress').length}</p>
                 </button>
                 <button
                   type="button"
                   onClick={() => setFilterStatus('completed')}
                   aria-pressed={filterStatus === 'completed'}
-                  className={`stat-card ${
-                    filterStatus === 'completed' ? 'active' : ''
+                  className={`bg-white rounded-lg shadow p-4 hover:shadow-md transition cursor-pointer w-full ${
+                    filterStatus === 'completed' ? 'ring-2 ring-blue-500' : ''
                   }`}
                 >
-                  <p className="stat-label">Completed</p>
-                  <p className="stat-value text-green-600">{requests.filter(r => r.status === 'completed').length}</p>
+                  <p className="text-sm text-gray-600 mb-1">Completed</p>
+                  <p className="text-2xl font-bold text-green-600">{requests.filter(r => r.status === 'completed').length}</p>
                 </button>
               </div>
 
               {/* Request List */}
-              <div className="space-y-4">
+              <div className="space-y-3">
                 {requests.length === 0 ? (
-                  <div className="text-center py-16 bg-white rounded-xl border border-gray-200">
+                  <div className="text-center py-12 bg-white rounded-lg border border-gray-200">
                     <p className="text-gray-600">No service requests yet</p>
                   </div>
                 ) : (
@@ -609,37 +609,37 @@ export default function AdminRequestsPage() {
                           : request.status === filterStatus;
                     return typeMatch && urgencyMatch && statusMatch;
                   }).map((request) => (
-                    <div key={request.id} className="request-card">
-                      <div className="request-header-row">
+                    <div key={request.id} className="bg-white rounded-lg shadow-sm p-4 hover:shadow-md transition">
+                      <div className="flex justify-between items-start gap-4 mb-3">
                         <div className="flex-1">
                           <div className="flex items-center gap-3 mb-2 flex-wrap">
-                            <h3 className="font-bold text-slate-900 text-lg">
+                            <h3 className="font-bold text-gray-800 text-lg">
                               {request.request_type.toUpperCase()} - {request.property_type}
                             </h3>
-                            <span className={`badge ${
-                              request.status === 'open' ? 'badge-open' :
-                              request.status === 'assigned' || request.status === 'in_progress' ? 'badge-assigned' :
-                              request.status === 'completed' ? 'badge-completed' :
-                              'badge-neutral'
+                            <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                              request.status === 'open' ? 'bg-orange-100 text-orange-800' :
+                              request.status === 'assigned' || request.status === 'in_progress' ? 'bg-blue-100 text-blue-800' :
+                              request.status === 'completed' ? 'bg-green-100 text-green-800' :
+                              'bg-gray-100 text-gray-800'
                             }`}>
                               {request.status}
                             </span>
                             {request.urgency === 'urgent' && (
-                              <span className="badge badge-urgent">
+                              <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
                                 Urgent
                               </span>
                             )}
-                            <span className={`badge ${
+                            <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium flex items-center gap-1 ${
                               request.is_contacted 
-                                ? 'badge-completed' 
-                                : 'badge-neutral'
+                                ? 'bg-green-100 text-green-800' 
+                                : 'bg-gray-100 text-gray-600'
                             }`}>
                               <PhoneIcon size={12} />
                               {request.is_contacted ? 'contacted' : 'not contacted'}
                             </span>
                           </div>
                           
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-2 text-sm text-slate-600 mb-4">
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm text-gray-600 mb-3">
                             <div>
                               <span className="font-medium">Client:</span> {request.client_name}
                             </div>
@@ -657,7 +657,7 @@ export default function AdminRequestsPage() {
                           </div>
 
                           {request.description && (
-                            <p className="text-sm text-slate-700 mb-4 bg-slate-50 p-3 rounded-lg border border-slate-100">{request.description}</p>
+                            <p className="text-sm text-gray-700 mb-3 bg-gray-50 p-2 rounded">{request.description}</p>
                           )}
 
                           <div className="flex flex-wrap items-center gap-3 text-sm mb-3">
@@ -675,19 +675,19 @@ export default function AdminRequestsPage() {
                       </div>
 
                       {/* Agent Assignment */}
-                      <div className="border-t border-gray-100 pt-4 mt-2">
+                      <div className="border-t pt-3 mt-3 bg-gray-50 -mx-4 px-4 -mb-4 pb-4 rounded-b-lg">
                         {request.agent ? (
                           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
                             <div className="flex-1">
-                              <p className="text-xs font-bold text-slate-400 uppercase mb-1">Assigned Agent</p>
-                              <p className="font-bold text-slate-900">{request.agent.full_name}</p>
-                              <p className="text-sm text-slate-500">{request.agent.email}</p>
+                              <p className="text-xs font-semibold text-gray-500 uppercase mb-1">Assigned Agent</p>
+                              <p className="font-bold text-gray-900 text-lg">{request.agent.full_name}</p>
+                              <p className="text-sm text-gray-600">{request.agent.email}</p>
                             </div>
                             <div className="flex gap-2 flex-wrap">
                               {request.status === 'completed' && (
                                 <button
                                   onClick={() => handleReactivateCase(request.id)}
-                                  className="btn btn-primary"
+                                  className="px-4 py-2 bg-accent text-white rounded-lg hover:bg-[var(--accent-color-hover)] text-sm font-medium"
                                   disabled={assignLoading}
                                 >
                                   Reactivate Case
@@ -697,14 +697,14 @@ export default function AdminRequestsPage() {
                                 <>
                                   <button
                                     onClick={() => handleManualAssign(request.id, null)}
-                                    className="btn btn-secondary"
+                                    className="px-4 py-2 bg-gray-100 text-gray-600 rounded-lg hover:bg-accent hover:text-black text-sm font-medium transition"
                                     disabled={assignLoading}
                                   >
                                     Unassign
                                   </button>
                                   <select
                                     onChange={(e) => e.target.value && handleManualAssign(request.id, e.target.value)}
-                                    className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 outline-none text-sm bg-white"
+                                    className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-accent outline-none text-sm"
                                     disabled={assignLoading}
                                     defaultValue=""
                                   >
@@ -721,14 +721,14 @@ export default function AdminRequestsPage() {
                                       setShowCommentModal(true);
                                       setCommentText(request.comment || '');
                                     }}
-                                    className="btn-icon"
+                                    className="p-2 bg-gray-100 text-gray-600 rounded-lg hover:bg-accent hover:text-black transition"
                                     title="Comment"
                                   >
                                     <MessageCircle size={16} />
                                   </button>
                                   <button
                                     onClick={() => handleContactedToggle(request.id, request.is_contacted)}
-                                    className={`btn-icon ${request.is_contacted ? 'text-green-600 bg-green-50' : ''}`}
+                                    className="p-2 rounded-lg bg-gray-100 text-gray-600 hover:bg-accent hover:text-black transition"
                                     title={request.is_contacted ? 'Contacted' : 'Not contacted'}
                                   >
                                     <PhoneIcon size={16} />
@@ -737,7 +737,7 @@ export default function AdminRequestsPage() {
                               )}
                               <button
                                 onClick={() => handleDeleteRequest(request.id)}
-                                className="btn-icon text-red-500 hover:bg-red-50 hover:text-red-700"
+                                className="p-2 bg-gray-100 text-gray-600 rounded-lg hover:bg-red-600 hover:text-black transition"
                                 title="Delete"
                               >
                                 <FiTrash2 size={16} />
@@ -748,7 +748,7 @@ export default function AdminRequestsPage() {
                           <div className="flex flex-col gap-3">
                             <select
                               onChange={(e) => e.target.value && handleManualAssign(request.id, e.target.value)}
-                              className="w-full md:w-auto px-3 py-2 border-2 border-orange-200 rounded-lg focus:ring-2 focus:ring-orange-500 outline-none bg-white text-sm"
+                              className="w-full md:w-auto px-3 py-2 border-2 border-orange-300 rounded-lg focus:ring-2 focus:ring-accent outline-none bg-white text-sm"
                               disabled={assignLoading}
                               defaultValue=""
                             >
@@ -767,21 +767,21 @@ export default function AdminRequestsPage() {
                                   setShowCommentModal(true);
                                   setCommentText(request.comment || '');
                                 }}
-                                className="btn-icon"
+                                className="flex items-center justify-center p-2 bg-gray-100 text-gray-600 rounded-lg hover:bg-blue-100 hover:text-blue-600 transition duration-200"
                                 title="Comment"
                               >
                                 <MessageCircle size={18} />
                               </button>
                               <button
                                 onClick={() => handleContactedToggle(request.id, request.is_contacted)}
-                                className={`btn-icon ${request.is_contacted ? 'text-green-600 bg-green-50' : ''}`}
+                                className="flex items-center justify-center p-2 bg-gray-100 text-gray-600 rounded-lg hover:bg-green-100 hover:text-green-600 transition duration-200"
                                 title={request.is_contacted ? 'Contacted' : 'Not contacted'}
                               >
                                 <PhoneIcon size={18} />
                               </button>
                               <button
                                 onClick={() => handleDeleteRequest(request.id)}
-                                className="btn-icon text-red-500 hover:bg-red-50 hover:text-red-700"
+                                className="flex items-center justify-center p-2 bg-gray-100 text-gray-600 rounded-lg hover:bg-red-100 hover:text-red-600 transition duration-200"
                                 title="Delete"
                               >
                                 <FiTrash2 size={18} />
@@ -897,7 +897,7 @@ export default function AdminRequestsPage() {
                 <button
                   onClick={() => handleCommentSubmit(selectedRequest.id)}
                   disabled={!commentText.trim()}
-                  className="flex-1 btn btn-primary disabled:opacity-50"
+                  className="flex-1 px-4 py-2 bg-accent text-white rounded-lg hover:bg-[var(--accent-color-hover)] hover:text-black disabled:opacity-50 font-medium"
                 >
                   Save Comment
                 </button>
@@ -906,7 +906,7 @@ export default function AdminRequestsPage() {
                     setShowCommentModal(false);
                     setCommentText('');
                   }}
-                  className="flex-1 btn btn-secondary"
+                  className="flex-1 px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 font-medium"
                 >
                   Cancel
                 </button>
