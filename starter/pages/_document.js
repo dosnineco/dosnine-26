@@ -9,9 +9,9 @@ class MyDocument extends Document {
           <Head>
         <meta name="robots" content="index, follow" />
    
-          <link rel="icon" type="image/png" href="/DOSNINE_FAVICON.png" />
-          <link rel="shortcut icon" type="image/png" href="/DOSNINE_FAVICON.png" />
-          <link rel="apple-touch-icon" href="/DOSNINE_FAVICON.png" />
+          <link rel="icon" type="image/png" href="/logos/dosnine_co_logo.png" />
+          <link rel="shortcut icon" type="image/png" href="/logos/dosnine_co_logo.png" />
+          <link rel="apple-touch-icon" href="/logos/dosnine_co_logo.png" />
           <meta name="theme-color" content="#ff6b35"/>
           <meta name="google-adsense-account" content="ca-pub-8738700447584361"/>
           <script

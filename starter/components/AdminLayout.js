@@ -18,7 +18,7 @@ export default function AdminLayout() {
           </Link>
           <Link href="/admin/agent-applications" className={`px-3 py-2 rounded-md text-sm font-medium flex items-center gap-1.5 whitespace-nowrap ${isActive('/admin/agent-applications') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-100'}`}>
             <FiZap size={14} />
-            Agent Applications
+            Request Applications
           </Link>
           <Link href="/admin/requests-management" className={`px-3 py-2 rounded-md text-sm font-medium flex items-center gap-1.5 whitespace-nowrap ${isActive('/admin/requests-management') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-100'}`}>
             <FiZap size={14} />
@@ -36,10 +36,6 @@ export default function AdminLayout() {
             <FiTrendingUp size={14} />
             Allocation
           </Link>
-          <Link href="/admin/feedback" className={`px-3 py-2 rounded-md text-sm font-medium flex items-center gap-1.5 whitespace-nowrap ${isActive('/admin/feedback') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-100'}`}>
-            <FiTrendingUp size={14} />
-            Feedback
-          </Link>
           <Link href="/admin/htv" className={`px-3 py-2 rounded-md text-sm font-medium flex items-center gap-1.5 whitespace-nowrap ${isActive('/admin/htv') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-100'}`}>
             <FiPackage size={14} />
             HTV Orders
@@ -54,10 +50,6 @@ export default function AdminLayout() {
             Properties
           </Link>
 
-           <Link href="/admin/course" className={`px-3 py-2 rounded-md text-sm font-medium flex items-center gap-1.5 whitespace-nowrap ${isActive('/admin/users') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-100'}`}>
-            <FiUsers size={14} />
-            Course
-          </Link>
         </div>
       </div>
     </div>
