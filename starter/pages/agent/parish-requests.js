@@ -6,6 +6,7 @@ import { useRoleProtection } from '../../lib/useRoleProtection'
 import { isVerifiedAgent } from '../../lib/rbac'
 import { useRouter } from 'next/router'
 import { PARISHES as STD_PARISHES } from '../../lib/normalizeParish'
+import { Bed, ShowerHead, Navigation2 } from 'lucide-react'
 
 export default function ParishRequests() {
 
@@ -19,7 +20,7 @@ export default function ParishRequests() {
 
   /* ---------------- STATE ---------------- */
 
-  const [parish, setParish] = useState('Kingston')
+  const [parish, setParish] = useState('ALL')
   const [bedrooms, setBedrooms] = useState('any')
   const [bathrooms, setBathrooms] = useState('any')
   const [budgetMin, setBudgetMin] = useState('')
@@ -150,14 +151,14 @@ export default function ParishRequests() {
       const veData = (veRes.data || []).map(v => ({
         id: v.id,
         is_visitor: true,
-        request_type: v.intent || 'inquiry',
+        request_type: v.intent || 'rent',
         property_type: 'Property',
         location: v.area ? `${v.area}, ${v.parish || ''}` : v.parish || 'Unknown',
         bedrooms: v.bedrooms,
         bathrooms: null,
         budget_min: v.budget_min,
         budget_max: null,
-        description: 'Visitor Inquiry',
+        description: '',
         created_at: v.created_at
       }))
 
@@ -242,6 +243,23 @@ export default function ParishRequests() {
     }
   }
 
+const getTitle = (r) => {
+  const beds = r.bedrooms ? `${r.bedrooms} Bed ` : ''
+  const type = r.property_type || 'Property'
+  const loc = r.location && r.location !== 'Unknown' ? ` in ${r.location}` : ''
+
+  switch (r.request_type) {
+    case 'rent':
+      return `${beds}${type} Request to Rent${loc}`
+    case 'buy':
+      return `Request for ${beds}${type} to Buy${loc}`
+    case 'sell':
+      return `${beds}${type} for Sale${loc}`
+    default:
+      return `${beds}${type}${loc}`
+  }
+}
+
   /* ---------------- JSX ---------------- */
 
   return (
@@ -322,37 +340,36 @@ export default function ParishRequests() {
               <div className="p-6 pl-7 flex-1 flex flex-col">
                 <div className="flex justify-between items-start mb-4">
                   <div>
-                    <span className={`inline-block px-2.5 py-1 rounded-md text-xs font-bold uppercase tracking-wide mb-1 ${
+                  
+                    <h3 className="font-bold text-gray-900 text-lg capitalize leading-tight">
+
+                      {getTitle(r)}   
+                    </h3>
+                  </div>
+                 
+                </div>
+
+                {/* <div className="flex items-start gap-2 text-gray-600 text-sm mb-5">
+                  <span className="font-medium leading-snug">
+                    {r.location && r.location !== 'Unknown' ? r.location : 'Area: Not specified'}
+                  </span>
+                </div> */}
+
+                <div className="flex gap-3 mb-5 text-sm text-gray-600">
+                  <div className="flex items-center gap-1.5 bg-gray-50 px-3 py-1.5 rounded-lg border border-gray-100">
+                    <Bed/>
+                    <span className="font-medium">{r.bedrooms || 'Any'}</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 bg-gray-50 px-3 py-1.5 rounded-lg border border-gray-100">
+                    <ShowerHead/>
+                    <span className="font-medium">{r.bathrooms || 'Any'}</span>
+                  </div>
+                    <span className={`flex items-center gap-1.5 font-bold px-3 py-1.5 capitalize rounded-lg ${
                       r.request_type === 'buy' ? 'bg-emerald-100 text-emerald-800' : 
                       r.request_type === 'rent' ? 'bg-blue-100 text-blue-800' : 'bg-purple-100 text-purple-800'
                     }`}>
                       {r.request_type}
                     </span>
-                    <h3 className="font-bold text-gray-900 text-lg capitalize leading-tight">
-                      {r.property_type}
-                    </h3>
-                  </div>
-                  <span className="text-xs text-gray-400 font-medium bg-gray-50 px-2 py-1 rounded">
-                    {new Date(r.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
-                  </span>
-                </div>
-
-                <div className="flex items-start gap-2 text-gray-600 text-sm mb-5">
-                  <span className="mt-0.5">📍</span>
-                  <span className="font-medium leading-snug">
-                    {r.location && r.location !== 'Unknown' ? r.location : 'Area: Not specified'}
-                  </span>
-                </div>
-
-                <div className="flex gap-3 mb-5 text-sm text-gray-600">
-                  <div className="flex items-center gap-1.5 bg-gray-50 px-3 py-1.5 rounded-lg border border-gray-100">
-                    <span>🛏</span>
-                    <span className="font-medium">{r.bedrooms || 'Any'}</span>
-                  </div>
-                  <div className="flex items-center gap-1.5 bg-gray-50 px-3 py-1.5 rounded-lg border border-gray-100">
-                    <span>🚿</span>
-                    <span className="font-medium">{r.bathrooms || 'Any'}</span>
-                  </div>
                 </div>
 
                 {r.budget_min && (

@@ -385,23 +385,24 @@ export default function Home() {
           <div className="text-center py-12">
             {hasActiveFilters ? (
               // Show "No results" message when filters are active
-              <div className="max-w-2xl mx-auto bg-blue-50 border-2 border-blue-200 rounded-xl p-8">
-                <FiSearch className="w-12 h-12 text-blue-600 mx-auto mb-4" />
-                <h3 className="text-2xl font-bold text-gray-800 mb-3">No Results Found</h3>
-                <p className="text-gray-700 mb-6">
-                  We couldn't find any properties matching your search criteria. Try adjusting your filters or clearing your search.
-                </p>
-                <button
-                  onClick={() => {
-                    setFilters({ parish: '', minPrice: '', maxPrice: '', location: '', bedrooms: '' });
-                    setLocationInput('');
-                    setPage(1);
-                  }}
-                  className="btn-primary btn-lg"
-                >
-                  Clear All Filters
-                </button>
-              </div>
+             <div className="max-w-2xl mx-auto bg-blue-50 border-2 border-blue-200 rounded-xl p-8 text-center">
+              <FiSearch className="w-12 h-12 text-blue-600 mx-auto mb-4" />
+
+              <h3 className="text-2xl font-bold text-gray-800 mb-3">
+                No Results Found
+              </h3>
+
+              <p className="text-gray-700 mb-6">
+                Submit a request and agents will contact you with matching options.
+              </p>
+
+              <a
+                href="/request"
+                className="inline-block bg-accent  text-white font-semibold px-6 py-3 rounded-lg transition"
+              >
+                Submit Request
+              </a>
+            </div>
             ) : (
               // Show "Be Among The First" CTA when no properties in system and no filters applied
               <div className="max-w-2xl mx-auto bg-purple-50 border-2 border-purple-200 rounded-xl p-8">
