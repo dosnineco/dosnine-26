@@ -37,18 +37,19 @@ export default async function handler(req, res) {
       .eq('user_id', userData.id)
       .single();
 
-    // If agent, check verification and payment
+    // If agent, check verification and payment/plan access
     if (agentData) {
       if (agentData.verification_status !== 'approved') {
-        return res.status(403).json({ 
+        return res.status(200).json({ 
           error: 'Agent not verified',
           canPost: false,
           reason: 'verification_required'
         });
       }
-      
-      if (agentData.payment_status !== 'paid') {
-        return res.status(403).json({ 
+
+      const validPlans = ['paid', 'free', '7-day', '30-day', '90-day'];
+      if (!validPlans.includes(agentData.payment_status)) {
+        return res.status(200).json({ 
           error: 'Payment required',
           canPost: false,
           reason: 'payment_required'
@@ -65,7 +66,7 @@ export default async function handler(req, res) {
 
     // Regular users - check property limit (max 2)
     if (userData.property_count >= 2) {
-      return res.status(403).json({ 
+      return res.status(200).json({ 
         error: 'Property limit reached',
         canPost: false,
         reason: 'limit_reached',

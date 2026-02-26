@@ -119,24 +119,49 @@ const handleSubmit = async (e) => {
     return;
   }
 
+  const handleLimitDenied = (limitCheck) => {
+    if (!limitCheck || limitCheck.canPost) return false;
+
+    if (limitCheck.reason === 'verification_required') {
+      toast.error('Agent verification required. Please complete your agent profile.');
+      router.push('/agent/signup');
+      return true;
+    }
+
+    if (limitCheck.reason === 'payment_required') {
+      toast.error('Active agent plan required to post properties.');
+      return true;
+    }
+
+    if (limitCheck.reason === 'limit_reached') {
+      toast.error('Property limit reached. Regular users can post 2 properties. Become a verified agent for unlimited postings!');
+      return true;
+    }
+
+    toast.error(limitCheck.error || 'Unable to verify posting permissions');
+    return true;
+  };
+
   // Check property limit before allowing submission
   try {
     const { data: limitCheck } = await axios.get('/api/properties/check-limit', {
       params: { clerkId: user.id }
     });
 
-    if (!limitCheck.canPost) {
-      if (limitCheck.reason === 'verification_required') {
-        toast.error('Agent verification required. Please complete your agent profile.');
-        router.push('/agent/signup');
-        return;
-      } else if (limitCheck.reason === 'limit_reached') {
-        toast.error('Property limit reached. Regular users can post 2 properties. Become a verified agent for unlimited postings!');
-        return;
-      }
+    if (handleLimitDenied(limitCheck)) {
+      return;
     }
   } catch (limitError) {
     console.error('Failed to check property limit:', limitError);
+
+    if (limitError?.response?.data) {
+      if (handleLimitDenied(limitError.response.data)) {
+        return;
+      }
+      toast.error(limitError.response.data.error || 'Unable to verify posting permissions');
+      return;
+    }
+
     toast.error('Unable to verify posting permissions');
     return;
   }
@@ -162,7 +187,7 @@ const handleSubmit = async (e) => {
       } else {
         // If user row doesn't exist, try to insert (upsert) a minimal record.
         const fullName = [user.firstName, user.lastName].filter(Boolean).join(' ').trim() || user.fullName || null;
-        const email = (user.emailAddresses && user.emailAddresses[0] && user.emailAddresses[0].email) || (user.primaryEmailAddress && user.primaryEmailAddress.email) || null;
+        const email = (user.emailAddresses && user.emailAddresses[0] && user.emailAddresses[0].emailAddress) || (user.primaryEmailAddress && user.primaryEmailAddress.emailAddress) || null;
 
         const { data: newUser, error: newUserErr } = await supabase
           .from('users')
