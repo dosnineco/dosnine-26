@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import Head from 'next/head';
-import { useUser } from '@clerk/nextjs';
-import { supabase } from '../../lib/supabase';
+import { useAuth, useUser } from '@clerk/nextjs';
 import toast from 'react-hot-toast';
 import { CheckCircle, XCircle, Clock, Copy, Check, Trash2, Phone, Mail, User, Loader2 } from 'lucide-react';
 import { useRoleProtection } from '../../lib/useRoleProtection';
@@ -10,6 +9,7 @@ import { isVerifiedAgent } from '../../lib/rbac';
 export default function MyApplicationsPage() {
   const { loading: authLoading, userData: initialUserData } = useRoleProtection({ checkAccess: isVerifiedAgent, redirectTo: '/agent/signup' });
   const { user } = useUser();
+  const { getToken, isLoaded: clerkLoaded, userId } = useAuth();
 
   const [applications, setApplications] = useState([]);
   const [requests, setRequests] = useState({});
@@ -26,60 +26,52 @@ export default function MyApplicationsPage() {
   }, [initialUserData]);
 
   useEffect(() => {
-    if (agentId) {
+    if (agentId && clerkLoaded && userId) {
       fetchApplications();
     }
-  }, [agentId]);
+  }, [agentId, clerkLoaded, userId]);
 
   // Load request cost setting
   useEffect(() => {
     async function loadSettings() {
-      const { data } = await supabase
-        .from('site_settings')
-        .select('request_cost')
-        .single();
-
-      if (data?.request_cost) setRequestCost(data.request_cost);
+      const response = await fetch('/api/site-settings/request-cost');
+      const payload = await response.json();
+      if (response.ok && payload?.requestCost) setRequestCost(payload.requestCost);
     }
     loadSettings();
   }, []);
 
   const fetchApplications = async () => {
+    if (!clerkLoaded) return;
+    if (!userId) {
+      setLoading(false);
+      return;
+    }
+
     try {
-      // Fetch agent's applications
-      const { data: appData, error: appError } = await supabase
-        .from('agent_request_applications')
-        .select('id, request_id, status, applied_at, reviewed_at, notes')
-        .eq('agent_id', agentId)
-        .order('applied_at', { ascending: false });
-
-      if (appError) throw appError;
-
-      // Fetch all related service requests
-      const requestIds = appData?.map(a => a.request_id) || [];
-      let requestsData = [];
-      
-      if (requestIds.length > 0) {
-        const { data, error } = await supabase
-          .from('service_requests')
-          .select('id, client_name, client_email, client_phone, property_type, location, budget_min, budget_max, bedrooms, bathrooms, request_type, created_at')
-          .in('id', requestIds);
-
-        if (error) throw error;
-        requestsData = data || [];
-      }
-
-      // Build lookup map
-      const requestsMap = {};
-      requestsData.forEach(r => {
-        requestsMap[r.id] = r;
+      const token = await getToken();
+      const response = await fetch('/api/agent/applications', {
+        credentials: 'include',
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
       });
+      const payload = await response.json();
+      if (response.status === 401) throw new Error('Session expired. Please sign in again.');
+      if (!response.ok || !payload?.success) throw new Error(payload?.error || 'Failed to load applications');
 
-      setApplications(appData || []);
-      setRequests(requestsMap);
+      setApplications(payload.applications || []);
+      setRequests(payload.requests || {});
+      if (payload.agentId) setAgentId(payload.agentId);
     } catch (err) {
       console.error('Error fetching applications:', err);
-      toast.error('Failed to load applications');
+      const message = err?.message || 'Failed to load applications';
+      if (message.toLowerCase().includes('session expired')) {
+        toast.error(message);
+        window.location.href = '/sign-in';
+        return;
+      }
+      toast.error(message);
     } finally {
       setLoading(false);
     }
@@ -93,19 +85,39 @@ export default function MyApplicationsPage() {
 
   const withdrawApplication = async (appId) => {
     if (!confirm('Are you sure you want to withdraw this application?')) return;
+    if (!clerkLoaded) return toast.error('Authentication still loading, please try again');
+    if (!userId) {
+      toast.error('Session expired. Please sign in again.');
+      window.location.href = '/sign-in';
+      return;
+    }
+
     const toastId = toast.loading('Withdrawing...');
     try {
-      const { error } = await supabase
-        .from('agent_request_applications')
-        .delete()
-        .eq('id', appId);
-
-      if (error) throw error;
+      const token = await getToken();
+      const response = await fetch('/api/agent/applications', {
+        method: 'DELETE',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ applicationId: appId })
+      });
+      const payload = await response.json();
+      if (response.status === 401) throw new Error('Session expired. Please sign in again.');
+      if (!response.ok || !payload?.success) throw new Error(payload?.error || 'Failed to withdraw application');
       toast.success('Application withdrawn', { id: toastId });
       fetchApplications();
     } catch (err) {
       console.error('Error withdrawing application:', err);
-      toast.error('Failed to withdraw application', { id: toastId });
+      const message = err?.message || 'Failed to withdraw application';
+      if (message.toLowerCase().includes('session expired')) {
+        toast.error(message, { id: toastId });
+        window.location.href = '/sign-in';
+        return;
+      }
+      toast.error(message, { id: toastId });
     }
   };
 

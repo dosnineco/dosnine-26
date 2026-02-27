@@ -1,5 +1,6 @@
 import { useRouter } from 'next/router';
-import { ClerkProvider, SignedIn, SignedOut, SignInButton, SignUpButton, useUser } from '@clerk/nextjs';
+import { ClerkProvider } from '@clerk/nextjs';
+import { SignedIn, SignedOut, SignInButton, SignUpButton, useUser } from '@clerk/nextjs';
 import '../styles/globals.css';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
@@ -7,7 +8,6 @@ import VisitorEmailPopup from '../components/VisitorEmailPopup';
 import Seo from '../components/Seo';
 import SiteProtection from '../components/SiteProtection';
 import { useEffect, useState } from 'react';
-import { supabase } from '../lib/supabase';
 import { Toaster } from 'react-hot-toast';
 import toast from 'react-hot-toast';
 import { useAnalyticsTracking } from '../lib/useAnalyticsTracking';
@@ -62,61 +62,23 @@ const setRedirectPath = (path) => {
 };
 
 // Retry logic for Supabase sync with timeout and error handling
-const syncUserWithRetry = async (user, maxRetries = 3) => {
-  const email = user.emailAddresses?.[0]?.emailAddress;
-  const clerkId = user.id;
-  const fullName = user.username || '';
-
-  // Validate required fields
-  if (!clerkId) {
-    throw new Error('Clerk ID is required but missing');
-  }
-  if (!email || typeof email !== 'string' || !email.includes('@')) {
-    throw new Error('Valid email is required for user sync');
-  }
+const syncUserWithRetry = async (maxRetries = 3) => {
 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
-      // Check if user already exists with timeout
-      const timeoutId = setTimeout(() => {
-        throw new Error('Supabase request timeout (5s)');
-      }, 5000);
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
 
-      const { data: existingUser, error: selectError } = await supabase
-        .from('users')
-        .select('id, role')
-        .eq('clerk_id', clerkId)
-        .single();
+      const response = await fetch('/api/user/profile', {
+        method: 'GET',
+        signal: controller.signal,
+      });
 
       clearTimeout(timeoutId);
 
-      if (selectError && selectError.code !== 'PGRST116') {
-        // PGRST116 means no rows found, which is expected for new users
-        throw selectError;
-      }
-
-      if (existingUser) {
-        // User exists, only update email and name (preserve role)
-        const { error: updateError } = await supabase
-          .from('users')
-          .update({
-            email,
-            full_name: fullName,
-            updated_at: new Date().toISOString(),
-          })
-          .eq('clerk_id', clerkId);
-
-        if (updateError) throw updateError;
-      } else {
-        // New user, create with default role
-        const { error: insertError } = await supabase.from('users').insert({
-          clerk_id: clerkId,
-          email,
-          full_name: fullName,
-          role: 'renter',
-        });
-
-        if (insertError) throw insertError;
+      if (!response.ok) {
+        const payload = await response.json().catch(() => ({}));
+        throw new Error(payload?.error || 'Failed to sync user profile');
       }
 
       return true; // Success
@@ -136,8 +98,13 @@ const syncUserWithRetry = async (user, maxRetries = 3) => {
 
 
 function MyApp({ Component, pageProps }) {
+  const router = useRouter();
+
   return (
-    <ClerkProvider>
+    <ClerkProvider
+      publishableKey={process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}
+      navigate={(to) => router.push(to)}
+    >
       <AppContent Component={Component} pageProps={pageProps} />
     </ClerkProvider>
   );
@@ -188,13 +155,13 @@ function AppContent({ Component, pageProps }) {
       setSyncError(null);
 
       try {
-        await syncUserWithRetry(user);
+        await syncUserWithRetry();
         setIsSynced(true);
         setSyncError(null);
       } catch (err) {
         console.error('Failed to sync user to Supabase:', err);
         setSyncError(err.message || 'Failed to sync user data');
-        setIsSynced(false);
+        setIsSynced(true);
         
         // Show error toast to user
         toast.error('There was an issue setting up your account. Please refresh the page.');
@@ -261,24 +228,8 @@ function AppContent({ Component, pageProps }) {
                 </div>
               )}
 
-              {/* Show sync error if it occurs */}
-              {syncError && !showLoadingState && (
-                <div className="flex items-center justify-center min-h-screen">
-                  <div className="bg-red-50 border border-red-200 rounded-lg p-8 max-w-md text-center">
-                    <h2 className="text-lg font-bold text-red-900 mb-2">Account Setup Error</h2>
-                    <p className="text-red-700 mb-4">{syncError}</p>
-                    <button
-                      onClick={() => window.location.reload()}
-                      className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition"
-                    >
-                      Try Again
-                    </button>
-                  </div>
-                </div>
-              )}
-
               {/* Show content once synced */}
-              {isSynced && !showLoadingState && !syncError && (
+              {isSynced && !showLoadingState && (
                 <SignedIn>
                   <main className="min-h-screen">
                     <Component {...pageProps} />

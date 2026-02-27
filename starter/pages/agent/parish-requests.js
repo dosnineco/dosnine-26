@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import Head from 'next/head'
 import toast from 'react-hot-toast'
-import { supabase } from '../../lib/supabase'
+import { useAuth } from '@clerk/nextjs'
 import { useRoleProtection } from '../../lib/useRoleProtection'
 import { isVerifiedAgent } from '../../lib/rbac'
 import { useRouter } from 'next/router'
@@ -16,6 +16,7 @@ export default function ParishRequests() {
   })
 
   const router = useRouter()
+  const { getToken, isLoaded: authLoaded, userId } = useAuth()
   const resultsRef = useRef(null)
 
   /* ---------------- STATE ---------------- */
@@ -50,127 +51,20 @@ export default function ParishRequests() {
     setLoading(true)
 
     try {
-      // 1. Service Requests
-      let srQuery = supabase
-        .from('service_requests')
-        .select(`
-          id,
-          request_type,
-          property_type,
-          location,
-          parish,
-          bedrooms,
-          bathrooms,
-          budget_min,
-          budget_max,
-          description,
-          created_at
-        `)
-        .eq('status', 'open')
-        .order('created_at', { ascending: false })
-
-      // 2. Visitor Emails
-      let veQuery = supabase
-        .from('visitor_emails')
-        .select(`
-          id,
-          intent,
-          bedrooms,
-          parish,
-          area,
-          budget_min,
-          created_at
-        `)
-        .eq('email_status', 'not_contacted')
-        .order('created_at', { ascending: false })
-
-      if (parish !== 'ALL') {
-        srQuery = srQuery.or(`parish.eq.${parish},location.ilike.%${parish}%,description.ilike.%${parish}%`)
-        veQuery = veQuery.or(`parish.eq.${parish},area.ilike.%${parish}%`)
-      }
-
-      if (selectedAreas.length > 0) {
-        srQuery = srQuery.in('location', selectedAreas)
-        veQuery = veQuery.in('area', selectedAreas)
-      }
-
-      if (bedrooms !== 'any') {
-        srQuery = srQuery.gte('bedrooms', Number(bedrooms))
-        veQuery = veQuery.gte('bedrooms', Number(bedrooms))
-      }
-
-      if (bathrooms !== 'any') {
-        srQuery = srQuery.gte('bathrooms', Number(bathrooms))
-      }
-
-      if (budgetMin) {
-        srQuery = srQuery.gte('budget_max', Number(budgetMin))
-        veQuery = veQuery.gte('budget_min', Number(budgetMin))
-      }
-
-      if (budgetMax) {
-        srQuery = srQuery.lte('budget_min', Number(budgetMax))
-        veQuery = veQuery.lte('budget_min', Number(budgetMax))
-      }
-
-      const [srRes, veRes] = await Promise.all([srQuery, veQuery])
-
-      if (srRes.error) throw srRes.error
-      if (veRes.error) throw veRes.error
-
-      const srData = (srRes.data || []).map(req => {
-        if (req.description) {
-            const extracted = {};
-            const bedroomsMatch = req.description.match(/Bedrooms:\s*(\d+)/i);
-            if (bedroomsMatch) extracted.bedrooms = parseInt(bedroomsMatch[1], 10);
-
-            const parishMatch = req.description.match(/Parish:\s*([\w\s.-]+)/i);
-            if (parishMatch) extracted.parish = parishMatch[1].trim().replace(/,$/, '').trim();
-
-            const areaMatch = req.description.match(/Area:\s*([\w\s.-]+)/i);
-            if (areaMatch) extracted.area = areaMatch[1].trim().replace(/,$/, '').trim();
-
-            const budgetMatch = req.description.match(/Budget:\s*JMD\s*([\d,]+)/i);
-            if (budgetMatch) extracted.budget_min = parseInt(budgetMatch[1].replace(/,/g, ''), 10);
-
-            const newLocation = req.location && req.location.trim() !== '' 
-                ? req.location 
-                : (extracted.area ? `${extracted.area}, ${extracted.parish || ''}`.replace(/, $/, '').trim() : req.location);
-
-            return {
-                ...req,
-                bedrooms: req.bedrooms ?? extracted.bedrooms,
-                parish: req.parish ?? extracted.parish,
-                location: newLocation,
-                budget_min: req.budget_min ?? extracted.budget_min,
-            };
-        }
-        return req;
+      const params = new URLSearchParams({
+        parish,
+        bedrooms,
+        bathrooms,
+        budgetMin,
+        budgetMax,
+        selectedAreas: selectedAreas.join(','),
       });
+      const response = await fetch(`/api/agent/parish-requests?${params.toString()}`)
+      const payload = await response.json()
+      if (!response.ok || !payload?.success) throw new Error(payload?.error || 'Failed to load requests')
 
-      const veData = (veRes.data || []).map(v => ({
-        id: v.id,
-        is_visitor: true,
-        request_type: v.intent || 'rent',
-        property_type: 'Property',
-        location: v.area ? `${v.area}, ${v.parish || ''}` : v.parish || 'Unknown',
-        bedrooms: v.bedrooms,
-        bathrooms: null,
-        budget_min: v.budget_min,
-        budget_max: null,
-        description: '',
-        created_at: v.created_at
-      }))
-
-      const combined = [...srData, ...veData]
-      combined.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
-
-      setRequests(combined)
-
-      const set = new Set()
-      ;(srRes.data || []).forEach(r => r.location && set.add(r.location))
-      ;(veRes.data || []).forEach(v => v.area && set.add(v.area))
-      setAreas([...set].sort())
+      setRequests(payload.requests || [])
+      setAreas(payload.areas || [])
 
     } catch (err) {
       console.error(err)
@@ -195,13 +89,9 @@ export default function ParishRequests() {
 
   useEffect(() => {
     async function loadSettings() {
-      const { data } = await supabase
-        .from('site_settings')
-        .select('request_cost')
-        .single()
-
-      if (data?.request_cost)
-        setRequestCost(data.request_cost)
+      const response = await fetch('/api/site-settings/request-cost')
+      const payload = await response.json()
+      if (response.ok && payload?.requestCost) setRequestCost(payload.requestCost)
     }
     loadSettings()
   }, [])
@@ -221,23 +111,62 @@ export default function ParishRequests() {
     if (!agentId)
       return toast.error('Agent not loaded')
 
-    try {
-      const { error } = await supabase
-        .from('agent_request_applications')
-        .insert({
-          request_id: reqId,
-          agent_id: agentId,
-          status: 'pending'
-        })
+    if (!authLoaded)
+      return toast.error('Authentication still loading, please try again')
 
-      if (error) throw error
+    if (!userId) {
+      toast.error('Session expired. Please sign in again.')
+      router.push('/sign-in')
+      return
+    }
+
+    try {
+      const token = await getToken()
+
+      const response = await fetch('/api/agent/applications', {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ requestId: reqId })
+      })
+      const raw = await response.text()
+      let payload = null
+
+      try {
+        payload = raw ? JSON.parse(raw) : null
+      } catch {
+        payload = null
+      }
+
+      if (!response.ok || !payload?.success) {
+        const message =
+          payload?.error ||
+          payload?.message ||
+          (raw && !raw.startsWith('<!DOCTYPE') ? raw : '') ||
+          'Submission failed'
+
+        if (response.status === 401) {
+          toast.error('Session expired. Please sign in again.')
+          router.push('/sign-in')
+          return
+        }
+
+        throw new Error(message)
+      }
 
       toast.success('Application submitted! Please complete payment in My Applications.')
       router.push('/agent/my-applications')
 
     } catch (err) {
-      if (err.message.includes('duplicate'))
+      const message = (err?.message || '').toLowerCase()
+
+      if (message.includes('duplicate') || message.includes('already'))
         toast.error('Already requested')
+      else if (err?.message)
+        toast.error(err.message)
       else
         toast.error('Submission failed')
     }

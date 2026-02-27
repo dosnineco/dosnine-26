@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
 import { useUser } from '@clerk/nextjs';
-import { supabase } from '../../lib/supabase';
 import toast from 'react-hot-toast';
 import { FiStar, FiTrash2, FiEye, FiGrid, FiUsers, FiZap, FiDollarSign, FiClock, FiTrendingUp, FiMail, FiPackage } from 'react-icons/fi';
 import { formatJMD, formatMoney } from '../../lib/formatMoney';
@@ -24,14 +23,11 @@ export default function AdminDashboard() {
     if (!user) return;
     
     try {
-      const { data } = await supabase
-        .from('users')
-        .select('role, email, full_name')
-        .eq('clerk_id', user.id)
-        .single();
+      const response = await fetch('/api/admin/verify-admin');
+      const payload = await response.json();
 
       // SECURITY FIX: Verify admin has valid data (not NULL)
-      if (data?.role !== 'admin') {
+      if (!response.ok || !payload?.isAdmin) {
         toast.error('Access denied: Admin only');
         setIsAdmin(false);
         // Redirect to home after 1 second
@@ -41,7 +37,7 @@ export default function AdminDashboard() {
         return;
       }
 
-      if (!data.email || !data.full_name) {
+      if (!payload.email || !payload.name) {
         console.error('❌ SECURITY: Admin user has NULL data');
         toast.error('Access denied: Admin account incomplete');
         setIsAdmin(false);
@@ -95,19 +91,17 @@ export default function AdminDashboard() {
     try {
       setLoading(true);
 
+      const response = await fetch(`/api/admin/dashboard-data?tab=${activeTab}`);
+      const payload = await response.json();
+
+      if (!response.ok || !payload?.success) {
+        throw new Error(payload?.error || 'Failed to fetch admin data');
+      }
+
       if (activeTab === 'users') {
-        const { data } = await supabase
-          .from('users')
-          .select('*')
-          .order('created_at', { ascending: false });
-        setUsers(data || []);
-      } else if (activeTab === 'emails') {
-        const { data } = await supabase
-          .from('visitor_emails')
-          .select('*')
-          .order('created_at', { ascending: false })
-          .limit(1000);
-        setVisitorEmails(data || []);
+        setUsers(payload.users || []);
+      } else {
+        setVisitorEmails(payload.visitorEmails || []);
       }
     } catch (err) {
       toast.error('Failed to fetch data');

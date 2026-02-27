@@ -1,10 +1,11 @@
-import { supabase } from '@/lib/supabase';
+import { getDbClient } from '@/lib/apiAuth';
 
 export default async function handler(req, res) {
   if (req.method === 'GET') {
     // Get verified agents
     try {
-      const { data: agents, error } = await supabase
+      const db = getDbClient();
+      const { data: agents, error } = await db
         .from('users')
         .select('*')
         .eq('user_type', 'agent')

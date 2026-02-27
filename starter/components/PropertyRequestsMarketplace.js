@@ -1,5 +1,4 @@
-import React, { useState, useEffect } from 'react';
-import { supabase } from '../lib/supabase';
+import React, { useState, useEffect, Link } from 'react';
 import { useRouter } from 'next/router';
 import toast from 'react-hot-toast';
 import RequestAgentPopup from './RequestAgentPopup';
@@ -18,62 +17,12 @@ export default function PropertyRequestsMarketplace() {
     const fetchRequests = async () => {
       try {
         setLoading(true);
-
-        // Fetch from service_requests - only open and non-contacted
-        const { data: serviceRequests, error: serviceError } = await supabase
-          .from('service_requests')
-          .select('id, request_type, bedrooms, location, budget_min, budget_max, created_at')
-          .eq('status', 'open')
-          .or('is_contacted.is.null,is_contacted.eq.false')
-          .order('created_at', { ascending: false })
-          .limit(24);
-
-        // Fetch from visitor_emails (recent, non-contacted leads only)
-        const { data: visitorEmails, error: visitorError } = await supabase
-          .from('visitor_emails')
-          .select('id, created_at, bedrooms, area, parish, budget_min')
-          .order('created_at', { ascending: false })
-          .limit(24);
-
-        if (serviceError) {
-          console.error('Service requests fetch error:', serviceError);
+        const response = await fetch('/api/marketplace/requests');
+        const payload = await response.json();
+        if (!response.ok || !payload?.success) {
+          throw new Error(payload?.error || 'Failed to load requests');
         }
-        if (visitorError) {
-          console.error('Visitor emails fetch error:', visitorError);
-        }
-
-        // Combine and format data
-        const combinedRequests = [
-          ...(serviceRequests || []).map(req => ({
-            ...req,
-            type: 'service_request',
-            source: 'agent_request',
-            area: null,
-            parish: null
-          })),
-          ...(visitorEmails || []).map(visitor => {
-            return {
-              id: visitor.id,
-              created_at: visitor.created_at,
-              type: 'visitor_email',
-              source: 'visitor_email',
-              request_type: 'property_inquiry',
-              bedrooms: visitor.bedrooms,
-              location: null, // visitor_emails doesn't have a location field
-              area: visitor.area,
-              parish: visitor.parish,
-              budget_min: visitor.budget_min,
-              budget_max: null // visitor_emails doesn't track budget_max
-            };
-          })
-        ];
-
-        // Sort by created_at descending and limit to 50 total
-        combinedRequests.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-        
-        const limitedRequests = combinedRequests.slice(0, 25);
-
-        setRequests(limitedRequests);
+        setRequests(payload.requests || []);
       } catch (err) {
         console.error('Error fetching requests:', err);
         toast.error('Failed to load requests');
@@ -84,59 +33,7 @@ export default function PropertyRequestsMarketplace() {
 
     fetchRequests();
 
-    // Real-time subscription for service_requests
-    const serviceRequestsSubscription = supabase
-      .channel('service_requests_changes')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'service_requests' }, (payload) => {
-        const newRequest = payload.new;
-        if (newRequest.status === 'open' && (!newRequest.is_contacted || newRequest.is_contacted === false)) {
-          const formattedRequest = {
-            ...newRequest,
-            type: 'service_request',
-            source: 'agent_request'
-          };
-
-          setRequests(prev => [formattedRequest, ...prev].slice(0, 25));
-        }
-      })
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'service_requests' }, (payload) => {
-        const updated = payload.new;
-        if (updated.is_contacted || updated.status !== 'open') {
-          setRequests(prev => prev.filter(r => !(r.type === 'service_request' && r.id === updated.id)));
-        }
-      })
-      .subscribe();
-
-    // Real-time subscription for visitor_emails
-    const visitorEmailsSubscription = supabase
-      .channel('visitor_emails_changes')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'visitor_emails' }, (payload) => {
-        const newVisitor = payload.new;
-        const formattedVisitor = {
-          ...newVisitor,
-          type: 'visitor_email',
-          source: 'visitor_email',
-          request_type: 'property_inquiry'
-        };
-
-        setRequests(prev => [formattedVisitor, ...prev].slice(0, 25));
-      })
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'visitor_emails' }, (payload) => {
-        const updated = payload.new;
-        if (updated.email_status !== 'not_contacted') {
-          setRequests(prev => prev.filter(r => !(r.type === 'visitor_email' && r.id === updated.id)));
-        }
-      })
-      .subscribe();
-
-    // Real-time presence detection for typing indicator
-    const presenceChannel = supabase.channel('request_form_activity')
-      .on('presence', { event: 'sync' }, () => {
-        const state = presenceChannel.presenceState();
-        const activeUsers = Object.keys(state).length;
-        setShowTypingIndicator(activeUsers > 0);
-      })
-      .subscribe();
+    const refreshInterval = setInterval(fetchRequests, 15000);
 
     // Simulate typing indicator for now (checks if users on request page)
     const checkActivity = setInterval(() => {
@@ -147,8 +44,7 @@ export default function PropertyRequestsMarketplace() {
 
     // Cleanup subscriptions
     return () => {
-      supabase.removeChannel(visitorEmailsSubscription);
-      supabase.removeChannel(presenceChannel);
+      clearInterval(refreshInterval);
       clearInterval(checkActivity);
     };
   }, []);
@@ -349,7 +245,8 @@ export default function PropertyRequestsMarketplace() {
               <ArrowRight size={16} />
             </a>  
           </div>
-          {/* <AdList/> */}
+
+     
 
           {/* Live Typing Indicator - Reserved Space */}
           <div className="h-12 flex items-center justify-center">
@@ -365,6 +262,9 @@ export default function PropertyRequestsMarketplace() {
             )}
           </div>
         </div>
+
+                  <AdList/>
+
 
         {loading ? (
           <div className="text-center py-12">

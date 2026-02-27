@@ -1,574 +1,423 @@
-import { useState } from 'react'
-import Head from 'next/head'
-import { supabase } from '@/lib/supabase'
-import { FiCopy, FiCheck, FiAlertCircle } from 'react-icons/fi'
-import toast from 'react-hot-toast'
+import { useMemo, useState } from 'react';
+import Head from 'next/head';
+import { useUser } from '@clerk/nextjs';
+import { Check, Copy } from 'lucide-react';
+import toast from 'react-hot-toast';
+import { supabase } from '@/lib/supabase';
+
+const plans = [
+  {
+    id: '7-day',
+    name: '1 Week Ad',
+    duration: '7 days',
+    price: 5000,
+    badge: 'Quick Boost',
+    highlight: 'Reach active buyers and renters fast',
+  },
+  {
+    id: '30-day',
+    name: '1 Month Ad',
+    duration: '30 days',
+    price: 20000,
+    badge: 'Best Reach',
+    highlight: 'Maximum exposure to our wide audience',
+  },
+];
+
+const bankDetails = [
+  {
+    bank: 'Scotiabank Jamaica',
+    accountName: 'Tahjay Thompson',
+    accountNumber: '010860258',
+    branch: '50575',
+  },
+];
+
+const categories = [
+  { value: 'contractor', label: 'Contractor' },
+  { value: 'legal', label: 'Legal Services' },
+  { value: 'architect', label: 'Architect' },
+  { value: 'mortgage', label: 'Mortgage Services' },
+  { value: 'insurance', label: 'Insurance' },
+  { value: 'valuation', label: 'Valuation' },
+  { value: 'home_inspection', label: 'Home Inspection' },
+  { value: 'other', label: 'Other' },
+];
+
+const formatMoney = (value) => `J$${Number(value || 0).toLocaleString()}`;
 
 export default function AdvertisePage() {
-  const [step, setStep] = useState(1) // 1=form, 2=payment
-  const [sponsorForm, setSponsorForm] = useState({
+  const { user } = useUser();
+  const [step, setStep] = useState(1);
+  const [submitting, setSubmitting] = useState(false);
+  const [copied, setCopied] = useState('');
+  const [submissionId, setSubmissionId] = useState('');
+  const [imageFile, setImageFile] = useState(null);
+  const [imagePreview, setImagePreview] = useState('');
+  const [form, setForm] = useState({
     company_name: '',
+    title: '',
     category: 'contractor',
     description: '',
     phone: '',
-    email: '',
+    email: user?.primaryEmailAddress?.emailAddress || '',
     website: '',
-    image_url: '',
-    is_featured: false
-  })
-  const [submitting, setSubmitting] = useState(false)
-  const [copied, setCopied] = useState(false)
-  const [submissionId, setSubmissionId] = useState(null)
+    contact_name: '',
+    plan_id: '7-day',
+    is_featured: false,
+  });
 
-  // Track conversion when form is submitted
-  const trackConversion = () => {
-    if (typeof window !== 'undefined' && window.gtag) {
-      window.gtag('event', 'ads_conversion_Submit_lead_form_1', {
-        send_to: 'AW-CONVERSION_ID/CONVERSION_LABEL', // Replace with your actual conversion ID
-        value: 0, // No fixed value - commission-based
-        currency: 'JMD',
-        transaction_id: submissionId
-      })
+  const selectedPlan = useMemo(
+    () => plans.find((plan) => plan.id === form.plan_id) || plans[0],
+    [form.plan_id]
+  );
+
+  const emailForNote = (form.email || 'YOUR_EMAIL').trim();
+  const transferNote = `${selectedPlan.name} - ${emailForNote}`;
+  const whatsappText = encodeURIComponent(
+    `Hello Dosnine Team, I submitted an ad request (${selectedPlan.name}) for ${emailForNote}. Amount sent: ${formatMoney(selectedPlan.price)}. Submission: ${submissionId || 'pending'}. I am sending payment proof now.`
+  );
+
+  const copyToClipboard = async (value, key) => {
+    try {
+      await navigator.clipboard.writeText(String(value));
+      setCopied(key);
+      toast.success('Copied');
+      setTimeout(() => setCopied(''), 1800);
+    } catch {
+      toast.error('Unable to copy.');
     }
-  }
+  };
 
-  const bankDetails = [
-    {
-      bank: "Scotiabank Jamaica",
-      accountName: "Tahjay Thompson",
-      accountNumber: "010860258",
-      branch: "50575",
-      branchNote: "Branch code for transfer",
-      copyInstructions: "Copy account details and paste in your banking app"
-    },
-    {
-      bank: "National Commercial Bank (NCB)",
-      accountName: "Tahjay Thompson",
-      accountNumber: "404386522",
-      branch: "uwi",
-      branchNote: "UWI Branch location",
-      copyInstructions: "Copy account details and paste in your banking app"
-    },
-    {
-      bank: "Jamaica National Bank (JN)",
-      accountName: "Tahjay Thompson",
-      accountNumber: "2094746895",
-      branch: "Any Branch",
-      branchNote: "Available at all JN branches",
-      copyInstructions: "Copy account details and paste in your banking app"
-    }
-  ]
-
-  const copyToClipboard = (text, field) => {
-    navigator.clipboard.writeText(text)
-    setCopied(field)
-    toast.success(`${field} copied!`)
-    setTimeout(() => setCopied(false), 2000)
-  }
-
-  const handleSponsorSubmit = async (e) => {
-    e.preventDefault()
-    setSubmitting(true)
+  const onSubmit = async (event) => {
+    event.preventDefault();
+    setSubmitting(true);
 
     try {
-      const { data, error } = await supabase
-        .from('sponsor_submissions')
-        .insert([{
-          ...sponsorForm,
-          status: 'pending_payment',
-          submitted_at: new Date().toISOString()
-        }])
-        .select()
-        .single()
+      let uploadedImageUrl = null;
 
-      if (error) throw error
+      if (imageFile) {
+        const fileExt = (imageFile.name || 'jpg').split('.').pop();
+        const filePath = `ads/${Date.now()}-${Math.random().toString(36).slice(2, 9)}.${fileExt}`;
 
-      setSubmissionId(data.id)
-      
-      // Track conversion in Google Ads
-      trackConversion()
-      
-      setStep(2) // Move to payment screen
-      window.scrollTo({ top: 0, behavior: 'smooth' })
-    } catch (err) {
-      toast.error(err.message || 'Error submitting. Please try again.')
+        const { error: uploadError } = await supabase.storage
+          .from('property-images')
+          .upload(filePath, imageFile, {
+            cacheControl: '3600',
+            upsert: true,
+            contentType: imageFile.type,
+          });
+
+        if (uploadError) {
+          throw new Error(`Image upload failed: ${uploadError.message}`);
+        }
+
+        const publicData = supabase.storage.from('property-images').getPublicUrl(filePath);
+        const publicUrl = publicData?.data?.publicUrl || publicData?.data?.publicURL || '';
+        uploadedImageUrl = publicUrl || null;
+      }
+
+      const response = await fetch('/api/sponsors/submit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...form,
+          image_url: uploadedImageUrl || null,
+        }),
+      });
+
+      const payload = await response.json();
+      if (!response.ok || !payload?.success) {
+        throw new Error(payload?.error || 'Unable to submit ad request.');
+      }
+
+      setSubmissionId(payload.id || '');
+      setStep(2);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      toast.success('Ad request submitted. Complete payment to activate.');
+    } catch (error) {
+      toast.error(error.message || 'Unable to submit ad request.');
     } finally {
-      setSubmitting(false)
+      setSubmitting(false);
     }
-  }
-
-  const commissionRate = 7 // 7% commission per closed client
-
-  const benefits = [
-    'Your business displayed on our homepage',
-    'Seen by thousands of property seekers monthly',
-    'Direct contact info (phone, email, website)',
-    'Company logo & description included',
-    'Mobile & desktop visibility',
-    'Featured spots get gold badge & priority placement',
-    'Pay only when you close a client - 7% commission',
-    'No upfront fees required'
-  ]
+  };
 
   return (
-    <>  
-        {/* Google Ads Conversion Tracking */}
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `
-              window.dataLayer = window.dataLayer || [];
-              function gtag(){dataLayer.push(arguments);}
-              gtag('js', new Date());
-              gtag('config', 'AW-CONVERSION_ID');
-            `
-          }}
-        />
-      
+    <>
       <Head>
-        <title>Advertise Your Business — Dosnine Properties</title>
-        <meta name="description" content="Get your business in front of real people looking, selling, and renting homes in Jamaica." />
+        <title>Advertise to Our Wide Audience — Dosnine Properties</title>
+        <meta
+          name="description"
+          content="Promote your business to Jamaica-wide property buyers, renters, and homeowners. Weekly and monthly ad plans available."
+        />
       </Head>
 
-      <div className=" py-8 px-4">
-        <div className="max-w-4xl mx-auto">
-          
+      <div className="bg-gray-100 min-h-screen py-8 px-4">
+        <div className="max-w-4xl mx-auto space-y-6">
           {step === 2 ? (
-            // Agreement Screen - Commission-based Model
-            <div className="bg-white rounded-xl shadow-lg overflow-hidden">
-              <div className="bg-accent text-white px-8 py-10 text-center">
-                <h1 className="text-4xl font-bold mb-4">You're All Set!</h1>
-                <p className="text-xl text-white/90">
-                  Your business profile is active. Start generating leads!
+            <div className="bg-white rounded-xl p-6 sm:p-8 space-y-6">
+              <div className="bg-accent text-white rounded-xl p-6">
+                <h1 className="text-3xl font-bold">Complete Payment to Activate Your Ad</h1>
+                <p className="mt-2 text-white/90 text-sm sm:text-base">
+                  Your ad request is received. Send payment proof on WhatsApp for verification.
                 </p>
               </div>
 
-              <div className="px-8 py-8">
-                {/* Commission Agreement */}
-                <div className="bg-blue-50 border-2 border-blue-500 rounded-xl p-6 mb-8">
-                  <h2 className="text-2xl font-bold text-gray-800 mb-4">Commission Agreement</h2>
-                  <div className="space-y-4 text-gray-700">
-                    <div className="bg-white rounded-lg p-4">
-                      <p className="font-semibold text-lg mb-2">How It Works:</p>
-                      <p className="text-gray-600 mb-2">
-                        Your business profile is now live and visible to potential clients. <strong>You only pay when you close a deal!</strong>
-                      </p>
-                      <p className="text-gray-600">
-                        Commission rate: <span className="text-accent font-bold text-xl">7%</span> of the client's total transaction value
-                      </p>
-                    </div>
-                    <div className="bg-white rounded-lg p-4">
-                      <p className="font-semibold text-lg mb-2">Example:</p>
-                      <ul className="text-gray-600 space-y-2">
-                        <li>📝 Client hires you for J$100,000 project</li>
-                        <li>💰 You pay commission: J$100,000 × 7% = <strong>J$7,000</strong></li>
-                        <li>✅ You keep: J$93,000</li>
-                      </ul>
-                    </div>
-                    <div className="bg-white rounded-lg p-4">
-                      <p className="font-semibold text-lg mb-2">Payment Terms:</p>
-                      <ul className="text-gray-600 space-y-2">
-                        <li>✓ Payment due within 7 days of closing a deal</li>
-                        <li>✓ Multiple payment methods available</li>
-                        <li>✓ No upfront fees or deposits required</li>
-                      </ul>
-                    </div>
+              <div className="bg-gray-50 rounded-xl p-5">
+                <h2 className="text-xl font-bold text-gray-900 mb-4">Selected Plan</h2>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+                  <div className="bg-white rounded-lg p-4">
+                    <p className="text-gray-500">Plan</p>
+                    <p className="font-semibold text-gray-900">{selectedPlan.name}</p>
+                  </div>
+                  <div className="bg-white rounded-lg p-4">
+                    <p className="text-gray-500">Amount</p>
+                    <p className="font-semibold text-gray-900">{formatMoney(selectedPlan.price)}</p>
+                  </div>
+                  <div className="bg-white rounded-lg p-4">
+                    <p className="text-gray-500">Duration</p>
+                    <p className="font-semibold text-gray-900">{selectedPlan.duration}</p>
+                  </div>
+                  <div className="bg-white rounded-lg p-4">
+                    <p className="text-gray-500">Submission ID</p>
+                    <p className="font-semibold text-gray-900 break-all">{submissionId || 'Pending'}</p>
                   </div>
                 </div>
+              </div>
 
-            {/*Commission Terms */}
-
-                {/* Profile Summary */}
-                <h3 className="text-2xl font-bold text-gray-800 mb-6">Your Profile:</h3>
-                <div className="bg-gray-50 rounded-xl p-6 mb-8 border-2 border-gray-200">
-                  <div className="space-y-3">
-                    <div className="flex justify-between items-center">
-                      <span className="text-gray-600 font-medium">Business Name:</span>
-                      <span className="font-semibold">{sponsorForm.company_name}</span>
+              <div className="bg-gray-100 rounded-xl p-5">
+                <h3 className="text-lg font-bold text-gray-900 mb-3">Bank Transfer Details</h3>
+                <div className="space-y-3">
+                  {bankDetails.map((bank) => (
+                    <div key={bank.bank} className="bg-white rounded-lg p-4 space-y-2">
+                      <p className="font-semibold text-gray-900">{bank.bank}</p>
+                      {Object.entries(bank).filter(([key]) => key !== 'bank').map(([key, value]) => (
+                        <div key={key} className="flex items-center justify-between gap-3">
+                          <span className="text-gray-600 text-sm capitalize">{key.replace(/([A-Z])/g, ' $1')}</span>
+                          <button
+                            type="button"
+                            onClick={() => copyToClipboard(value, `${bank.bank}-${key}`)}
+                            className="inline-flex items-center gap-1 text-sm text-gray-900 font-medium"
+                          >
+                            <span>{value}</span>
+                            {copied === `${bank.bank}-${key}` ? <Check size={14} /> : <Copy size={14} />}
+                          </button>
+                        </div>
+                      ))}
                     </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-gray-600 font-medium">Plan Type:</span>
-                      <span className="font-semibold">{sponsorForm.is_featured ? '⭐ Featured Spot' : 'Regular Spot'}</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-gray-600 font-medium">Commission Rate:</span>
-                      <span className="text-accent font-bold text-lg">7% per closed deal</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-gray-600 font-medium">Phone:</span>
-                      <span className="font-semibold">{sponsorForm.phone}</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-gray-600 font-medium">Email:</span>
-                      <span className="font-semibold">{sponsorForm.email}</span>
-                    </div>
-                  </div>
+                  ))}
                 </div>
 
-                {/* Commission Structure */}
-                <h3 className="text-2xl font-bold text-gray-800 mb-6">Commission Structure:</h3>
-                <div className="grid md:grid-cols-2 gap-6 mb-8">
-                  <div className="bg-green-50 border-2 border-green-500 rounded-xl p-6">
-                    <h4 className="text-lg font-bold text-green-700 mb-3">Regular Spot</h4>
-                    <p className="text-gray-700 mb-3">
-                      Your business listed with standard visibility
-                    </p>
-                    <p className="text-sm text-gray-600">
-                      📊 Commission: <span className="font-bold text-accent">7% of deal value</span>
-                    </p>
+                <div className="mt-4 bg-white rounded-lg p-4 space-y-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-sm text-gray-600">Transfer note</span>
+                    <button
+                      type="button"
+                      onClick={() => copyToClipboard(transferNote, 'transfer-note')}
+                      className="inline-flex items-center gap-1 text-sm text-gray-900 font-medium"
+                    >
+                      <span className="break-all">{transferNote}</span>
+                      {copied === 'transfer-note' ? <Check size={14} /> : <Copy size={14} />}
+                    </button>
                   </div>
-                  
-                  <div className="bg-yellow-50 border-2 border-yellow-500 rounded-xl p-6">
-                    <h4 className="text-lg font-bold text-yellow-700 mb-3">⭐ Featured Spot</h4>
-                    <p className="text-gray-700 mb-3">
-                      Premium visibility with gold badge and priority placement
-                    </p>
-                    <p className="text-sm text-gray-600">
-                      📊 Commission: <span className="font-bold text-accent">11% of deal value</span>
-                    </p>
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-sm text-gray-600">Amount</span>
+                    <button
+                      type="button"
+                      onClick={() => copyToClipboard(selectedPlan.price, 'amount')}
+                      className="inline-flex items-center gap-1 text-sm text-gray-900 font-medium"
+                    >
+                      <span>{formatMoney(selectedPlan.price)}</span>
+                      {copied === 'amount' ? <Check size={14} /> : <Copy size={14} />}
+                    </button>
                   </div>
                 </div>
+              </div>
 
-                {/* Confirmation Note */}
-                <div className="bg-green-50 border-2 border-green-500 rounded-xl p-6 text-center mb-8">
-                  <p className="text-green-800 font-semibold mb-2">
-                    ✅ Your profile is now LIVE!
-                  </p>
-                  <p className="text-green-700 text-sm">
-                    Customers can now see your business. You'll be contacted at <strong>{sponsorForm.phone}</strong> when deals come through.
-                  </p>
-                  <p className="text-green-700 text-sm mt-2">
-                    Confirmation details sent to: <strong>{sponsorForm.email}</strong>
-                  </p>
-                  <p className="text-green-700 text-sm mt-3 font-semibold">
-                    💡 Start getting leads today - No upfront payment required!
-                  </p>
-                </div>
-
-                {/* Commission Payment Terms */}
-                <div className="bg-blue-50 border-2 border-blue-500 rounded-xl p-6 mb-8">
-                  <h3 className="text-lg font-bold text-blue-800 mb-4">When & How You'll Pay</h3>
-                  <div className="space-y-3 text-blue-700">
-                    <div className="flex gap-3">
-                      <span className="font-bold">1.</span>
-                      <p>Customer closes a deal with you</p>
-                    </div>
-                    <div className="flex gap-3">
-                      <span className="font-bold">2.</span>
-                      <p>We send you an invoice with 7% commission due</p>
-                    </div>
-                    <div className="flex gap-3">
-                      <span className="font-bold">3.</span>
-                      <p>Payment due within 7 days of invoice</p>
-                    </div>
-                    <div className="flex gap-3">
-                      <span className="font-bold">4.</span>
-                      <p>Multiple payment methods accepted (bank transfer, mobile money, etc.)</p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Contact */}
-                <div className="mt-8 text-center">
-                  <p className="text-gray-600 mb-3">Questions about payment?</p>
-                  <div className="flex flex-col items-center justify-center ">
-                    <a href="tel:8763369045" className="text-accent font-bold text-lg hover:underline">
-                      876-336-9045
-                    </a>
-                    <a href="mailto:dosnineco@gmail.com" className="text-accent font-bold text-lg hover:underline">
-                      dosnineco@gmail.com
-                    </a>
-                  </div>
-                </div>
+              <div className="bg-gray-50 rounded-xl p-5 text-center">
+                <p className="text-sm text-gray-700 mb-4">
+                  After transfer, send your receipt on WhatsApp for verification. Ads are activated after confirmation.
+                </p>
+                <a
+                  href={`https://wa.me/18763369045?text=${whatsappText}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center justify-center bg-accent hover:bg-accent/90 text-white font-semibold rounded-xl px-6 py-3"
+                >
+                  Send Proof on WhatsApp
+                </a>
               </div>
             </div>
           ) : (
-            // Main Form
             <>
-              {/* Header Section */}
-              <div className="bg-white rounded-xl shadow-lg overflow-hidden mb-8">
-                <div className="bg-accent text-white px-8 py-10 text-center">
-                  <h1 className="text-4xl md:text-5xl font-bold mb-4">
-                    Advertise Your Business
-                  </h1>
-                  <p className="text-xl text-white/90 mb-2">
-                    Get in front of real people looking, selling, and renting homes in Jamaica
-                  </p>
-                  <p className="text-2xl font-semibold mt-4">
-                    20 Spots Available Per Month!
+              <div className="bg-white rounded-xl p-6 sm:p-8">
+                <div className="bg-accent text-white rounded-xl p-6 sm:p-8 text-center">
+                  <h1 className="text-3xl sm:text-4xl font-bold">Advertise to Our Wide Audience</h1>
+                  <p className="mt-2 text-white/90 text-sm sm:text-base">
+                    Reach buyers, renters, and homeowners across Jamaica with high-visibility ad placement.
                   </p>
                 </div>
 
-                {/* What You Get */}
-                <div className="px-8 py-8">
-                  <h2 className="text-2xl font-bold text-gray-800 mb-6">What You'll Get:</h2>
-                  <div className="grid md:grid-cols-2 gap-4 mb-8">
-                    {benefits.map((benefit, idx) => (
-                      <div key={idx} className="flex items-start gap-3">
-                        <svg className="w-6 h-6 text-accent flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                        </svg>
-                        <span className="text-gray-700">{benefit}</span>
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* Pricing Options */}
-                  <h2 className="text-2xl font-bold text-gray-800 mb-6">Choose Your Plan:</h2>
-                  <div className="grid md:grid-cols-2 gap-6">
-                    <div className="border-2 border-gray-300 rounded-xl p-6 hover:border-accent transition">
-                      <div className="text-center">
-                        <div className="text-sm font-semibold text-gray-500 uppercase mb-2">NO UPFRONT FEE</div>
-                        <div className="text-gray-800 font-bold">Regular Spot</div>
-                        <div className="text-gray-600 mt-2 text-sm">Pay only on closed deals</div>
-                        <div className="mt-4 text-xl font-semibold text-accent">7% Commission</div>
-                        <ul className="mt-4 text-sm text-gray-600 space-y-2 text-left">
-                          <li>✓ Your business info displayed</li>
-                          <li>✓ Phone, email, website links</li>
-                          <li>✓ Mobile & desktop visibility</li>
-                          <li>✓ Standard placement</li>
-                        </ul>
-                      </div>
-                    </div>
-
-                    <div className="border-2 border-accent rounded-xl p-6 bg-red-50 relative">
-                      <div className="absolute -top-3 -right-3 bg-accent text-white text-sm px-4 py-1 rounded-full font-bold shadow-lg">
-                        RECOMMENDED
-                      </div>
-                      <div className="text-center">
-                        <div className="text-sm font-semibold text-gray-500 uppercase mb-2">NO UPFRONT FEE</div>
-                        <div className="text-gray-800 font-bold">⭐ Featured Spot</div>
-                        <div className="text-gray-600 mt-2 text-sm">Premium visibility, higher commission</div>
-                        <div className="mt-4 text-xl font-semibold text-accent">11% Commission</div>
-                        <ul className="mt-4 text-sm text-gray-700 space-y-2 text-left">
-                          <li>✓ Everything in Regular</li>
-                          <li>✓ <strong>Gold "Featured" badge</strong></li>
-                          <li>✓ <strong>Priority placement</strong></li>
-                          <li>✓ <strong>3x more visibility</strong></li>
-                        </ul>
-                      </div>
-                    </div>
-                  </div>
+                <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {plans.map((plan) => {
+                    const selected = form.plan_id === plan.id;
+                    return (
+                      <button
+                        key={plan.id}
+                        type="button"
+                        onClick={() => setForm((prev) => ({ ...prev, plan_id: plan.id }))}
+                        className={`text-left rounded-xl p-5 transition ${
+                          selected ? 'bg-accent/10' : 'bg-gray-50 hover:bg-gray-100'
+                        }`}
+                      >
+                        <p className="text-xs uppercase text-accent font-bold">{plan.badge}</p>
+                        <h3 className="text-lg font-bold text-gray-900 mt-1">{plan.name}</h3>
+                        <p className="text-gray-600 text-sm mt-1">{plan.highlight}</p>
+                        <p className="text-2xl font-bold text-gray-900 mt-3">{formatMoney(plan.price)}</p>
+                        <p className="text-xs text-gray-500">{plan.duration}</p>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
-              {/* Application Form */}
-              <div className="bg-white rounded-xl shadow-lg p-8">
-                <form onSubmit={handleSponsorSubmit}>
-                  <div className="text-center mb-10">
-                    <h2 className="text-3xl font-bold text-gray-800 mb-3">
-                      Submit Your Business Info
-                    </h2>
-                    <p className="text-gray-600">
-                      No signup required • Takes 2 minutes • Payment instructions on next page
-                    </p>
+              <div className="bg-white rounded-xl p-6 sm:p-8">
+                <h2 className="text-2xl font-bold text-gray-900 mb-5">Submit Your Ad Details</h2>
+                <form onSubmit={onSubmit} className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-1">Business Name</label>
+                    <input
+                      type="text"
+                      value={form.company_name}
+                      onChange={(event) => setForm((prev) => ({ ...prev, company_name: event.target.value }))}
+                      className="w-full bg-gray-50 rounded-lg py-3 px-4"
+                      required
+                    />
                   </div>
 
-                  <div className="space-y-8">
-                    {/* Step 1: Choose Plan */}
-                    <div className="bg-gray-50 rounded-xl p-6">
-                      <div className="text-xl font-bold text-gray-800 mb-4">
-                        Step 1: Select Your Advertising Package
-                      </div>
-                      <p className="text-gray-600 mb-4 text-sm">
-                        Both plans use the same 7% commission model. Choose based on visibility level.
-                      </p>
-                      <div className="grid grid-cols-2 gap-4">
-                        <label className={`border-3 rounded-xl p-6 cursor-pointer transition ${
-                          !sponsorForm.is_featured 
-                            ? 'border-accent bg-white ring-2 ring-accent' 
-                            : 'border-gray-300 bg-white hover:border-gray-400'
-                        }`}>
-                          <input
-                            type="radio"
-                            name="plan"
-                            checked={!sponsorForm.is_featured}
-                            onChange={() => setSponsorForm({...sponsorForm, is_featured: false})}
-                            className="sr-only"
-                          />
-                          <div className="text-center">
-                            <div className="text-sm font-bold text-gray-800">Regular</div>
-                            <div className="text-lg font-bold text-accent mt-2">7%</div>
-                            <div className="text-xs text-gray-600 mt-1">Commission</div>
-                          </div>
-                        </label>
-                        <label className={`border-3 rounded-xl p-6 cursor-pointer transition relative ${
-                          sponsorForm.is_featured 
-                            ? 'border-accent bg-red-50 ring-2 ring-accent' 
-                            : 'border-gray-300 bg-white hover:border-gray-400'
-                        }`}>
-                          <input
-                            type="radio"
-                            name="plan"
-                            checked={sponsorForm.is_featured}
-                            onChange={() => setSponsorForm({...sponsorForm, is_featured: true})}
-                            className="sr-only"
-                          />
-                        
-                          <div className="text-center">
-                            <div className="text-sm font-bold text-gray-800">⭐ Featured</div>
-                            <div className="text-lg font-bold text-accent mt-2">11%</div>
-                            <div className="text-xs text-gray-600 mt-1">Commission</div>
-                          </div>
-                        </label>
-                      </div>
-                    </div>
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-1">Ad Title</label>
+                    <input
+                      type="text"
+                      value={form.title}
+                      onChange={(event) => setForm((prev) => ({ ...prev, title: event.target.value }))}
+                      className="w-full bg-gray-50 rounded-lg py-3 px-4"
+                      placeholder="Optional"
+                    />
+                  </div>
 
-                    {/* Step 2: Business Name */}
-                    <div>
-                      <label className="block text-xl font-bold text-gray-800 mb-3">
-                        Step 2: Your Business Name
-                      </label>
-                      <input
-                        type="text"
-                        value={sponsorForm.company_name}
-                        onChange={(e) => setSponsorForm({...sponsorForm, company_name: e.target.value})}
-                        className="w-full border-2 border-gray-300 rounded-lg px-4 py-4 text-lg focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
-                        placeholder="e.g. Bob's Plumbing Services"
-                        required
-                      />
-                    </div>
-
-                    {/* Step 3: Phone */}
-                    <div>
-                      <label className="block text-xl font-bold text-gray-800 mb-3">
-                        Step 3: Your Phone Number
-                      </label>
-                      <input
-                        type="tel"
-                        value={sponsorForm.phone}
-                        onChange={(e) => setSponsorForm({...sponsorForm, phone: e.target.value})}
-                        className="w-full border-2 border-gray-300 rounded-lg px-4 py-4 text-lg focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
-                        placeholder="876-123-4567"
-                        required
-                      />
-                      <p className="text-sm text-gray-500 mt-2">
-                        Customers will see this number • We'll call to confirm your ad
-                      </p>
-                    </div>
-
-                    {/* Step 4: Email */}
-                    <div>
-                      <label className="block text-xl font-bold text-gray-800 mb-3">
-                        Step 4: Your Email Address
-                      </label>
-                      <input
-                        type="email"
-                        value={sponsorForm.email}
-                        onChange={(e) => setSponsorForm({...sponsorForm, email: e.target.value})}
-                        className="w-full border-2 border-gray-300 rounded-lg px-4 py-4 text-lg focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
-                        placeholder="youremail@example.com"
-                        
-                      />
-                      <p className="text-sm text-gray-500 mt-2">
-                        📧 For confirmation and updates
-                      </p>
-                    </div>
-
-                    {/* Step 5: Description */}
-                    <div>
-                      <label className="block text-xl font-bold text-gray-800 mb-3">
-                        Step 5: Describe Your Business
-                      </label>
-                      <textarea
-                        value={sponsorForm.description}
-                        onChange={(e) => setSponsorForm({...sponsorForm, description: e.target.value})}
-                        className="w-full border-2 border-gray-300 rounded-lg px-4 py-4 text-lg focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
-                        rows="4"
-                        placeholder="Example: Professional plumbing services in Kingston. We handle repairs, installations, and emergencies. Available 24/7 for your plumbing needs!"
-                        required
-                      />
-                      <p className="text-sm text-gray-500 mt-2">
-                        Write something simple and clear • {sponsorForm.description.length} characters
-                      </p>
-                    </div>
-
-                    {/* Step 6: Website (Optional) */}
-                    <div>
-                      <label className="block text-xl font-bold text-gray-800 mb-3">
-                        Step 6: Website (Optional)
-                      </label>
-                      <input
-                        type="url"
-                        value={sponsorForm.website}
-                        onChange={(e) => setSponsorForm({...sponsorForm, website: e.target.value})}
-                        className="w-full border-2 border-gray-300 rounded-lg px-4 py-4 text-lg focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
-                        placeholder="https://yourwebsite.com"
-                      />
-                      <p className="text-sm text-gray-500 mt-2">
-                        🌐 If you have one, we'll add a "Visit Website" button
-                      </p>
-                    </div>
-
-                
-
-                    {/* Submit Button */}
-                    <button
-                      type="submit"
-                      disabled={submitting}
-                      className="w-full btn-primary disabled:bg-gray-400 disabled:cursor-not-allowed text-xl py-6 shadow-xl text-white"
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-1">Category</label>
+                    <select
+                      value={form.category}
+                      onChange={(event) => setForm((prev) => ({ ...prev, category: event.target.value }))}
+                      className="w-full bg-gray-50 rounded-lg py-3 px-4"
                     >
-                      {submitting ? (
-                        <div className="flex items-center justify-center gap-3">
-                          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white"></div>
-                          Sending...
-                        </div>
-                      ) : (
-                        `Activate Your Profile (7% Commission)`
-                      )}
-                    </button>
+                      {categories.map((category) => (
+                        <option key={category.value} value={category.value}>
+                          {category.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
 
-                    <div className="text-center space-y-2">
-                      <p className="text-sm text-gray-500">
-                        Questions? We're here to help!
-                      </p>
-                      <div className="flex items-center justify-center gap-4 text-sm">
-                        <a href="tel:8763369045" className="text-accent font-semibold hover:underline">
-                          📞 876-336-9045
-                        </a>
-                        <span className="text-gray-400">•</span>
-                        <a href="mailto:dosnineco@gmail.com" className="text-accent font-semibold hover:underline">
-                          ✉️ dosnineco@gmail.com
-                        </a>
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-1">Phone</label>
+                    <input
+                      type="tel"
+                      value={form.phone}
+                      onChange={(event) => setForm((prev) => ({ ...prev, phone: event.target.value }))}
+                      className="w-full bg-gray-50 rounded-lg py-3 px-4"
+                      placeholder="876-123-4567"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-1">Email</label>
+                    <input
+                      type="email"
+                      value={form.email}
+                      onChange={(event) => setForm((prev) => ({ ...prev, email: event.target.value }))}
+                      className="w-full bg-gray-50 rounded-lg py-3 px-4"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-1">Contact Name</label>
+                    <input
+                      type="text"
+                      value={form.contact_name}
+                      onChange={(event) => setForm((prev) => ({ ...prev, contact_name: event.target.value }))}
+                      className="w-full bg-gray-50 rounded-lg py-3 px-4"
+                      placeholder="Optional"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-1">Website</label>
+                    <input
+                      type="url"
+                      value={form.website}
+                      onChange={(event) => setForm((prev) => ({ ...prev, website: event.target.value }))}
+                      className="w-full bg-gray-50 rounded-lg py-3 px-4"
+                      placeholder="https://yourwebsite.com"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-bold text-gray-700 mb-1">Upload Ad Image</label>
+                    <input
+                      type="file"
+                      accept="image/png,image/jpeg,image/jpg,image/webp"
+                      onChange={(event) => {
+                        const file = event.target.files?.[0] || null;
+                        if (!file) return;
+                        if (file.size > 8 * 1024 * 1024) {
+                          toast.error('Image must be 8MB or less.');
+                          return;
+                        }
+                        setImageFile(file);
+                        setImagePreview(URL.createObjectURL(file));
+                      }}
+                      className="w-full bg-gray-50 rounded-lg py-3 px-4"
+                    />
+                    {imagePreview && (
+                      <div className="mt-3 bg-gray-50 rounded-lg p-3">
+                        <img
+                          src={imagePreview}
+                          alt="Ad preview"
+                          className="h-24 w-auto rounded-lg object-cover"
+                        />
                       </div>
-                    </div>
+                    )}
                   </div>
-                </form>
-              </div>
 
-              {/* FAQ Section */}
-              <div className="mt-8 bg-white rounded-xl shadow-lg p-8">
-                <h3 className="text-2xl font-bold text-gray-800 mb-6">Frequently Asked Questions</h3>
-                <div className="space-y-6">
                   <div>
-                    <p className="font-semibold text-gray-900 mb-2">How does the commission work?</p>
-                    <p className="text-gray-600">You pay 7% of each deal's value. No upfront fees. For example, a J$100,000 deal costs you J$7,000 in commission.</p>
+                    <label className="block text-sm font-bold text-gray-700 mb-1">Description</label>
+                    <textarea
+                      value={form.description}
+                      onChange={(event) => setForm((prev) => ({ ...prev, description: event.target.value }))}
+                      className="w-full bg-gray-50 rounded-lg py-3 px-4"
+                      rows={5}
+                      required
+                    />
                   </div>
-                  <div>
-                    <p className="font-semibold text-gray-900 mb-2">When do I pay?</p>
-                    <p className="text-gray-600">You only pay when you close a deal. We send you an invoice, and payment is due within 7 days.</p>
-                  </div>
-                  <div>
-                    <p className="font-semibold text-gray-900 mb-2">What if I don't close any deals?</p>
-                    <p className="text-gray-600">You pay nothing! Your profile stays active and visible to potential customers indefinitely.</p>
-                  </div>
-                  <div>
-                    <p className="font-semibold text-gray-900 mb-2">What's the difference between Regular and Featured?</p>
-                    <p className="text-gray-600">Regular is 7% commission, Featured is 11% commission. Featured gets a gold badge, appears first, and gets 3x more visibility for higher exposure.</p>
-                  </div>
-                  <div>
-                    <p className="font-semibold text-gray-900 mb-2">How do I know if a customer came from Dosnine?</p>
-                    <p className="text-gray-600">We'll contact you when a customer wants to work with you. We confirm the deal and send you an invoice for 7% of the agreed amount.</p>
-                  </div>
-                  <div>
-                    <p className="font-semibold text-gray-900 mb-2">Can I change my profile details later?</p>
-                    <p className="text-gray-600">Yes! Just contact us and we'll update your information for free anytime.</p>
-                  </div>
-                </div>
+
+                  <button
+                    type="submit"
+                    disabled={submitting}
+                    className="w-full bg-accent hover:bg-accent/90 text-white font-semibold rounded-xl py-4 disabled:bg-gray-400"
+                  >
+                    {submitting ? 'Submitting...' : `Continue to Payment (${formatMoney(selectedPlan.price)})`}
+                  </button>
+                </form>
               </div>
             </>
           )}
         </div>
       </div>
     </>
-  )
+  );
 }

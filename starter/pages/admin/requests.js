@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import Head from 'next/head';
-import { useUser } from '@clerk/nextjs';
-import { supabase } from '../../lib/supabase';
+import { useAuth, useUser } from '@clerk/nextjs';
 import toast from 'react-hot-toast';
 import { FiTrash2 } from 'react-icons/fi';
 import { MessageCircle, Phone as PhoneIcon } from 'lucide-react';
@@ -11,6 +10,7 @@ import AdminLayout from '@/components/AdminLayout';
 
 export default function AdminRequestsPage() {
   const { user } = useUser();
+  const { getToken } = useAuth();
   const [requests, setRequests] = useState([]);
   const [agents, setAgents] = useState([]);
   const [assignLoading, setAssignLoading] = useState(false);
@@ -39,28 +39,25 @@ export default function AdminRequestsPage() {
     if (!user) return;
     
     try {
-      const { data: userData, error } = await supabase
-        .from('users')
-        .select('role, email, full_name')
-        .eq('clerk_id', user.id)
-        .single();
+      const response = await fetch('/api/admin/verify-admin');
+      const userData = await response.json();
 
-      if (error) throw error;
-
-      // SECURITY FIX: Verify admin has valid data (not NULL)
-      if (userData?.role === 'admin') {
-        if (!userData.email || !userData.full_name) {
-          console.error('❌ SECURITY: Admin user has NULL data');
-          setIsAdmin(false);
-          setLoading(false);
-          return;
-        }
-        setIsAdmin(true);
-        fetchData();
-      } else {
+      if (!response.ok || !userData?.isAdmin) {
         setIsAdmin(false);
         setLoading(false);
+        return;
       }
+
+      // SECURITY FIX: Verify admin has valid data (not NULL)
+      if (!userData.email || !userData.name) {
+        console.error('❌ SECURITY: Admin user has NULL data');
+        setIsAdmin(false);
+        setLoading(false);
+        return;
+      }
+
+      setIsAdmin(true);
+      fetchData();
     } catch (err) {
       setLoading(false);
     }
@@ -68,92 +65,37 @@ export default function AdminRequestsPage() {
 
   const fetchData = async () => {
     try {
-      // Fetch service requests
-      const { data: requestsData, error: requestsError } = await supabase
-        .from('service_requests')
-        .select(`
-          *,
-          agent:assigned_agent_id(
-            id,
-            business_name,
-            users:user_id(
-              full_name,
-              email
-            )
-          )
-        `)
-        .order('created_at', { ascending: false });
+      const response = await fetch('/api/admin/requests');
+      const payload = await response.json();
+      if (!response.ok || !payload?.success) {
+        throw new Error(payload?.error || 'Failed to load data');
+      }
 
-      if (requestsError) throw requestsError;
-
-      // Fetch visitor budgets to backfill missing request budgets (two lead sources)
-      const { data: visitorBudgetsData, error: visitorBudgetsError } = await supabase
-        .from('visitor_emails')
-        .select('email, budget_min');
-
-      if (visitorBudgetsError) throw visitorBudgetsError;
-
-      const visitorBudgetMap = Object.create(null);
-      visitorBudgetsData?.forEach((v) => {
-        if (v.email) {
-          visitorBudgetMap[String(v.email).toLowerCase()] = v.budget_min;
-        }
-      });
-
-      // Flatten the nested structure for easier access
-      const flattenedRequests = requestsData?.map(req => ({
-        ...req,
-        // Prefer service_request budget; fallback to visitor_emails budget_min if missing
-        budget_min: req.budget_min ?? visitorBudgetMap[String(req.client_email || '').toLowerCase()] ?? null,
-        budget_max: req.budget_max ?? req.budget_min ?? visitorBudgetMap[String(req.client_email || '').toLowerCase()] ?? null,
-        agent: req.agent ? {
-          id: req.agent.id,
-          business_name: req.agent.business_name,
-          full_name: req.agent.users?.full_name || req.agent.business_name || 'Unknown Agent',
-          email: req.agent.users?.email || 'No email'
-        } : null
-      })) || [];
-
-      setRequests(flattenedRequests);
-
-      // Fetch all agents from agent table regardless of payment status
-      const { data: agentsData, error: agentsError } = await supabase
-        .from('agents')
-        .select(`
-          id,
-          business_name,
-          user_id,
-          last_request_assigned_at,
-          payment_status,
-          access_expiry,
-          service_areas,
-          users:user_id(
-            full_name,
-            email
-          )
-        `)
-        .order('last_request_assigned_at', { ascending: true, nullsFirst: true });
-
-      if (agentsError) throw agentsError;
-
-      // Flatten agents data
-      const flattenedAgents = agentsData?.map(agent => ({
-        id: agent.id,
-        business_name: agent.business_name,
-        full_name: agent.users?.full_name || agent.business_name || 'Unnamed Agent',
-        email: agent.users?.email || 'No email',
-        last_request_assigned_at: agent.last_request_assigned_at,
-        payment_status: agent.payment_status,
-        access_expiry: agent.access_expiry,
-        service_areas: agent.service_areas || ''
-      })) || [];
-
-      setAgents(flattenedAgents);
+      setRequests(payload.requests || []);
+      setAgents(payload.agents || []);
     } catch (err) {
       toast.error('Failed to load data');
     } finally {
       setLoading(false);
     }
+  };
+
+  const authedPost = async (url, payload) => {
+    const token = await getToken();
+    const headers = {
+      'Content-Type': 'application/json',
+    };
+
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
+    }
+
+    return fetch(url, {
+      method: 'POST',
+      credentials: 'include',
+      headers,
+      body: JSON.stringify(payload),
+    });
   };
 
   // Helpers: plan/eligibility checks
@@ -220,27 +162,10 @@ export default function AdminRequestsPage() {
         assigned_at: agentId ? now : null
       };
 
-      const { error: updateError, data } = await supabase
-        .from('service_requests')
-        .update(updatePayload)
-        .eq('id', requestId)
-        .select();
-
-      if (updateError) {
-        console.error('❌ DB Error:', updateError);
-        throw new Error(updateError.message || 'Database update failed');
-      }
-
-      // Update agent's last assignment timestamp
-      if (agentId) {
-        const { error: agentError } = await supabase
-          .from('agents')
-          .update({ last_request_assigned_at: now })
-          .eq('id', agentId);
-
-        if (agentError) {
-          console.warn(' Agent timestamp update failed:', agentError);
-        }
+      const response = await authedPost('/api/admin/requests', { action: 'manualAssign', requestId, agentId, updatePayload, now });
+      const payload = await response.json();
+      if (!response.ok || !payload?.success) {
+        throw new Error(payload?.error || 'Database update failed');
       }
 
       toast.success(agentId ? 'Request assigned!' : 'Request unassigned!');
@@ -289,26 +214,9 @@ export default function AdminRequestsPage() {
     const ids = candidates.map((r) => r.id);
 
     try {
-      const { error } = await supabase
-        .from('service_requests')
-        .update({
-          assigned_agent_id: autoAssignAgentId,
-          status: 'assigned',
-          assigned_at: now,
-        })
-        .in('id', ids)
-        .eq('status', 'open');
-
-      if (error) throw error;
-
-      const { error: agentError } = await supabase
-        .from('agents')
-        .update({ last_request_assigned_at: now })
-        .eq('id', autoAssignAgentId);
-
-      if (agentError) {
-        console.warn('Agent timestamp update failed:', agentError);
-      }
+      const response = await authedPost('/api/admin/requests', { action: 'autoAssign', ids, agentId: autoAssignAgentId });
+      const payload = await response.json();
+      if (!response.ok || !payload?.success) throw new Error(payload?.error || 'Failed to auto-assign');
 
       toast.success(`Assigned ${ids.length} request${ids.length === 1 ? '' : 's'}.`);
       setShowAutoAssign(false);
@@ -335,15 +243,9 @@ export default function AdminRequestsPage() {
     }
 
     try {
-      const { error } = await supabase
-        .from('service_requests')
-        .update({
-          comment: commentText,
-          comment_updated_at: new Date().toISOString(),
-        })
-        .eq('id', requestId);
-
-      if (error) throw error;
+      const response = await authedPost('/api/admin/requests', { action: 'comment', requestId, comment: commentText });
+      const payload = await response.json();
+      if (!response.ok || !payload?.success) throw new Error(payload?.error || 'Failed to save comment');
 
       toast.success('Comment saved successfully!');
       setShowCommentModal(false);
@@ -357,14 +259,9 @@ export default function AdminRequestsPage() {
 
   const handleContactedToggle = async (requestId, currentStatus) => {
     try {
-      const { error } = await supabase
-        .from('service_requests')
-        .update({
-          is_contacted: !currentStatus,
-        })
-        .eq('id', requestId);
-
-      if (error) throw error;
+      const response = await authedPost('/api/admin/requests', { action: 'toggleContacted', requestId, currentStatus });
+      const payload = await response.json();
+      if (!response.ok || !payload?.success) throw new Error(payload?.error || 'Failed to update contacted status');
 
       toast.success(`Request marked as ${!currentStatus ? 'contacted' : 'not contacted'}!`);
       setTimeout(() => fetchData(), 200);
@@ -380,14 +277,9 @@ export default function AdminRequestsPage() {
     }
 
     try {
-      const { error } = await supabase
-        .from('service_requests')
-        .update({
-          status: 'assigned',
-        })
-        .eq('id', requestId);
-
-      if (error) throw error;
+      const response = await authedPost('/api/admin/requests', { action: 'reactivate', requestId });
+      const payload = await response.json();
+      if (!response.ok || !payload?.success) throw new Error(payload?.error || 'Failed to reactivate case');
 
       toast.success('Case reactivated successfully!');
       setTimeout(() => fetchData(), 200);
@@ -403,12 +295,9 @@ export default function AdminRequestsPage() {
     }
 
     try {
-      const { error } = await supabase
-        .from('service_requests')
-        .delete()
-        .eq('id', requestId);
-
-      if (error) throw error;
+      const response = await authedPost('/api/admin/requests', { action: 'delete', requestId });
+      const payload = await response.json();
+      if (!response.ok || !payload?.success) throw new Error(payload?.error || 'Failed to delete request');
 
       toast.success('Request deleted successfully!');
       setTimeout(() => fetchData(), 200);

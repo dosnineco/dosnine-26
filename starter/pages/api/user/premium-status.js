@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/supabase';
+import { getDbClient, requireDbUser } from '@/lib/apiAuth';
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') {
@@ -6,17 +6,16 @@ export default async function handler(req, res) {
   }
 
   try {
-    const userId = req.headers['x-user-id'] || req.query.userId;
+    const resolved = await requireDbUser(req, res);
+    if (!resolved) return;
 
-    if (!userId) {
-      return res.status(400).json({ error: 'User ID is required' });
-    }
+    const db = getDbClient();
 
     // Get user's premium status
-    const { data: user, error } = await supabase
+    const { data: user, error } = await db
       .from('users')
       .select('premium_service_request, premium_service_request_expires')
-      .eq('id', userId)
+      .eq('id', resolved.user.id)
       .single();
 
     if (error) {

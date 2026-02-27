@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useUser } from '@clerk/nextjs';
+import { useAuth } from '@clerk/nextjs';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
 import Link from 'next/link';
@@ -9,7 +10,6 @@ import RequestNotificationPopup from '../../components/RequestNotificationPopup'
 import AgentFeedbackPopup from '../../components/AgentFeedbackPopup';
 import { useRoleProtection } from '../../lib/useRoleProtection';
 import { isVerifiedAgent } from '../../lib/rbac';
-import { supabase } from '../../lib/supabase';
 import { 
   Home, Users, Mail, Phone, MapPin, DollarSign, 
   Bed, Bath, Calendar, Filter, CheckCircle, XCircle,
@@ -40,6 +40,7 @@ export default function AgentDashboard() {
   });
 
   const { user } = useUser();
+  const { getToken, isLoaded: authLoaded, userId } = useAuth();
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [userRole, setUserRole] = useState(null);
@@ -85,69 +86,65 @@ export default function AgentDashboard() {
 
   // Fetch queue count for unpaid agents
   useEffect(() => {
-    const fetchQueueCount = async () => {
+    if (!authLoaded || !userId) return;
+
+    const fetchStats = async () => {
       try {
-        const { count, error } = await supabase
-          .from('service_requests')
-          .select('*', { count: 'exact', head: true })
-          .eq('status', 'open');
-        
-        if (error) throw error;
-        setQueueCount(count);
+        const token = await getToken();
+        const response = await axios.get('/api/agent/stats', {
+          headers: {
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          withCredentials: true,
+        });
+        setQueueCount(response.data.queueCount ?? null);
+        setPaidAgentCount(response.data.paidAgentCount ?? null);
       } catch (error) {
-        console.error('Error fetching queue count:', error);
+        console.error('Error fetching agent stats:', error);
         setQueueCount(null);
-      } finally {
-        setQueueLoading(false);
-      }
-    };
-
-    fetchQueueCount();
-  }, []);
-
-  // Fetch paid agents count
-  useEffect(() => {
-    const fetchPaidAgentCount = async () => {
-      try {
-        const { count, error } = await supabase
-          .from('agents')
-          .select('*', { count: 'exact', head: true })
-          .in('payment_status', ['7-day', '30-day', '90-day'])
-          .gt('access_expiry', new Date().toISOString());
-        
-        if (error) throw error;
-        setPaidAgentCount(count);
-      } catch (error) {
-        console.error('Error fetching paid agents count:', error);
         setPaidAgentCount(null);
       } finally {
+        setQueueLoading(false);
         setPaidAgentLoading(false);
       }
     };
 
-    fetchPaidAgentCount();
-  }, []);
+    fetchStats();
+  }, [authLoaded, userId, getToken]);
 
   useEffect(() => {
-    if (agentData) {
+    if (agentData && authLoaded && userId) {
       fetchRequests();
     }
-  }, [agentData]);
+  }, [agentData, authLoaded, userId]);
 
 
 
   async function fetchRequests() {
+    if (!authLoaded) return;
+    if (!userId) {
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     try {
+      const token = await getToken();
       const response = await axios.get('/api/agent/requests', {
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        withCredentials: true,
         params: {
-          clerkId: user.id,
           status: 'all',
         }
       });
       setRequests(response.data.requests || []);
     } catch (error) {
-      if (error.response?.status === 403) {
+      if (error.response?.status === 401) {
+        toast.error('Session expired. Please sign in again.');
+        router.push('/sign-in');
+      } else if (error.response?.status === 403) {
         toast.error('Agent verification required');
         router.push('/agent/signup');
       } else if (error.response?.status === 404) {
@@ -164,7 +161,7 @@ export default function AgentDashboard() {
   }
 
   async function handleRequestAction(requestId, action, commentData = null) {
-    if (!user?.id) return;
+    if (!user?.id || !authLoaded) return;
     
     const actionLabels = {
       complete: 'Mark as Complete',
@@ -180,11 +177,16 @@ export default function AgentDashboard() {
 
     setActionLoading(true);
     try {
+      const token = await getToken();
       const response = await axios.post('/api/agent/update-request', {
-        clerkId: user.id,
         requestId,
         action,
         comment: commentData,
+      }, {
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        withCredentials: true,
       });
 
       toast.success(response.data.message);
@@ -193,7 +195,12 @@ export default function AgentDashboard() {
       if (action === 'release') {
         setRequests((prev) => prev.filter((r) => r.id !== requestId));
         try {
-          await axios.post('/api/service-requests/auto-assign', { requestId });
+          await axios.post('/api/service-requests/auto-assign', { requestId }, {
+            headers: {
+              ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            },
+            withCredentials: true,
+          });
         } catch (e) {
           // Non-blocking; ignore failures
         }

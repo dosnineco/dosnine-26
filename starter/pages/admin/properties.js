@@ -1,14 +1,14 @@
 import { useEffect, useState } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
-import { useUser } from '@clerk/nextjs';
-import { supabase } from '../../lib/supabase';
+import { useAuth, useUser } from '@clerk/nextjs';
 import AdminLayout from '../../components/AdminLayout';
 import toast from 'react-hot-toast';
 import { FiTrash2, FiEdit2 } from 'react-icons/fi';
 
 export default function AdminPropertiesPage() {
   const { user } = useUser();
+  const { getToken } = useAuth();
   const [properties, setProperties] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
@@ -28,17 +28,27 @@ export default function AdminPropertiesPage() {
     checkAdminAccess();
   }, [user]);
 
+  const authedFetch = async (url, options = {}) => {
+    const token = await getToken();
+    const nextHeaders = {
+      ...(options.headers || {}),
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    };
+
+    return fetch(url, {
+      ...options,
+      credentials: 'include',
+      headers: nextHeaders,
+    });
+  };
+
   const checkAdminAccess = async () => {
     if (!user) return;
     
     try {
-      const { data: userData, error } = await supabase
-        .from('users')
-        .select('role, email, full_name')
-        .eq('clerk_id', user.id)
-        .single();
-
-      if (error) throw error;
+      const response = await authedFetch('/api/user/profile');
+      const userData = await response.json();
+      if (!response.ok) throw new Error(userData?.error || 'Access check failed');
 
       if (userData?.role === 'admin') {
         if (!userData.email || !userData.full_name) {
@@ -60,41 +70,29 @@ export default function AdminPropertiesPage() {
 
   const fetchData = async () => {
     try {
-      const { data, error } = await supabase
-        .from('properties')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      setProperties(data || []);
+      const response = await authedFetch('/api/admin/properties');
+      const payload = await response.json();
+      if (!response.ok || !payload?.success) {
+        throw new Error(payload?.error || 'Failed to load properties');
+      }
+      setProperties(payload.properties || []);
     } catch (err) {
-      toast.error('Failed to load properties');
+      toast.error(err?.message || 'Failed to load properties');
     } finally {
       setLoading(false);
     }
   };
 
-  // Setup real-time subscription
+  // Lightweight polling for updates
   useEffect(() => {
     if (!isAdmin) return;
 
-    const channel = supabase
-      .channel('properties_changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'properties'
-        },
-        (payload) => {
-          fetchData();
-        }
-      )
-      .subscribe();
+    const interval = setInterval(() => {
+      fetchData();
+    }, 10000);
 
     return () => {
-      supabase.removeChannel(channel);
+      clearInterval(interval);
     };
   }, [isAdmin]);
 
@@ -104,10 +102,11 @@ export default function AdminPropertiesPage() {
 
     try {
       if (editingId) {
-        // Update
-        const { error } = await supabase
-          .from('properties')
-          .update({
+        const response = await authedFetch('/api/admin/properties', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            id: editingId,
             title: formData.title,
             parish: formData.parish,
             price: parseFloat(formData.price),
@@ -116,17 +115,16 @@ export default function AdminPropertiesPage() {
             description: formData.description,
             is_featured: formData.is_featured,
             is_active: formData.is_active,
-            updated_at: new Date().toISOString()
           })
-          .eq('id', editingId);
-
-        if (error) throw error;
+        });
+        const payload = await response.json();
+        if (!response.ok || !payload?.success) throw new Error(payload?.error || 'Failed to update property');
         toast.success('Property updated successfully!');
       } else {
-        // Create
-        const { error } = await supabase
-          .from('properties')
-          .insert([{
+        const response = await authedFetch('/api/admin/properties', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
             title: formData.title,
             parish: formData.parish,
             price: parseFloat(formData.price),
@@ -135,16 +133,17 @@ export default function AdminPropertiesPage() {
             description: formData.description,
             is_featured: formData.is_featured,
             is_active: formData.is_active,
-          }]);
-
-        if (error) throw error;
+          })
+        });
+        const payload = await response.json();
+        if (!response.ok || !payload?.success) throw new Error(payload?.error || 'Failed to create property');
         toast.success('Property created successfully!');
       }
 
       resetForm();
       await fetchData();
     } catch (err) {
-      toast.error(editingId ? 'Failed to update property' : 'Failed to create property');
+      toast.error(err?.message || (editingId ? 'Failed to update property' : 'Failed to create property'));
     } finally {
       setLoading(false);
     }
@@ -152,6 +151,11 @@ export default function AdminPropertiesPage() {
 
   const handleEdit = (property) => {
     setEditingId(property.id);
+    const isActive =
+      typeof property.is_active === 'boolean'
+        ? property.is_active
+        : (property.status || 'available') === 'available';
+
     setFormData({
       title: property.title || '',
       parish: property.parish || '',
@@ -160,7 +164,7 @@ export default function AdminPropertiesPage() {
       bathrooms: property.bathrooms || '',
       description: property.description || '',
       is_featured: property.is_featured || false,
-      is_active: property.is_active !== false
+      is_active: isActive
     });
   };
 
@@ -168,17 +172,18 @@ export default function AdminPropertiesPage() {
     if (!confirm('⚠️ DELETE this property?\n\nThis action cannot be undone!')) return;
 
     try {
-      const { error } = await supabase
-        .from('properties')
-        .delete()
-        .eq('id', id);
-
-      if (error) throw error;
+      const response = await authedFetch('/api/admin/properties', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id })
+      });
+      const payload = await response.json();
+      if (!response.ok || !payload?.success) throw new Error(payload?.error || 'Failed to delete property');
 
       toast.success('Property deleted successfully!');
       await fetchData();
     } catch (err) {
-      toast.error('Failed to delete property');
+      toast.error(err?.message || 'Failed to delete property');
     }
   };
 

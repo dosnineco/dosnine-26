@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { useUser } from '@clerk/nextjs';
-import { supabase } from '../lib/supabase';
 import toast from 'react-hot-toast';
 import { X } from 'lucide-react';
 
@@ -26,18 +25,6 @@ export default function PropertyAgentRequest({ property, isOpen, onClose }) {
     setLoading(true);
 
     try {
-      const { data: agentData, error: agentError } = await supabase
-        .from('agents')
-        .select('id')
-        .eq('user_id', property.owner_id)
-        .single();
-
-      if (agentError && agentError.code !== 'PGRST116') {
-        console.error('Error looking up agent:', agentError);
-      }
-
-      const agentId = agentData?.id || null;
-
       let propertyType = 'house';
       const titleLower = property.title.toLowerCase();
       
@@ -55,54 +42,31 @@ export default function PropertyAgentRequest({ property, isOpen, onClose }) {
       const requestType = property.type === 'sale' ? 'buy' : 'rent';
 
       const requestPayload = {
-        client_name: formData.name,
-        client_email: formData.email,
-        client_phone: formData.phone,
-        request_type: requestType,
-        property_type: propertyType,
+        clientName: formData.name,
+        clientEmail: formData.email,
+        clientPhone: formData.phone,
+        requestType,
+        propertyType,
+        parish: property.parish || null,
         location: `${property.town}, ${property.parish}`,
-        budget_min: property.price,
-        budget_max: property.price,
+        budgetMin: property.price,
+        budgetMax: property.price,
         bedrooms: property.bedrooms,
         bathrooms: property.bathrooms,
         description: formData.message || `Interested in: ${property.title}`,
         urgency: 'normal',
-        status: agentId ? 'assigned' : 'open',
-        assigned_agent_id: agentId,
+        propertyOwnerId: property.owner_id,
       };
 
-      const { data: request, error: requestError } = await supabase
-        .from('service_requests')
-        .insert([requestPayload])
-        .select()
-        .single();
+      const response = await fetch('/api/service-requests/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(requestPayload)
+      });
 
-      if (requestError) {
-        console.error('Service request error:', requestError);
-        
-        if (requestError.code === 'PGRST116') {
-          throw new Error('Unable to create request. Please try again.');
-        } else if (requestError.code === '42501') {
-          throw new Error('Permission denied. Please ensure you are logged in.');
-        } else {
-          throw new Error(requestError.message || 'Failed to submit request');
-        }
-      }
-
-      if (agentId && request) {
-        const { error: notificationError } = await supabase
-          .from('agent_notifications')
-          .insert([{
-            agent_id: agentId,
-            notification_type: 'new_request',
-            message: `New Property Inquiry: ${formData.name} is interested in ${property.title}`,
-            service_request_id: request.id,
-            is_read: false,
-          }]);
-
-        if (notificationError) {
-          console.error('Notification error:', notificationError);
-        }
+      const payload = await response.json();
+      if (!response.ok || !payload?.success) {
+        throw new Error(payload?.error || 'Failed to submit request');
       }
 
       toast.success('Request sent successfully! The agent will contact you soon.');

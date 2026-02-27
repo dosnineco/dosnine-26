@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react'
-import { supabase } from '../lib/supabase'
 import { useUser } from '@clerk/nextjs'
 
 
@@ -33,20 +32,12 @@ export default function VerifiedLeadsMarketplace() {
   const loadLeads = async () => {
     setLoading(true)
     try {
-      let query = supabase
-        .from('service_requests')
-        .select('*')
-        .eq('is_sold', false)
-        .order('created_at', { ascending: false })
-
-      if (filter === 'verified') {
-        query = query.eq('verification_status', 'verified')
+      const response = await fetch(`/api/leads/list?filter=${encodeURIComponent(filter)}`)
+      const payload = await response.json()
+      if (!response.ok || !payload?.success) {
+        throw new Error(payload?.error || 'Failed to load leads')
       }
-
-      const { data, error } = await query
-
-      if (error) throw error
-      setLeads(data || [])
+      setLeads(payload.leads || [])
     } catch (error) {
       console.error('Load leads error:', error)
     } finally {
@@ -64,10 +55,7 @@ export default function VerifiedLeadsMarketplace() {
       const response = await fetch('/api/leads/purchase', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          leadId,
-          agentUserId: user.id
-        })
+        body: JSON.stringify({ leadId })
       })
 
       const data = await response.json()

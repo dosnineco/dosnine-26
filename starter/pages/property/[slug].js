@@ -3,7 +3,6 @@ import Seo from '../../components/Seo';
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
-import { supabase } from '../../lib/supabase';
 import toast from 'react-hot-toast';
 import { useUser } from '@clerk/nextjs';
 import { Zap, Phone } from 'lucide-react';
@@ -12,66 +11,34 @@ import { normalizeParish } from '../../lib/normalizeParish';
 import PropertyAgentRequest from '../../components/PropertyAgentRequest';
 import AdList from '../../components/AdList';
 
-export async function getStaticPaths() {
-  const { data } = await supabase
-    .from('properties')
-    .select('slug')
-    .eq('status', 'available');
+export async function getServerSideProps(context) {
+  const slug = context.params?.slug;
+  const host = context.req.headers.host || 'localhost:3000';
+  const forwardedProto = String(context.req.headers['x-forwarded-proto'] || '').split(',')[0].trim();
+  const isLocalHost = /^(localhost|127\.0\.0\.1|0\.0\.0\.0)(:\d+)?$/i.test(host);
+  const proto = isLocalHost ? 'http' : (forwardedProto || 'https');
+  const baseUrl = `${proto}://${host}`;
 
-  const paths = (data || []).map((prop) => ({
-    params: { slug: prop.slug },
-  }));
+  let response;
+  let payload = {};
 
-  return { paths, fallback: 'blocking' };
-}
-
-export async function getStaticProps({ params }) {
-  const { slug } = params;
-  const { data } = await supabase
-    .from('properties')
-    .select('*')
-    .eq('slug', slug)
-    .eq('status', 'available')
-    .single();
-
-  if (!data) {
+  try {
+    response = await fetch(`${baseUrl}/api/properties/detail?slug=${encodeURIComponent(slug)}`);
+    payload = await response.json().catch(() => ({}));
+  } catch (error) {
     return { notFound: true };
   }
 
-  // Increment view count
-  await supabase
-    .from('properties')
-    .update({ views: (data.views || 0) + 1 })
-    .eq('id', data.id);
-
-  // Fetch owner verification status from users table (synced with agents table)
-  const { data: ownerData, error: ownerError } = await supabase
-    .from('users')
-    .select('agent_is_verified, verified_at')
-    .eq('id', data.owner_id)
-    .single();
-
-  if (ownerError) {
-    console.error('Error fetching owner verification:', ownerError);
+  if (!response.ok || !payload?.success || !payload?.property) {
+    return { notFound: true };
   }
-  
-
-  // Fetch similar properties in the same parish
-  const { data: similarProps } = await supabase
-    .from('properties')
-    .select('*')
-    .eq('status', 'available')
-    .eq('parish', normalizeParish(data.parish))
-    .neq('id', data.id)
-    .limit(4);
 
   return {
-    props: { 
-      property: data,
-      similarProperties: similarProps || [],
-      isVerifiedAgent: ownerData?.agent_is_verified || false
+    props: {
+      property: payload.property,
+      similarProperties: payload.similarProperties || [],
+      isVerifiedAgent: payload.isVerifiedAgent || false,
     },
-    revalidate: 60,
   };
 }
 
@@ -121,12 +88,9 @@ export default function PropertyPage({ property, similarProperties, isVerifiedAg
   useEffect(() => {
     const checkOwner = async () => {
       if (!user) return;
-      const { data } = await supabase
-        .from('users')
-        .select('id')
-        .eq('clerk_id', user.id)
-        .single();
-      if (data && data.id === property.owner_id) {
+      const response = await fetch('/api/user/profile');
+      const payload = await response.json();
+      if (response.ok && payload?.id === property.owner_id) {
         setIsOwner(true);
       }
     };

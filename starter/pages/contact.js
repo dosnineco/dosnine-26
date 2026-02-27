@@ -1,6 +1,5 @@
 import Head from 'next/head';
 import { useState } from 'react';
-import { supabase } from '../lib/supabase';
 import toast from 'react-hot-toast';
 import { FiMail, FiPhone, FiMapPin, FiMessageSquare } from 'react-icons/fi';
 
@@ -19,15 +18,16 @@ export default function ContactPage() {
     setSubmitting(true);
 
     try {
-      // Save contact form submission to database
-      const { error } = await supabase
-        .from('contact_submissions')
-        .insert([{
-          ...formData,
-          submitted_at: new Date().toISOString()
-        }]);
+      const response = await fetch('/api/contact/submit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData)
+      });
 
-      if (error) throw error;
+      const payload = await response.json();
+      if (!response.ok || !payload?.success) {
+        throw new Error(payload?.error || 'Failed to send message');
+      }
 
       toast.success('Message sent successfully! We\'ll get back to you soon.');
       setFormData({ name: '', email: '', phone: '', subject: '', message: '' });

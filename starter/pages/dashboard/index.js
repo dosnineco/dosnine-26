@@ -5,10 +5,8 @@ import { useRouter } from 'next/router';
 import { useUser } from '@clerk/nextjs';
 import { supabase } from '../../lib/supabase';
 import axios from 'axios';
-import toast from 'react-hot-toast';
 import { formatMoney } from '../../lib/formatMoney';
-import { getUserProfileByClerkId } from '../../lib/getUserProfile';
-import { AlertCircle, Clock, XCircle, Briefcase, CheckCircle, Activity, DollarSign } from 'lucide-react';
+import { Clock, XCircle, Briefcase, DollarSign } from 'lucide-react';
 
 export default function Dashboard() {
   const { user, isLoaded } = useUser();
@@ -16,6 +14,16 @@ export default function Dashboard() {
   const [stats, setStats] = useState({ properties: 0, applications: 0, activeListings: 0 });
   const [recentProperties, setRecentProperties] = useState([]);
   const [serviceRequests, setServiceRequests] = useState([]);
+  const [advertisements, setAdvertisements] = useState([]);
+  const [adStats, setAdStats] = useState({
+    totalAds: 0,
+    activeAds: 0,
+    totalViews: 0,
+    totalClicks: 0,
+    verifiedAds: 0,
+    pendingAds: 0,
+  });
+  const [pendingAdVerificationAt, setPendingAdVerificationAt] = useState(null);
   const [loading, setLoading] = useState(true);
   const [redirecting, setRedirecting] = useState(false);
   const [agentData, setAgentData] = useState(null);
@@ -87,19 +95,33 @@ export default function Dashboard() {
     fetchPaidAgentCount();
   }, [shouldLoadData]);
 
+  useEffect(() => {
+    if (!shouldLoadData || redirecting) return;
+
+    const refresh = () => {
+      fetchDashboardData();
+    };
+
+    const interval = setInterval(refresh, 60000);
+    window.addEventListener('focus', refresh);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', refresh);
+    };
+  }, [shouldLoadData, redirecting]);
+
   async function checkUserStatus() {
     try {
       setRedirecting(true);
-      
-      // Check if user is an agent - minimal data fetch for redirect check only
-      const { data: userData } = await supabase
-        .from('users')
-        .select('id, agent:agents(verification_status, payment_status, access_expiry, verification_submitted_at, created_at)')
-        .eq('clerk_id', user.id)
-        .single();
+      const { data: overview } = await axios.get('/api/dashboard/overview', { withCredentials: true });
+      const userData = overview || {};
 
-      if (userData?.agent) {
-        const agent = Array.isArray(userData.agent) ? userData.agent[0] : userData.agent;
+      const agent = Array.isArray(userData?.agent)
+        ? (userData.agent[0] || null)
+        : (userData?.agent || null);
+
+      if (agent) {
         
         // Handle agent redirects based on status
         const validPlans = ['free', '7-day', '30-day', '90-day'];
@@ -117,6 +139,7 @@ export default function Dashboard() {
         setShowAgentPrompt(false);
       } else {
         // Show prompt to become agent
+        setAgentData(null);
         setShowAgentPrompt(true);
       }
 
@@ -134,59 +157,51 @@ export default function Dashboard() {
   async function fetchDashboardData() {
     setLoading(true);
     try {
-      // Get user from database
-      const { data: userData } = await supabase
-        .from('users')
-        .select('id')
-        .eq('clerk_id', user.id)
-        .single();
+      const { data: overview } = await axios.get('/api/dashboard/overview', { withCredentials: true });
+      const payload = overview || {};
+      const agent = Array.isArray(payload?.agent)
+        ? (payload.agent[0] || null)
+        : (payload?.agent || null);
 
-      if (!userData) return;
+      setAgentData(agent);
+      setShowAgentPrompt(!agent);
 
-      // Fetch stats
-      const { data: props } = await supabase
-        .from('properties')
-        .select('id, status')
-        .eq('owner_id', userData.id);
-
-      const { data: apps, count: appCount } = await supabase
-        .from('applications')
-        .select('id', { count: 'exact' })
-        .in('property_id', (props || []).map((p) => p.id));
-
-      setStats({
-        properties: props?.length || 0,
-        applications: appCount || 0,
-        activeListings: props?.filter((p) => p.status === 'available').length || 0,
-      });
-
-      // Fetch recent properties
-      const { data: recentProps } = await supabase
-        .from('properties')
-        .select('*')
-        .eq('owner_id', userData.id)
-        .order('created_at', { ascending: false })
-        ;
-
-      setRecentProperties(recentProps || []);
-      
-      // Fetch user's service requests (if table exists)
-      try {
-        const { data: requests, error: requestsError } = await supabase
-          .from('service_requests')
-          .select('*')
-          .eq('client_user_id', userData.id)
-          .order('created_at', { ascending: false });
-
-        if (!requestsError) {
-          setServiceRequests(requests || []);
-        } else {
-          setServiceRequests([]);
-        }
-      } catch (reqErr) {
-        setServiceRequests([]);
+      if (payload?.stats) {
+        setStats({
+          properties: Number(payload.stats.properties || 0),
+          applications: Number(payload.stats.applications || 0),
+          activeListings: Number(payload.stats.activeListings || 0),
+        });
+      } else {
+        setStats({ properties: 0, applications: 0, activeListings: 0 });
       }
+
+      setRecentProperties(Array.isArray(payload?.recentProperties) ? payload.recentProperties : []);
+      setServiceRequests(Array.isArray(payload?.serviceRequests) ? payload.serviceRequests : []);
+      setAdvertisements(Array.isArray(payload?.advertisements) ? payload.advertisements : []);
+      setAdStats(payload?.adStats || {
+        totalAds: 0,
+        activeAds: 0,
+        totalViews: 0,
+        totalClicks: 0,
+        verifiedAds: 0,
+        pendingAds: 0,
+      });
+      setPendingAdVerificationAt(payload?.pendingAdVerificationAt || null);
     } catch (err) {
+      setStats({ properties: 0, applications: 0, activeListings: 0 });
+      setRecentProperties([]);
+      setServiceRequests([]);
+      setAdvertisements([]);
+      setAdStats({
+        totalAds: 0,
+        activeAds: 0,
+        totalViews: 0,
+        totalClicks: 0,
+        verifiedAds: 0,
+        pendingAds: 0,
+      });
+      setPendingAdVerificationAt(null);
     } finally {
       setLoading(false);
     }
@@ -315,8 +330,27 @@ export default function Dashboard() {
           </div>
         )}
 
+        {pendingAdVerificationAt && (
+          <div className="bg-blue-50 border-l-4 border-blue-400 p-6 rounded-lg mb-8">
+            <div className="flex items-start gap-3">
+              <Clock className="w-6 h-6 text-blue-600 flex-shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <h3 className="text-lg font-semibold text-blue-900 mb-1">
+                  Advertisement Verification Pending
+                </h3>
+                <p className="text-blue-700 mb-2">
+                  Your ad payment is under review. Verification usually completes within 24 hours.
+                </p>
+                <p className="text-sm text-blue-600">
+                  Submitted: {formatDate(pendingAdVerificationAt)}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Become Agent Prompt */}
-        {!agentData && showAgentPrompt && (
+        {!agentData && showAgentPrompt && !pendingAdVerificationAt && (
           <div className="bg-gradient-to-r from-accent/10 to-accent/5 border-l-4 border-accent p-6 rounded-lg mb-8">
             <div className="flex items-start gap-3">
               <Briefcase className="w-6 h-6 text-accent flex-shrink-0 mt-0.5" />
@@ -355,11 +389,76 @@ export default function Dashboard() {
                 : `${stats.properties}/2`}
             </div>
           </div>
-          <div className="bg-white rounded-lg  p-6">
+          {/* <div className="bg-white rounded-lg  p-6">
             <div className="text-gray-600 text-sm font-semibold">Active Listings</div>
-            <div className="text-4xl font-bold text-green-600 mt-2">{stats.activeListings}</div>
+            <div className="text-4xl font-bold text-green-600 mt-2">
+              {agentData?.verification_status === 'approved'
+                ? `${stats.activeListings}/∞`
+                : `${stats.activeListings}/2`}
+            </div>
+          </div> */}
+          <div className="bg-white rounded-lg p-6">
+            <div className="text-gray-600 text-sm font-semibold">Active Ads</div>
+            <div className="text-4xl font-bold text-purple-600 mt-2">
+              {adStats.activeAds || 0}
+            </div>
+            <p className="text-xs text-gray-500 mt-2">
+              Verified: {adStats.verifiedAds || 0} · Pending: {adStats.pendingAds || 0}
+            </p>
           </div>
         </div>
+        )}
+
+        {!redirecting && adStats.verifiedAds > 0 && (
+          <div className="bg-white rounded-lg p-6 mb-8">
+            <h2 className="text-2xl font-bold mb-4">Ad Performance</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5">
+              <div className="bg-gray-50 rounded-lg p-4">
+                <p className="text-sm text-gray-600">Total Views</p>
+                <p className="text-3xl font-bold text-blue-700">{Number(adStats.totalViews || 0).toLocaleString()}</p>
+              </div>
+              <div className="bg-gray-50 rounded-lg p-4">
+                <p className="text-sm text-gray-600">Total Clicks</p>
+                <p className="text-3xl font-bold text-green-700">{Number(adStats.totalClicks || 0).toLocaleString()}</p>
+              </div>
+            </div>
+
+            {advertisements.filter((ad) => ad.is_active).length > 0 ? (
+              <div className="space-y-3">
+                {advertisements.filter((ad) => ad.is_active).slice(0, 5).map((ad) => (
+                  <div key={ad.id} className="bg-gray-50 rounded-lg p-4 flex items-center justify-between gap-3">
+                    <div>
+                      <p className="font-semibold text-gray-900">{ad.title || ad.company_name || 'Advertisement'}</p>
+                      <p className="text-xs text-gray-500">Expires: {formatDate(ad.expires_at)}</p>
+                    </div>
+                    <div className="text-right text-sm">
+                      <p className="text-blue-700 font-semibold">{Number(ad.impressions || 0).toLocaleString()} views</p>
+                      <p className="text-green-700 font-semibold">{Number(ad.clicks || 0).toLocaleString()} clicks</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-gray-500">No active verified ads yet.</p>
+            )}
+          </div>
+        )}
+
+        {!redirecting && (
+          <div className="bg-gray-100 rounded-lg p-6 mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <h2 className="text-xl font-bold text-gray-900">Create More Ads</h2>
+              <p className="text-sm text-gray-700 mt-1">
+                Reach at least 25,000 weekly visitors and keep your business in front of active clients.
+              </p>
+            </div>
+            <Link
+              href="/advertise"
+              className="inline-flex items-center justify-center bg-accent hover:bg-accent/90 text-white font-semibold rounded-xl px-5 py-3"
+            >
+              Create Ad Campaign
+            </Link>
+          </div>
         )}
 
   

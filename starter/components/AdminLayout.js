@@ -50,6 +50,11 @@ export default function AdminLayout() {
             Properties
           </Link>
 
+          <Link href="/admin/api-smoke" className={`px-3 py-2 rounded-md text-sm font-medium flex items-center gap-1.5 whitespace-nowrap ${isActive('/admin/api-smoke') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-100'}`}>
+            <FiGrid size={14} />
+            API Smoke
+          </Link>
+
         </div>
       </div>
     </div>

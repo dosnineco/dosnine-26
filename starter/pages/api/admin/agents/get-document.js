@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/supabase';
+import { getDbClient, requireAdminUser } from '../../../../lib/apiAuth';
 
 // Get signed URL for viewing agent verification document
 export default async function handler(req, res) {
@@ -6,24 +6,17 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { clerkId, path } = req.query;
+  const { path } = req.query;
 
-  if (!clerkId || !path) {
+  if (!path) {
     return res.status(400).json({ error: 'Missing required parameters' });
   }
 
   try {
-    // SECURITY: Verify user is admin
-    const { data: adminUser } = await supabase
-      .from('users')
-      .select('id, role')
-      .eq('clerk_id', clerkId)
-      .eq('role', 'admin')
-      .single();
+    const resolved = await requireAdminUser(req, res);
+    if (!resolved) return;
 
-    if (!adminUser) {
-      return res.status(403).json({ error: 'Access denied - Admin only' });
-    }
+    const db = getDbClient();
 
     // Clean the path - remove bucket name if included
     let cleanPath = path;
@@ -36,14 +29,14 @@ export default async function handler(req, res) {
     console.log('Fetching document:', cleanPath);
 
     // Generate signed URL valid for 1 hour
-    const { data, error } = await supabase.storage
+    const { data, error } = await db.storage
       .from('agent-documents')
       .createSignedUrl(cleanPath, 3600); // 1 hour
 
     if (error) {
       console.error('Failed to create signed URL:', error);
       // Try public URL as fallback
-      const { data: publicData } = supabase.storage
+      const { data: publicData } = db.storage
         .from('agent-documents')
         .getPublicUrl(cleanPath);
       

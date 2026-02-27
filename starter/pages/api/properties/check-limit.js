@@ -1,4 +1,4 @@
-import { supabase } from '../../../lib/supabase';
+import { getDbClient, requireDbUser } from '../../../lib/apiAuth';
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') {
@@ -6,39 +6,26 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { clerkId } = req.query;
+    const resolved = await requireDbUser(req, res, { createIfMissing: true });
+    if (!resolved) return;
 
-    if (!clerkId) {
-      return res.status(400).json({ error: 'Clerk ID required' });
+    const db = getDbClient();
+    const userData = resolved.user || {};
+    const propertyCount = Number(userData.property_count || 0);
+    const isAgentUser = userData.user_type === 'agent';
+
+    let agentData = null;
+    if (isAgentUser) {
+      const { data } = await db
+        .from('agents')
+        .select('verification_status, payment_status')
+        .eq('user_id', userData.id)
+        .maybeSingle();
+      agentData = data || null;
     }
-
-    // Get user
-    const { data: userData, error: userError } = await supabase
-      .from('users')
-      .select('id, property_count')
-      .eq('clerk_id', clerkId)
-      .single();
-
-    // If user doesn't exist yet, they can post their first property
-    if (userError || !userData) {
-      return res.status(200).json({ 
-        canPost: true,
-        isAgent: false,
-        propertyCount: 0,
-        maxProperties: 2,
-        isNewUser: true
-      });
-    }
-
-    // Check if user is an agent
-    const { data: agentData } = await supabase
-      .from('agents')
-      .select('verification_status, payment_status')
-      .eq('user_id', userData.id)
-      .single();
 
     // If agent, check verification and payment/plan access
-    if (agentData) {
+    if (isAgentUser && agentData) {
       if (agentData.verification_status !== 'approved') {
         return res.status(200).json({ 
           error: 'Agent not verified',
@@ -65,12 +52,12 @@ export default async function handler(req, res) {
     }
 
     // Regular users - check property limit (max 2)
-    if (userData.property_count >= 2) {
+    if (propertyCount >= 2) {
       return res.status(200).json({ 
         error: 'Property limit reached',
         canPost: false,
         reason: 'limit_reached',
-        propertyCount: userData.property_count,
+        propertyCount,
         maxProperties: 2
       });
     }
@@ -78,7 +65,7 @@ export default async function handler(req, res) {
     return res.status(200).json({ 
       canPost: true,
       isAgent: false,
-      propertyCount: userData.property_count,
+      propertyCount,
       maxProperties: 2
     });
 

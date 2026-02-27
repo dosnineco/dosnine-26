@@ -1,13 +1,13 @@
 import { useEffect, useState } from 'react';
 import Head from 'next/head';
-import { useUser } from '@clerk/nextjs';
-import { supabase } from '../../lib/supabase';
+import { useAuth, useUser } from '@clerk/nextjs';
 import toast from 'react-hot-toast';
 import { CheckCircle, XCircle, Clock } from 'lucide-react';
 import AdminLayout from '../../components/AdminLayout';
 
 export default function AgentApplicationsPage() {
   const { user } = useUser();
+  const { getToken, isLoaded: authLoaded, userId } = useAuth();
   const [applications, setApplications] = useState([]);
   const [requests, setRequests] = useState({});
   const [agents, setAgents] = useState({});
@@ -24,15 +24,10 @@ export default function AgentApplicationsPage() {
     if (!user) return;
     
     try {
-      const { data: userData, error } = await supabase
-        .from('users')
-        .select('role')
-        .eq('clerk_id', user.id)
-        .single();
+      const response = await fetch('/api/admin/verify-admin');
+      const payload = await response.json();
 
-      if (error) throw error;
-
-      if (userData?.role === 'admin') {
+      if (response.ok && payload?.isAdmin) {
         setIsAdmin(true);
         fetchApplications();
       } else {
@@ -47,68 +42,41 @@ export default function AgentApplicationsPage() {
 
   const fetchApplications = async () => {
     try {
-      // Fetch agent request applications
-      const { data: appData, error: appError } = await supabase
-        .from('agent_request_applications')
-        .select(`
-          id,
-          request_id,
-          agent_id,
-          status,
-          applied_at,
-          reviewed_at,
-          notes
-        `)
-        .order('applied_at', { ascending: false });
+      if (!authLoaded || !userId) throw new Error('Session expired. Please sign in again.');
+      const token = await getToken();
 
-      if (appError) throw appError;
-
-      // Fetch all related service requests
-      const { data: requestsData, error: requestsError } = await supabase
-        .from('service_requests')
-        .select('id, client_name, client_email, property_type, location, budget_min, budget_max, bedrooms, bathrooms, request_type, created_at')
-        .order('created_at', { ascending: false });
-
-      if (requestsError) throw requestsError;
-
-      // Fetch all agents with their info
-      const { data: agentsData, error: agentsError } = await supabase
-        .from('agents')
-        .select(`
-          id,
-          business_name,
-          payment_status,
-          access_expiry,
-          user_id,
-          users:user_id(full_name, email)
-        `);
-
-      if (agentsError) throw agentsError;
-
-      // Build lookup maps
-      const requestsMap = {};
-      requestsData?.forEach(r => {
-        requestsMap[r.id] = r;
+      const response = await fetch('/api/admin/agent-applications', {
+        credentials: 'include',
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
       });
 
-      const agentsMap = {};
-      agentsData?.forEach(a => {
-        agentsMap[a.id] = {
-          id: a.id,
-          business_name: a.business_name,
-          payment_status: a.payment_status,
-          access_expiry: a.access_expiry,
-          full_name: a.users?.full_name || a.business_name,
-          email: a.users?.email
-        };
-      });
+      const raw = await response.text();
+      let payload = null;
+      try {
+        payload = raw ? JSON.parse(raw) : null;
+      } catch (parseErr) {
+        payload = null;
+      }
 
-      setApplications(appData || []);
-      setRequests(requestsMap);
-      setAgents(agentsMap);
+      if (!response.ok || !payload?.success) {
+        const message =
+          payload?.error ||
+          payload?.message ||
+          (raw && !raw.startsWith('<!DOCTYPE') ? raw : '') ||
+          'Failed to load applications';
+
+        throw new Error(message);
+      }
+
+      setApplications(payload.applications || []);
+      setRequests(payload.requests || {});
+      setAgents(payload.agents || {});
     } catch (err) {
       console.error('Error fetching applications:', err);
-      toast.error('Failed to load applications');
+      if (err?.message) toast.error(err.message);
+      else toast.error('Failed to load applications');
     } finally {
       setLoading(false);
     }
@@ -117,17 +85,43 @@ export default function AgentApplicationsPage() {
   const handleUpdateStatus = async (appId, newStatus) => {
     setUpdateLoading(appId);
     try {
-      const { error } = await supabase
-        .from('agent_request_applications')
-        .update({ status: newStatus, reviewed_at: new Date().toISOString() })
-        .eq('id', appId);
+      if (!authLoaded || !userId) throw new Error('Session expired. Please sign in again.');
+      const token = await getToken();
 
-      if (error) throw error;
+      const response = await fetch('/api/admin/agent-applications', {
+        method: 'PATCH',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ appId, status: newStatus }),
+      });
+
+      const raw = await response.text();
+      let payload = null;
+      try {
+        payload = raw ? JSON.parse(raw) : null;
+      } catch (parseErr) {
+        payload = null;
+      }
+
+      if (!response.ok || !payload?.success) {
+        const message =
+          payload?.error ||
+          payload?.message ||
+          (raw && !raw.startsWith('<!DOCTYPE') ? raw : '') ||
+          'Failed to update application';
+
+        throw new Error(message);
+      }
+
       toast.success(`Application ${newStatus}`);
       fetchApplications();
     } catch (err) {
       console.error('Error updating application:', err);
-      toast.error('Failed to update application');
+      if (err?.message) toast.error(err.message);
+      else toast.error('Failed to update application');
     } finally {
       setUpdateLoading(null);
     }

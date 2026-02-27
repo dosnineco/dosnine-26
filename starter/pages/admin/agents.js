@@ -1,16 +1,16 @@
 import { useState, useEffect } from 'react';
-import { useUser } from '@clerk/nextjs';
+import { useAuth, useUser } from '@clerk/nextjs';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
 import Link from 'next/link';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 import { Shield, CheckCircle, XCircle, Clock, Eye, FileText, Phone, Mail, Calendar, Building2 } from 'lucide-react';
-import { supabase } from '../../lib/supabase';
 import AdminLayout from '../../components/AdminLayout';
 
 export default function AdminAgents() {
   const { user } = useUser();
+  const { getToken, isLoaded: authLoaded, userId } = useAuth();
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [verifying, setVerifying] = useState(false);
@@ -27,6 +27,27 @@ export default function AdminAgents() {
     if (!user) return;
     verifyAdminAccess();
   }, [user]);
+
+  async function getAuthConfig() {
+    if (!authLoaded || !userId) {
+      throw new Error('Session expired. Please sign in again.');
+    }
+
+    const token = await getToken();
+    return {
+      withCredentials: true,
+      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    };
+  }
+
+  function handleAuthFailure(error) {
+    if (error?.response?.status === 401 || error?.message === 'Session expired. Please sign in again.') {
+      toast.error('Session expired. Please sign in again.');
+      router.push('/sign-in');
+      return true;
+    }
+    return false;
+  }
 
   useEffect(() => {
     if (isAdmin) {
@@ -49,32 +70,19 @@ export default function AdminAgents() {
   // Realtime: subscribe to changes in agents table and refresh list
   useEffect(() => {
     if (!isAdmin) return;
+    const timer = setInterval(() => {
+      fetchAgents();
+    }, 20000);
 
-    const channel = supabase
-      .channel('admin-agents-realtime')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'agents' }, () => {
-        // Refresh the list on any insert/update/delete
-        fetchAgents();
-      })
-      .subscribe((status) => {
-        setRealtimeConnected(status === 'SUBSCRIBED');
-      });
+    setRealtimeConnected(false);
 
-    return () => {
-      try {
-        supabase.removeChannel(channel);
-      } catch (_) {}
-    };
+    return () => clearInterval(timer);
   }, [isAdmin]);
 
   async function verifyAdminAccess() {
     try {
-      const response = await axios.get('/api/admin/verify-admin', {
-        params: {
-          clerkId: user.id,
-          email: user.primaryEmailAddress?.emailAddress,
-        }
-      });
+      const authConfig = await getAuthConfig();
+      const response = await axios.get('/api/admin/verify-admin', authConfig);
 
       if (response.data.isAdmin) {
         setIsAdmin(true);
@@ -83,6 +91,7 @@ export default function AdminAgents() {
         router.push('/dashboard');
       }
     } catch (error) {
+      if (handleAuthFailure(error)) return;
       toast.error('Access denied');
       router.push('/dashboard');
     } finally {
@@ -93,10 +102,11 @@ export default function AdminAgents() {
   async function fetchAgents() {
     setLoading(true);
     try {
+      const authConfig = await getAuthConfig();
       // Fetching agents list
       const response = await axios.get('/api/admin/agents/list', {
+        ...authConfig,
         params: {
-          clerkId: user.id,
           status: filterStatus,
         }
       });
@@ -105,6 +115,7 @@ export default function AdminAgents() {
       const agentData = response.data.agents || [];
       setAgents(agentData);
     } catch (error) {
+      if (handleAuthFailure(error)) return;
    
       toast.error(error.response?.data?.error || 'Failed to load agents');
     } finally {
@@ -119,17 +130,18 @@ export default function AdminAgents() {
 
     setVerifying(true);
     try {
+      const authConfig = await getAuthConfig();
       const response = await axios.post('/api/admin/agents/update-status', {
-        clerkId: user.id,
         agentId,
         status,
         notes,
-      });
+      }, authConfig);
 
       toast.success(response.data.message);
       fetchAgents(); // Refresh list
       setSelectedAgent(null); // Close modal
     } catch (error) {
+      if (handleAuthFailure(error)) return;
       toast.error(error.response?.data?.error || 'Failed to update agent');
     } finally {
       setVerifying(false);
@@ -147,6 +159,7 @@ export default function AdminAgents() {
     }
 
     try {
+      const authConfig = await getAuthConfig();
       // Calculate expiry date based on plan
       let expiryDate = null;
       const now = new Date();
@@ -181,18 +194,18 @@ export default function AdminAgents() {
         access_expiry: expiryDate ? expiryDate.toISOString() : null,
       };
 
-      const { error } = await supabase
-        .from('agents')
-        .update(updateData)
-        .eq('id', agentId);
-
-      if (error) {
-        throw error;
-      }
+      const response = await axios.post('/api/admin/agents/payment-plan', {
+        agentId,
+        plan: newStatus,
+        paymentAmount: paymentAmount > 0 ? paymentAmount : null,
+        accessExpiry: expiryDate ? expiryDate.toISOString() : null,
+      }, authConfig);
+      if (!response.data?.success) throw new Error(response.data?.error || 'Failed to update payment status');
 
       toast.success(`Access plan updated to ${newStatus}${hasPremiumParish ? ' (Premium Parish)' : ''}`);
       fetchAgents(); // Refresh list
     } catch (error) {
+      if (handleAuthFailure(error)) return;
       toast.error(error.message || 'Failed to update payment status');
     }
   }
@@ -210,6 +223,7 @@ export default function AdminAgents() {
     }
 
     try {
+      const authConfig = await getAuthConfig();
       let expiryDate = null;
       const now = new Date();
 
@@ -237,16 +251,18 @@ export default function AdminAgents() {
         access_expiry: expiryDate ? expiryDate.toISOString() : null,
       };
 
-      const { error } = await supabase
-        .from('agents')
-        .update(updateData)
-        .eq('id', agentId);
-
-      if (error) throw error;
+      const response = await axios.post('/api/admin/agents/payment-plan', {
+        agentId,
+        plan,
+        paymentAmount: paymentAmount,
+        accessExpiry: expiryDate ? expiryDate.toISOString() : null,
+      }, authConfig);
+      if (!response.data?.success) throw new Error(response.data?.error || 'Failed to set access plan');
 
       toast.success(`Access plan set to ${plan}`);
       fetchAgents();
     } catch (error) {
+      if (handleAuthFailure(error)) return;
       toast.error(error.message || 'Failed to set access plan');
     }
   }
@@ -274,8 +290,10 @@ export default function AdminAgents() {
         }
         
         try {
+          const authConfig = await getAuthConfig();
           const response = await axios.get('/api/admin/agents/get-document', {
-            params: { clerkId: user.id, path }
+            ...authConfig,
+            params: { path }
           });
           urls.license = response.data.signedUrl;
         } catch (err) {
@@ -291,8 +309,10 @@ export default function AdminAgents() {
         }
         
         try {
+          const authConfig = await getAuthConfig();
           const response = await axios.get('/api/admin/agents/get-document', {
-            params: { clerkId: user.id, path }
+            ...authConfig,
+            params: { path }
           });
           urls.registration = response.data.signedUrl;
         } catch (err) {

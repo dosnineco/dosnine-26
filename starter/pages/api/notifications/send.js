@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/supabase';
+import { getDbClient, requireAdminUser } from '@/lib/apiAuth';
 
 // Send notification when agent is approved/rejected
 export default async function handler(req, res) {
@@ -6,15 +6,23 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
+  const resolved = await requireAdminUser(req, res);
+  if (!resolved) return;
+
   const { agentId, userId, email, status, message } = req.body;
 
   if (!email || !status) {
     return res.status(400).json({ error: 'Missing required fields' });
   }
 
+  if (!['approved', 'rejected', 'pending'].includes(String(status))) {
+    return res.status(400).json({ error: 'Invalid status' });
+  }
+
   try {
+    const db = getDbClient();
     // Create notification record
-    const { data: notification, error: notifError } = await supabase
+    const { data: notification, error: notifError } = await db
       .from('notifications')
       .insert([{
         user_id: userId,
@@ -30,7 +38,7 @@ export default async function handler(req, res) {
         related_entity_type: 'agent',
         related_entity_id: agentId,
       }])
-      .select()
+      .select('id, subject')
       .single();
 
     if (notifError) {
@@ -56,7 +64,7 @@ export default async function handler(req, res) {
     // });
 
     // Update notification status to sent
-    await supabase
+    await db
       .from('notifications')
       .update({ 
         status: 'sent', 

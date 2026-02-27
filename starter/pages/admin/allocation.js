@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { useUser } from '@clerk/nextjs';
 import Head from 'next/head';
 import Link from 'next/link';
-import { supabase } from '../../lib/supabase';
 import AdminLayout from '../../components/AdminLayout';
 import { useRoleProtection } from '../../lib/useRoleProtection';
 import { canAccessAdmin } from '../../lib/rbac';
@@ -30,86 +29,19 @@ export default function AllocationDashboard() {
 
   async function fetchAllocationStats() {
     try {
-      const nowIso = new Date().toISOString();
-      const paidStatuses = ['7-day', '30-day', '90-day'];
-
-      // Get active, verified, paid agents with request counts
-      const { data: agentsRaw, error: agentsError } = await supabase
-        .from('agents')
-        .select(`
-          id,
-          business_name,
-          last_request_assigned_at,
-          verification_status,
-          payment_status,
-          access_expiry,
-          users:user_id (full_name, email),
-          service_requests:service_requests!assigned_agent_id(count)
-        `)
-        .eq('verification_status', 'approved')
-        .in('payment_status', paidStatuses)
-        .order('last_request_assigned_at', { ascending: true, nullsFirst: true });
-
-      console.log('Fetched agents:', agentsRaw);
-      console.log('Agents error:', agentsError);
-
-      // Get ALL agents to show in a helper section
-      const { data: allAgents } = await supabase
-        .from('agents')
-        .select(`
-          id, 
-          business_name, 
-          verification_status, 
-          payment_status,
-          access_expiry,
-          users:user_id (full_name, email)
-        `);
-
-      
-      const agents = (agentsRaw || []).filter((a) => {
-        if (!paidStatuses.includes(a.payment_status)) return false;
-        if (a.access_expiry && new Date(a.access_expiry) < new Date(nowIso)) return false;
-        return true;
-      });
-
-      if (agents.length === 1) {
-        const agentName = agents[0].users?.full_name || agents[0].business_name;
-      } else if (agents.length > 1) {
-        // Multi-agent system active
-      } else {
-        // No eligible agents
+      const response = await fetch('/api/admin/allocation-stats');
+      const payload = await response.json();
+      if (!response.ok || !payload?.success) {
+        throw new Error(payload?.error || 'Failed to load allocation stats');
       }
 
-      // Get request stats
-      const { data: requests, error: requestsError } = await supabase
-        .from('service_requests')
-        .select('status, assigned_agent_id');
-
-
-
-      const assignedCount = requests?.filter(r => r.assigned_agent_id).length || 0;
-      const openCount = requests?.filter(r => r.status === 'open').length || 0;
-
-      setStats({
-        totalAgents: agents.length || 0,
-        totalRequests: requests?.length || 0,
-        assignedRequests: assignedCount,
-        openRequests: openCount,
-        allAgents: allAgents || []
+      setStats(payload.stats || {
+        totalAgents: 0,
+        totalRequests: 0,
+        assignedRequests: 0,
+        openRequests: 0,
       });
-
-      // Process agent stats
-      const agentData = agents.map(agent => ({
-        id: agent.id,
-        name: agent.users?.full_name || agent.business_name || 'Unnamed Agent',
-        email: agent.users?.email || 'No email',
-        business: agent.business_name,
-        requestCount: agent.service_requests?.[0]?.count || 0,
-        lastAssigned: agent.last_request_assigned_at,
-        nextInQueue: !agent.last_request_assigned_at
-      })) || [];
-
-      setAgentStats(agentData);
+      setAgentStats(payload.agentStats || []);
     } catch (error) {
       console.error('Allocation stats error:', error);
       setStats((prev) => ({

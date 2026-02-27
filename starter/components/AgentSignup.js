@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useUser } from '@clerk/nextjs';
+import { useAuth, useUser } from '@clerk/nextjs';
 import { useRouter } from 'next/router';
 import axios from 'axios';
 import toast from 'react-hot-toast';
@@ -20,10 +20,10 @@ const SPECIALIZATIONS = [
 
 export default function AgentSignup() {
   const { user } = useUser();
+  const { getToken } = useAuth();
   const router = useRouter();
   const [step, setStep] = useState(1); // 1: Info, 2: Verification, 3: Confirmation
   const [loading, setLoading] = useState(false);
-  const [signupComplete, setSignupComplete] = useState(false);
   const [agentData, setAgentData] = useState(null);
 
   // Redirect verified agents with valid plans to dashboard
@@ -31,8 +31,10 @@ export default function AgentSignup() {
     const checkAgentStatus = async () => {
       if (!user?.id) return;
       try {
+        const token = await getToken();
         const { data } = await axios.get('/api/user/profile', {
-          params: { clerkId: user.id }
+          withCredentials: true,
+          headers: token ? { Authorization: `Bearer ${token}` } : undefined,
         });
         if (data?.agent) {
           setAgentData(data.agent);
@@ -48,7 +50,7 @@ export default function AgentSignup() {
       }
     };
     checkAgentStatus();
-  }, [user, router]);
+  }, [user, router, getToken]);
 
   const [formData, setFormData] = useState({
     fullName: user?.fullName || '',
@@ -213,6 +215,7 @@ export default function AgentSignup() {
 
       // Now submit data to API
       try {
+        const token = await getToken();
         const response = await axios.post('/api/agents/signup', {
           userId: user?.id,
           clerkId: user?.id,
@@ -229,11 +232,14 @@ export default function AgentSignup() {
           dataConsent: verification.dataConsent,
           licenseFileUrl: licenseUrl,
           registrationFileUrl: registrationUrl,
+        }, {
+          withCredentials: true,
+          headers: token ? { Authorization: `Bearer ${token}` } : undefined,
         });
 
         if (response.data.success) {
-          setSignupComplete(true);
           toast.success('Agent signup successful! Our team will review your application.');
+          router.replace('/dashboard');
         } else {
           toast.error(response.data.error || 'Failed to complete signup');
         }
@@ -245,14 +251,14 @@ export default function AgentSignup() {
     }
   }
 
-  if (signupComplete) {
+  if (agentData?.verification_status === 'pending') {
     return (
       <div className="min-h-screen bg-gray-50 p-4 flex items-center">
         <div className="max-w-md mx-auto bg-white rounded-lg shadow-lg p-8 text-center">
-          <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">Application Submitted!</h1>
+          <Clock className="w-16 h-16 text-yellow-500 mx-auto mb-4" />
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">Verification Pending</h1>
           <p className="text-gray-600 mb-6">
-            Thank you for applying to become a verified agent. Our team will review your application within 24-48 hours and notify you via email.
+            Your agent application is submitted and currently under review. We will notify you within 24-48 hours.
           </p>
           <div className="bg-accent/10 border border-accent/20 p-4 rounded-lg mb-6">
             <p className="text-sm text-gray-900 font-semibold">
@@ -261,16 +267,16 @@ export default function AgentSignup() {
             <ul className="text-sm text-gray-700 space-y-2 mt-3 text-left">
               <li>✓ Document verification</li>
               <li>✓ License confirmation</li>
-              <li>✓ Profile approval and payment</li>
+              <li>✓ Approval notification</li>
+              <li>✓ Payment activation</li>
               <li>✓ Agent dashboard access</li>
-              <li>✓ Start receiving client requests</li>
             </ul>
           </div>
           <a
             href="/dashboard"
             className="inline-block w-full btn-accent px-4 py-2 rounded-lg font-semibold transition"
           >
-            Dashboard
+            Go to Dashboard
           </a>
 
         </div>

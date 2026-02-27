@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/supabase';
+import { getDbClient, requireDbUser } from '@/lib/apiAuth';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -6,10 +6,11 @@ export default async function handler(req, res) {
   }
 
   try {
-    const userId = req.headers['x-user-id'];
-    if (!userId) {
-      return res.status(400).json({ error: 'User ID is required' });
-    }
+    const resolved = await requireDbUser(req, res);
+    if (!resolved) return;
+
+    const db = getDbClient();
+    const userId = resolved.user.id;
 
     const {
       agentId,
@@ -29,7 +30,7 @@ export default async function handler(req, res) {
     }
 
     // Create service request
-    const { data: serviceRequest, error: createError } = await supabase
+    const { data: serviceRequest, error: createError } = await db
       .from('service_requests')
       .insert({
         user_id: userId,
@@ -53,7 +54,7 @@ export default async function handler(req, res) {
     }
 
     // Create notification for the agent
-    const { error: notificationError } = await supabase
+    const { error: notificationError } = await db
       .from('agent_notifications')
       .insert({
         agent_id: agentId,

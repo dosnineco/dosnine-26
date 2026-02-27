@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/supabase';
+import { getDbClient, requireDbUser } from '@/lib/apiAuth';
 
 // Get service requests for agent
 export default async function handler(req, res) {
@@ -6,28 +6,19 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { clerkId, status } = req.query;
-
-  if (!clerkId) {
-    return res.status(401).json({ error: 'Unauthorized' });
-  }
+  const { status } = req.query;
 
   try {
+    const resolved = await requireDbUser(req, res);
+    if (!resolved) return;
+
+    const db = getDbClient();
+
     // Get agent record
-    const { data: user } = await supabase
-      .from('users')
-      .select('id')
-      .eq('clerk_id', clerkId)
-      .single();
-
-    if (!user) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-
-    const { data: agent } = await supabase
+    const { data: agent } = await db
       .from('agents')
       .select('id, verification_status')
-      .eq('user_id', user.id)
+      .eq('user_id', resolved.user.id)
       .single();
 
     if (!agent || agent.verification_status !== 'approved') {
@@ -35,7 +26,7 @@ export default async function handler(req, res) {
     }
 
     // Build query based on status filter
-    let query = supabase
+    let query = db
       .from('service_requests')
       .select('*');
 

@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/supabase';
+import { getDbClient, requireAdminUser } from '../../../../lib/apiAuth';
 
 // Approve or reject agent verification
 export default async function handler(req, res) {
@@ -6,9 +6,9 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { clerkId, agentId, status, notes } = req.body;
+  const { agentId, status, notes } = req.body;
 
-  if (!clerkId || !agentId || !status) {
+  if (!agentId || !status) {
     return res.status(400).json({ error: 'Missing required fields' });
   }
 
@@ -18,13 +18,10 @@ export default async function handler(req, res) {
   }
 
   try {
-    // SECURITY: Verify user is admin with valid data
-    const { data: adminUser } = await supabase
-      .from('users')
-      .select('id, role, full_name, email')
-      .eq('clerk_id', clerkId)
-      .eq('role', 'admin')
-      .single();
+    const resolved = await requireAdminUser(req, res);
+    if (!resolved) return;
+    const adminUser = resolved.user;
+    const db = getDbClient();
 
     if (!adminUser) {
       return res.status(403).json({ error: 'Access denied - Admin only' });
@@ -49,7 +46,7 @@ export default async function handler(req, res) {
       updateData.payment_status = 'free';
       
       // First get the agent's user_id
-      const { data: agentData, error: agentFetchError } = await supabase
+      const { data: agentData, error: agentFetchError } = await db
         .from('agents')
         .select('user_id')
         .eq('id', agentId)
@@ -61,7 +58,7 @@ export default async function handler(req, res) {
       }
       
       // Update user role to 'agent'
-      const { error: userError } = await supabase
+      const { error: userError } = await db
         .from('users')
         .update({ role: 'agent' })
         .eq('id', agentData.user_id);
@@ -74,7 +71,7 @@ export default async function handler(req, res) {
       console.log(`✓ Agent ${agentId} approved - User role updated to 'agent'`);
     }
 
-    const { data: updatedAgent, error: agentUpdateError } = await supabase
+    const { data: updatedAgent, error: agentUpdateError } = await db
       .from('agents')
       .update(updateData)
       .eq('id', agentId)
@@ -87,7 +84,7 @@ export default async function handler(req, res) {
     }
 
     // Fetch user separately to avoid joined select failures under RLS
-    const { data: agentUser, error: agentUserError } = await supabase
+    const { data: agentUser, error: agentUserError } = await db
       .from('users')
       .select('email, full_name')
       .eq('id', updatedAgent.user_id)
@@ -97,21 +94,40 @@ export default async function handler(req, res) {
       console.error('Failed to fetch agent user for notification:', agentUserError);
       return res.status(500).json({ error: 'Failed to fetch agent user' });
     }
-    // Send notification email to agent
+    // Queue notification for agent without internal API call
     try {
-      await fetch(`${req.headers.origin || 'http://localhost:3002'}/api/notifications/send`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          agentId: agentId,
-            userId: updatedAgent.user_id,
-            email: agentUser.email,
-          status: status,
-          message: notes || (status === 'approved' 
-            ? 'Congratulations! Your agent application has been approved. You can now access your agent dashboard to view client requests and post properties.'
-            : `Your agent application has been ${status}. ${notes || ''}`)
-        })
-      });
+      const notificationMessage = notes || (status === 'approved'
+        ? 'Congratulations! Your agent application has been approved. You can now access your agent dashboard to view client requests and post properties.'
+        : `Your agent application has been ${status}. ${notes || ''}`);
+
+      const { data: notification, error: notificationError } = await db
+        .from('notifications')
+        .insert([
+          {
+            user_id: updatedAgent.user_id,
+            notification_type: 'email',
+            subject: status === 'approved'
+              ? '🎉 Your Agent Application Has Been Approved!'
+              : 'Agent Application Update',
+            message: notificationMessage,
+            recipient_email: agentUser.email,
+            status: 'pending',
+            related_entity_type: 'agent',
+            related_entity_id: agentId,
+          },
+        ])
+        .select('id')
+        .single();
+
+      if (!notificationError && notification?.id) {
+        await db
+          .from('notifications')
+          .update({
+            status: 'sent',
+            sent_at: new Date().toISOString(),
+          })
+          .eq('id', notification.id);
+      }
     } catch (notifError) {
       console.error('Failed to send notification:', notifError);
       // Don't fail the request if notification fails

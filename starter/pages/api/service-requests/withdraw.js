@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/supabase';
+import { getDbClient, requireDbUser } from '@/lib/apiAuth';
 
 // Withdraw service request
 export default async function handler(req, res) {
@@ -6,30 +6,24 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { clerkId, requestId } = req.body;
+  const { requestId } = req.body;
 
-  if (!clerkId || !requestId) {
+  if (!requestId) {
     return res.status(400).json({ error: 'Missing required fields' });
   }
 
   try {
-    // Get user ID
-    const { data: user } = await supabase
-      .from('users')
-      .select('id')
-      .eq('clerk_id', clerkId)
-      .single();
-
-    if (!user) {
-      return res.status(404).json({ error: 'User not found' });
-    }
+    const resolved = await requireDbUser(req, res);
+    if (!resolved) return;
+    const db = getDbClient();
+    const userId = resolved.user.id;
 
     // Verify request belongs to user
-    const { data: request } = await supabase
+    const { data: request } = await db
       .from('service_requests')
       .select('*')
       .eq('id', requestId)
-      .eq('client_user_id', user.id)
+      .eq('client_user_id', userId)
       .single();
 
     if (!request) {
@@ -41,7 +35,7 @@ export default async function handler(req, res) {
     }
 
     // Update request status to withdrawn
-    const { data, error } = await supabase
+    const { data, error } = await db
       .from('service_requests')
       .update({
         status: 'withdrawn',

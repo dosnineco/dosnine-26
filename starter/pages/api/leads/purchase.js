@@ -1,4 +1,4 @@
-import { supabase } from '../../../lib/supabase'
+import { getDbClient, requireDbUser } from '../../../lib/apiAuth'
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -6,17 +6,21 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { leadId, agentUserId } = req.body
+    const resolved = await requireDbUser(req, res)
+    if (!resolved) return
 
-    if (!leadId || !agentUserId) {
+    const db = getDbClient()
+    const { leadId } = req.body
+
+    if (!leadId) {
       return res.status(400).json({ error: 'Missing required fields' })
     }
 
     // Get agent ID from user ID
-    const { data: agent, error: agentError } = await supabase
+    const { data: agent, error: agentError } = await db
       .from('agents')
       .select('id, has_paid')
-      .eq('user_id', agentUserId)
+      .eq('user_id', resolved.user.id)
       .single()
 
     if (agentError || !agent) {
@@ -29,7 +33,7 @@ export default async function handler(req, res) {
     }
 
     // Get the lead
-    const { data: lead, error: leadError } = await supabase
+    const { data: lead, error: leadError } = await db
       .from('service_requests')
       .select('*')
       .eq('id', leadId)
@@ -45,7 +49,7 @@ export default async function handler(req, res) {
     }
 
     // Mark as sold
-    const { error: updateError } = await supabase
+    const { error: updateError } = await db
       .from('service_requests')
       .update({
         is_sold: true,
@@ -62,7 +66,7 @@ export default async function handler(req, res) {
     }
 
     // Create notification for the client
-    await supabase
+    await db
       .from('agent_notifications')
       .insert({
         agent_id: agent.id,

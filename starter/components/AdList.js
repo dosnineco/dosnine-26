@@ -1,88 +1,118 @@
 import { useEffect, useState, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
 import Link from 'next/link'
-import { Star, Eye, Phone } from 'lucide-react';
+import { Star, Eye } from 'lucide-react'
 
 export default function AdvertisementGrid() {
   const [ads, setAds] = useState([])
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
   const impressionTracked = useRef(new Set())
   const scrollContainerRef = useRef(null)
   const autoScrollInterval = useRef(null)
+
+  const loadAds = async () => {
+    try {
+      setLoadError('')
+      const { data, error } = await supabase
+        .from('advertisements')
+        .select('*')
+        .eq('is_active', true)
+        .or('expires_at.is.null,expires_at.gt.now()')
+        .order('is_featured', { ascending: false })
+        .order('created_at', { ascending: false })
+        .limit(12)
+
+      if (error) throw error
+
+      if (data && data.length > 0) {
+        const featured = data.filter((ad) => ad.is_featured)
+        const regular = data.filter((ad) => !ad.is_featured)
+
+        if (featured.length > 0 && typeof window !== 'undefined') {
+          const isMobile = window.innerWidth < 768
+
+          if (isMobile) {
+            setAds([...featured, ...regular])
+          } else {
+            const interleaved = []
+            let featuredIndex = 0
+
+            for (let i = 0; i < regular.length; i++) {
+              interleaved.push(regular[i])
+
+              if ((i + 1) % 3 === 0 && featuredIndex < featured.length) {
+                interleaved.push(featured[featuredIndex])
+                featuredIndex++
+              }
+            }
+
+            while (featuredIndex < featured.length) {
+              interleaved.push(featured[featuredIndex])
+              featuredIndex++
+            }
+
+            setAds(interleaved)
+          }
+        } else {
+          setAds(data)
+        }
+      } else {
+        setAds([])
+      }
+    } catch (error) {
+      console.error('Failed to load ads:', error)
+      setLoadError('Unable to load ads right now.')
+      setAds([])
+    } finally {
+      setLoading(false)
+    }
+  }
 
   useEffect(() => {
     loadAds()
   }, [])
 
-  const loadAds = async () => {
-    const { data } = await supabase
-      .from('advertisements')
-      .select('*')
-      .eq('is_active', true)
-      .or('expires_at.is.null,expires_at.gt.now()')
-      .order('is_featured', { ascending: false })
-      .order('created_at', { ascending: false })
-      .limit(12)
+  useEffect(() => {
+    if (typeof window === 'undefined') return
 
-    // On mobile, show featured first. On desktop, interleave after every 3 regular ads
-    if (data && data.length > 0) {
-      const featured = data.filter(ad => ad.is_featured)
-      const regular = data.filter(ad => !ad.is_featured)
-      
-      if (featured.length > 0 && typeof window !== 'undefined') {
-        const isMobile = window.innerWidth < 768
-        
-        if (isMobile) {
-          // Mobile: Featured first, then regular
-          setAds([...featured, ...regular])
-        } else {
-          // Desktop: Interleave featured after every 3 regular ads
-          const interleaved = []
-          let featuredIndex = 0
-          
-          for (let i = 0; i < regular.length; i++) {
-            interleaved.push(regular[i])
-            
-            if ((i + 1) % 3 === 0 && featuredIndex < featured.length) {
-              interleaved.push(featured[featuredIndex])
-              featuredIndex++
-            }
-          }
-          
-          // Add remaining featured ads at the end
-          while (featuredIndex < featured.length) {
-            interleaved.push(featured[featuredIndex])
-            featuredIndex++
-          }
-          
-          setAds(interleaved)
-        }
-      } else {
-        setAds(data)
+    const refreshInterval = setInterval(() => {
+      loadAds()
+    }, 60000)
+
+    const refreshOnVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        loadAds()
       }
-    } else {
-      setAds([])
     }
-    
-    setLoading(false)
-  }
+
+    const refreshOnFocus = () => {
+      loadAds()
+    }
+
+    window.addEventListener('focus', refreshOnFocus)
+    document.addEventListener('visibilitychange', refreshOnVisibility)
+
+    return () => {
+      clearInterval(refreshInterval)
+      window.removeEventListener('focus', refreshOnFocus)
+      document.removeEventListener('visibilitychange', refreshOnVisibility)
+    }
+  }, [])
 
   const trackImpression = async (adId) => {
     if (impressionTracked.current.has(adId)) return
-    
+
     try {
       const { error } = await supabase.rpc('increment_ad_impressions', {
-        ad_id: adId
+        ad_id: adId,
       })
-      
+
       if (!error) {
         impressionTracked.current.add(adId)
-        // Update the ad count in state immediately
-        setAds(prevAds => 
-          prevAds.map(ad => 
-            ad.id === adId 
-              ? { ...ad, impressions: (ad.impressions || 0) + 1 }
-              : ad
+        setAds((prevAds) =>
+          prevAds.map((ad) =>
+            ad.id === adId ? { ...ad, impressions: (ad.impressions || 0) + 1 } : ad
           )
         )
       } else {
@@ -114,10 +144,9 @@ export default function AdvertisementGrid() {
     return () => observer.disconnect()
   }, [ads])
 
-  // Auto-scroll for mobile
   useEffect(() => {
     if (typeof window === 'undefined' || !scrollContainerRef.current) return
-    
+
     const isMobile = window.innerWidth < 768
     if (!isMobile || ads.length === 0) return
 
@@ -125,18 +154,16 @@ export default function AdvertisementGrid() {
       if (scrollContainerRef.current) {
         const container = scrollContainerRef.current
         const cardWidth = container.children[0]?.offsetWidth || 0
-        const gap = 24 // 1.5rem gap
+        const gap = 24
         const scrollAmount = cardWidth + gap
-        
-        // Scroll to next card
+
         if (container.scrollLeft + container.offsetWidth >= container.scrollWidth - 10) {
-          // Reset to start
           container.scrollTo({ left: 0, behavior: 'smooth' })
         } else {
           container.scrollBy({ left: scrollAmount, behavior: 'smooth' })
         }
       }
-    }, 4000) // Change card every 4 seconds
+    }, 4000)
 
     return () => {
       if (autoScrollInterval.current) {
@@ -157,25 +184,19 @@ export default function AdvertisementGrid() {
   }
 
   return (
-    <div className="w-full bg-gray-200 mb-8 py-3 rounded-xl">
-     
-     <h3 className="text-lg font-bold text-gray-800 px-6 mb-2">
-      You might also require?    </h3>
+    <div className="w-full  mb-6 py-1 ">
+      <h3 className="text-xl font-bold text-gray-900 px-6 mb-1">Services You Might Also Need</h3>
+      
 
- {/* Header */}
-      <div className="flex justify-start items-center ">
         <Link
           href="/advertise"
-          className="  italic text-blue-800 text-sm mb-2 px-6 underline rounded-lg font-semibold hover:bg-accent/90 transition "
+          className="text-accent text-sm mb-2 px-6 underline rounded-lg font-bold hover:text-accent/80 transition"
         >
-          Advertise Your Business
-        </Link> 
-      </div>
+          Advertise Your Business Here
+        </Link>
 
-
-      {/* Ads Grid */}
       {ads.length > 0 ? (
-        <div 
+        <div
           ref={scrollContainerRef}
           className="flex md:grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6 overflow-x-auto md:overflow-x-visible snap-x snap-mandatory md:snap-none scroll-smooth px-4 md:px-6 py-2"
           style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
@@ -185,67 +206,57 @@ export default function AdvertisementGrid() {
               display: none;
             }
           `}</style>
-          {ads.map(ad => (
+          {ads.map((ad) => (
             <Link
               key={ad.id}
               href={`/ads/${ad.id}`}
               data-ad-id={ad.id}
-              className={`relative bg-white rounded-xl p-4 transition-all duration-300 hover:shadow-lg snap-center w-[280px] md:w-auto flex-shrink-0 h-auto ${
-                ad.is_featured ? 'ring-2 ring-yellow-400' : 'shadow-sm'
+              className={`relative bg-gray-100 border border-gray-200 rounded-xl transition-all duration-300 snap-center w-[280px] md:w-auto flex-shrink-0 h-auto overflow-hidden ${
+                ad.is_featured ? 'ring-2 ring-yellow-400' : ''
               }`}
             >
               {ad.is_featured && (
-                <div className="absolute -top-2 -right-2 bg-yellow-400 text-black text-xs px-3 py-1 rounded-full font-bold ">
+                <div className="absolute -top-2 -right-2 bg-yellow-400 text-black text-xs px-3 py-1 rounded-full font-bold">
                   <Star className="inline-block w-3 h-3 mr-1" />
                   FEATURED
                 </div>
               )}
 
               {ad.image_url && (
-                <div className="w-full h-28 mb-3 flex items-center justify-center bg-gray-50 rounded-lg overflow-hidden">
-                  <img
-                    src={ad.image_url}
-                    alt={ad.company_name}
-                    className="max-w-full max-h-full object-contain"
-                  />
+                <div className="w-full aspect-[4/3] bg-gray-50 overflow-hidden">
+                  <img src={ad.image_url} alt={ad.company_name} className="w-full h-full object-cover" />
                 </div>
               )}
+              <div className="p-4">
+                <h3 className="font-bold text-base mb-2 text-gray-800 line-clamp-1">
+                  {ad.company_name}
+                </h3>
 
-              <h3 className="font-bold text-base mb-2 text-gray-800 line-clamp-1">
-                {ad.company_name}
-              </h3>
+                <p className="text-xs text-gray-500 uppercase font-medium mb-1">
+                  {ad.category?.replace('_', ' ')}
+                </p>
 
-              <p className="text-xs text-gray-500 uppercase font-medium mb-1">
-                {ad.category?.replace('_', ' ')}
-              </p>
-              
-              <p className="text-xs text-blue-600 mb-2 flex items-center gap-1">
-                <Eye className="w-3 h-3" />
-                {ad.impressions || 0} views
-              </p>
-              
-             
+                <p className="text-xs text-blue-600 mb-2 flex items-center gap-1">
+                  <Eye className="w-3 h-3" />
+                  {ad.impressions || 0} views
+                </p>
 
-              <p className="text-xs text-gray-600 line-clamp-2">
-                {ad.description}
-              </p>
-
+                <p className="text-xs text-gray-600 line-clamp-2">{ad.description}</p>
+              </div>
             </Link>
           ))}
         </div>
       ) : (
         <div className="text-center py-12">
+          {loadError && <p className="text-sm text-red-600 mb-3">{loadError}</p>}
           <Link
             href="/advertise"
-            className="inline-block bg-accent text-white px-8 py-4 rounded-lg font-semibold hover:bg-accent/90 transition "
+            className="inline-block bg-accent text-white px-8 py-4 rounded-lg font-semibold hover:bg-accent/90 transition"
           >
-            Advertise Your Business
+            Create More Ads
           </Link>
         </div>
       )}
-
-
-    
     </div>
   )
 }

@@ -2,7 +2,6 @@ import { useRouter } from 'next/router';
 import { useUser } from '@clerk/nextjs';
 import { useState, useEffect } from 'react';
 import Head from 'next/head';
-import { supabase } from '../../lib/supabase';
 import AdminLayout from '../../components/AdminLayout';
 
 export default function AdminVisitorEmails() {
@@ -21,12 +20,13 @@ export default function AdminVisitorEmails() {
 
     setDeleting(emailId);
     try {
-      const { error } = await supabase
-        .from('visitor_emails')
-        .delete()
-        .eq('id', emailId);
-
-      if (error) throw error;
+      const response = await fetch('/api/admin/visitor-emails', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: emailId }),
+      });
+      const payload = await response.json();
+      if (!response.ok || !payload?.success) throw new Error(payload?.error || 'Failed to delete email');
 
       setEmails(prev => prev.filter(e => e.id !== emailId));
       setTotalCount(prev => prev - 1);
@@ -48,36 +48,29 @@ export default function AdminVisitorEmails() {
       }
 
       try {
-        // Check if user is admin - with security validation
-        const { data: userData } = await supabase
-          .from('users')
-          .select('role, email, full_name')
-          .eq('clerk_id', user.id)
-          .single();
+        const verifyResponse = await fetch('/api/admin/verify-admin');
+        const verifyPayload = await verifyResponse.json();
 
-        if (userData?.role !== 'admin') {
+        if (!verifyResponse.ok || !verifyPayload?.isAdmin) {
           router.push('/');
           return;
         }
 
         // SECURITY FIX: Verify admin has valid data (not NULL)
-        if (!userData.email || !userData.full_name) {
+        if (!verifyPayload.email || !verifyPayload.name) {
           console.error('❌ SECURITY: Admin user has NULL data');
           router.push('/');
           return;
         }
 
-        // Fetch visitor emails
-        const { data, count, error } = await supabase
-          .from('visitor_emails')
-          .select('*', { count: 'exact' })
-          .order('created_at', { ascending: false })
-          .limit(100);
+        const response = await fetch('/api/admin/visitor-emails');
+        const payload = await response.json();
+        if (!response.ok || !payload?.success) {
+          throw new Error(payload?.error || 'Failed to load visitor emails');
+        }
 
-        if (error) throw error;
-
-        setEmails(data || []);
-        setTotalCount(count || 0);
+        setEmails(payload.emails || []);
+        setTotalCount(payload.totalCount || 0);
       } catch (err) {
       } finally {
         setLoading(false);

@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
-import { supabase } from '../../lib/supabase';
 // formatMoney not used here
 import PropertyCard from '../../components/PropertyCard';
 import { useUser } from '@clerk/nextjs';
@@ -17,12 +16,9 @@ export default function SearchLandingPage({ slug, properties: initialProperties,
   useEffect(() => {
     const getUserId = async () => {
       if (!user) return;
-      const { data } = await supabase
-        .from('users')
-        .select('id')
-        .eq('clerk_id', user.id)
-        .single();
-      if (data) setUserOwnerId(data.id);
+      const response = await fetch('/api/user/profile');
+      const payload = await response.json();
+      if (response.ok && payload?.id) setUserOwnerId(payload.id);
     };
     getUserId();
   }, [user]);
@@ -333,55 +329,8 @@ export default function SearchLandingPage({ slug, properties: initialProperties,
   );
 }
 
-export async function getStaticPaths() {
-  // Fetch all parishes and property combinations from DB
-  const { data: properties } = await supabase
-    .from('properties')
-    .select('parish, bedrooms, type')
-    .limit(1000);
-
-  const paths = [];
-
-  if (properties && properties.length > 0) {
-    // Create base paths for each parish
-    const parishesSeen = new Set();
-    properties.forEach(prop => {
-      if (prop.parish && !parishesSeen.has(prop.parish)) {
-        parishesSeen.add(prop.parish);
-        // Format parish as slug: "St James" -> "st-james"
-        const parishSlug = prop.parish.toLowerCase().replace(/ /g, '-');
-        paths.push({
-          params: { slug: ['apartments-for-rent', parishSlug] },
-        });
-        paths.push({
-          params: { slug: ['houses-for-rent', parishSlug] },
-        });
-      }
-    });
-
-    // Create paths for bedrooms + parish combinations
-    const bedroomParishSeen = new Set();
-    properties.forEach(prop => {
-      if (prop.bedrooms && prop.parish) {
-        const parishSlug = prop.parish.toLowerCase().replace(/ /g, '-');
-        const key = `${prop.bedrooms}-${parishSlug}`;
-        if (!bedroomParishSeen.has(key)) {
-          bedroomParishSeen.add(key);
-          paths.push({
-            params: { slug: [`${prop.bedrooms}-bedroom-apartment`, parishSlug] },
-          });
-        }
-      }
-    });
-  }
-
-  return {
-    paths: paths.slice(0, 100), // Limit to 100 to avoid build timeouts
-    fallback: 'blocking', // Allow dynamic generation for other combinations
-  };
-}
-
-export async function getStaticProps({ params }) {
+export async function getServerSideProps(context) {
+  const { params } = context;
   const slug = params.slug || [];
   const slugStr = slug.join('-').toLowerCase();
 
@@ -404,51 +353,43 @@ export async function getStaticProps({ params }) {
   if (slugStr.includes('apartment') || slugStr.includes('apt')) filters.type = 'apartment';
   if (slugStr.includes('house')) filters.type = 'house';
 
-  // Build query with harsh partial matching across multiple fields
-  let query = supabase
-    .from('properties')
-    .select('*', { count: 'exact' })
-    .order('is_featured', { ascending: false })
-    .order('created_at', { ascending: false });
+  const host = context.req.headers.host || 'localhost:3000';
+  const forwardedProto = String(context.req.headers['x-forwarded-proto'] || '').split(',')[0].trim();
+  const isLocalHost = /^(localhost|127\.0\.0\.1|0\.0\.0\.0)(:\d+)?$/i.test(host);
+  const proto = isLocalHost ? 'http' : (forwardedProto || 'https');
+  const baseUrl = `${proto}://${host}`;
 
-  // Apply precise filters when present
-  if (filters.parish) query = query.eq('parish', normalizeParish(filters.parish));
-  if (filters.bedrooms) query = query.eq('bedrooms', Number(filters.bedrooms));
+  const paramsString = new URLSearchParams({
+    perPage: '20',
+    parish: filters.parish ? normalizeParish(filters.parish) : '',
+    bedrooms: filters.bedrooms || '',
+    slugText: slugStr,
+  }).toString();
 
-  // Harsh partial search: tokenize slug and OR-match across title, description, parish, town, address
-  const tokens = slugStr
-    .replace(/_/g, '-')
-    .split('-')
-    .filter(Boolean)
-    .map(t => t.trim())
-    .filter(t => t.length > 1);
+  let response;
+  let payload = {};
 
-  if (tokens.length > 0) {
-    const ors = [];
-    tokens.forEach(tok => {
-      const like = `%${tok}%`;
-      ors.push(`title.ilike.${like}`);
-      ors.push(`description.ilike.${like}`);
-      ors.push(`parish.ilike.${like}`);
-      ors.push(`town.ilike.${like}`);
-      ors.push(`address.ilike.${like}`);
-      ors.push(`type.ilike.${like}`);
-    });
-    // Supabase OR expects comma-separated conditions
-    query = query.or(ors.join(','));
+  try {
+    response = await fetch(`${baseUrl}/api/properties/public-list?${paramsString}`);
+    payload = await response.json().catch(() => ({}));
+  } catch (error) {
+    response = null;
+    payload = {};
   }
 
-  // Fetch with limit; if empty, fallback to latest available to avoid empty page
-  let { data: properties, count } = await query.limit(20);
-  if (!properties || properties.length === 0) {
-    const fallback = await supabase
-      .from('properties')
-      .select('*', { count: 'exact' })
-      .order('is_featured', { ascending: false })
-      .order('created_at', { ascending: false })
-      .limit(20);
-    properties = fallback.data || [];
-    count = fallback.count || properties.length;
+  let properties = payload?.properties || [];
+  let count = payload?.totalCount || 0;
+
+  if (!response?.ok || properties.length === 0) {
+    try {
+      const fallbackResponse = await fetch(`${baseUrl}/api/properties/public-list?perPage=20`);
+      const fallbackPayload = await fallbackResponse.json().catch(() => ({}));
+      properties = fallbackPayload?.properties || [];
+      count = fallbackPayload?.totalCount || properties.length;
+    } catch (error) {
+      properties = [];
+      count = 0;
+    }
   }
 
   // Generate meta tags with better SEO optimization
@@ -484,6 +425,5 @@ export async function getStaticProps({ params }) {
       pageDescription,
       pageKeywords,
     },
-    revalidate: 3600, // Revalidate every hour
   };
 }

@@ -1,14 +1,14 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useUser } from '@clerk/nextjs';
+import { useAuth, useUser } from '@clerk/nextjs';
 import { useRouter } from 'next/router';
-import { supabase } from '../../lib/supabase';
 import axios from 'axios';
 import toast from 'react-hot-toast';
-import { PARISHES, normalizeParish } from '../../lib/normalizeParish';
+import { PARISHES } from '../../lib/normalizeParish';
 
 export default function NewProperty() {
   const { user, isLoaded } = useUser();
+  const { getToken, isLoaded: authLoaded, userId } = useAuth();
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [checkingAccess, setCheckingAccess] = useState(true);
@@ -26,8 +26,10 @@ export default function NewProperty() {
       }
 
       try {
-        const { data } = await axios.get('/api/user/profile', {
-          params: { clerkId: user.id }
+        const token = await getToken();
+        await axios.get('/api/user/profile', {
+          withCredentials: true,
+          headers: token ? { Authorization: `Bearer ${token}` } : undefined,
         });
 
         // If user is an agent (verified), just allow them to continue
@@ -35,12 +37,17 @@ export default function NewProperty() {
         
         setCheckingAccess(false);
       } catch (error) {
+        if (error?.response?.status === 401) {
+          toast.error('Session expired. Please sign in again.');
+          router.push('/sign-in');
+          return;
+        }
         setCheckingAccess(false);
       }
     }
 
     checkAgentPaymentStatus();
-  }, [user, isLoaded, router]);
+  }, [user, isLoaded, router, getToken]);
 
   const initialFormState = {
     title: '',
@@ -65,24 +72,12 @@ export default function NewProperty() {
     setImages([]);
   };
 
-  const generateSlug = async (title) => {
-    let baseSlug = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 50);
-    let slug = baseSlug;
-    let counter = 1;
-
-    while (true) {
-      const { data, error } = await supabase
-        .from('properties')
-        .select('id')
-        .eq('slug', slug)
-        .single();
-
-      if (!data) break;
-      slug = `${baseSlug}-${counter++}`;
-    }
-
-    return slug;
-  };
+  const fileToDataUrl = (file) => new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
 
 // Handle image selection and prepare files
 const handleImageUpload = async (e) => {
@@ -114,6 +109,17 @@ const handleImageUpload = async (e) => {
 const handleSubmit = async (e) => {
   e.preventDefault();
 
+  if (!authLoaded) {
+    toast.error('Authentication still loading, please try again');
+    return;
+  }
+
+  if (!userId) {
+    toast.error('Session expired. Please sign in again.');
+    router.push('/sign-in');
+    return;
+  }
+
   if (!user?.id) {
     toast.error("You must be logged in");
     return;
@@ -144,8 +150,10 @@ const handleSubmit = async (e) => {
 
   // Check property limit before allowing submission
   try {
+    const token = await getToken();
     const { data: limitCheck } = await axios.get('/api/properties/check-limit', {
-      params: { clerkId: user.id }
+      withCredentials: true,
+      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
     });
 
     if (handleLimitDenied(limitCheck)) {
@@ -153,6 +161,12 @@ const handleSubmit = async (e) => {
     }
   } catch (limitError) {
     console.error('Failed to check property limit:', limitError);
+
+    if (limitError?.response?.status === 401) {
+      toast.error('Session expired. Please sign in again.');
+      router.push('/sign-in');
+      return;
+    }
 
     if (limitError?.response?.data) {
       if (handleLimitDenied(limitError.response.data)) {
@@ -173,127 +187,57 @@ const handleSubmit = async (e) => {
 
   setLoading(true);
   try {
-    // 1️⃣ Get or create user's UUID in our `users` table
-    let ownerUuid = null;
+    const token = await getToken();
+    const imagePayload = await Promise.all(
+      images.map(async (img) => ({ dataUrl: await fileToDataUrl(img.file) }))
+    );
+
+    const response = await fetch('/api/properties/create', {
+      method: 'POST',
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify({
+        form: {
+          ...form,
+          bedrooms: Number(form.bedrooms),
+          bathrooms: Number(form.bathrooms),
+          price: Number(form.price),
+        },
+        images: imagePayload,
+      })
+    });
+
+    const raw = await response.text();
+    let payload = null;
+
     try {
-      const { data: dbUser, error: userErr } = await supabase
-        .from('users')
-        .select('id')
-        .eq('clerk_id', user.id)
-        .single();
-
-      if (dbUser && dbUser.id) {
-        ownerUuid = dbUser.id;
-      } else {
-        // If user row doesn't exist, try to insert (upsert) a minimal record.
-        const fullName = [user.firstName, user.lastName].filter(Boolean).join(' ').trim() || user.fullName || null;
-        const email = (user.emailAddresses && user.emailAddresses[0] && user.emailAddresses[0].emailAddress) || (user.primaryEmailAddress && user.primaryEmailAddress.emailAddress) || null;
-
-        const { data: newUser, error: newUserErr } = await supabase
-          .from('users')
-          .insert([{ clerk_id: user.id, full_name: fullName, email }])
-          .select('id')
-          .single();
-
-        if (newUserErr || !newUser) throw new Error('Failed to create user record');
-        ownerUuid = newUser.id;
-      }
-    } catch (err) {
-      console.error('User lookup/upsert error', err);
-      throw new Error('User record required to post property');
+      payload = raw ? JSON.parse(raw) : null;
+    } catch {
+      payload = null;
     }
 
-    // 2️⃣ Generate unique slug
-    const slug = await generateSlug(form.title);
-
-    // 3️⃣ Insert property
-    const { data: property, error: propErr } = await supabase
-      .from('properties')
-      .insert([{
-        owner_id: ownerUuid,
-        slug,
-        title: form.title,
-        description: form.description,
-        parish: normalizeParish(form.parish),
-        town: form.town,
-        address: form.address,
-        bedrooms: Number(form.bedrooms),
-        bathrooms: Number(form.bathrooms),
-        price: Number(form.price),
-        currency: form.currency,
-        type: form.type,
-        status: form.status,
-        available_date: form.available_date || null,
-        phone_number: form.phone_number || null
-      }])
-      .select()
-      .single();
-    if (propErr) throw propErr;
-
-    const propertyId = property.id;
-
-    // 4️⃣ Upload each file directly to Supabase Storage bucket
-    const imageUrls = [];
-    const uploadedFiles = []; // will hold { publicUrl, path }
-
-    for (let i = 0; i < images.length; i++) {
-      const img = images[i];
-      const fileExt = img.file.name.split('.').pop();
-      const fileName = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}.${fileExt}`;
-      const filePath = `${ownerUuid}/${propertyId}/${fileName}`;
-
-      // Upload using the File object and include contentType for correctness
-      const { error: uploadErr } = await supabase.storage
-        .from('property-images')
-        .upload(filePath, img.file, { cacheControl: '3600', upsert: true, contentType: img.file.type });
-
-      if (uploadErr) {
-        console.error('Supabase Upload Error:', uploadErr);
-        throw new Error(`Failed to upload image ${i + 1}: ${uploadErr.message || JSON.stringify(uploadErr)}`);
+    if (!response.ok || !payload?.success) {
+      if (response.status === 401) {
+        toast.error('Session expired. Please sign in again.');
+        router.push('/sign-in');
+        return;
       }
 
-      // getPublicUrl returns an object in `data` which may contain `publicUrl` (or older `publicURL`)
-      const publicResult = supabase.storage.from('property-images').getPublicUrl(filePath);
-      const publicData = publicResult && publicResult.data ? publicResult.data : null;
-      const publicUrl = (publicData && (publicData.publicUrl || publicData.publicURL)) || null;
+      const message =
+        payload?.error ||
+        payload?.message ||
+        (raw && !raw.startsWith('<!DOCTYPE') ? raw : '') ||
+        'Failed to create property';
 
-      if (!publicUrl) {
-        console.error('Failed to obtain public URL for', filePath, publicResult);
-        throw new Error('Failed to get public URL for uploaded image');
-      }
+      throw new Error(message);
+    }
 
-      imageUrls.push(publicUrl);
-      uploadedFiles.push({ publicUrl, path: filePath });
-      // revoke the object URL preview to avoid memory leaks
+    images.forEach((img) => {
       try { URL.revokeObjectURL(img.preview); } catch (e) {}
-    }
-
-    // 5️⃣ Try saving image URLs in the `properties.image_urls` column (if it exists).
-    // If that column doesn't exist (different schema), fall back to inserting rows into `property_images`.
-    let imgErr = null;
-    try {
-      const update = await supabase
-        .from('properties')
-        .update({ image_urls: imageUrls })
-        .eq('id', propertyId);
-
-      imgErr = update.error;
-      if (imgErr) throw imgErr;
-    } catch (updateErr) {
-      // If updateErr indicates missing column, insert into property_images instead
-      console.warn('Could not update properties.image_urls, falling back to property_images:', updateErr.message || updateErr);
-
-      // Prepare rows for property_images table
-      const imageRows = uploadedFiles.map((f, idx) => ({
-        property_id: propertyId,
-        image_url: f.publicUrl,
-        storage_path: f.path,
-        position: idx,
-      }));
-
-      const { error: insertErr } = await supabase.from('property_images').insert(imageRows);
-      if (insertErr) throw insertErr;
-    }
+    });
 
     toast.success('Property posted successfully!');
     resetForm();

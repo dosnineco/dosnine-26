@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/supabase';
+import { getDbClient, requireAdminUser } from '../../../../lib/apiAuth';
 
 // Get all agents for admin review
 export default async function handler(req, res) {
@@ -6,20 +6,14 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { clerkId, status } = req.query;
-
-  if (!clerkId) {
-    return res.status(401).json({ error: 'Unauthorized' });
-  }
+  const { status } = req.query;
 
   try {
-    // SECURITY: Verify user is admin and has valid data
-    const { data: adminUser, error: adminError } = await supabase
-      .from('users')
-      .select('id, role, email, full_name')
-      .eq('clerk_id', clerkId)
-      .eq('role', 'admin')
-      .single();
+    const resolved = await requireAdminUser(req, res);
+    if (!resolved) return;
+
+    const adminUser = resolved.user;
+    const db = getDbClient();
 
     if (!adminUser) {
       return res.status(403).json({ error: 'Access denied - Admin only' });
@@ -32,7 +26,7 @@ export default async function handler(req, res) {
     }
 
     // Build query for agents
-    let query = supabase
+    let query = db
       .from('agents')
       .select(`
         *,
@@ -77,7 +71,7 @@ export default async function handler(req, res) {
           licenseUrl = agent.license_file_url;
         } else {
           // Generate public URL from storage path
-          const { data } = supabase.storage
+          const { data } = db.storage
             .from('agent-documents')
             .getPublicUrl(agent.license_file_url);
           licenseUrl = data?.publicUrl || agent.license_file_url;
@@ -88,7 +82,7 @@ export default async function handler(req, res) {
         if (agent.registration_file_url.startsWith('http')) {
           registrationUrl = agent.registration_file_url;
         } else {
-          const { data } = supabase.storage
+          const { data } = db.storage
             .from('agent-documents')
             .getPublicUrl(agent.registration_file_url);
           registrationUrl = data?.publicUrl || agent.registration_file_url;

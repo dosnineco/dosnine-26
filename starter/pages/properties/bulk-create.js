@@ -1,13 +1,14 @@
-import { SignedIn, SignedOut, RedirectToSignIn, useUser } from '@clerk/nextjs';
+import { SignedIn, SignedOut, RedirectToSignIn, useAuth, useUser } from '@clerk/nextjs';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
-import { supabase } from '../../lib/supabase';
 import BulkListingCreator from '../../components/BulkListingCreator';
 import { Toaster } from 'react-hot-toast';
 import toast from 'react-hot-toast';
+import axios from 'axios';
 
 export default function BulkCreatePage() {
   const { user } = useUser();
+  const { getToken, isLoaded: authLoaded, userId } = useAuth();
   const router = useRouter();
   const [isVerified, setIsVerified] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -18,29 +19,34 @@ export default function BulkCreatePage() {
   }, [user]);
 
   async function checkAccess() {
-    if (!user) {
+    if (!authLoaded) {
+      return;
+    }
+
+    if (!user || !userId) {
       setLoading(false);
       return;
     }
 
     try {
-      const { data } = await supabase
-        .from('users')
-        .select('role, agents(verification_status, payment_status, access_expiry)')
-        .eq('clerk_id', user.id)
-        .single();
+      const token = await getToken();
+      const { data } = await axios.get('/api/user/profile', {
+        withCredentials: true,
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      });
+      const agent = data?.agent;
 
       // Check if user is admin
       const isAdmin = data?.role === 'admin';
       
       // Check if user is verified agent with paid plan
       const paidPlans = ['7-day', '30-day', '90-day'];
-      const hasPaidPlan = paidPlans.includes(data?.agents?.payment_status);
-      const isVerifiedAgent = data?.agents?.verification_status === 'approved';
+      const hasPaidPlan = paidPlans.includes(agent?.payment_status);
+      const isVerifiedAgent = agent?.verification_status === 'approved';
       
       // Check if access is not expired (for paid plans)
-      const hasValidAccess = !data?.agents?.access_expiry || 
-                            new Date(data?.agents?.access_expiry) > new Date();
+      const hasValidAccess = !agent?.access_expiry || 
+                            new Date(agent?.access_expiry) > new Date();
       
       const isAgent = isVerifiedAgent && hasPaidPlan && hasValidAccess;
 

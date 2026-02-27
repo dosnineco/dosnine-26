@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { useUser } from '@clerk/nextjs';
-import { supabase } from '../lib/supabase';
 import toast from 'react-hot-toast';
 import { X } from 'lucide-react';
 
@@ -147,31 +146,29 @@ if (!formData.name || !formData.email || !formData.phone ||
     setLoading(true);
 
     try {
-        const requestData = {
-          client_user_id: null,
-          client_name: formData.name,
-          client_email: formData.email,
-          client_phone: formData.phone,
-          request_type: formData.requestType,
-          property_type: formData.propertyType,
-          parish: formData.parish, // ADD THIS
+      const response = await fetch('/api/service-requests/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          clientName: formData.name,
+          clientEmail: formData.email,
+          clientPhone: formData.phone,
+          requestType: formData.requestType,
+          propertyType: formData.propertyType,
+          parish: formData.parish,
           location: formData.location,
-          budget_min: formData.budgetMin ? parseFloat(formData.budgetMin) : null,
-          budget_max: formData.budgetMax ? parseFloat(formData.budgetMax) : null,
+          budgetMin: formData.budgetMin ? parseFloat(formData.budgetMin) : null,
+          budgetMax: formData.budgetMax ? parseFloat(formData.budgetMax) : null,
           bedrooms: formData.bedrooms ? parseInt(formData.bedrooms) : null,
           bathrooms: formData.bathrooms ? parseInt(formData.bathrooms) : null,
           description: formData.description || null,
-          urgency: formData.urgency || 'normal',
-          status: 'open'
-        };
+          urgency: formData.urgency || 'normal'
+        })
+      });
 
-
-      const { error } = await supabase
-        .from('service_requests')
-        .insert(requestData);
-
-      if (error) {
-        toast.error(error.message);
+      const payload = await response.json();
+      if (!response.ok || !payload?.success) {
+        toast.error(payload?.error || 'Submission failed');
         return;
       }
 

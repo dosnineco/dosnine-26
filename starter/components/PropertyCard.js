@@ -6,6 +6,7 @@ import { Eye } from 'lucide-react';
 
 export default function PropertyCard({ property, isOwner = false, index = 0 }) {
   const img = property.image_urls?.[0] || property.property_images?.[0]?.image_url || '/placeholder.png';
+  const viewCount = Number(property.views || property.impressions || 0);
 
   return (
     <Link 
@@ -30,10 +31,10 @@ export default function PropertyCard({ property, isOwner = false, index = 0 }) {
             </div>
             <div className="text-accent font-bold text-sm">{formatMoney(property.price)}</div>
           </div>
-          {property.impressions > 0 && (
+          {viewCount > 0 && (
             <div className="flex items-center gap-1 text-xs text-blue-600 mt-1">
               <Eye className="w-3 h-3" />
-              <span>{property.impressions} views</span>
+              <span>{viewCount} views</span>
             </div>
           )}
         </div>

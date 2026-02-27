@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useUser } from '@clerk/nextjs';
-import { supabase } from '../../lib/supabase';
+import { useAuth, useUser } from '@clerk/nextjs';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
 import { FiPlusCircle, FiEye, FiTrash2, FiMapPin, FiZap } from 'react-icons/fi';
@@ -8,42 +7,35 @@ import { formatMoney } from '../../lib/formatMoney';
 
 export default function MyPropertiesPage() {
   const { user, isLoaded } = useUser();
+  const { getToken, isLoaded: authLoaded, userId } = useAuth();
   const [properties, setProperties] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!isLoaded || !user) return;
+    if (!isLoaded || !user || !authLoaded || !userId) return;
     fetchProperties();
-  }, [isLoaded, user]);
+  }, [isLoaded, user, authLoaded, userId]);
 
   const fetchProperties = async () => {
     try {
       setLoading(true);
-      
-      // First, get the user's UUID from the users table
-      const { data: userData, error: userError } = await supabase
-        .from('users')
-        .select('id')
-        .eq('clerk_id', user?.id)
-        .single();
-
-      if (userError) {
-        // User fetch failed
-        // toast.error('Failed to fetch user data');
-        setLoading(false);
+      const token = await getToken();
+      const response = await fetch('/api/properties/mine', {
+        credentials: 'include',
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      });
+      const payload = await response.json();
+      if (response.status === 401) {
+        toast.error('Session expired. Please sign in again.');
+        window.location.href = '/sign-in';
         return;
       }
-
-      // Then fetch properties using the UUID
-      const { data, error } = await supabase
-        .from('properties')
-        .select('*')
-        .eq('owner_id', userData.id)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      console.log('Fetched properties:', data);
-      setProperties(data || []);
+      if (!response.ok || !payload?.success) {
+        throw new Error(payload?.error || 'Failed to fetch properties');
+      }
+      setProperties(payload.properties || []);
     } catch (err) {
       console.error('Error fetching properties:', err);
       toast.error('Failed to fetch properties');
@@ -55,24 +47,25 @@ export default function MyPropertiesPage() {
   const handleDelete = async (id) => {
     if (!confirm('Are you sure you want to delete this property?')) return;
     try {
-      // Get property to find images
-      const property = properties.find(p => p.id === id);
-      
-      // Delete images from storage bucket if they exist
-      if (property?.image_urls && property.image_urls.length > 0) {
-        for (const imageUrl of property.image_urls) {
-          // Extract path from URL: https://.../storage/v1/object/public/property-images/path
-          const urlParts = imageUrl.split('/property-images/');
-          if (urlParts.length > 1) {
-            const filePath = urlParts[1];
-            await supabase.storage.from('property-images').remove([filePath]);
-          }
-        }
+      const token = await getToken();
+      const response = await fetch('/api/properties/delete', {
+        method: 'DELETE',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ id }),
+      });
+      const payload = await response.json();
+      if (response.status === 401) {
+        toast.error('Session expired. Please sign in again.');
+        window.location.href = '/sign-in';
+        return;
       }
-      
-      // Delete property record
-      const { error } = await supabase.from('properties').delete().eq('id', id);
-      if (error) throw error;
+      if (!response.ok || !payload?.success) {
+        throw new Error(payload?.error || 'Failed to delete property');
+      }
       
       toast.success('Property and images deleted');
       setProperties(properties.filter((p) => p.id !== id));

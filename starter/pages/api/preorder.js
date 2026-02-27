@@ -1,5 +1,6 @@
 import { supabase } from '../../lib/supabase'
 import * as SibApiV3Sdk from '@getbrevo/brevo'
+import { enforceRateLimit } from '../../lib/rateLimit'
 
 const BREVO_API_KEY = process.env.BREVO_API_KEY || ''
 const BREVO_FROM_EMAIL = 'dosnineco@gmail.com'
@@ -8,8 +9,26 @@ const BREVO_FROM_NAME = 'Dosnine'
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
 
+  const rate = enforceRateLimit(req, res, {
+    keyPrefix: 'course-preorder',
+    maxRequests: 6,
+    windowMs: 60_000,
+  })
+
+  if (!rate.allowed) {
+    return res.status(429).json({ error: 'Too many requests. Please try again shortly.' })
+  }
+
   const { name, email, phone, priceChoice, buyNow, discountedAmount } = req.body || {}
   if (!name || !email) return res.status(400).json({ error: 'Missing required fields' })
+
+  if (
+    String(name).length > 120 ||
+    String(email).length > 254 ||
+    (phone && String(phone).length > 40)
+  ) {
+    return res.status(400).json({ error: 'One or more fields exceed allowed length' })
+  }
 
   try {
     const entry = {

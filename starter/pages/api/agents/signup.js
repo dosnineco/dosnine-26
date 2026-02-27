@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/supabase';
+import { getDbClient, requireDbUser } from '@/lib/apiAuth';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -6,6 +6,10 @@ export default async function handler(req, res) {
   }
 
   try {
+    const resolved = await requireDbUser(req, res, { createIfMissing: true });
+    if (!resolved) return;
+
+    const db = getDbClient();
     const {
       clerkId,
       fullName,
@@ -23,10 +27,18 @@ export default async function handler(req, res) {
       registrationFileUrl,
     } = req.body;
 
-    console.log('Agent signup request:', { clerkId, fullName, email });
+    if (clerkId && clerkId !== resolved.clerkId) {
+      return res.status(403).json({ error: 'Identity mismatch' });
+    }
+
+    const trustedUser = resolved.user;
+    const userId = trustedUser.id;
+    const resolvedEmail = email || trustedUser.email;
+
+    console.log('Agent signup request:', { clerkId: resolved.clerkId, fullName, email: resolvedEmail });
 
     // Validate required fields
-    if (!fullName || !email || !phone || !businessName) {
+    if (!fullName || !resolvedEmail || !phone || !businessName) {
       return res.status(400).json({ error: 'Missing required fields' });
     }
 
@@ -34,53 +46,12 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Data consent required' });
     }
 
-    // Get or create user (same as new-property)
-    let userRecord = null;
-    
-    if (clerkId) {
-      const { data } = await supabase
-        .from('users')
-        .select('id')
-        .eq('clerk_id', clerkId)
-        .single();
-      userRecord = data;
-    }
-
-    if (!userRecord && email) {
-      const { data } = await supabase
-        .from('users')
-        .select('id')
-        .eq('email', email)
-        .single();
-      userRecord = data;
-    }
-
-    // Create user if doesn't exist
-    if (!userRecord) {
-      const { data: newUser, error: createError } = await supabase
-        .from('users')
-        .insert([{ 
-          clerk_id: clerkId, 
-          email, 
-          full_name: fullName, 
-          phone 
-        }])
-        .select('id')
-        .single();
-
-      if (createError) {
-        console.error('User create error:', createError);
-        return res.status(500).json({ error: 'Failed to create user' });
-      }
-      userRecord = newUser;
-    }
-
-    const userId = userRecord.id;
-
     // Update user to set user_type as agent
-    const { error: updateUserError } = await supabase
+    const { error: updateUserError } = await db
       .from('users')
       .update({
+        clerk_id: resolved.clerkId,
+        email: resolvedEmail,
         full_name: fullName,
         phone: phone,
         user_type: 'agent',
@@ -112,23 +83,23 @@ export default async function handler(req, res) {
     };
 
     // Try to insert, or update if already exists
-    const { data: existingAgent } = await supabase
+    const { data: existingAgent } = await db
       .from('agents')
       .select('id')
       .eq('user_id', userId)
-      .single();
+      .maybeSingle();
 
     let agentError;
     if (existingAgent) {
       // Update existing agent
-      const { error } = await supabase
+      const { error } = await db
         .from('agents')
         .update(agentData)
         .eq('user_id', userId);
       agentError = error;
     } else {
       // Insert new agent
-      const { error } = await supabase
+      const { error } = await db
         .from('agents')
         .insert([agentData]);
       agentError = error;

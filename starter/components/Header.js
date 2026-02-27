@@ -3,7 +3,7 @@ import { useRouter } from 'next/router';
 import { UserButton, useUser } from '@clerk/nextjs';
 import { FiHome, FiGrid, FiPlusCircle, FiMenu, FiSettings, FiUser } from 'react-icons/fi';
 import { useState, useEffect } from 'react';
-import { supabase } from '../lib/supabase';
+import axios from 'axios';
 
 export default function Header() {
   const router = useRouter();
@@ -16,25 +16,28 @@ export default function Header() {
 
   useEffect(() => {
     const checkAdmin = async () => {
-      if (!user) return;
-      
-      const { data, error } = await supabase
-        .from('users')
-        .select('role, agent:agents(verification_status, payment_status)')
-        .eq('clerk_id', user.id)
-        .single();
-      
-      setIsAdmin(data?.role === 'admin');
-      
-      // Check if user is any agent (approved or pending)
-      if (data?.agent) {
-        setIsAgent(true);
+      if (!user) {
+        setIsAdmin(false);
+        setIsAgent(false);
+        setIsVerifiedAgent(false);
+        return;
       }
-      
-      // Check if user is verified agent with valid plan (free, 7-day, 30-day, or 90-day)
-      if (data?.agent?.verification_status === 'approved' && 
-          ['free', '7-day', '30-day', '90-day'].includes(data?.agent?.payment_status)) {
-        setIsVerifiedAgent(true);
+
+      try {
+        const { data } = await axios.get('/api/user/profile');
+        const agent = data?.agent;
+
+        setIsAdmin(data?.role === 'admin');
+        setIsAgent(Boolean(agent));
+        setIsVerifiedAgent(
+          agent?.verification_status === 'approved' &&
+          ['free', '7-day', '30-day', '90-day'].includes(agent?.payment_status)
+        );
+      } catch (error) {
+        console.error('Header profile check failed:', error);
+        setIsAdmin(false);
+        setIsAgent(false);
+        setIsVerifiedAgent(false);
       }
     };
     checkAdmin();

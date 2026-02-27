@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/supabase';
+import { getDbClient, requireDbUser } from '@/lib/apiAuth';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -6,25 +6,22 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { userId } = req.body;
+    const resolved = await requireDbUser(req, res);
+    if (!resolved) return;
 
-    if (!userId) {
-      return res.status(400).json({ error: 'User ID is required' });
-    }
+    const db = getDbClient();
 
     // Set premium status to active for 30 days
     const expirationDate = new Date();
     expirationDate.setDate(expirationDate.getDate() + 30);
 
-    const { data: updatedUser, error } = await supabase
+    const { error } = await db
       .from('users')
       .update({
         premium_service_request: true,
         premium_service_request_expires: expirationDate.toISOString(),
       })
-      .eq('id', userId)
-      .select()
-      .single();
+      .eq('id', resolved.user.id);
 
     if (error) {
       console.error('Error upgrading user:', error);
@@ -34,7 +31,7 @@ export default async function handler(req, res) {
     return res.status(200).json({
       success: true,
       message: 'Premium access activated',
-      user: updatedUser,
+      expiresAt: expirationDate.toISOString(),
     });
   } catch (error) {
     console.error('Upgrade premium error:', error);

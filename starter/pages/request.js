@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useUser } from '@clerk/nextjs';
 import { useRouter } from 'next/router';
-import { supabase } from '../lib/supabase';
 import Head from 'next/head';
 import toast from 'react-hot-toast';
 
@@ -66,31 +65,28 @@ export default function RequestAgentPage() {
     setLoading(true);
 
     try {
-      const requestData = {
-        client_user_id: null, // Don't use Clerk ID - it's not a valid UUID
-        client_name: formData.name,
-        client_email: formData.email,
-        client_phone: formData.phone,
-        request_type: formData.requestType,
-        property_type: formData.propertyType,
-        location: formData.location,
-        budget_min: formData.budgetMin ? parseFloat(formData.budgetMin) : null,
-        budget_max: formData.budgetMax ? parseFloat(formData.budgetMax) : null,
-        bedrooms: formData.bedrooms ? parseInt(formData.bedrooms) : null,
-        bathrooms: formData.bathrooms ? parseInt(formData.bathrooms) : null,
-        description: formData.description || null,
-        urgency: formData.urgency || 'normal',
-        status: 'open'
-      };
+      const response = await fetch('/api/service-requests/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          clientName: formData.name,
+          clientEmail: formData.email,
+          clientPhone: formData.phone,
+          requestType: formData.requestType,
+          propertyType: formData.propertyType,
+          location: formData.location,
+          budgetMin: formData.budgetMin ? parseFloat(formData.budgetMin) : null,
+          budgetMax: formData.budgetMax ? parseFloat(formData.budgetMax) : null,
+          bedrooms: formData.bedrooms ? parseInt(formData.bedrooms) : null,
+          bathrooms: formData.bathrooms ? parseInt(formData.bathrooms) : null,
+          description: formData.description || null,
+          urgency: formData.urgency || 'normal'
+        })
+      });
 
-      const { data, error } = await supabase
-        .from('service_requests')
-        .insert(requestData)
-        .select();
-
-      if (error) {
-        console.error('Insert error:', error);
-        toast.error(`Failed to submit: ${error.message}`);
+      const payload = await response.json();
+      if (!response.ok || !payload?.success) {
+        toast.error(payload?.error || 'Failed to submit request');
         return;
       }
 

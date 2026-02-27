@@ -76,9 +76,7 @@ export function useRoleProtection({
 
       try {
         // Fetch user data from database
-        const { data } = await axios.get('/api/user/profile', {
-          params: { clerkId: user.id }
-        });
+        const { data } = await axios.get('/api/user/profile');
 
         console.log('useRoleProtection - Fetched fresh user data:', data);
         console.log('useRoleProtection - Agent data:', data?.agent);

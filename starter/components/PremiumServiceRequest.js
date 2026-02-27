@@ -48,9 +48,7 @@ export default function PremiumServiceRequest() {
 
   const checkPremiumStatus = async () => {
     try {
-      const response = await axios.get('/api/user/premium-status', {
-        headers: { 'x-user-id': user?.id },
-      });
+      const response = await axios.get('/api/user/premium-status');
       setIsPremium(response.data.isPremium);
     } catch (error) {
       console.error('Error checking premium status:', error);
@@ -100,7 +98,7 @@ export default function PremiumServiceRequest() {
                   try {
                     await actions.order.capture();
                     if (user?.id) {
-                      const res = await axios.post('/api/user/upgrade-premium', { userId: user.id });
+                      const res = await axios.post('/api/user/upgrade-premium');
                       if (res.data.success) {
                         toast.success('Premium activated!');
                         setIsPremium(true);

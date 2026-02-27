@@ -1,16 +1,27 @@
-import { supabase } from '@/lib/supabase';
+import { getDbClient, requireDbUser } from '@/lib/apiAuth';
 
 export default async function handler(req, res) {
-  const { agentId } = req.query;
+  const resolved = await requireDbUser(req, res);
+  if (!resolved) return;
 
-  if (!agentId) {
-    return res.status(400).json({ error: 'Agent ID is required' });
+  const db = getDbClient();
+
+  const { data: agentRecord, error: agentError } = await db
+    .from('agents')
+    .select('id, verification_status')
+    .eq('user_id', resolved.user.id)
+    .single();
+
+  if (agentError || !agentRecord || agentRecord.verification_status !== 'approved') {
+    return res.status(403).json({ error: 'Agent access required' });
   }
+
+  const agentId = agentRecord.id;
 
   if (req.method === 'GET') {
     // Get all notifications for an agent
     try {
-      const { data: notifications, error } = await supabase
+      const { data: notifications, error } = await db
         .from('agent_notifications')
         .select(`
           id,
@@ -22,23 +33,17 @@ export default async function handler(req, res) {
           created_at,
           service_requests (
             id,
-            user_id,
+            client_name,
+            client_email,
+            client_phone,
             property_type,
             location,
             budget_min,
             budget_max,
             bedrooms,
             bathrooms,
-            timeline,
-            requirements,
             status,
-            created_at,
-            users (
-              id,
-              full_name,
-              email,
-              phone
-            )
+            created_at
           )
         `)
         .eq('agent_id', agentId)
@@ -54,6 +59,7 @@ export default async function handler(req, res) {
 
       return res.status(200).json({
         success: true,
+        agentId,
         notifications: notifications || [],
         unreadCount,
       });
@@ -72,7 +78,7 @@ export default async function handler(req, res) {
     }
 
     try {
-      const { data: updated, error } = await supabase
+      const { data: updated, error } = await db
         .from('agent_notifications')
         .update({
           is_read: isRead,
@@ -90,6 +96,7 @@ export default async function handler(req, res) {
 
       return res.status(200).json({
         success: true,
+        agentId,
         notification: updated,
       });
     } catch (error) {

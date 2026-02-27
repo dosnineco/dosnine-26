@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
 import { useUser } from '@clerk/nextjs';
-import { supabase } from '../../lib/supabase';
 import AdminLayout from '../../components/AdminLayout';
 import toast from 'react-hot-toast';
 import { FiEdit2, FiTrash2, FiPlus, FiX } from 'react-icons/fi';
@@ -29,15 +28,10 @@ export default function AdminUsersPage() {
     if (!user) return;
     
     try {
-      const { data: userData, error } = await supabase
-        .from('users')
-        .select('role')
-        .eq('clerk_id', user.id)
-        .single();
+      const response = await fetch('/api/admin/verify-admin');
+      const payload = await response.json();
 
-      if (error) throw error;
-
-      if (userData?.role === 'admin') {
+      if (response.ok && payload?.isAdmin) {
         setIsAdmin(true);
         fetchUsers();
       } else {
@@ -51,13 +45,14 @@ export default function AdminUsersPage() {
 
   const fetchUsers = async () => {
     try {
-      const { data, error } = await supabase
-        .from('users')
-        .select('*')
-        .order('created_at', { ascending: false });
+      const response = await fetch('/api/admin/users');
+      const payload = await response.json();
 
-      if (error) throw error;
-      setUsers(data || []);
+      if (!response.ok || !payload?.success) {
+        throw new Error(payload?.error || 'Failed to load users');
+      }
+
+      setUsers(payload.users || []);
     } catch (err) {
       toast.error('Failed to load users');
     } finally {
@@ -123,18 +118,23 @@ export default function AdminUsersPage() {
 
     try {
       if (editingUser) {
-        // Update existing user - cannot update clerk_id
-        const { error } = await supabase
-          .from('users')
-          .update({
+        const response = await fetch('/api/admin/users', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            id: editingUser.id,
             full_name: trimmedName,
             email: trimmedEmail,
             phone: formData.phone?.trim() || null,
-            role: formData.role
-          })
-          .eq('id', editingUser.id);
+            role: formData.role,
+          }),
+        });
+        const payload = await response.json();
 
-        if (error) throw error;
+        if (!response.ok || !payload?.success) {
+          throw new Error(payload?.error || 'Failed to update user');
+        }
+
         toast.success('User updated successfully!');
       } else {
         // SECURITY FIX: Creating users manually should not be allowed
@@ -163,16 +163,21 @@ export default function AdminUsersPage() {
     if (!confirm(`⚠️ DELETE user "${userName}"?\n\nThis action cannot be undone!`)) return;
 
     try {
-      const { error } = await supabase
-        .from('users')
-        .delete()
-        .eq('id', userId);
+      const response = await fetch('/api/admin/users', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: userId }),
+      });
+      const payload = await response.json();
 
-      if (error) throw error;
+      if (!response.ok || !payload?.success) {
+        throw new Error(payload?.error || 'Failed to delete user');
+      }
+
       toast.success('User deleted successfully!');
       await fetchUsers();
     } catch (err) {
-      toast.error('Failed to delete user');
+      toast.error(err?.message || 'Failed to delete user');
     }
   };
 

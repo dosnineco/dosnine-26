@@ -2,7 +2,6 @@ import { useEffect, useState, useRef, lazy, Suspense } from 'react';
 const PropertyCard = lazy(() => import('../components/PropertyCard'));
 import Seo from '../components/Seo';
 import Link from 'next/link';
-import { supabase } from '../lib/supabase';
 import { FiSearch } from 'react-icons/fi';
 import { useUser, useClerk } from '@clerk/nextjs';
 import { Home as HomeIcon, Users, ArrowRight } from 'lucide-react';
@@ -10,7 +9,7 @@ import { useRouter } from 'next/router';
 import { PARISHES, normalizeParish } from '../lib/normalizeParish';
 import VisitorEmailPopup from '@/components/VisitorEmailPopup';
 import BecomeAgentBanner from '../components/BecomeAgentBanner';
-const PROPERTIES_PER_PAGE = 20;
+const PROPERTIES_PER_PAGE = 30;
 import AdList from '../components/AdList';
 
 // Role Card Component - same size as PropertyCard
@@ -70,13 +69,13 @@ export default function Home() {
   const { user } = useUser();
   const [properties, setProperties] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
   const [page, setPage] = useState(1);
   const [filters, setFilters] = useState({ parish: '', minPrice: '', maxPrice: '', location: '', bedrooms: '' });
   const [totalCount, setTotalCount] = useState(0);
   const [locationSuggestions, setLocationSuggestions] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [locationInput, setLocationInput] = useState('');
-  const [userOwnerId, setUserOwnerId] = useState(null);
 
   // Restore list state if present (page, filters, scroll position)
   const [restoring, setRestoring] = useState(false);
@@ -127,67 +126,49 @@ export default function Home() {
     }
   }, [properties, loading, restoring]);
 
-  useEffect(() => {
-    const getUserId = async () => {
-      if (!user) return;
-      const { data } = await supabase
-        .from('users')
-        .select('id')
-        .eq('clerk_id', user.id)
-        .single();
-      if (data) setUserOwnerId(data.id);
-    };
-    getUserId();
-  }, [user]);
-
   async function fetchProperties() {
     setLoading(true);
+    setLoadError('');
     try {
-      let query = supabase
-        .from('properties')
-        .select('*', { count: 'exact' })
-        .order('is_featured', { ascending: false })
-        .order('created_at', { ascending: false });
-
       const parishFilter = normalizeParish(filters.parish);
       const minPriceFilter = filters.minPrice ? Number(filters.minPrice) : null;
       const maxPriceFilter = filters.maxPrice ? Number(filters.maxPrice) : null;
       const bedroomsFilter = filters.bedrooms ? Number(filters.bedrooms) : null;
       const locationFilter = (filters.location || '').trim();
 
-      // Apply all filters with AND logic (all must match if active)
-      if (parishFilter) query = query.eq('parish', parishFilter);
-      if (minPriceFilter !== null && !Number.isNaN(minPriceFilter)) query = query.gte('price', minPriceFilter);
-      if (maxPriceFilter !== null && !Number.isNaN(maxPriceFilter)) query = query.lte('price', maxPriceFilter);
-      if (bedroomsFilter !== null && !Number.isNaN(bedroomsFilter)) query = query.eq('bedrooms', bedroomsFilter);
-      
-      // Location search - matches town, address, or parish (only if location filter is active AND no parish filter)
-      if (locationFilter && !parishFilter) {
-        const searchTerm = `%${locationFilter}%`;
-        query = query.or(`town.ilike.${searchTerm},address.ilike.${searchTerm},parish.ilike.${searchTerm}`);
+      const params = new URLSearchParams({
+        page: String(page),
+        perPage: String(PROPERTIES_PER_PAGE),
+        parish: parishFilter || '',
+        minPrice: minPriceFilter !== null ? String(minPriceFilter) : '',
+        maxPrice: maxPriceFilter !== null ? String(maxPriceFilter) : '',
+        bedrooms: bedroomsFilter !== null ? String(bedroomsFilter) : '',
+        location: locationFilter,
+      });
+
+      const response = await fetch(`/api/properties/public-list?${params.toString()}`);
+      const raw = await response.text();
+      let payload = null;
+
+      try {
+        payload = raw ? JSON.parse(raw) : null;
+      } catch {
+        payload = null;
       }
 
-      // Supabase range uses inclusive end index. For page p with size n:
-      // start = (p - 1) * n, end = start + n - 1
-      const start = (page - 1) * PROPERTIES_PER_PAGE;
-      const end = start + PROPERTIES_PER_PAGE - 1;
-      const { data, count, error } = await query.range(start, end);
-
-      if (error) {
-        console.error('Error fetching properties:', error);
+      if (!response.ok || !payload?.success) {
+        const message = payload?.error || payload?.message || 'Failed to load properties';
+        console.error('Error fetching properties:', message);
+        setLoadError(message);
         setProperties([]);
         setTotalCount(0);
       } else {
-        console.log('Fetched properties:', data);
-        console.log('Total count from DB:', count);
-        const availableProps = (data || []).filter(p => 
-          !p.status || p.status === 'available' || p.status === ''
-        );
-        setProperties(availableProps);
-        setTotalCount(count || 0);
+        setProperties(payload.properties || []);
+        setTotalCount(payload.totalCount || 0);
       }
     } catch (err) {
       console.error('Unexpected error:', err);
+      setLoadError('Failed to load properties');
       setProperties([]);
       setTotalCount(0);
     } finally {
@@ -217,32 +198,10 @@ export default function Home() {
     }
 
     try {
-      const searchTerm = `%${searchText}%`;
-      const { data, error } = await supabase
-        .from('properties')
-        .select('town, parish, address')
-        .or(`town.ilike.${searchTerm},address.ilike.${searchTerm},parish.ilike.${searchTerm}`)
-        .limit(10);
-
-      if (error) throw error;
-
-      // Extract unique locations
-      const locations = new Set();
-      data.forEach(prop => {
-        if (prop.town) locations.add(prop.town);
-        if (prop.parish) locations.add(prop.parish);
-        // Extract main area from address
-        if (prop.address) {
-          const addressParts = prop.address.split(',');
-          if (addressParts[0]) locations.add(addressParts[0].trim());
-        }
-      });
-
-      const filtered = Array.from(locations).filter(loc => 
-        loc.toLowerCase().includes(searchText.toLowerCase())
-      ).slice(0, 8);
-
-      setLocationSuggestions(filtered);
+      const response = await fetch(`/api/properties/suggestions?q=${encodeURIComponent(searchText)}`);
+      const payload = await response.json();
+      if (!response.ok || !payload?.success) throw new Error(payload?.error || 'Failed to fetch suggestions');
+      setLocationSuggestions(payload.suggestions || []);
     } catch (err) {
       console.error('Error fetching suggestions:', err);
     }
@@ -381,6 +340,14 @@ export default function Home() {
           <div className="text-center py-12">
             <p className="text-gray-500">Loading properties...</p>
           </div>
+        ) : loadError ? (
+          <div className="text-center py-12">
+            <div className="max-w-2xl mx-auto bg-red-50 border-2 border-red-200 rounded-xl p-8 text-center">
+              <h3 className="text-2xl font-bold text-gray-800 mb-3">Couldn&apos;t Load Properties</h3>
+              <p className="text-gray-700 mb-6">{loadError}</p>
+              <button onClick={fetchProperties} className="btn-primary">Try Again</button>
+            </div>
+          </div>
         ) : properties.length === 0 ? (
           <div className="text-center py-12">
             {hasActiveFilters ? (
@@ -442,11 +409,10 @@ export default function Home() {
               /> */}
               {/* Real Properties - Clickable */}
               {properties.map((prop, idx) => {
-                const isOwner = userOwnerId && prop.owner_id === userOwnerId;
                 return (
                   <Suspense key={prop.id} fallback={<div className="bg-white rounded-lg border p-4 h-48" />}>
                     <div onClick={() => saveListState(idx)}>
-                      <PropertyCard property={prop} isOwner={isOwner} index={idx} />
+                      <PropertyCard property={prop} index={idx} />
                     </div>
                   </Suspense>
                 );
