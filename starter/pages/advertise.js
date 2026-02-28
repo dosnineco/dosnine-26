@@ -123,7 +123,7 @@ export default function AdvertisePage() {
   const emailForNote = (form.email || 'YOUR_EMAIL').trim();
   const transferNote = `${selectedPlan.name} - ${emailForNote}`;
   const whatsappText = encodeURIComponent(
-    `Hello Dosnine Team, I submitted an ad request (${selectedPlan.name}) for ${emailForNote}. Amount sent: ${formatMoney(selectedPlan.price)}. Submission: ${submissionId || 'pending'}. I am sending payment proof now.`
+    `Hello Dosnine Team, I submitted an ad request (${selectedPlan.name}) for ${submissionId}. Amount sent: ${formatMoney(selectedPlan.price)}. Submission: ${submissionId || 'pending'}. I am sending payment proof now.`
   );
 
   const copyToClipboard = async (value, key) => {
@@ -267,10 +267,10 @@ export default function AdvertisePage() {
                     <span className="text-sm text-gray-600">Transfer note</span>
                     <button
                       type="button"
-                      onClick={() => copyToClipboard(transferNote, 'transfer-note')}
+                      onClick={() => copyToClipboard(submissionId, 'transfer-note')}
                       className="inline-flex items-center gap-1 text-sm text-gray-900 font-medium"
                     >
-                      <span className="break-all">{transferNote}</span>
+                      <span className="break-all">{submissionId}</span>
                       {copied === 'transfer-note' ? <Check size={14} /> : <Copy size={14} />}
                     </button>
                   </div>
