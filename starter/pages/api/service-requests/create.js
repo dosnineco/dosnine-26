@@ -1,23 +1,22 @@
 import { getClerkUserId, getDbClient, getDbUserByClerkId } from '@/lib/apiAuth';
-import { enforceRateLimit } from '@/lib/rateLimit';
+import { enforceRateLimitDistributed } from '@/lib/rateLimit';
+import { z } from 'zod';
+import {
+  enforceMethods,
+  isBotLikely,
+  sanitizeEmail,
+  sanitizeInt,
+  sanitizeLocation,
+  sanitizeMoney,
+  sanitizePhoneInput,
+  sanitizeString,
+} from '@/lib/apiSecurity';
+import { assignRequestRoundRobin } from '@/lib/serviceRequestAllocation';
 
-function getInternalBaseUrl(req) {
-  const origin = req.headers.origin;
-  if (origin) return origin;
-
-  const host = req.headers['x-forwarded-host'] || req.headers.host;
-  const proto = req.headers['x-forwarded-proto'] || 'http';
-
-  return host ? `${proto}://${host}` : 'http://localhost:3000';
-}
-
-// Create service request
 export default async function handler(req, res) {
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
-  }
+  if (!enforceMethods(req, res, ['POST'])) return;
 
-  const rate = enforceRateLimit(req, res, {
+  const rate = await enforceRateLimitDistributed(req, res, {
     keyPrefix: 'service-request-create',
     maxRequests: 10,
     windowMs: 60_000,
@@ -28,53 +27,66 @@ export default async function handler(req, res) {
   }
 
   const db = getDbClient();
-  const {
-    clientName,
-    clientEmail,
-    clientPhone,
-    requestType,
-    propertyType,
-    location,
-    parish,
-    budgetMin,
-    budgetMax,
-    bedrooms,
-    bathrooms,
-    description,
-    urgency,
-    fromAds,
-    propertyOwnerId,
-  } = req.body;
 
-  const parsedClientName = clientName || req.body.client_name;
-  const parsedClientEmail = clientEmail || req.body.client_email;
-  const parsedClientPhone = clientPhone || req.body.client_phone;
-  const parsedRequestType = requestType || req.body.request_type;
-  const parsedPropertyType = propertyType || req.body.property_type;
-  const parsedLocation = location || req.body.location;
-  const parsedParish = parish || req.body.parish || null;
-  const parsedBudgetMin = budgetMin ?? req.body.budget_min ?? null;
-  const parsedBudgetMax = budgetMax ?? req.body.budget_max ?? null;
-  const parsedBedrooms = bedrooms ?? req.body.bedrooms ?? null;
-  const parsedBathrooms = bathrooms ?? req.body.bathrooms ?? null;
-  const parsedDescription = description || req.body.description || null;
-  const parsedUrgency = urgency || req.body.urgency || 'normal';
-  const parsedFromAds = Boolean(fromAds ?? req.body.from_ads);
-  const parsedPropertyOwnerId = propertyOwnerId || req.body.property_owner_id || null;
+  const schema = z.object({
+    clientName: z.string().trim().min(1).max(120).optional(),
+    client_name: z.string().trim().min(1).max(120).optional(),
+    clientEmail: z.string().trim().email().max(254).optional(),
+    client_email: z.string().trim().email().max(254).optional(),
+    clientPhone: z.string().trim().min(7).max(40).optional(),
+    client_phone: z.string().trim().min(7).max(40).optional(),
+    requestType: z.string().trim().min(1).max(100).optional(),
+    request_type: z.string().trim().min(1).max(100).optional(),
+    propertyType: z.string().trim().min(1).max(100).optional(),
+    property_type: z.string().trim().min(1).max(100).optional(),
+    location: z.string().trim().min(1).max(255).optional(),
+    parish: z.string().trim().max(120).nullable().optional(),
+    budgetMin: z.union([z.number(), z.string()]).optional(),
+    budgetMax: z.union([z.number(), z.string()]).optional(),
+    budget_min: z.union([z.number(), z.string()]).optional(),
+    budget_max: z.union([z.number(), z.string()]).optional(),
+    bedrooms: z.union([z.number(), z.string()]).optional(),
+    bathrooms: z.union([z.number(), z.string()]).optional(),
+    description: z.string().max(5000).nullable().optional(),
+    urgency: z.enum(['low', 'normal', 'high', 'urgent']).optional(),
+    fromAds: z.boolean().optional(),
+    from_ads: z.boolean().optional(),
+    propertyOwnerId: z.string().uuid().nullable().optional(),
+    property_owner_id: z.string().uuid().nullable().optional(),
+    website: z.string().optional(),
+    company: z.string().optional(),
+    url: z.string().optional(),
+  });
+
+  let parsed;
+  try {
+    parsed = schema.parse(req.body || {});
+  } catch {
+    return res.status(400).json({ error: 'Invalid request payload' });
+  }
+
+  if (isBotLikely(parsed)) {
+    return res.status(200).json({ success: true, message: 'Service request submitted successfully' });
+  }
+
+  const parsedClientName = sanitizeString(parsed.clientName || parsed.client_name, 120);
+  const parsedClientEmail = sanitizeEmail(parsed.clientEmail || parsed.client_email);
+  const parsedClientPhone = sanitizePhoneInput(parsed.clientPhone || parsed.client_phone);
+  const parsedRequestType = sanitizeString(parsed.requestType || parsed.request_type, 100);
+  const parsedPropertyType = sanitizeString(parsed.propertyType || parsed.property_type, 100);
+  const parsedLocation = sanitizeLocation(parsed.location);
+  const parsedParish = parsed.parish ? sanitizeLocation(parsed.parish) : null;
+  const parsedBudgetMin = sanitizeMoney(parsed.budgetMin ?? parsed.budget_min ?? 0);
+  const parsedBudgetMax = sanitizeMoney(parsed.budgetMax ?? parsed.budget_max ?? 0);
+  const parsedBedrooms = sanitizeInt(parsed.bedrooms ?? 0, 0, 99);
+  const parsedBathrooms = sanitizeInt(parsed.bathrooms ?? 0, 0, 99);
+  const parsedDescription = parsed.description ? sanitizeString(parsed.description, 5000) : null;
+  const parsedUrgency = parsed.urgency || 'normal';
+  const parsedFromAds = Boolean(parsed.fromAds ?? parsed.from_ads);
+  const parsedPropertyOwnerId = parsed.propertyOwnerId || parsed.property_owner_id || null;
 
   if (!parsedClientName || !parsedClientEmail || !parsedClientPhone || !parsedRequestType || !parsedPropertyType || !parsedLocation) {
     return res.status(400).json({ error: 'Missing required fields' });
-  }
-
-  if (
-    String(parsedClientName).length > 120 ||
-    String(parsedClientEmail).length > 254 ||
-    String(parsedClientPhone).length > 40 ||
-    String(parsedLocation).length > 255 ||
-    (parsedParish && String(parsedParish).length > 120) ||
-    (parsedDescription && String(parsedDescription).length > 5000)
-  ) {
-    return res.status(400).json({ error: 'One or more fields exceed allowed length' });
   }
 
   try {
@@ -122,10 +134,7 @@ export default async function handler(req, res) {
       .single();
 
     if (error) {
-      return res.status(500).json({ 
-        error: 'Failed to create service request',
-        details: error.message || 'Unknown error'
-      });
+      return res.status(500).json({ error: 'Failed to create service request' });
     }
 
     if (assignedAgentId && data?.id) {
@@ -144,15 +153,8 @@ export default async function handler(req, res) {
     // Skip auto-assignment for leads from ads pages
     if (!parsedFromAds && !assignedAgentId && data?.id) {
       try {
-        const baseUrl = getInternalBaseUrl(req);
-        await fetch(`${baseUrl}/api/service-requests/auto-assign`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ requestId: data.id })
-        });
-      } catch (assignError) {
-        // Don't fail request creation if auto-assignment fails
-        // Request will remain 'open' and can be manually assigned
+        await assignRequestRoundRobin(data.id);
+      } catch {
       }
     }
 

@@ -332,7 +332,7 @@ export default function Home() {
           </button>
         </form>
 
-         {/* <AdList/> */}
+         <AdList/>
 
 
 

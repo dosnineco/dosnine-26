@@ -563,6 +563,10 @@ export default function PropertyPage({ property, similarProperties, isVerifiedAg
                 </div>
               </div>
             </div>
+
+            <div className="mt-8">
+              <AdList compact />
+            </div>
           </div>
         </div>
 
@@ -619,8 +623,6 @@ export default function PropertyPage({ property, similarProperties, isVerifiedAg
             </>
           )}
         </div>
-        <AdList/>
-
         {/* Similar Properties Section */}
         {similarProperties && similarProperties.length > 0 && (
           <div className="mt-12">

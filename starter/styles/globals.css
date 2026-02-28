@@ -238,6 +238,17 @@ a:focus-visible {
   animation: fadeIn 0.3s ease-in-out;
 }
 @layer components {
+  .caution-tape-bg {
+    background-color: theme('colors.yellow.300');
+    background-image: repeating-linear-gradient(
+      -45deg,
+      theme('colors.yellow.300') 0,
+      theme('colors.yellow.300') 16px,
+      theme('colors.gray.900') 16px,
+      theme('colors.gray.900') 32px
+    );
+  }
+
   .input {
     @apply w-full px-4 py-3 mt-3 rounded-lg border border-gray-300 
     text-gray-900 placeholder-gray-400

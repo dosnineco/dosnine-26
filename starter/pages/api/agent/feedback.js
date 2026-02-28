@@ -1,67 +1,75 @@
-import { supabase } from '../../../lib/supabase';
+import { z } from 'zod';
+import { getDbClient, requireDbUser } from '@/lib/apiAuth';
+import { enforceMethods, parseBody, sanitizeString } from '@/lib/apiSecurity';
+import { enforceRateLimitDistributed } from '@/lib/rateLimit';
 
 export default async function handler(req, res) {
   const { method } = req;
+  if (!enforceMethods(req, res, ['GET', 'POST', 'PUT'])) return;
 
   try {
+    const resolved = await requireDbUser(req, res);
+    if (!resolved) return;
+
+    const rate = await enforceRateLimitDistributed(req, res, {
+      keyPrefix: 'agent-feedback',
+      maxRequests: 90,
+      windowMs: 60_000,
+      identifier: String(resolved.user.id),
+    });
+
+    if (!rate.allowed) {
+      return res.status(429).json({ error: 'Too many requests. Please try again shortly.' });
+    }
+
     switch (method) {
       case 'GET':
-        return await getFeedback(req, res);
+        return await getFeedback(req, res, resolved.user.id);
       case 'POST':
-        return await createResponse(req, res);
+        return await createResponse(req, res, resolved.user.id);
       case 'PUT':
-        return await markAsRead(req, res);
+        return await markAsRead(req, res, resolved.user.id);
       default:
-        res.setHeader('Allow', ['GET', 'POST', 'PUT']);
-        return res.status(405).json({ error: `Method ${method} Not Allowed` });
+        return res.status(405).json({ error: 'Method not allowed' });
     }
   } catch (error) {
     return res.status(500).json({ error: 'Internal server error' });
   }
 }
 
-async function getFeedback(req, res) {
-  const { clerkId } = req.query;
+async function resolveAgentIdByUserId(db, userId) {
+  const { data: agent, error: agentError } = await db
+    .from('agents')
+    .select('id')
+    .eq('user_id', userId)
+    .single();
 
-  if (!clerkId) {
-    return res.status(400).json({ error: 'Clerk ID is required' });
+  if (agentError || !agent) {
+    return null;
   }
 
+  return agent.id;
+}
+
+async function getFeedback(req, res, userId) {
   try {
-    // Get user ID from clerk_id
-    const { data: user, error: userError } = await supabase
-      .from('users')
-      .select('id')
-      .eq('clerk_id', clerkId)
-      .single();
+    const db = getDbClient();
+    const agentId = await resolveAgentIdByUserId(db, userId);
 
-    if (userError || !user) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-
-    // Get agent ID from user_id
-    const { data: agent, error: agentError } = await supabase
-      .from('agents')
-      .select('id')
-      .eq('user_id', user.id)
-      .single();
-
-    if (agentError || !agent) {
+    if (!agentId) {
       return res.status(404).json({ error: 'Agent not found' });
     }
 
-    // Fetch all feedback for this agent
-    const { data: feedback, error: feedbackError } = await supabase
+    const { data: feedback, error: feedbackError } = await db
       .from('agent_feedback')
       .select('*')
-      .eq('agent_id', agent.id)
+      .eq('agent_id', agentId)
       .order('created_at', { ascending: false });
 
     if (feedbackError) {
-      throw feedbackError;
+      return res.status(500).json({ error: 'Failed to fetch feedback' });
     }
 
-    // Get unread count
     const unreadCount = feedback?.filter(f => !f.message_read).length || 0;
 
     return res.status(200).json({ 
@@ -73,102 +81,81 @@ async function getFeedback(req, res) {
   }
 }
 
-async function createResponse(req, res) {
-  const { clerkId, feedbackId, response } = req.body;
-
-  if (!clerkId || !feedbackId || !response) {
-    return res.status(400).json({ error: 'Missing required fields' });
-  }
-
+async function createResponse(req, res, userId) {
   try {
-    // Get user ID from clerk_id
-    const { data: user, error: userError } = await supabase
-      .from('users')
-      .select('id')
-      .eq('clerk_id', clerkId)
-      .single();
+    const payload = parseBody(
+      z.object({
+        feedbackId: z.string().uuid(),
+        response: z.string().min(1).max(5000),
+      }),
+      req.body
+    );
 
-    if (userError || !user) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-
-    // Verify agent ownership
-    const { data: agent, error: agentError } = await supabase
-      .from('agents')
-      .select('id')
-      .eq('user_id', user.id)
-      .single();
-
-    if (agentError || !agent) {
+    const db = getDbClient();
+    const agentId = await resolveAgentIdByUserId(db, userId);
+    if (!agentId) {
       return res.status(404).json({ error: 'Agent not found' });
     }
 
-    // Update feedback with agent response
-    const { data, error } = await supabase
+    const safeResponse = sanitizeString(payload.response, 5000);
+
+    const { data, error } = await db
       .from('agent_feedback')
       .update({
-        agent_response: response,
+        agent_response: safeResponse,
         responded_at: new Date().toISOString(),
-        response_read: false, // Admin hasn't read it yet
+        response_read: false,
       })
-      .eq('id', feedbackId)
-      .eq('agent_id', agent.id)
+      .eq('id', payload.feedbackId)
+      .eq('agent_id', agentId)
       .select()
       .single();
 
     if (error) {
-      throw error;
+      return res.status(500).json({ error: 'Failed to submit response' });
     }
 
     return res.status(200).json({ success: true, feedback: data });
   } catch (error) {
+    if (error?.name === 'ZodError') {
+      return res.status(400).json({ error: 'Invalid request payload' });
+    }
+
     return res.status(500).json({ error: 'Failed to submit response' });
   }
 }
 
-async function markAsRead(req, res) {
-  const { clerkId, feedbackId } = req.body;
-
-  if (!clerkId || !feedbackId) {
-    return res.status(400).json({ error: 'Missing required fields' });
-  }
-
+async function markAsRead(req, res, userId) {
   try {
-    // Get user ID from clerk_id
-    const { data: user, error: userError } = await supabase
-      .from('users')
-      .select('id')
-      .eq('clerk_id', clerkId)
-      .single();
+    const payload = parseBody(
+      z.object({
+        feedbackId: z.string().uuid(),
+      }),
+      req.body
+    );
 
-    if (userError || !user) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-
-    // Verify agent ownership
-    const { data: agent, error: agentError } = await supabase
-      .from('agents')
-      .select('id')
-      .eq('user_id', user.id)
-      .single();
-
-    if (agentError || !agent) {
+    const db = getDbClient();
+    const agentId = await resolveAgentIdByUserId(db, userId);
+    if (!agentId) {
       return res.status(404).json({ error: 'Agent not found' });
     }
 
-    // Mark as read
-    const { error } = await supabase
+    const { error } = await db
       .from('agent_feedback')
       .update({ message_read: true })
-      .eq('id', feedbackId)
-      .eq('agent_id', agent.id);
+      .eq('id', payload.feedbackId)
+      .eq('agent_id', agentId);
 
     if (error) {
-      throw error;
+      return res.status(500).json({ error: 'Failed to mark as read' });
     }
 
     return res.status(200).json({ success: true });
   } catch (error) {
+    if (error?.name === 'ZodError') {
+      return res.status(400).json({ error: 'Invalid request payload' });
+    }
+
     return res.status(500).json({ error: 'Failed to mark as read' });
   }
 }

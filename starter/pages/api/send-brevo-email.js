@@ -1,35 +1,42 @@
 import * as SibApiV3Sdk from '@getbrevo/brevo';
-import { enforceRateLimit } from '@/lib/rateLimit';
+import { z } from 'zod';
+import { requireAdminUser } from '@/lib/apiAuth';
+import { enforceRateLimitDistributed } from '@/lib/rateLimit';
+import { enforceMethods, sanitizeEmail, sanitizeString } from '@/lib/apiSecurity';
 
 export default async function handler(req, res) {
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
-  }
+  if (!enforceMethods(req, res, ['POST'])) return;
 
-  const rate = enforceRateLimit(req, res, {
+  const admin = await requireAdminUser(req, res);
+  if (!admin) return;
+
+  const rate = await enforceRateLimitDistributed(req, res, {
     keyPrefix: 'send-brevo-email',
     maxRequests: 4,
     windowMs: 60_000,
+    identifier: String(admin.user.id),
   });
 
   if (!rate.allowed) {
     return res.status(429).json({ error: 'Too many requests. Please try again shortly.' });
   }
 
-  const { to, subject, htmlContent, textContent } = req.body;
-
-  if (!to || !subject || !htmlContent) {
-    return res.status(400).json({ error: 'Missing required fields: to, subject, htmlContent' });
+  let payload;
+  try {
+    payload = z.object({
+      to: z.string().email().max(254),
+      subject: z.string().trim().min(1).max(200),
+      htmlContent: z.string().trim().min(1).max(200_000),
+      textContent: z.string().max(10_000).optional(),
+    }).parse(req.body || {});
+  } catch {
+    return res.status(400).json({ error: 'Invalid request payload' });
   }
 
-  if (
-    String(to).length > 254 ||
-    String(subject).length > 200 ||
-    String(htmlContent).length > 200_000 ||
-    (textContent && String(textContent).length > 10_000)
-  ) {
-    return res.status(400).json({ error: 'One or more fields exceed allowed length' });
-  }
+  const to = sanitizeEmail(payload.to);
+  const subject = sanitizeString(payload.subject, 200);
+  const htmlContent = String(payload.htmlContent || '').slice(0, 200_000);
+  const textContent = payload.textContent ? sanitizeString(payload.textContent, 10_000) : null;
 
   const apiKey = process.env.BREVO_API_KEY;
   if (!apiKey) {
@@ -59,9 +66,6 @@ export default async function handler(req, res) {
     return res.status(200).json({ success: true, messageId: data.messageId });
   } catch (error) {
     console.error('❌ Brevo API error:', error);
-    return res.status(500).json({ 
-      error: 'Failed to send email', 
-      details: error.message 
-    });
+    return res.status(500).json({ error: 'Failed to send email' });
   }
 }

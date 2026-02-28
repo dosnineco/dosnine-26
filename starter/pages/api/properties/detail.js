@@ -1,5 +1,8 @@
 import { supabase } from '@/lib/supabase';
 import { normalizeParish } from '@/lib/normalizeParish';
+import { z } from 'zod';
+import { enforceMethods } from '@/lib/apiSecurity';
+import { enforceRateLimitDistributed } from '@/lib/rateLimit';
 
 const PUBLIC_PROPERTY_DETAIL_FIELDS = [
   'id',
@@ -41,15 +44,27 @@ const PUBLIC_SIMILAR_PROPERTY_FIELDS = [
 const PUBLIC_VISIBLE_STATUSES = ['available', 'active', 'coming_soon'];
 
 export default async function handler(req, res) {
-  if (req.method !== 'GET') {
-    return res.status(405).json({ error: 'Method not allowed' });
-  }
+  if (!enforceMethods(req, res, ['GET'])) return;
 
   try {
-    const slug = String(req.query.slug || '').trim();
-    if (!slug) {
-      return res.status(400).json({ error: 'Slug is required' });
+    const rate = await enforceRateLimitDistributed(req, res, {
+      keyPrefix: 'property-detail',
+      maxRequests: 120,
+      windowMs: 60_000,
+    });
+
+    if (!rate.allowed) {
+      return res.status(429).json({ error: 'Too many requests. Please try again shortly.' });
     }
+
+    const { slug } = z.object({
+      slug: z
+        .string()
+        .trim()
+        .min(1)
+        .max(120)
+        .regex(/^[a-z0-9-]+$/i),
+    }).parse(req.query || {});
 
     const db = supabase;
     const { data: property, error: propertyError } = await db
@@ -97,6 +112,10 @@ export default async function handler(req, res) {
       isVerifiedAgent: ownerData?.agent_is_verified || false,
     });
   } catch (error) {
+    if (error?.name === 'ZodError') {
+      return res.status(400).json({ error: 'Invalid slug' });
+    }
+
     return res.status(500).json({ error: 'Internal server error' });
   }
 }

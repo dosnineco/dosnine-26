@@ -56,6 +56,16 @@ export default function AgentDashboard() {
   const [queueLoading, setQueueLoading] = useState(true);
   const [paidAgentCount, setPaidAgentCount] = useState(null);
   const [paidAgentLoading, setPaidAgentLoading] = useState(true);
+  const [advertisements, setAdvertisements] = useState([]);
+  const [adStats, setAdStats] = useState({
+    totalAds: 0,
+    activeAds: 0,
+    totalViews: 0,
+    totalClicks: 0,
+    verifiedAds: 0,
+    pendingAds: 0,
+  });
+  const [adStatsLoading, setAdStatsLoading] = useState(true);
 
   // Helper: Check if agent access is expired
   const isAccessExpired = () => {
@@ -110,6 +120,48 @@ export default function AgentDashboard() {
     };
 
     fetchStats();
+  }, [authLoaded, userId, getToken]);
+
+  useEffect(() => {
+    if (!authLoaded || !userId) return;
+
+    const fetchAdStats = async () => {
+      try {
+        const token = await getToken();
+        const response = await axios.get('/api/dashboard/overview', {
+          headers: {
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          withCredentials: true,
+        });
+
+        const payload = response.data || {};
+        setAdvertisements(Array.isArray(payload.advertisements) ? payload.advertisements : []);
+        setAdStats(payload.adStats || {
+          totalAds: 0,
+          activeAds: 0,
+          totalViews: 0,
+          totalClicks: 0,
+          verifiedAds: 0,
+          pendingAds: 0,
+        });
+      } catch (error) {
+        console.error('Error fetching ad stats:', error);
+        setAdvertisements([]);
+        setAdStats({
+          totalAds: 0,
+          activeAds: 0,
+          totalViews: 0,
+          totalClicks: 0,
+          verifiedAds: 0,
+          pendingAds: 0,
+        });
+      } finally {
+        setAdStatsLoading(false);
+      }
+    };
+
+    fetchAdStats();
   }, [authLoaded, userId, getToken]);
 
   useEffect(() => {
@@ -436,6 +488,54 @@ export default function AgentDashboard() {
                 <CheckCircle className="w-10 h-10 text-green-400" />
               </div>
             </div>
+          </div>
+
+          <div className="bg-white rounded-lg border border-gray-200 p-4 mb-8">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-lg font-semibold text-gray-900">Ad Performance</h2>
+              {adStatsLoading && <span className="text-xs text-gray-500">Loading...</span>}
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+              <div className="bg-gray-50 rounded-lg p-3">
+                <p className="text-xs text-gray-500">Total Ads</p>
+                <p className="text-xl font-bold text-gray-900">{Number(adStats.totalAds || 0).toLocaleString()}</p>
+              </div>
+              <div className="bg-gray-50 rounded-lg p-3">
+                <p className="text-xs text-gray-500">Active Ads</p>
+                <p className="text-xl font-bold text-purple-600">{Number(adStats.activeAds || 0).toLocaleString()}</p>
+              </div>
+              <div className="bg-gray-50 rounded-lg p-3">
+                <p className="text-xs text-gray-500">Total Views</p>
+                <p className="text-xl font-bold text-blue-700">{Number(adStats.totalViews || 0).toLocaleString()}</p>
+              </div>
+              <div className="bg-gray-50 rounded-lg p-3">
+                <p className="text-xs text-gray-500">Total Clicks</p>
+                <p className="text-xl font-bold text-green-700">{Number(adStats.totalClicks || 0).toLocaleString()}</p>
+              </div>
+            </div>
+
+            <p className="text-xs text-gray-500 mb-3">
+              Verified: {Number(adStats.verifiedAds || 0).toLocaleString()} · Pending: {Number(adStats.pendingAds || 0).toLocaleString()}
+            </p>
+
+            {advertisements.filter((ad) => ad.is_active).length > 0 ? (
+              <div className="space-y-2">
+                {advertisements.filter((ad) => ad.is_active).slice(0, 3).map((ad) => (
+                  <div key={ad.id} className="bg-gray-50 rounded-lg p-3 flex items-center justify-between gap-3">
+                    <div>
+                      <p className="font-semibold text-gray-900 text-sm">{ad.title || ad.company_name || 'Advertisement'}</p>
+                    </div>
+                    <div className="text-right text-xs sm:text-sm">
+                      <p className="text-blue-700 font-semibold">{Number(ad.impressions || 0).toLocaleString()} views</p>
+                      <p className="text-green-700 font-semibold">{Number(ad.clicks || 0).toLocaleString()} clicks</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-gray-500">No active ads yet.</p>
+            )}
           </div>
 
           {/* Filters */}

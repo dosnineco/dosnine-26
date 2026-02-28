@@ -1,38 +1,51 @@
-// Analytics tracking endpoint
-// Receives click/impression data and stores it in the database
+import { z } from 'zod';
+import { enforceRateLimitDistributed } from '@/lib/rateLimit';
+import { enforceMethods, isBotLikely, sanitizeString } from '@/lib/apiSecurity';
 
 export default async function handler(req, res) {
-  // Only accept POST requests
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
-  }
+  if (!enforceMethods(req, res, ['POST'])) return;
 
   try {
-    const data = req.body;
-
-    // Validate required fields
-    if (!data || !data.event_type) {
-      return res.status(400).json({ error: 'Missing required fields' });
-    }
-
-    // Log the analytics data (you can store in database later)
-    console.log('Analytics tracked:', {
-      event: data.event_type,
-      page: data.page_url,
-      timestamp: data.created_at
+    const rate = await enforceRateLimitDistributed(req, res, {
+      keyPrefix: 'analytics-track',
+      maxRequests: 120,
+      windowMs: 60_000,
     });
 
-    // Return success
+    if (!rate.allowed) {
+      return res.status(429).json({ error: 'Too many requests. Please try again shortly.' });
+    }
+
+    const data = z.object({
+      event_type: z.string().trim().min(1).max(100),
+      page_url: z.string().trim().max(2000).optional(),
+      created_at: z.string().trim().max(100).optional(),
+      website: z.string().optional(),
+      company: z.string().optional(),
+      url: z.string().optional(),
+    }).parse(req.body || {});
+
+    if (isBotLikely(data)) {
+      return res.status(200).json({ success: true, message: 'Analytics tracked successfully' });
+    }
+
+    console.log('Analytics tracked:', {
+      event: sanitizeString(data.event_type, 100),
+      page: data.page_url ? sanitizeString(data.page_url, 2000) : null,
+      timestamp: data.created_at ? sanitizeString(data.created_at, 100) : null,
+    });
+
     return res.status(200).json({ 
       success: true,
       message: 'Analytics tracked successfully'
     });
 
   } catch (error) {
-    console.error('Error tracking analytics:', error);
-    return res.status(500).json({ 
-      error: 'Failed to track analytics',
-      message: error.message 
-    });
+    if (error?.name === 'ZodError') {
+      return res.status(400).json({ error: 'Invalid request payload' });
+    }
+
+    console.error('Error tracking analytics');
+    return res.status(500).json({ error: 'Failed to track analytics' });
   }
 }

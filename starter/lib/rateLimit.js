@@ -1,4 +1,5 @@
 const buckets = new Map();
+let upstashLimiterCache = new Map();
 
 function getClientIp(req) {
   const forwardedFor = req.headers['x-forwarded-for'];
@@ -55,4 +56,69 @@ export function enforceRateLimit(req, res, {
   buckets.set(key, existing);
 
   return { allowed: true };
+}
+
+function hasUpstashConfig() {
+  return Boolean(process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN);
+}
+
+async function getUpstashLimiter(maxRequests, windowMs) {
+  if (!hasUpstashConfig()) return null;
+
+  const cacheKey = `${maxRequests}:${windowMs}`;
+  if (upstashLimiterCache.has(cacheKey)) {
+    return upstashLimiterCache.get(cacheKey);
+  }
+
+  const [{ Redis }, { Ratelimit }] = await Promise.all([
+    import('@upstash/redis'),
+    import('@upstash/ratelimit'),
+  ]);
+
+  const redis = new Redis({
+    url: process.env.UPSTASH_REDIS_REST_URL,
+    token: process.env.UPSTASH_REDIS_REST_TOKEN,
+  });
+
+  const limiter = new Ratelimit({
+    redis,
+    limiter: Ratelimit.slidingWindow(maxRequests, `${Math.ceil(windowMs / 1000)} s`),
+    analytics: true,
+    prefix: 'dosnine:api:ratelimit',
+  });
+
+  upstashLimiterCache.set(cacheKey, limiter);
+  return limiter;
+}
+
+export async function enforceRateLimitDistributed(req, res, {
+  keyPrefix,
+  maxRequests,
+  windowMs,
+  identifier,
+}) {
+  try {
+    const limiter = await getUpstashLimiter(maxRequests, windowMs);
+
+    if (!limiter) {
+      return enforceRateLimit(req, res, { keyPrefix, maxRequests, windowMs });
+    }
+
+    const ip = getClientIp(req);
+    const key = `${keyPrefix}:${identifier || ip}`;
+    const result = await limiter.limit(key);
+
+    res.setHeader('X-RateLimit-Limit', String(maxRequests));
+    res.setHeader('X-RateLimit-Remaining', String(Math.max(result.remaining, 0)));
+
+    if (!result.success) {
+      const resetSeconds = Math.max(Math.ceil((result.reset - Date.now()) / 1000), 1);
+      res.setHeader('Retry-After', String(resetSeconds));
+      return { allowed: false, retryAfterSeconds: resetSeconds };
+    }
+
+    return { allowed: true };
+  } catch {
+    return enforceRateLimit(req, res, { keyPrefix, maxRequests, windowMs });
+  }
 }

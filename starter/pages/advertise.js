@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import Head from 'next/head';
+import Link from 'next/link';
 import { useUser } from '@clerk/nextjs';
 import { Check, Copy } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -46,6 +47,53 @@ const categories = [
 
 const formatMoney = (value) => `J$${Number(value || 0).toLocaleString()}`;
 
+const compressImageToWebP = (file, maxWidth = 1600, quality = 0.82) =>
+  new Promise((resolve, reject) => {
+    const image = new Image();
+    const objectUrl = URL.createObjectURL(file);
+
+    image.onload = () => {
+      const canvas = document.createElement('canvas');
+      const ratio = image.width > maxWidth ? maxWidth / image.width : 1;
+      canvas.width = Math.round(image.width * ratio);
+      canvas.height = Math.round(image.height * ratio);
+
+      const context = canvas.getContext('2d');
+      if (!context) {
+        URL.revokeObjectURL(objectUrl);
+        reject(new Error('Unable to process image.'));
+        return;
+      }
+
+      context.drawImage(image, 0, 0, canvas.width, canvas.height);
+      canvas.toBlob(
+        (blob) => {
+          URL.revokeObjectURL(objectUrl);
+          if (!blob) {
+            reject(new Error('Image compression failed.'));
+            return;
+          }
+
+          const compressedFile = new File(
+            [blob],
+            `${(file.name || 'ad-image').replace(/\.[^.]+$/, '')}.webp`,
+            { type: 'image/webp' }
+          );
+          resolve(compressedFile);
+        },
+        'image/webp',
+        quality
+      );
+    };
+
+    image.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      reject(new Error('Invalid image file.'));
+    };
+
+    image.src = objectUrl;
+  });
+
 export default function AdvertisePage() {
   const { user } = useUser();
   const [step, setStep] = useState(1);
@@ -91,21 +139,27 @@ export default function AdvertisePage() {
 
   const onSubmit = async (event) => {
     event.preventDefault();
+
+    if (!imageFile) {
+      toast.error('Please upload an ad image before continuing.');
+      return;
+    }
+
     setSubmitting(true);
 
     try {
       let uploadedImageUrl = null;
 
       if (imageFile) {
-        const fileExt = (imageFile.name || 'jpg').split('.').pop();
-        const filePath = `ads/${Date.now()}-${Math.random().toString(36).slice(2, 9)}.${fileExt}`;
+        const compressedImage = await compressImageToWebP(imageFile);
+        const filePath = `ads/${Date.now()}-${Math.random().toString(36).slice(2, 9)}.webp`;
 
         const { error: uploadError } = await supabase.storage
           .from('property-images')
-          .upload(filePath, imageFile, {
+          .upload(filePath, compressedImage, {
             cacheControl: '3600',
             upsert: true,
-            contentType: imageFile.type,
+            contentType: 'image/webp',
           });
 
         if (uploadError) {
@@ -246,6 +300,14 @@ export default function AdvertisePage() {
                 >
                   Send Proof on WhatsApp
                 </a>
+                <div className="mt-4">
+                  <Link
+                    href="/"
+                    className="inline-flex items-center justify-center text-accent font-semibold hover:text-accent/80 underline"
+                  >
+                    ← Return to Home
+                  </Link>
+                </div>
               </div>
             </div>
           ) : (
@@ -256,6 +318,18 @@ export default function AdvertisePage() {
                   <p className="mt-2 text-white/90 text-sm sm:text-base">
                     Reach buyers, renters, and homeowners across Jamaica with high-visibility ad placement.
                   </p>
+                  <div className="mt-4 inline-flex items-center bg-white/15 rounded-lg px-4 py-2 text-sm font-semibold">
+                    Ads go live after payment verification • Fast activation support on WhatsApp
+                  </div>
+                </div>
+
+                <div className="mt-4 bg-gray-50 rounded-xl p-4">
+                  <h2 className="text-sm font-bold text-gray-900 mb-2 uppercase tracking-wide">Why Advertise Here</h2>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm text-gray-700">
+                    <p className="bg-white rounded-lg p-3"><span className="font-semibold text-gray-900">High Intent Audience</span><br />Reach people actively looking for property services.</p>
+                    <p className="bg-white rounded-lg p-3"><span className="font-semibold text-gray-900">Simple Setup</span><br />Submit details once and complete payment in minutes.</p>
+                    <p className="bg-white rounded-lg p-3"><span className="font-semibold text-gray-900">Direct Leads</span><br />Get WhatsApp and call inquiries straight to your business.</p>
+                  </div>
                 </div>
 
                 <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -266,15 +340,26 @@ export default function AdvertisePage() {
                         key={plan.id}
                         type="button"
                         onClick={() => setForm((prev) => ({ ...prev, plan_id: plan.id }))}
-                        className={`text-left rounded-xl p-5 transition ${
-                          selected ? 'bg-accent/10' : 'bg-gray-50 hover:bg-gray-100'
+                        className={`text-left rounded-xl p-5 transition relative ${
+                          selected
+                            ? 'bg-accent text-white ring-2 ring-accent/40'
+                            : 'bg-gray-50 hover:bg-gray-100'
                         }`}
                       >
-                        <p className="text-xs uppercase text-accent font-bold">{plan.badge}</p>
-                        <h3 className="text-lg font-bold text-gray-900 mt-1">{plan.name}</h3>
-                        <p className="text-gray-600 text-sm mt-1">{plan.highlight}</p>
-                        <p className="text-2xl font-bold text-gray-900 mt-3">{formatMoney(plan.price)}</p>
-                        <p className="text-xs text-gray-500">{plan.duration}</p>
+                        {selected && (
+                          <span className="absolute top-3 right-3 bg-white text-accent text-xs font-bold px-2 py-1 rounded-full">
+                            Selected
+                          </span>
+                        )}
+                        <p className={`text-xs uppercase font-bold ${selected ? 'text-white/90' : 'text-accent'}`}>
+                          {plan.badge}
+                        </p>
+                        <h3 className={`text-lg font-bold mt-1 ${selected ? 'text-white' : 'text-gray-900'}`}>{plan.name}</h3>
+                        <p className={`text-sm mt-1 ${selected ? 'text-white/90' : 'text-gray-600'}`}>{plan.highlight}</p>
+                        <p className={`text-2xl font-bold mt-3 ${selected ? 'text-white' : 'text-gray-900'}`}>
+                          {formatMoney(plan.price)}
+                        </p>
+                        <p className={`text-xs ${selected ? 'text-white/80' : 'text-gray-500'}`}>{plan.duration}</p>
                       </button>
                     );
                   })}
@@ -283,6 +368,18 @@ export default function AdvertisePage() {
 
               <div className="bg-white rounded-xl p-6 sm:p-8">
                 <h2 className="text-2xl font-bold text-gray-900 mb-5">Submit Your Ad Details</h2>
+
+                <div className="bg-gray-50 rounded-xl p-4 mb-5">
+                  <p className="text-xs uppercase tracking-wide text-gray-600 font-bold mb-2">Selected Plan</p>
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="font-bold text-gray-900">{selectedPlan.name}</p>
+                      <p className="text-sm text-gray-600">{selectedPlan.duration} • {selectedPlan.highlight}</p>
+                    </div>
+                    <p className="text-xl font-bold text-accent">{formatMoney(selectedPlan.price)}</p>
+                  </div>
+                </div>
+
                 <form onSubmit={onSubmit} className="space-y-4">
                   <div>
                     <label className="block text-sm font-bold text-gray-700 mb-1">Business Name</label>
@@ -331,6 +428,7 @@ export default function AdvertisePage() {
                       placeholder="876-123-4567"
                       required
                     />
+                    <p className="text-xs text-gray-500 mt-1">This number is where clients will contact you.</p>
                   </div>
 
                   <div>
@@ -371,6 +469,7 @@ export default function AdvertisePage() {
                     <input
                       type="file"
                       accept="image/png,image/jpeg,image/jpg,image/webp"
+                      required
                       onChange={(event) => {
                         const file = event.target.files?.[0] || null;
                         if (!file) return;
@@ -383,6 +482,7 @@ export default function AdvertisePage() {
                       }}
                       className="w-full bg-gray-50 rounded-lg py-3 px-4"
                     />
+                    <p className="text-xs text-gray-500 mt-1">Required. Best results: clear logo or service image (JPG/PNG/WebP, max 8MB).</p>
                     {imagePreview && (
                       <div className="mt-3 bg-gray-50 rounded-lg p-3">
                         <img
@@ -410,8 +510,10 @@ export default function AdvertisePage() {
                     disabled={submitting}
                     className="w-full bg-accent hover:bg-accent/90 text-white font-semibold rounded-xl py-4 disabled:bg-gray-400"
                   >
-                    {submitting ? 'Submitting...' : `Continue to Payment (${formatMoney(selectedPlan.price)})`}
+                    {submitting ? 'Submitting...' : `Submit & Continue to Payment — ${formatMoney(selectedPlan.price)}`}
                   </button>
+
+                  <p className="text-xs text-gray-500 text-center">No ad is published until payment is verified.</p>
                 </form>
               </div>
             </>

@@ -10,7 +10,13 @@ async function safeDeleteByPropertyId(db, table, propertyId) {
 
   if (!error) return null;
 
-  if (error.code === '42P01') {
+  const message = String(error.message || '').toLowerCase();
+  if (
+    error.code === '42P01' ||
+    error.code === 'PGRST205' ||
+    message.includes('schema cache') ||
+    message.includes(`could not find the table 'public.${table}'`)
+  ) {
     return null;
   }
 

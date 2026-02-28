@@ -409,6 +409,24 @@ export default function Dashboard() {
         </div>
         )}
 
+            {!redirecting && (
+          <div className="bg-gray-100 rounded-lg p-6 mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <h2 className="text-xl font-bold text-gray-900">Create More Ads</h2>
+              <p className="text-sm text-gray-700 mt-1">
+                Reach at least 25,000 weekly visitors and keep your business in front of active clients.
+              </p>
+            </div>
+            <Link
+              href="/advertise"
+              className="inline-flex items-center justify-center bg-accent hover:bg-accent/90 text-white font-semibold rounded-xl px-5 py-3"
+            >
+              Create Ad Campaign
+            </Link>
+          </div>
+        )}
+
+
         {!redirecting && adStats.verifiedAds > 0 && (
           <div className="bg-white rounded-lg p-6 mb-8">
             <h2 className="text-2xl font-bold mb-4">Ad Performance</h2>
@@ -444,23 +462,7 @@ export default function Dashboard() {
           </div>
         )}
 
-        {!redirecting && (
-          <div className="bg-gray-100 rounded-lg p-6 mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div>
-              <h2 className="text-xl font-bold text-gray-900">Create More Ads</h2>
-              <p className="text-sm text-gray-700 mt-1">
-                Reach at least 25,000 weekly visitors and keep your business in front of active clients.
-              </p>
-            </div>
-            <Link
-              href="/advertise"
-              className="inline-flex items-center justify-center bg-accent hover:bg-accent/90 text-white font-semibold rounded-xl px-5 py-3"
-            >
-              Create Ad Campaign
-            </Link>
-          </div>
-        )}
-
+    
   
 
         {/* Service Requests Section */}

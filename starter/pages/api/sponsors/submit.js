@@ -1,11 +1,65 @@
 import { getDbClient } from '@/lib/apiAuth';
 import { enforceRateLimit } from '@/lib/rateLimit';
 import { getClerkUserContext } from '@/lib/apiAuth';
+import * as SibApiV3Sdk from '@getbrevo/brevo';
 
 const AD_PLANS = {
   '7-day': { id: '7-day', name: '7-Day Ad', amount: 5000, durationDays: 7 },
   '30-day': { id: '30-day', name: '30-Day Ad', amount: 20000, durationDays: 30 },
 };
+
+async function sendAdminAdSubmissionEmail({
+  company_name,
+  title,
+  category,
+  description,
+  phone,
+  email,
+  website,
+  image_url,
+  contact_name,
+  selectedPlan,
+  submittedAt,
+  syntheticId,
+}) {
+  const apiKey = process.env.BREVO_API_KEY;
+  if (!apiKey) return;
+
+  const adminEmail = process.env.ADMIN_NOTIFICATION_EMAIL || process.env.ADMIN_EMAIL || 'dosnineco@gmail.com';
+  const senderEmail = process.env.BREVO_FROM_EMAIL || 'dosnineco@gmail.com';
+  const senderName = process.env.BREVO_FROM_NAME || 'Dosnine';
+
+  const apiInstance = new SibApiV3Sdk.TransactionalEmailsApi();
+  apiInstance.setApiKey(SibApiV3Sdk.TransactionalEmailsApiApiKeys.apiKey, apiKey);
+
+  const htmlContent = `
+    <h2>New Ad Submission Received</h2>
+    <p><strong>Submission ID:</strong> ${syntheticId}</p>
+    <p><strong>Submitted At:</strong> ${submittedAt}</p>
+    <hr />
+    <p><strong>Business Name:</strong> ${company_name || ''}</p>
+    <p><strong>Ad Title:</strong> ${title || ''}</p>
+    <p><strong>Contact Name:</strong> ${contact_name || ''}</p>
+    <p><strong>Category:</strong> ${category || ''}</p>
+    <p><strong>Phone:</strong> ${phone || ''}</p>
+    <p><strong>Email:</strong> ${email || ''}</p>
+    <p><strong>Website:</strong> ${website || ''}</p>
+    <p><strong>Image URL:</strong> ${image_url || ''}</p>
+    <p><strong>Plan:</strong> ${selectedPlan?.name || ''} (${selectedPlan?.durationDays || 0} days)</p>
+    <p><strong>Amount:</strong> JMD $${Number(selectedPlan?.amount || 0).toLocaleString()}</p>
+    <hr />
+    <p><strong>Description:</strong></p>
+    <p>${String(description || '').replace(/\n/g, '<br/>')}</p>
+  `;
+
+  const emailPayload = new SibApiV3Sdk.SendSmtpEmail();
+  emailPayload.sender = { name: senderName, email: senderEmail };
+  emailPayload.to = [{ email: adminEmail, name: 'Dosnine Admin' }];
+  emailPayload.subject = `New Ad Submission: ${company_name || 'Unknown Business'}`;
+  emailPayload.htmlContent = htmlContent;
+
+  await apiInstance.sendTransacEmail(emailPayload);
+}
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -125,6 +179,25 @@ export default async function handler(req, res) {
 
     if (adInsert.error && !String(adInsert.error?.code || '').includes('23505')) {
       console.error('Failed to create advertisement draft:', adInsert.error);
+    }
+
+    try {
+      await sendAdminAdSubmissionEmail({
+        company_name,
+        title,
+        category,
+        description,
+        phone,
+        email,
+        website,
+        image_url,
+        contact_name,
+        selectedPlan,
+        submittedAt,
+        syntheticId,
+      });
+    } catch (emailError) {
+      console.error('Failed to send admin ad submission email:', emailError?.message || emailError);
     }
 
     return res.status(200).json({

@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import Head from 'next/head';
-import Link from 'next/link';
 import { useAuth, useUser } from '@clerk/nextjs';
 import AdminLayout from '../../components/AdminLayout';
 import toast from 'react-hot-toast';
@@ -220,16 +219,14 @@ export default function AdminPropertiesPage() {
       
       <div className="min-h-screen bg-gray-50">
         <div className="container mx-auto px-4 py-6 max-w-7xl">
-          {/* Header */}
-                   <AdminLayout />
+          <AdminLayout />
 
           {loading ? (
             <div className="text-center py-12 text-gray-500">Loading...</div>
           ) : (
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {/* Form */}
               <div className="lg:col-span-1">
-                <div className="bg-white rounded-lg shadow p-6 sticky top-6">
+                <div className="bg-gray-100 rounded-xl p-6 sticky top-6">
                   <h2 className="text-xl font-bold mb-4">
                     {editingId ? 'Edit Property' : 'Add Property'}
                   </h2>
@@ -243,7 +240,7 @@ export default function AdminPropertiesPage() {
                         type="text"
                         value={formData.title}
                         onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-accent focus:border-transparent"
+                        className="w-full bg-gray-50 px-4 py-3 rounded-lg focus:ring-2 focus:ring-accent"
                         required
                       />
                     </div>
@@ -256,7 +253,7 @@ export default function AdminPropertiesPage() {
                         type="text"
                         value={formData.parish}
                         onChange={(e) => setFormData({ ...formData, parish: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-accent focus:border-transparent"
+                        className="w-full bg-gray-50 px-4 py-3 rounded-lg focus:ring-2 focus:ring-accent"
                       />
                     </div>
 
@@ -268,7 +265,7 @@ export default function AdminPropertiesPage() {
                         type="number"
                         value={formData.price}
                         onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-accent focus:border-transparent"
+                        className="w-full bg-gray-50 px-4 py-3 rounded-lg focus:ring-2 focus:ring-accent"
                         required
                       />
                     </div>
@@ -282,7 +279,7 @@ export default function AdminPropertiesPage() {
                           type="number"
                           value={formData.bedrooms}
                           onChange={(e) => setFormData({ ...formData, bedrooms: e.target.value })}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-accent focus:border-transparent"
+                          className="w-full bg-gray-50 px-4 py-3 rounded-lg focus:ring-2 focus:ring-accent"
                         />
                       </div>
                       <div>
@@ -293,7 +290,7 @@ export default function AdminPropertiesPage() {
                           type="number"
                           value={formData.bathrooms}
                           onChange={(e) => setFormData({ ...formData, bathrooms: e.target.value })}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-accent focus:border-transparent"
+                          className="w-full bg-gray-50 px-4 py-3 rounded-lg focus:ring-2 focus:ring-accent"
                         />
                       </div>
                     </div>
@@ -305,7 +302,7 @@ export default function AdminPropertiesPage() {
                       <textarea
                         value={formData.description}
                         onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-accent focus:border-transparent"
+                        className="w-full bg-gray-50 px-4 py-3 rounded-lg focus:ring-2 focus:ring-accent"
                         rows="3"
                       />
                     </div>
@@ -353,10 +350,9 @@ export default function AdminPropertiesPage() {
                 </div>
               </div>
 
-              {/* Properties List */}
               <div className="lg:col-span-2">
-                <div className="bg-white rounded-lg shadow">
-                  <div className="p-6 border-b">
+                <div className="bg-gray-100 rounded-xl">
+                  <div className="p-6">
                     <h2 className="text-xl font-bold">Properties ({properties.length})</h2>
                   </div>
 
@@ -365,18 +361,18 @@ export default function AdminPropertiesPage() {
                       <p>No properties yet</p>
                     </div>
                   ) : (
-                    <div className="divide-y">
+                    <div className="space-y-3 px-4 pb-4">
                       {properties.map((property) => (
-                        <div key={property.id} className="p-4 hover:bg-gray-50 transition">
+                        <div key={property.id} className="p-4 bg-gray-50 rounded-lg">
                           <div className="flex justify-between items-start gap-4">
                             <div className="flex-1 min-w-0">
                               <h3 className="font-bold text-gray-900">{property.title}</h3>
                               <p className="text-sm text-gray-600">📍 {property.parish || 'N/A'}</p>
                               
                               <div className="flex flex-wrap gap-4 mt-2 text-sm text-gray-600">
-                                <span>💰 ${property.price?.toLocaleString() || '0'}</span>
-                                {property.bedrooms && <span>🛏️ {property.bedrooms} bed</span>}
-                                {property.bathrooms && <span>🚿 {property.bathrooms} bath</span>}
+                                <span>JMD ${property.price?.toLocaleString() || '0'}</span>
+                                {property.bedrooms && <span>{property.bedrooms} bed</span>}
+                                {property.bathrooms && <span>{property.bathrooms} bath</span>}
                               </div>
 
                               {property.description && (
