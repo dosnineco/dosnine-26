@@ -11,6 +11,11 @@ export default function AdDetailPage() {
   const { id } = router.query
   const [ad, setAd] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [currentImageIndex, setCurrentImageIndex] = useState(0)
+
+  const adImages = Array.isArray(ad?.image_urls) && ad.image_urls.length > 0
+    ? ad.image_urls.slice(0, 3)
+    : (ad?.image_url ? [ad.image_url] : [])
 
   const adUrl = typeof window !== 'undefined'
     ? window.location.href
@@ -37,6 +42,7 @@ export default function AdDetailPage() {
     if (id) {
       loadAd()
       trackClick()
+      setCurrentImageIndex(0)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id])
@@ -129,13 +135,33 @@ export default function AdDetailPage() {
             </div>
 
             {/* Logo/Image */}
-            {ad.image_url && (
+            {adImages.length > 0 && (
               <div className="bg-gray-50 border-b w-full">
                 <img
-                  src={ad.image_url}
+                  src={adImages[currentImageIndex]}
                   alt={ad.company_name}
                   className="w-full h-[300px] md:h-[420px] object-cover"
                 />
+                {adImages.length > 1 && (
+                  <div className="p-4 bg-white">
+                    <div className="grid grid-cols-3 gap-3">
+                      {adImages.map((imageUrl, index) => (
+                        <button
+                          key={`${imageUrl}-${index}`}
+                          type="button"
+                          onClick={() => setCurrentImageIndex(index)}
+                          className={`rounded-lg overflow-hidden ${currentImageIndex === index ? 'ring-2 ring-accent' : ''}`}
+                        >
+                          <img
+                            src={imageUrl}
+                            alt={`${ad.company_name} ${index + 1}`}
+                            className="w-full h-20 object-cover"
+                          />
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 

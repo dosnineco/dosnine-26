@@ -269,8 +269,9 @@ export default function AdvertisementGrid({ compact = false }) {
               display: none;
             }
           `}</style>
-          {gridItems.map((ad) =>
-            ad.isPlaceholder ? (
+          {gridItems.map((ad) => {
+            if (ad.isPlaceholder) {
+              return (
               <Link
                 key={ad.id}
                 href="/advertise"
@@ -288,7 +289,14 @@ export default function AdvertisementGrid({ compact = false }) {
                   </span>
                 </div>
               </Link>
-            ) : (
+              )
+            }
+
+            const adImage = (Array.isArray(ad.image_urls) && ad.image_urls.length > 0)
+              ? ad.image_urls[0]
+              : ad.image_url
+
+            return (
               <Link
                 key={ad.id}
                 href={`/ads/${ad.id}`}
@@ -307,9 +315,9 @@ export default function AdvertisementGrid({ compact = false }) {
                   </div>
                 )}
 
-                {ad.image_url && (
+                {adImage && (
                   <div className="w-full aspect-[4/3] bg-gray-50 overflow-hidden">
-                    <img src={ad.image_url} alt={ad.company_name} className="w-full h-full object-cover" />
+                    <img src={adImage} alt={ad.company_name} className="w-full h-full object-cover" />
                   </div>
                 )}
                 <div className="p-4">
@@ -330,7 +338,7 @@ export default function AdvertisementGrid({ compact = false }) {
                 </div>
               </Link>
             )
-          )}
+          })}
         </div>
       ) : (
         // Empty state CTA

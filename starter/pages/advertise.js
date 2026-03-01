@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
 import { useUser } from '@clerk/nextjs';
@@ -100,8 +100,8 @@ export default function AdvertisePage() {
   const [submitting, setSubmitting] = useState(false);
   const [copied, setCopied] = useState('');
   const [submissionId, setSubmissionId] = useState('');
-  const [imageFile, setImageFile] = useState(null);
-  const [imagePreview, setImagePreview] = useState('');
+  const [imageFiles, setImageFiles] = useState([]);
+  const [imagePreviews, setImagePreviews] = useState([]);
   const [form, setForm] = useState({
     company_name: '',
     title: '',
@@ -137,21 +137,27 @@ export default function AdvertisePage() {
     }
   };
 
+  useEffect(() => {
+    return () => {
+      imagePreviews.forEach((url) => URL.revokeObjectURL(url));
+    };
+  }, [imagePreviews]);
+
   const onSubmit = async (event) => {
     event.preventDefault();
 
-    if (!imageFile) {
-      toast.error('Please upload an ad image before continuing.');
+    if (imageFiles.length === 0) {
+      toast.error('Please upload at least 1 ad image before continuing.');
       return;
     }
 
     setSubmitting(true);
 
     try {
-      let uploadedImageUrl = null;
+      const uploadedImageUrls = [];
 
-      if (imageFile) {
-        const compressedImage = await compressImageToWebP(imageFile);
+      for (const file of imageFiles) {
+        const compressedImage = await compressImageToWebP(file);
         const filePath = `ads/${Date.now()}-${Math.random().toString(36).slice(2, 9)}.webp`;
 
         const { error: uploadError } = await supabase.storage
@@ -168,7 +174,11 @@ export default function AdvertisePage() {
 
         const publicData = supabase.storage.from('property-images').getPublicUrl(filePath);
         const publicUrl = publicData?.data?.publicUrl || publicData?.data?.publicURL || '';
-        uploadedImageUrl = publicUrl || null;
+        if (publicUrl) uploadedImageUrls.push(publicUrl);
+      }
+
+      if (uploadedImageUrls.length === 0) {
+        throw new Error('Image upload failed.');
       }
 
       const response = await fetch('/api/sponsors/submit', {
@@ -176,7 +186,8 @@ export default function AdvertisePage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...form,
-          image_url: uploadedImageUrl || null,
+          image_url: uploadedImageUrls[0] || null,
+          image_urls: uploadedImageUrls,
         }),
       });
 
@@ -465,31 +476,43 @@ export default function AdvertisePage() {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-bold text-gray-700 mb-1">Upload Ad Image</label>
+                    <label className="block text-sm font-bold text-gray-700 mb-1">Upload Ad Images</label>
                     <input
                       type="file"
                       accept="image/png,image/jpeg,image/jpg,image/webp"
+                      multiple
                       required
                       onChange={(event) => {
-                        const file = event.target.files?.[0] || null;
-                        if (!file) return;
-                        if (file.size > 8 * 1024 * 1024) {
-                          toast.error('Image must be 8MB or less.');
+                        const selectedFiles = Array.from(event.target.files || []).slice(0, 3);
+                        if (selectedFiles.length === 0) return;
+
+                        const oversized = selectedFiles.find((file) => file.size > 8 * 1024 * 1024);
+                        if (oversized) {
+                          toast.error('Each image must be 8MB or less.');
                           return;
                         }
-                        setImageFile(file);
-                        setImagePreview(URL.createObjectURL(file));
+
+                        imagePreviews.forEach((url) => URL.revokeObjectURL(url));
+                        setImageFiles(selectedFiles);
+                        setImagePreviews(selectedFiles.map((file) => URL.createObjectURL(file)));
+
+                        if ((event.target.files || []).length > 3) {
+                          toast('Only the first 3 images were selected.');
+                        }
                       }}
                       className="w-full bg-gray-50 rounded-lg py-3 px-4"
                     />
-                    <p className="text-xs text-gray-500 mt-1">Required. Best results: clear logo or service image (JPG/PNG/WebP, max 8MB).</p>
-                    {imagePreview && (
-                      <div className="mt-3 bg-gray-50 rounded-lg p-3">
-                        <img
-                          src={imagePreview}
-                          alt="Ad preview"
-                          className="h-24 w-auto rounded-lg object-cover"
-                        />
+                    <p className="text-xs text-gray-500 mt-1">Required. Upload 1 to 3 images. Each image is compressed before upload (JPG/PNG/WebP, max 8MB each).</p>
+                    {imagePreviews.length > 0 && (
+                      <div className="mt-3 bg-gray-50 rounded-lg p-3 grid grid-cols-2 sm:grid-cols-3 gap-3">
+                        {imagePreviews.map((preview, index) => (
+                          <img
+                            key={`${preview}-${index}`}
+                            src={preview}
+                            alt={`Ad preview ${index + 1}`}
+                            className="h-24 w-full rounded-lg object-cover"
+                          />
+                        ))}
                       </div>
                     )}
                   </div>

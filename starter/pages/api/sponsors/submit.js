@@ -17,6 +17,7 @@ async function sendAdminAdSubmissionEmail({
   email,
   website,
   image_url,
+  image_urls,
   contact_name,
   selectedPlan,
   submittedAt,
@@ -44,7 +45,11 @@ async function sendAdminAdSubmissionEmail({
     <p><strong>Phone:</strong> ${phone || ''}</p>
     <p><strong>Email:</strong> ${email || ''}</p>
     <p><strong>Website:</strong> ${website || ''}</p>
-    <p><strong>Image URL:</strong> ${image_url || ''}</p>
+    <p><strong>Primary Image URL:</strong> ${image_url || ''}</p>
+    <p><strong>All Images:</strong></p>
+    <ul>
+      ${(Array.isArray(image_urls) ? image_urls : []).map((url) => `<li>${url}</li>`).join('')}
+    </ul>
     <p><strong>Plan:</strong> ${selectedPlan?.name || ''} (${selectedPlan?.durationDays || 0} days)</p>
     <p><strong>Amount:</strong> JMD $${Number(selectedPlan?.amount || 0).toLocaleString()}</p>
     <hr />
@@ -84,6 +89,7 @@ export default async function handler(req, res) {
     email,
     website,
     image_url,
+    image_urls,
     is_featured,
     plan_id,
     title,
@@ -105,6 +111,19 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'One or more fields exceed allowed length' });
   }
 
+  const normalizedImageUrls = Array.isArray(image_urls)
+    ? image_urls
+      .map((url) => String(url || '').trim())
+      .filter(Boolean)
+      .slice(0, 3)
+    : [];
+
+  if (normalizedImageUrls.some((url) => url.length > 2000)) {
+    return res.status(400).json({ error: 'One or more image URLs exceed allowed length' });
+  }
+
+  const primaryImageUrl = normalizedImageUrls[0] || image_url || null;
+
   try {
     const db = getDbClient();
     const clerkContext = getClerkUserContext(req);
@@ -119,7 +138,8 @@ export default async function handler(req, res) {
       phone,
       email: email || null,
       website: website || null,
-      image_url: image_url || null,
+      image_url: primaryImageUrl,
+      image_urls: normalizedImageUrls,
       is_featured: Boolean(is_featured),
       status: 'pending_payment',
       submitted_at: submittedAt,
@@ -144,7 +164,7 @@ export default async function handler(req, res) {
         phone,
         email: email || null,
         website: website || null,
-        image_url: image_url || null,
+        image_url: primaryImageUrl,
         is_featured: Boolean(is_featured),
         status: 'pending_payment',
         submitted_at: submittedAt,
@@ -167,7 +187,8 @@ export default async function handler(req, res) {
       email: email || null,
       phone,
       website: website || null,
-      image_url: image_url || null,
+      image_url: primaryImageUrl,
+      image_urls: normalizedImageUrls,
       is_active: false,
       display_order: 0,
       created_by_clerk_id: createdByClerkId,
@@ -190,7 +211,8 @@ export default async function handler(req, res) {
         phone,
         email,
         website,
-        image_url,
+        image_url: primaryImageUrl,
+        image_urls: normalizedImageUrls,
         contact_name,
         selectedPlan,
         submittedAt,

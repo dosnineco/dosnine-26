@@ -79,6 +79,9 @@ export default async function handler(req, res) {
           is_active: true,
           is_featured: Boolean(submission?.is_featured),
           expires_at: expiresAt.toISOString(),
+          ...(Array.isArray(submission?.image_urls) && submission.image_urls.length > 0
+            ? { image_urls: submission.image_urls.slice(0, 3), image_url: submission.image_urls[0] }
+            : (submission?.image_url ? { image_url: submission.image_url } : {})),
         };
 
         if (matchingAds?.[0]?.id) {

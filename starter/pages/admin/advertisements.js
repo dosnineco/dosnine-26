@@ -4,6 +4,61 @@ import { supabase } from '@/lib/supabase'
 import toast from 'react-hot-toast'
 import AdminLayout from '../../components/AdminLayout';
 
+const compressImageToWebP = (file, maxWidth = 1600, quality = 0.82) =>
+  new Promise((resolve, reject) => {
+    const image = new Image()
+    const objectUrl = URL.createObjectURL(file)
+
+    image.onload = () => {
+      const canvas = document.createElement('canvas')
+      const ratio = image.width > maxWidth ? maxWidth / image.width : 1
+      canvas.width = Math.round(image.width * ratio)
+      canvas.height = Math.round(image.height * ratio)
+
+      const context = canvas.getContext('2d')
+      if (!context) {
+        URL.revokeObjectURL(objectUrl)
+        reject(new Error('Unable to process image.'))
+        return
+      }
+
+      context.drawImage(image, 0, 0, canvas.width, canvas.height)
+      canvas.toBlob(
+        (blob) => {
+          URL.revokeObjectURL(objectUrl)
+          if (!blob) {
+            reject(new Error('Image compression failed.'))
+            return
+          }
+
+          const compressedFile = new File(
+            [blob],
+            `${(file.name || 'ad-image').replace(/\.[^.]+$/, '')}.webp`,
+            { type: 'image/webp' }
+          )
+          resolve(compressedFile)
+        },
+        'image/webp',
+        quality
+      )
+    }
+
+    image.onerror = () => {
+      URL.revokeObjectURL(objectUrl)
+      reject(new Error('Invalid image file.'))
+    }
+
+    image.src = objectUrl
+  })
+
+const normalizeImageUrls = (value) => {
+  if (!Array.isArray(value)) return []
+  return value
+    .map((url) => String(url || '').trim())
+    .filter(Boolean)
+    .slice(0, 3)
+}
+
 export default function AdminAdvertisements() {
   const { user } = useUser()
   const { getToken } = useAuth()
@@ -13,8 +68,8 @@ export default function AdminAdvertisements() {
   const [loading, setLoading] = useState(false)
   const [uploadingImage, setUploadingImage] = useState(false)
   const [editingAd, setEditingAd] = useState(null)
-  const [imageFile, setImageFile] = useState(null)
-  const [imagePreview, setImagePreview] = useState('')
+  const [imageFiles, setImageFiles] = useState([])
+  const [imagePreviews, setImagePreviews] = useState([])
   const [submissionFilter, setSubmissionFilter] = useState('all')
   const [submissionActionId, setSubmissionActionId] = useState(null)
 
@@ -73,9 +128,16 @@ export default function AdminAdvertisements() {
     phone: '',
     website: '',
     image_url: '',
+    image_urls: [],
     is_featured: false,
     is_active: true
   })
+
+  useEffect(() => {
+    return () => {
+      imagePreviews.forEach((url) => URL.revokeObjectURL(url))
+    }
+  }, [imagePreviews])
 
   useEffect(() => {
     loadAds()
@@ -123,24 +185,31 @@ export default function AdminAdvertisements() {
     setLoading(true)
 
     try {
-      let imageUrl = form.image_url
-      if (imageFile) {
+      let imageUrls = normalizeImageUrls(form.image_urls)
+
+      if (imageFiles.length > 0) {
         setUploadingImage(true)
-        const fileExt = (imageFile.name || 'jpg').split('.').pop()
-        const filePath = `ads/${Date.now()}-${Math.random().toString(36).slice(2, 9)}.${fileExt}`
+        for (const file of imageFiles) {
+          const compressedImage = await compressImageToWebP(file)
+          const filePath = `ads/${Date.now()}-${Math.random().toString(36).slice(2, 9)}.webp`
 
-        const { error: uploadError } = await supabase.storage
-          .from('property-images')
-          .upload(filePath, imageFile, {
-            cacheControl: '3600',
-            upsert: true,
-            contentType: imageFile.type,
-          })
+          const { error: uploadError } = await supabase.storage
+            .from('property-images')
+            .upload(filePath, compressedImage, {
+              cacheControl: '3600',
+              upsert: true,
+              contentType: 'image/webp',
+            })
 
-        if (uploadError) throw uploadError
-        const publicData = supabase.storage.from('property-images').getPublicUrl(filePath)
-        imageUrl = publicData?.data?.publicUrl || publicData?.data?.publicURL || form.image_url
+          if (uploadError) throw uploadError
+          const publicData = supabase.storage.from('property-images').getPublicUrl(filePath)
+          const publicUrl = publicData?.data?.publicUrl || publicData?.data?.publicURL || ''
+          if (publicUrl) imageUrls.push(publicUrl)
+        }
       }
+
+      imageUrls = normalizeImageUrls(imageUrls)
+      const imageUrl = imageUrls[0] || null
 
       const existingAd = await findExistingAdByCompanyEmail(form.company_name, form.email)
       if (existingAd) {
@@ -152,7 +221,8 @@ export default function AdminAdvertisements() {
         .from('advertisements')
         .insert([{
           ...form,
-          image_url: imageUrl || null,
+          image_url: imageUrl,
+          image_urls: imageUrls,
           created_by_clerk_id: user.id,
           created_at: new Date().toISOString()
         }])
@@ -181,29 +251,37 @@ export default function AdminAdvertisements() {
     setLoading(true)
 
     try {
-      let imageUrl = form.image_url
-      if (imageFile) {
-        setUploadingImage(true)
-        const fileExt = (imageFile.name || 'jpg').split('.').pop()
-        const filePath = `ads/${Date.now()}-${Math.random().toString(36).slice(2, 9)}.${fileExt}`
-        const { error: uploadError } = await supabase.storage
-          .from('property-images')
-          .upload(filePath, imageFile, {
-            cacheControl: '3600',
-            upsert: true,
-            contentType: imageFile.type,
-          })
-        if (uploadError) throw uploadError
+      let imageUrls = normalizeImageUrls(form.image_urls)
 
-        const publicData = supabase.storage.from('property-images').getPublicUrl(filePath)
-        imageUrl = publicData?.data?.publicUrl || publicData?.data?.publicURL || form.image_url
+      if (imageFiles.length > 0) {
+        setUploadingImage(true)
+        for (const file of imageFiles) {
+          const compressedImage = await compressImageToWebP(file)
+          const filePath = `ads/${Date.now()}-${Math.random().toString(36).slice(2, 9)}.webp`
+          const { error: uploadError } = await supabase.storage
+            .from('property-images')
+            .upload(filePath, compressedImage, {
+              cacheControl: '3600',
+              upsert: true,
+              contentType: 'image/webp',
+            })
+          if (uploadError) throw uploadError
+
+          const publicData = supabase.storage.from('property-images').getPublicUrl(filePath)
+          const publicUrl = publicData?.data?.publicUrl || publicData?.data?.publicURL || ''
+          if (publicUrl) imageUrls.push(publicUrl)
+        }
       }
+
+      imageUrls = normalizeImageUrls(imageUrls)
+      const imageUrl = imageUrls[0] || null
 
       const { error } = await supabase
         .from('advertisements')
         .update({
           ...form,
-          image_url: imageUrl || null,
+          image_url: imageUrl,
+          image_urls: imageUrls,
         })
         .eq('id', editingAd.id)
 
@@ -272,12 +350,17 @@ export default function AdminAdvertisements() {
       const existingAd = existingAdInState || existingAdInDb
 
       if (existingAd) {
+        const submissionImageUrls = normalizeImageUrls(submission?.image_urls)
+        const submissionPrimaryImage = submissionImageUrls[0] || submission?.image_url || null
+
         const { error: activationError } = await supabase
           .from('advertisements')
           .update({
             is_active: true,
             expires_at: getExpiryIso(submission),
             is_featured: Boolean(submission?.is_featured),
+            ...(submissionPrimaryImage ? { image_url: submissionPrimaryImage } : {}),
+            ...(submissionImageUrls.length > 0 ? { image_urls: submissionImageUrls } : {}),
           })
           .eq('id', existingAd.id)
 
@@ -303,7 +386,8 @@ export default function AdminAdvertisements() {
           email: submission.email,
           phone: submission.phone,
           website: submission.website,
-          image_url: submission.image_url,
+          image_url: normalizeImageUrls(submission?.image_urls)[0] || submission.image_url || null,
+          image_urls: normalizeImageUrls(submission?.image_urls),
           is_featured: submission.is_featured,
           is_active: true,
           expires_at: getExpiryIso(submission),
@@ -409,8 +493,13 @@ export default function AdminAdvertisements() {
 
   const startEdit = (ad) => {
     setEditingAd(ad)
-    setImageFile(null)
-    setImagePreview(ad.image_url || '')
+    setImageFiles([])
+    imagePreviews.forEach((url) => URL.revokeObjectURL(url))
+    setImagePreviews([])
+    const normalizedImageUrls = normalizeImageUrls(ad.image_urls)
+    const fallbackImageUrls = normalizedImageUrls.length > 0
+      ? normalizedImageUrls
+      : (ad.image_url ? [ad.image_url] : [])
     setForm({
       title: ad.title || '',
       company_name: ad.company_name,
@@ -419,7 +508,8 @@ export default function AdminAdvertisements() {
       email: ad.email,
       phone: ad.phone,
       website: ad.website || '',
-      image_url: ad.image_url || '',
+      image_url: fallbackImageUrls[0] || '',
+      image_urls: fallbackImageUrls,
       is_featured: ad.is_featured,
       is_active: ad.is_active
     })
@@ -427,8 +517,9 @@ export default function AdminAdvertisements() {
   }
 
   const resetForm = () => {
-    setImageFile(null)
-    setImagePreview('')
+    setImageFiles([])
+    imagePreviews.forEach((url) => URL.revokeObjectURL(url))
+    setImagePreviews([])
     setForm({
       title: '',
       company_name: '',
@@ -438,6 +529,7 @@ export default function AdminAdvertisements() {
       phone: '',
       website: '',
       image_url: '',
+      image_urls: [],
       is_featured: false,
       is_active: true
     })
@@ -558,38 +650,90 @@ export default function AdminAdvertisements() {
               />
 
               <input
-                placeholder="Image URL (optional)"
+                placeholder="Primary Image URL (optional)"
                 type="url"
                 className="w-full bg-gray-50 p-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-300"
                 value={form.image_url}
-                onChange={e => setForm({ ...form, image_url: e.target.value })}
+                onChange={e => {
+                  const nextPrimary = e.target.value
+                  const nextUrls = normalizeImageUrls([nextPrimary, ...(form.image_urls || []).filter((url, idx) => idx !== 0)])
+                  setForm({ ...form, image_url: nextPrimary, image_urls: nextUrls })
+                }}
               />
             </div>
 
+            <div className="grid md:grid-cols-3 gap-4 mb-4">
+              {[0, 1, 2].map((index) => (
+                <input
+                  key={`ad-image-url-${index}`}
+                  placeholder={`Image URL ${index + 1} (optional)`}
+                  type="url"
+                  className="w-full bg-gray-50 p-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-300"
+                  value={form.image_urls?.[index] || ''}
+                  onChange={e => {
+                    const nextUrls = [...(form.image_urls || [])]
+                    nextUrls[index] = e.target.value
+                    const cleanedUrls = normalizeImageUrls(nextUrls)
+                    setForm({
+                      ...form,
+                      image_urls: cleanedUrls,
+                      image_url: cleanedUrls[0] || '',
+                    })
+                  }}
+                />
+              ))}
+            </div>
+
             <div className="bg-gray-50 rounded-lg p-4 mb-4">
-              <label className="block text-sm font-semibold text-gray-800 mb-2">Upload Ad Image (optional)</label>
+              <label className="block text-sm font-semibold text-gray-800 mb-2">Upload Ad Images (optional, up to 3)</label>
               <input
                 type="file"
                 accept="image/png,image/jpeg,image/jpg,image/webp"
+                multiple
                 className="w-full bg-white p-3 rounded-lg"
                 onChange={e => {
-                  const file = e.target.files?.[0] || null
-                  if (!file) return
-                  if (file.size > 8 * 1024 * 1024) {
-                    toast.error('Image must be 8MB or less.')
+                  const existingCount = normalizeImageUrls(form.image_urls).length
+                  const availableSlots = Math.max(0, 3 - existingCount)
+                  const selectedFiles = Array.from(e.target.files || []).slice(0, availableSlots)
+                  if (selectedFiles.length === 0) {
+                    toast.error('Maximum of 3 images reached. Remove one URL to add another file.')
                     return
                   }
-                  setImageFile(file)
-                  setImagePreview(URL.createObjectURL(file))
+
+                  const oversized = selectedFiles.find((file) => file.size > 8 * 1024 * 1024)
+                  if (oversized) {
+                    toast.error('Each image must be 8MB or less.')
+                    return
+                  }
+
+                  imagePreviews.forEach((url) => URL.revokeObjectURL(url))
+                  setImageFiles(selectedFiles)
+                  setImagePreviews(selectedFiles.map((file) => URL.createObjectURL(file)))
+
+                  if ((e.target.files || []).length > availableSlots) {
+                    toast(`Only ${availableSlots} image${availableSlots === 1 ? '' : 's'} selected due to 3-image limit.`)
+                  }
                 }}
               />
-              {(imagePreview || form.image_url) && (
-                <div className="mt-3">
-                  <img
-                    src={imagePreview || form.image_url}
-                    alt="Ad preview"
-                    className="h-24 w-auto rounded-lg object-cover"
-                  />
+              <p className="text-xs text-gray-500 mt-2">Selected files are compressed to WebP before upload.</p>
+              {(normalizeImageUrls(form.image_urls).length > 0 || imagePreviews.length > 0) && (
+                <div className="mt-3 grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  {normalizeImageUrls(form.image_urls).map((url, idx) => (
+                    <img
+                      key={`existing-${url}-${idx}`}
+                      src={url}
+                      alt={`Ad image ${idx + 1}`}
+                      className="h-24 w-full rounded-lg object-cover"
+                    />
+                  ))}
+                  {imagePreviews.map((preview, idx) => (
+                    <img
+                      key={`new-${preview}-${idx}`}
+                      src={preview}
+                      alt={`New ad image ${idx + 1}`}
+                      className="h-24 w-full rounded-lg object-cover"
+                    />
+                  ))}
                 </div>
               )}
             </div>
