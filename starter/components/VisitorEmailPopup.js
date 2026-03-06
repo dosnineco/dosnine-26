@@ -3,6 +3,12 @@ import { useUser } from '@clerk/nextjs';
 import toast from 'react-hot-toast';
 import { X } from 'lucide-react';
 
+const formatBudgetInput = (value) => {
+  if (value === '' || value === null || value === undefined) return '';
+  const numeric = Number(String(value).replace(/,/g, ''));
+  return Number.isFinite(numeric) ? numeric.toLocaleString() : '';
+};
+
 export default function RequestAgentPopup() {
   const { isSignedIn, user } = useUser();
 
@@ -89,6 +95,16 @@ export default function RequestAgentPopup() {
   ------------------------------*/
   const handleInputChange = (e) => {
     const { name, value } = e.target;
+
+    if (name === 'budgetMin' || name === 'budgetMax') {
+      const rawDigits = String(value).replace(/,/g, '').replace(/[^0-9]/g, '');
+      setFormData(prev => ({
+        ...prev,
+        [name]: rawDigits
+      }));
+      return;
+    }
+
     setFormData(prev => ({
       ...prev,
       [name]: value
@@ -413,18 +429,20 @@ return (
 
             <input
               placeholder='Minimum Budget (JMD)'
-              type="number"
+              type="text"
+              inputMode="numeric"
               name="budgetMin"
-              value={formData.budgetMin}
+              value={formatBudgetInput(formData.budgetMin)}
               onChange={handleInputChange}
               className="input"
             />
 
             <input
               placeholder='Maximum Budget (JMD)'
-              type="number"
+              type="text"
+              inputMode="numeric"
               name="budgetMax"
-              value={formData.budgetMax}
+              value={formatBudgetInput(formData.budgetMax)}
               onChange={handleInputChange}
               className="input"
             />

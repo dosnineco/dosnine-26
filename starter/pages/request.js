@@ -4,6 +4,22 @@ import { useRouter } from 'next/router';
 import Head from 'next/head';
 import toast from 'react-hot-toast';
 
+const BUDGET_RANGES = {
+  rent: { min: 70000, max: 10000000, step: 10000 },
+  buy: { min: 7000000, max: 200000000, step: 100000 },
+  sell: { min: 500000, max: 300000000, step: 100000 },
+  lease: { min: 70000, max: 10000000, step: 10000 },
+  valuation: { min: 500000, max: 300000000, step: 100000 },
+  default: { min: 70000, max: 100000000, step: 10000 }
+};
+
+const formatJmd = (value) => `J$${Number(value || 0).toLocaleString()}`;
+const formatBudgetInput = (value) => {
+  if (value === '' || value === null || value === undefined) return '';
+  const numeric = Number(String(value).replace(/,/g, ''));
+  return Number.isFinite(numeric) ? numeric.toLocaleString() : '';
+};
+
 export default function RequestAgentPage() {
   const { isSignedIn, user } = useUser();
   const router = useRouter();
@@ -26,6 +42,9 @@ export default function RequestAgentPage() {
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
+  const getBudgetRange = (requestType) => BUDGET_RANGES[requestType] || BUDGET_RANGES.default;
+  const budgetRange = getBudgetRange(formData.requestType);
+
   /* -----------------------------
      Auto-fill email, phone, and name from user data
   ------------------------------*/
@@ -40,6 +59,28 @@ export default function RequestAgentPage() {
     }
   }, [isSignedIn, user]);
 
+  // Keep budget values inside the selected request-type range.
+  useEffect(() => {
+    setFormData((prev) => {
+      const range = getBudgetRange(prev.requestType);
+      const minValue = Number(prev.budgetMin || 0);
+      const maxValue = Number(prev.budgetMax || 0);
+
+      const safeMin = minValue
+        ? Math.min(Math.max(minValue, range.min), range.max)
+        : '';
+      const safeMax = maxValue
+        ? Math.min(Math.max(maxValue, safeMin), range.max)
+        : '';
+
+      return {
+        ...prev,
+        budgetMin: safeMin === '' ? '' : String(safeMin),
+        budgetMax: safeMax === '' ? '' : String(safeMax)
+      };
+    });
+  }, [formData.requestType]);
+
   /* -----------------------------
      Submit handler
   ------------------------------*/
@@ -50,15 +91,27 @@ export default function RequestAgentPage() {
       return;
     }
 
-    // Prevent low-quality rental leads below JMD 70,000
-    if (formData.requestType === 'rent' && formData.budgetMin && parseInt(formData.budgetMin) < 70000) {
-      toast.error('⚠️ Minimum rental budget is JMD 70,000\n\nTo maintain quality service, we focus on rentals above this threshold.');
+    const selectedRange = getBudgetRange(formData.requestType);
+    const budgetMin = parseInt(formData.budgetMin, 10);
+    const budgetMax = parseInt(formData.budgetMax, 10);
+
+    if (!budgetMin) {
+      toast.error('Please set a minimum budget before submitting.');
       return;
     }
 
-    // Prevent low-quality buy leads below JMD 4,000,000
-    if (formData.requestType === 'buy' && formData.budgetMin && parseInt(formData.budgetMin) < 4000000) {
-      toast.error('⚠️ Minimum buy budget is JMD 4,000,000\n\nTo maintain quality service, we focus on properties above this threshold.');
+    if (budgetMin < selectedRange.min) {
+      toast.error(`Minimum ${formData.requestType || 'request'} budget is ${formatJmd(selectedRange.min)}.`);
+      return;
+    }
+
+    if (!budgetMax) {
+      toast.error('Please set a maximum budget before submitting.');
+      return;
+    }
+
+    if (budgetMax < budgetMin) {
+      toast.error('Budget max must be greater than or equal to budget min.');
       return;
     }
 
@@ -106,10 +159,87 @@ export default function RequestAgentPage() {
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
+    if (name === 'budgetMin' || name === 'budgetMax') {
+      const range = getBudgetRange(formData.requestType);
+      const rawDigits = String(value).replace(/,/g, '').replace(/[^0-9]/g, '');
+
+      if (rawDigits === '') {
+        setFormData(prev => ({
+          ...prev,
+          [name]: ''
+        }));
+        return;
+      }
+
+      let numericValue = Number(rawDigits);
+      if (!Number.isFinite(numericValue)) {
+        return;
+      }
+
+      if (name === 'budgetMin' && numericValue < range.min) {
+        toast.error('No properties are available below that amount.');
+        numericValue = range.min;
+      }
+
+      if (name === 'budgetMin') {
+        numericValue = Math.min(numericValue, range.max);
+      }
+
+      if (name === 'budgetMax') {
+        numericValue = Math.min(Math.max(numericValue, 0), range.max);
+
+        const currentMin = Number(formData.budgetMin || 0);
+        if (currentMin && numericValue < currentMin) {
+          toast.error('Budget max cannot be smaller than minimum budget.');
+          numericValue = currentMin;
+        }
+      }
+
+      setFormData(prev => {
+        const next = {
+          ...prev,
+          [name]: String(numericValue)
+        };
+
+        if (name === 'budgetMin' && next.budgetMax && Number(next.budgetMax) < numericValue) {
+          next.budgetMax = String(numericValue);
+        }
+
+        return next;
+      });
+      return;
+    }
+
     setFormData(prev => ({
       ...prev,
       [name]: value
     }));
+  };
+
+  const handleBudgetSlider = (name, value) => {
+    let numericValue = Number(value);
+    const range = getBudgetRange(formData.requestType);
+
+    if (name === 'budgetMin' && numericValue < range.min) {
+      toast.error('No properties are available below that amount.');
+      return;
+    }
+
+    setFormData((prev) => {
+      const next = { ...prev, [name]: String(numericValue) };
+
+      if (name === 'budgetMin' && Number(next.budgetMax || 0) < numericValue) {
+        next.budgetMax = String(numericValue);
+      }
+
+      if (name === 'budgetMax' && Number(next.budgetMin || 0) > numericValue) {
+        toast.error('Budget max cannot be smaller than minimum budget.');
+        numericValue = Number(next.budgetMin || 0);
+        next.budgetMax = String(numericValue);
+      }
+
+      return next;
+    });
   };
 
   const nextStep = () => {
@@ -386,22 +516,63 @@ export default function RequestAgentPage() {
 
               <div className="grid md:grid-cols-2 gap-6">
                 <input
-                  type="number"
+                  type="text"
+                  inputMode="numeric"
                   name="budgetMin"
-                  value={formData.budgetMin}
+                  value={formatBudgetInput(formData.budgetMin)}
                   onChange={handleInputChange}
                   placeholder="Budget Min (JMD)"
                   className="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-accent focus:border-accent outline-none"
                 />
 
                 <input
-                  type="number"
+                  type="text"
+                  inputMode="numeric"
                   name="budgetMax"
-                  value={formData.budgetMax}
+                  value={formatBudgetInput(formData.budgetMax)}
                   onChange={handleInputChange}
                   placeholder="Budget Max (JMD)"
                   className="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-accent focus:border-accent outline-none"
                 />
+              </div>
+
+              <div className="bg-gray-50 rounded-lg p-5 space-y-5">
+                <div className="flex flex-wrap justify-between gap-2 text-sm text-gray-700">
+                  <span>Use sliders to set budget quickly</span>
+                  <span className="font-medium">
+                    Range: {formatJmd(budgetRange.min)} - {formatJmd(budgetRange.max)}
+                  </span>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Minimum Budget: {formData.budgetMin ? formatJmd(formData.budgetMin) : 'Not set'}
+                  </label>
+                  <input
+                    type="range"
+                    min={budgetRange.min}
+                    max={budgetRange.max}
+                    step={budgetRange.step}
+                    value={Math.min(Math.max(Number(formData.budgetMin || budgetRange.min), budgetRange.min), budgetRange.max)}
+                    onChange={(e) => handleBudgetSlider('budgetMin', e.target.value)}
+                    className="w-full budget-slider"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Maximum Budget: {formData.budgetMax ? formatJmd(formData.budgetMax) : 'Not set'}
+                  </label>
+                  <input
+                    type="range"
+                    min={budgetRange.min}
+                    max={budgetRange.max}
+                    step={budgetRange.step}
+                    value={Math.min(Math.max(Number(formData.budgetMax || formData.budgetMin || budgetRange.min), budgetRange.min), budgetRange.max)}
+                    onChange={(e) => handleBudgetSlider('budgetMax', e.target.value)}
+                    className="w-full budget-slider"
+                  />
+                </div>
               </div>
 
               <textarea
@@ -440,6 +611,51 @@ export default function RequestAgentPage() {
         </form>
       </div>
     </div>
+
+    <style jsx global>{`
+      .budget-slider {
+        -webkit-appearance: none;
+        appearance: none;
+        height: 12px;
+        border-radius: 9999px;
+        background: #e5e7eb;
+        outline: none;
+      }
+
+      .budget-slider::-webkit-slider-runnable-track {
+        height: 12px;
+        border-radius: 9999px;
+        background: linear-gradient(90deg, var(--accent-color) 0%, var(--accent-color-hover) 100%);
+      }
+
+      .budget-slider::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 24px;
+        height: 24px;
+        border-radius: 9999px;
+        background: var(--accent-color);
+        border: 3px solid #ffffff;
+        margin-top: -6px;
+        cursor: pointer;
+      }
+
+      .budget-slider::-moz-range-track {
+        height: 12px;
+        border: 0;
+        border-radius: 9999px;
+        background: linear-gradient(90deg, var(--accent-color) 0%, var(--accent-color-hover) 100%);
+      }
+
+      .budget-slider::-moz-range-thumb {
+        width: 24px;
+        height: 24px;
+        border-radius: 9999px;
+        background: var(--accent-color);
+        border: 3px solid #ffffff;
+        cursor: pointer;
+      }
+    `}</style>
   </>
 );
 
