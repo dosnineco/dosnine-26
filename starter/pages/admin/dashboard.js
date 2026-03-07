@@ -57,15 +57,20 @@ export default function AdminDashboard() {
 
   const exportEmailsCSV = () => {
     if (visitorEmails.length === 0) {
-      toast.error('No emails to export');
+      toast.error('No submissions to export');
       return;
     }
 
-    const headers = ['Email', 'Phone', 'Source', 'Date'];
+    const headers = ['Name', 'Email', 'Phone', 'Request Type', 'Property Type', 'Location', 'Status', 'Urgency', 'Date'];
     const rows = visitorEmails.map(item => [
-      item.email,
-      item.phone || '',
-      item.referrer ? new URL(item.referrer).hostname : 'Direct',
+      item.client_name || '',
+      item.client_email || '',
+      item.client_phone || '',
+      item.request_type || '',
+      item.property_type || '',
+      item.location || '',
+      item.status || '',
+      item.urgency || '',
       new Date(item.created_at).toLocaleDateString(),
     ]);
 
@@ -77,12 +82,12 @@ export default function AdminDashboard() {
     const link = document.createElement('a');
     const url = URL.createObjectURL(blob);
     link.setAttribute('href', url);
-    link.setAttribute('download', `visitor-emails-${new Date().toISOString().split('T')[0]}.csv`);
+    link.setAttribute('download', `service-requests-${new Date().toISOString().split('T')[0]}.csv`);
     link.style.visibility = 'hidden';
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    toast.success('Emails exported successfully!');
+    toast.success('Submissions exported successfully!');
   };
 
 
@@ -179,8 +184,8 @@ export default function AdminDashboard() {
         <div>
           <div className="flex justify-between items-center mb-6">
             <div>
-              <h2 className="text-2xl font-bold text-gray-900">Visitor Emails</h2>
-              <p className="text-gray-600 text-sm mt-1">Total captured: {visitorEmails.length}</p>
+              <h2 className="text-2xl font-bold text-gray-900">Submitted Visitors</h2>
+              <p className="text-gray-600 text-sm mt-1">Total submissions: {visitorEmails.length}</p>
             </div>
             <button
               onClick={exportEmailsCSV}
@@ -194,7 +199,7 @@ export default function AdminDashboard() {
 
           {visitorEmails.length === 0 ? (
             <div className="text-center py-8 bg-white rounded-lg border border-gray-200">
-              <p className="text-gray-600">No visitor emails captured yet. The popup captures emails from new visitors.</p>
+              <p className="text-gray-600">No visitor submissions yet.</p>
             </div>
           ) : (
             <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
@@ -202,20 +207,28 @@ export default function AdminDashboard() {
                 <table className="w-full text-sm">
                   <thead className="bg-gray-100 border-b border-gray-200">
                     <tr>
+                      <th className="px-4 py-3 text-left font-semibold text-gray-700">Name</th>
                       <th className="px-4 py-3 text-left font-semibold text-gray-700">Email</th>
                       <th className="px-4 py-3 text-left font-semibold text-gray-700">Phone</th>
-                      <th className="px-4 py-3 text-left font-semibold text-gray-700">Source</th>
+                      <th className="px-4 py-3 text-left font-semibold text-gray-700">Request</th>
+                      <th className="px-4 py-3 text-left font-semibold text-gray-700">Property</th>
+                      <th className="px-4 py-3 text-left font-semibold text-gray-700">Location</th>
+                      <th className="px-4 py-3 text-left font-semibold text-gray-700">Status</th>
+                      <th className="px-4 py-3 text-left font-semibold text-gray-700">Urgency</th>
                       <th className="px-4 py-3 text-left font-semibold text-gray-700">Date</th>
                     </tr>
                   </thead>
                   <tbody>
                     {visitorEmails.map((item, idx) => (
                       <tr key={idx} className="border-b border-gray-100 hover:bg-gray-50 transition">
-                        <td className="px-4 py-3 text-gray-900 font-medium truncate">{item.email}</td>
-                        <td className="px-4 py-3 text-gray-600 text-sm">{item.phone || '—'}</td>
-                        <td className="px-4 py-3 text-gray-600 text-xs truncate">
-                          {item.referrer ? new URL(item.referrer).hostname : 'Direct'}
-                        </td>
+                        <td className="px-4 py-3 text-gray-900 font-medium truncate">{item.client_name || '—'}</td>
+                        <td className="px-4 py-3 text-gray-900 font-medium truncate">{item.client_email || '—'}</td>
+                        <td className="px-4 py-3 text-gray-600 text-sm">{item.client_phone || '—'}</td>
+                        <td className="px-4 py-3 text-gray-600 text-xs uppercase">{item.request_type || '—'}</td>
+                        <td className="px-4 py-3 text-gray-600 text-xs capitalize">{item.property_type || '—'}</td>
+                        <td className="px-4 py-3 text-gray-600 text-xs truncate">{item.location || '—'}</td>
+                        <td className="px-4 py-3 text-gray-600 text-xs">{item.status || '—'}</td>
+                        <td className="px-4 py-3 text-gray-600 text-xs capitalize">{item.urgency || '—'}</td>
                         <td className="px-4 py-3 text-gray-600 text-xs">
                           {new Date(item.created_at).toLocaleDateString()}
                         </td>

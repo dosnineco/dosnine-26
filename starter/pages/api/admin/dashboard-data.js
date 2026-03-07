@@ -28,10 +28,10 @@ export default async function handler(req, res) {
     }
 
     const { data, error } = await db
-      .from('visitor_emails')
-      .select('*')
+      .from('service_requests')
+      .select('id, client_name, client_email, client_phone, request_type, property_type, location, status, urgency, created_at')
       .order('created_at', { ascending: false })
-      .limit(1000);
+      .limit(5000);
 
     if (error) throw error;
 
