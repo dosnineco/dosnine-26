@@ -3,6 +3,17 @@ import { useUser } from '@clerk/nextjs';
 import toast from 'react-hot-toast';
 import { X } from 'lucide-react';
 
+const BUDGET_RANGES = {
+  rent: { min: 70000, max: 4000000, step: 10000 },
+  buy: { min: 7000000, max: 200000000, step: 100000 },
+  sell: { min: 500000, max: 300000000, step: 100000 },
+  lease: { min: 70000, max: 10000000, step: 10000 },
+  valuation: { min: 500000, max: 300000000, step: 100000 },
+  default: { min: 70000, max: 100000000, step: 10000 }
+};
+
+const formatJmd = (value) => `J$${Number(value || 0).toLocaleString()}`;
+
 const formatBudgetInput = (value) => {
   if (value === '' || value === null || value === undefined) return '';
   const numeric = Number(String(value).replace(/,/g, ''));
@@ -32,6 +43,9 @@ export default function RequestAgentPopup() {
   description: '',
   urgency: 'normal'
 });
+
+  const getBudgetRange = (requestType) => BUDGET_RANGES[requestType] || BUDGET_RANGES.default;
+  const budgetRange = getBudgetRange(formData.requestType);
 
 
   /* -----------------------------
@@ -81,6 +95,28 @@ export default function RequestAgentPopup() {
     }
   }, [isSignedIn, user]);
 
+  // Keep budget values inside the selected request-type range.
+  useEffect(() => {
+    setFormData((prev) => {
+      const range = getBudgetRange(prev.requestType);
+      const minValue = Number(prev.budgetMin || 0);
+      const maxValue = Number(prev.budgetMax || 0);
+
+      const safeMin = minValue
+        ? Math.min(Math.max(minValue, range.min), range.max)
+        : '';
+      const safeMax = maxValue
+        ? Math.min(Math.max(maxValue, safeMin), range.max)
+        : '';
+
+      return {
+        ...prev,
+        budgetMin: safeMin === '' ? '' : String(safeMin),
+        budgetMax: safeMax === '' ? '' : String(safeMax)
+      };
+    });
+  }, [formData.requestType]);
+
   /* -----------------------------
      Dismiss (10 min cooldown)
   ------------------------------*/
@@ -97,11 +133,53 @@ export default function RequestAgentPopup() {
     const { name, value } = e.target;
 
     if (name === 'budgetMin' || name === 'budgetMax') {
+      const range = getBudgetRange(formData.requestType);
       const rawDigits = String(value).replace(/,/g, '').replace(/[^0-9]/g, '');
-      setFormData(prev => ({
-        ...prev,
-        [name]: rawDigits
-      }));
+
+      if (rawDigits === '') {
+        setFormData(prev => ({
+          ...prev,
+          [name]: ''
+        }));
+        return;
+      }
+
+      let numericValue = Number(rawDigits);
+      if (!Number.isFinite(numericValue)) {
+        return;
+      }
+
+      if (numericValue < 70000) {
+        toast.error('Minimum budget is J$70,000.');
+        numericValue = range.min;
+      }
+
+      if (name === 'budgetMin') {
+        numericValue = Math.min(numericValue, range.max);
+      }
+
+      if (name === 'budgetMax') {
+        numericValue = Math.min(Math.max(numericValue, 0), range.max);
+
+        const currentMin = Number(formData.budgetMin || 0);
+        if (currentMin && numericValue < currentMin) {
+          toast.error('Budget max cannot be smaller than minimum budget.');
+          numericValue = currentMin;
+        }
+      }
+
+      setFormData(prev => {
+        const next = {
+          ...prev,
+          [name]: String(numericValue)
+        };
+
+        if (name === 'budgetMin' && next.budgetMax && Number(next.budgetMax) < numericValue) {
+          next.budgetMax = String(numericValue);
+        }
+
+        return next;
+      });
       return;
     }
 
@@ -109,6 +187,34 @@ export default function RequestAgentPopup() {
       ...prev,
       [name]: value
     }));
+  };
+
+  const handleBudgetSlider = (name, value) => {
+    let numericValue = Number(value);
+    const range = getBudgetRange(formData.requestType);
+
+    if (!Number.isFinite(numericValue)) {
+      return;
+    }
+
+    if (name === 'budgetMin' && numericValue < range.min) {
+      numericValue = range.min;
+    }
+
+    setFormData((prev) => {
+      const next = { ...prev, [name]: String(numericValue) };
+
+      if (name === 'budgetMin' && Number(next.budgetMax || 0) < numericValue) {
+        next.budgetMax = String(numericValue);
+      }
+
+      if (name === 'budgetMax' && Number(next.budgetMin || 0) > numericValue) {
+        numericValue = Number(next.budgetMin || range.min);
+        next.budgetMax = String(numericValue);
+      }
+
+      return next;
+    });
   };
 
   /* -----------------------------
@@ -143,13 +249,27 @@ if (!formData.name || !formData.email || !formData.phone ||
       return;
     }
 
-    if (formData.requestType === 'rent' && formData.budgetMin && parseInt(formData.budgetMin) < 70000) {
-      toast.error('Minimum rental budget is JMD 70,000');
+    const selectedRange = getBudgetRange(formData.requestType);
+    const budgetMin = parseInt(formData.budgetMin, 10);
+    const budgetMax = parseInt(formData.budgetMax, 10);
+
+    if (!budgetMin) {
+      toast.error('Please set a minimum budget before submitting.');
       return;
     }
 
-    if (formData.requestType === 'buy' && formData.budgetMin && parseInt(formData.budgetMin) < 4000000) {
-      toast.error('Minimum buy budget is JMD 4,000,000');
+    if (budgetMin < selectedRange.min) {
+      toast.error(`Minimum ${formData.requestType || 'request'} budget is ${formatJmd(selectedRange.min)}.`);
+      return;
+    }
+
+    if (!budgetMax) {
+      toast.error('Please set a maximum budget before submitting.');
+      return;
+    }
+
+    if (budgetMax < budgetMin) {
+      toast.error('Budget max must be greater than or equal to budget min.');
       return;
     }
 
@@ -447,6 +567,45 @@ return (
               className="input"
             />
 
+            <div className="bg-gray-50 rounded-lg p-5 space-y-5">
+              <div className="flex flex-wrap justify-between gap-2 text-sm text-gray-700">
+                <span>Use sliders to set budget quickly</span>
+                <span className="font-medium">
+                  Range: {formatJmd(budgetRange.min)} - {formatJmd(budgetRange.max)}
+                </span>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Minimum Budget: {formData.budgetMin ? formatJmd(formData.budgetMin) : 'Not set'}
+                </label>
+                <input
+                  type="range"
+                  min={budgetRange.min}
+                  max={budgetRange.max}
+                  step={budgetRange.step}
+                  value={Math.min(Math.max(Number(formData.budgetMin || budgetRange.min), budgetRange.min), budgetRange.max)}
+                  onChange={(e) => handleBudgetSlider('budgetMin', e.target.value)}
+                  className="w-full budget-slider"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Maximum Budget: {formData.budgetMax ? formatJmd(formData.budgetMax) : 'Not set'}
+                </label>
+                <input
+                  type="range"
+                  min={budgetRange.min}
+                  max={budgetRange.max}
+                  step={budgetRange.step}
+                  value={Math.min(Math.max(Number(formData.budgetMax || formData.budgetMin || budgetRange.min), budgetRange.min), budgetRange.max)}
+                  onChange={(e) => handleBudgetSlider('budgetMax', e.target.value)}
+                  className="w-full budget-slider"
+                />
+              </div>
+            </div>
+
             <textarea
               name="description"
               value={formData.description}
@@ -472,6 +631,51 @@ return (
 
       </form>
     </div>
+
+    <style jsx global>{`
+      .budget-slider {
+        -webkit-appearance: none;
+        appearance: none;
+        height: 12px;
+        border-radius: 9999px;
+        background: #e5e7eb;
+        outline: none;
+      }
+
+      .budget-slider::-webkit-slider-runnable-track {
+        height: 12px;
+        border-radius: 9999px;
+        background: linear-gradient(90deg, var(--accent-color) 0%, var(--accent-color-hover) 100%);
+      }
+
+      .budget-slider::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 24px;
+        height: 24px;
+        border-radius: 9999px;
+        background: var(--accent-color);
+        border: 3px solid #ffffff;
+        margin-top: -6px;
+        cursor: pointer;
+      }
+
+      .budget-slider::-moz-range-track {
+        height: 12px;
+        border: 0;
+        border-radius: 9999px;
+        background: linear-gradient(90deg, var(--accent-color) 0%, var(--accent-color-hover) 100%);
+      }
+
+      .budget-slider::-moz-range-thumb {
+        width: 24px;
+        height: 24px;
+        border-radius: 9999px;
+        background: var(--accent-color);
+        border: 3px solid #ffffff;
+        cursor: pointer;
+      }
+    `}</style>
   </div>
 );
 

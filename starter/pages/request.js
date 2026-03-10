@@ -5,7 +5,7 @@ import Head from 'next/head';
 import toast from 'react-hot-toast';
 
 const BUDGET_RANGES = {
-  rent: { min: 70000, max: 10000000, step: 10000 },
+  rent: { min: 70000, max: 4000000, step: 10000 },
   buy: { min: 7000000, max: 200000000, step: 100000 },
   sell: { min: 500000, max: 300000000, step: 100000 },
   lease: { min: 70000, max: 10000000, step: 10000 },
