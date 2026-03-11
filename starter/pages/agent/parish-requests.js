@@ -325,9 +325,9 @@ const getTitle = (r) => {
                     className="w-full bg-gray-500 hover:bg-accent text-white font-bold py-3 px-4 rounded-xl transition-all duration-200 flex items-center justify-between group-hover:shadow-lg transform group-hover:-translate-y-0.5"
                   >
                     <span>Request Lead</span>
-                    <span className="bg-white/20 px-2 py-0.5 rounded text-sm">
+                    {/* <span className="bg-white/20 px-2 py-0.5 rounded text-sm">
                       J${getRequestPrice(r).toLocaleString()}
-                    </span>
+                    </span> */}
                   </button>
                 </div>
               </div>
