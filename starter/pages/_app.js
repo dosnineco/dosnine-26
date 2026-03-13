@@ -81,7 +81,7 @@ const syncUserWithRetry = async (maxRetries = 3) => {
         throw new Error(payload?.error || 'Failed to sync user profile');
       }
 
-      return true; // Success
+      return await response.json(); // Return profile data
     } catch (err) {
       console.error(`Sync attempt ${attempt}/${maxRetries} failed:`, err);
 
@@ -125,6 +125,13 @@ function AppContent({ Component, pageProps }) {
   // Initialize analytics tracking on all pages
   useAnalyticsTracking();
 
+  // Save intended destination so we can redirect back after sign-in
+  useEffect(() => {
+    if (isClerkLoaded && !isSignedIn && !isCurrentPagePublic) {
+      setRedirectPath(router.asPath);
+    }
+  }, [isClerkLoaded, isSignedIn, isCurrentPagePublic, router.asPath]);
+
   // Initialize Microsoft Clarity
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -155,9 +162,17 @@ function AppContent({ Component, pageProps }) {
       setSyncError(null);
 
       try {
-        await syncUserWithRetry();
+        const profile = await syncUserWithRetry();
         setIsSynced(true);
         setSyncError(null);
+
+        // Immediately redirect verified agents to the agent dashboard
+        const agent = Array.isArray(profile?.agent) ? profile.agent[0] : profile?.agent;
+        const isVerifiedAgent = agent?.verification_status === 'approved';
+        if (isVerifiedAgent && !router.pathname.startsWith('/agent')) {
+          router.replace('/agent/dashboard');
+          return;
+        }
       } catch (err) {
         console.error('Failed to sync user to Supabase:', err);
         setSyncError(err.message || 'Failed to sync user data');

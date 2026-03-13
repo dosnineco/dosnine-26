@@ -30,10 +30,11 @@ export function isAdmin(userData) {
  * Check if user is a verified agent
  */
 export function isVerifiedAgent(userData) {
-  const isVerified = userData?.agent?.verification_status === AGENT_STATUS.APPROVED;
+  const verificationStatus = String(userData?.agent?.verification_status || '').trim().toLowerCase();
+  const isVerified = verificationStatus === AGENT_STATUS.APPROVED;
   console.log('isVerifiedAgent check:', {
     hasAgent: !!userData?.agent,
-    verificationStatus: userData?.agent?.verification_status,
+    verificationStatus,
     expectedStatus: AGENT_STATUS.APPROVED,
     result: isVerified
   });

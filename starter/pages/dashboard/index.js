@@ -34,6 +34,11 @@ export default function Dashboard() {
   const [paidAgentLoading, setPaidAgentLoading] = useState(true);
   const [shouldLoadData, setShouldLoadData] = useState(false);
 
+  const isApprovedAgent = (agent) => {
+    const status = String(agent?.verification_status || '').trim().toLowerCase();
+    return status === 'approved';
+  };
+
   const formatDate = (value) => {
     if (!value) return 'Not available';
     const date = new Date(value);
@@ -123,13 +128,11 @@ export default function Dashboard() {
 
       if (agent) {
         
-        // Handle agent redirects based on status
-        const validPlans = ['free', '7-day', '30-day', '90-day'];
-        const isApproved = agent?.verification_status === 'approved';
-        const hasValidPlan = validPlans.includes(agent?.payment_status);
+        // Redirect verified agents to agent dashboard
+        const isApproved = isApprovedAgent(agent);
         
-        if (isApproved && hasValidPlan) {
-          // Redirect approved agents with valid plans to agent dashboard immediately
+        if (isApproved) {
+          // Verified agents should not stay on the regular user dashboard
           router.replace('/agent/dashboard');
           return;
         }
