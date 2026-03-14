@@ -309,7 +309,9 @@ if (!formData.name || !formData.email || !formData.phone ||
       }
 
       localStorage.setItem('visitor-lead-submitted', 'true');
-      toast.success('Request submitted successfully!');
+      toast.success('Request submitted successfully! A submission email was sent with your details.', {
+        duration: 5000,
+      });
       setSubmitted(true);
       setShowPopup(false);
 

@@ -12,6 +12,135 @@ import {
   sanitizeString,
 } from '@/lib/apiSecurity';
 import { assignRequestRoundRobin } from '@/lib/serviceRequestAllocation';
+import * as SibApiV3Sdk from '@getbrevo/brevo';
+
+const SERVICE_FEE_USD = 4;
+const SERVICE_FEE_LINK = 'https://www.paypal.com/ncp/payment/6FWCSVTZDVG6Q';
+
+const formatMoneyJmd = (value) => {
+  const numeric = Number(value || 0);
+  if (!Number.isFinite(numeric) || numeric <= 0) return 'Not provided';
+  return `J$${numeric.toLocaleString()}`;
+};
+
+const titleCase = (value) => {
+  const text = String(value || '').trim();
+  if (!text) return 'Not provided';
+  return text.charAt(0).toUpperCase() + text.slice(1);
+};
+
+const shouldSendServiceFeeEmail = (requestType) => {
+  const normalized = String(requestType || '').toLowerCase();
+  return normalized === 'rent' || normalized === 'buy';
+};
+
+const sendServiceFeeConfirmationEmail = async ({
+  clientName,
+  clientEmail,
+  clientPhone,
+  requestType,
+  propertyType,
+  parish,
+  location,
+  budgetMin,
+  budgetMax,
+  bedrooms,
+  bathrooms,
+  urgency,
+  description,
+}) => {
+  const apiKey = process.env.BREVO_API_KEY;
+  if (!apiKey) {
+    console.warn('BREVO_API_KEY not configured; skipping service fee confirmation email');
+    return;
+  }
+
+  const apiInstance = new SibApiV3Sdk.TransactionalEmailsApi();
+  apiInstance.setApiKey(SibApiV3Sdk.TransactionalEmailsApiApiKeys.apiKey, apiKey);
+
+  const requestTypeLabel = titleCase(requestType);
+  const propertyTypeLabel = titleCase(propertyType);
+  const urgencyLabel = titleCase(urgency || 'normal');
+  const safeDescription = description || 'None provided';
+
+  const htmlContent = `
+    <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #111827;">
+      <h2 style="margin: 0 0 12px;">Your Dosnine Service Request Was Received</h2>
+      <p>Hi ${clientName},</p>
+      <p>
+        Thanks for submitting your ${requestTypeLabel.toLowerCase()} request on Dosnine.
+        Please complete the <strong>service fee payment of $${SERVICE_FEE_USD}.00 USD</strong> to activate processing.
+      </p>
+      <p>
+        <a href="${SERVICE_FEE_LINK}" style="display: inline-block; background: #0070ba; color: #ffffff; text-decoration: none; padding: 10px 16px; border-radius: 6px; font-weight: 600;">
+          Pay Service Fee
+        </a>
+      </p>
+      <p>If the button does not open, use this link:</p>
+      <p><a href="${SERVICE_FEE_LINK}">${SERVICE_FEE_LINK}</a></p>
+
+      <h3 style="margin-top: 24px;">Submitted Request Details</h3>
+      <ul style="padding-left: 18px; margin: 8px 0;">
+        <li><strong>Name:</strong> ${clientName}</li>
+        <li><strong>Email:</strong> ${clientEmail}</li>
+        <li><strong>Phone:</strong> ${clientPhone}</li>
+        <li><strong>Request Type:</strong> ${requestTypeLabel}</li>
+        <li><strong>Property Type:</strong> ${propertyTypeLabel}</li>
+        <li><strong>Parish:</strong> ${parish || 'Not provided'}</li>
+        <li><strong>Location:</strong> ${location}</li>
+        <li><strong>Budget Min:</strong> ${formatMoneyJmd(budgetMin)}</li>
+        <li><strong>Budget Max:</strong> ${formatMoneyJmd(budgetMax)}</li>
+        <li><strong>Bedrooms:</strong> ${bedrooms || 'Not provided'}</li>
+        <li><strong>Bathrooms:</strong> ${bathrooms || 'Not provided'}</li>
+        <li><strong>Urgency:</strong> ${urgencyLabel}</li>
+        <li><strong>Description:</strong> ${safeDescription}</li>
+      </ul>
+
+      <p style="margin-top: 20px;">After payment, our team will proceed with your request and follow up.</p>
+      <p>Dosnine Team</p>
+    </div>
+  `;
+
+  const textContent = [
+    'Your Dosnine service request was received.',
+    '',
+    `Hi ${clientName},`,
+    '',
+    `Thanks for submitting your ${requestTypeLabel.toLowerCase()} request on Dosnine.`,
+    `Please complete the service fee payment of $${SERVICE_FEE_USD}.00 USD to activate processing:`,
+    SERVICE_FEE_LINK,
+    '',
+    'Submitted request details:',
+    `- Name: ${clientName}`,
+    `- Email: ${clientEmail}`,
+    `- Phone: ${clientPhone}`,
+    `- Request Type: ${requestTypeLabel}`,
+    `- Property Type: ${propertyTypeLabel}`,
+    `- Parish: ${parish || 'Not provided'}`,
+    `- Location: ${location}`,
+    `- Budget Min: ${formatMoneyJmd(budgetMin)}`,
+    `- Budget Max: ${formatMoneyJmd(budgetMax)}`,
+    `- Bedrooms: ${bedrooms || 'Not provided'}`,
+    `- Bathrooms: ${bathrooms || 'Not provided'}`,
+    `- Urgency: ${urgencyLabel}`,
+    `- Description: ${safeDescription}`,
+    '',
+    'After payment, our team will proceed with your request and follow up.',
+    'Dosnine Team',
+  ].join('\n');
+
+  const emailPayload = new SibApiV3Sdk.SendSmtpEmail();
+  emailPayload.subject = `Dosnine ${requestTypeLabel} Request Confirmation - Pay Service Fee`;
+  emailPayload.htmlContent = htmlContent;
+  emailPayload.textContent = textContent;
+  emailPayload.sender = {
+    name: 'Dosnine',
+    email: 'dosnineco@gmail.com',
+  };
+  emailPayload.to = [{ email: clientEmail, name: clientName }];
+
+  await apiInstance.sendTransacEmail(emailPayload);
+};
 
 export default async function handler(req, res) {
   if (!enforceMethods(req, res, ['POST'])) return;
@@ -155,6 +284,28 @@ export default async function handler(req, res) {
       try {
         await assignRequestRoundRobin(data.id);
       } catch {
+      }
+    }
+
+    if (shouldSendServiceFeeEmail(parsedRequestType)) {
+      try {
+        await sendServiceFeeConfirmationEmail({
+          clientName: parsedClientName,
+          clientEmail: parsedClientEmail,
+          clientPhone: parsedClientPhone,
+          requestType: parsedRequestType,
+          propertyType: parsedPropertyType,
+          parish: parsedParish,
+          location: parsedLocation,
+          budgetMin: parsedBudgetMin,
+          budgetMax: parsedBudgetMax,
+          bedrooms: parsedBedrooms,
+          bathrooms: parsedBathrooms,
+          urgency: parsedUrgency,
+          description: parsedDescription,
+        });
+      } catch (emailError) {
+        console.error('Failed to send service fee confirmation email:', emailError);
       }
     }
 

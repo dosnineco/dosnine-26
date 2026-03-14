@@ -147,7 +147,9 @@ export default function RequestAgentPage() {
       if (typeof window !== 'undefined') {
         localStorage.setItem('visitor-lead-submitted', 'true');
       }
-      toast.success('Request submitted successfully! An agent will contact you soon.');
+      toast.success('Request submitted successfully! A submission email was sent with your details.', {
+        duration: 5000,
+      });
       setSubmitted(true);
     } catch (err) {
       console.error('Lead submit error:', err);
@@ -279,6 +281,9 @@ export default function RequestAgentPage() {
             <h2 className="text-2xl font-bold text-gray-900 mb-2">Request Submitted!</h2>
             <p className="text-gray-600 mb-6">
               A verified agent will contact you soon to help with your {formData.requestType} needs.
+            </p>
+            <p className="text-gray-600 mb-6">
+              A submission email was sent to your inbox with your request details and next steps.
             </p>
             <button
               onClick={() => router.push('/')}

@@ -99,7 +99,9 @@ export default function RequestAgentPopup({ isOpen, onClose }) {
 
       await axios.post('/api/service-requests/create', requestData);
 
-      toast.success('Request submitted! An agent will contact you soon.');
+      toast.success('Request submitted! A submission email was sent with your details.', {
+        duration: 5000,
+      });
       onClose();
       
       // Reset form
