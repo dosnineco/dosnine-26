@@ -7,7 +7,7 @@ import Footer from '../components/Footer';
 import VisitorEmailPopup from '../components/VisitorEmailPopup';
 import Seo from '../components/Seo';
 import SiteProtection from '../components/SiteProtection';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Toaster } from 'react-hot-toast';
 import toast from 'react-hot-toast';
 import { useAnalyticsTracking } from '../lib/useAnalyticsTracking';
@@ -112,6 +112,7 @@ function MyApp({ Component, pageProps }) {
 function AppContent({ Component, pageProps }) {
   const { isSignedIn, user, isLoaded: isClerkLoaded } = useUser();
   const router = useRouter();
+  const lastSyncedUserIdRef = useRef(null);
   const [isSynced, setIsSynced] = useState(false);
   const [syncError, setSyncError] = useState(null);
   const [showLoadingState, setShowLoadingState] = useState(false);
@@ -154,15 +155,26 @@ function AppContent({ Component, pageProps }) {
   useEffect(() => {
     const syncUser = async () => {
       if (!isSignedIn || !user || !isClerkLoaded) {
+        lastSyncedUserIdRef.current = null;
         setIsSynced(false);
         return;
       }
 
-      setShowLoadingState(true);
+      const userId = user.id;
+      if (lastSyncedUserIdRef.current === userId) {
+        return;
+      }
+
+      const isInitialSync = !isSynced;
+      if (isInitialSync) {
+        setShowLoadingState(true);
+      }
+
       setSyncError(null);
 
       try {
         const profile = await syncUserWithRetry();
+        lastSyncedUserIdRef.current = userId;
         setIsSynced(true);
         setSyncError(null);
 
@@ -181,12 +193,14 @@ function AppContent({ Component, pageProps }) {
         // Show error toast to user
         toast.error('There was an issue setting up your account. Please refresh the page.');
       } finally {
-        setShowLoadingState(false);
+        if (isInitialSync) {
+          setShowLoadingState(false);
+        }
       }
     };
 
     syncUser();
-  }, [isSignedIn, user, isClerkLoaded]);
+  }, [isSignedIn, user?.id, isClerkLoaded, isSynced]);
 
   // If page has custom layout (like ads pages), use it without Header/Footer
   if (Component.getLayout) {

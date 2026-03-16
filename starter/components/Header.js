@@ -90,7 +90,7 @@ export default function Header() {
           ) : (
             <>
               <Link 
-                href="/" 
+                href="/listing" 
                 className={`px-3 py-2 rounded-lg transition text-sm ${router.pathname === '/' ? ' text-gray-900 font-medium' : 'text-gray-600 hover:bg-gray-100'}`}
               >
                 Browse
@@ -210,7 +210,7 @@ export default function Header() {
                         onClick={() => setMobileMenuOpen(false)}
                         className={`px-4 py-3 rounded-lg font-medium ${router.pathname === '/agent/dashboard' ? 'bg-accent text-white' : 'text-gray-700 hover:bg-gray-50'}`}
                       >
-                        Agent Dashboard
+                        Dashboard
                       </Link>
                     ) : (
                       <Link 

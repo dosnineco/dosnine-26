@@ -299,11 +299,16 @@ export default function AdminAdvertisements() {
     }
   }
 
-  const toggleActive = async (id, currentStatus) => {
+  const toggleActive = async (ad) => {
+    const currentStatus = Boolean(ad?.is_active)
+    const updatePayload = currentStatus
+      ? { is_active: false }
+      : { is_active: true, expires_at: null }
+
     const { error } = await supabase
       .from('advertisements')
-      .update({ is_active: !currentStatus })
-      .eq('id', id)
+      .update(updatePayload)
+      .eq('id', ad.id)
 
     if (error) {
       toast.error(error.message)
@@ -540,7 +545,7 @@ export default function AdminAdvertisements() {
     <>
       <AdminLayout />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 pb-8">
-      <div className="bg-gray-200 rounded-xl p-4 sm:p-6">
+      <div className="bg-white border border-gray-100 rounded-xl p-4 sm:p-6">
 
       <div className="mb-4">
         <h1 className="text-xl font-bold text-gray-900">Advertisements</h1>
@@ -829,7 +834,7 @@ export default function AdminAdvertisements() {
 
                   <div className="flex flex-wrap gap-2 lg:ml-4">
                     <button
-                      onClick={() => toggleActive(ad.id, ad.is_active)}
+                      onClick={() => toggleActive(ad)}
                       className={`px-4 py-2 rounded-lg font-semibold text-sm ${
                         ad.is_active
                           ? 'bg-yellow-100 text-yellow-700 hover:bg-yellow-200'
@@ -968,7 +973,7 @@ export default function AdminAdvertisements() {
                             📝 Edit Ad
                           </button>
                           <button
-                            onClick={() => toggleActive(matchingAd.id, matchingAd.is_active)}
+                            onClick={() => toggleActive(matchingAd)}
                             className={`px-4 py-2 rounded-lg font-semibold text-sm ${
                               matchingAd.is_active
                                 ? 'bg-yellow-100 text-yellow-700 hover:bg-yellow-200'
