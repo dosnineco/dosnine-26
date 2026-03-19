@@ -81,6 +81,16 @@ export default function Footer() {
                   Refund Policy
                 </a>
               </li>
+                <li>
+                <a href="/chargeback" className="text-gray-600 hover:text-blue-600 transition">
+                  Chargeback 
+                </a>
+              </li>
+                <li>
+                <a href="/fin" className="text-gray-600 hover:text-blue-600 transition">
+                  Fin
+                </a>
+              </li>
               
             </ul>
           </div>
