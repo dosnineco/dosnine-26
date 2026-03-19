@@ -27,6 +27,16 @@ export default function Footer() {
                   Expensegoose.com
                 </a>
               </li>
+              <li>
+                <a href="/fin" rel="dofollow" className="text-gray-600 hover:text-blue-600 transition">
+                  Fin
+                </a>
+              </li>
+              <li>
+                <a href="/chargeback" rel="dofollow" className="text-gray-600 hover:text-blue-600 transition">
+                  New Cback
+                </a>
+              </li>
             </ul>
           </div>
 
