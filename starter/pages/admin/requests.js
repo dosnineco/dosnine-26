@@ -198,20 +198,6 @@ export default function AdminRequestsPage() {
       });
     }
   };
-    // Paid but expired: not eligible
-    if (!isActivePaid(agent)) return false;
-
-    // 7-day restrictions
-    if (agent.payment_status === '7-day') {
-      if (type === 'sell') return false; // No sales leads
-      if (type === 'rent') return budget <= 100000;
-      if (type === 'buy') return budget <= 10000000; // <= J$10M buys
-      return false;
-    }
-
-    // 30-day & 90-day: full access while active
-    return ['30-day', '90-day'].includes(agent.payment_status);
-  };
 
   const handleManualAssign = async (requestId, agentId) => {
     setAssignLoading(true);
