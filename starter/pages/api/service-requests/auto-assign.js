@@ -4,23 +4,6 @@ import { enforceRateLimitDistributed } from '@/lib/rateLimit';
 import { enforceMethods, parseBody } from '@/lib/apiSecurity';
 import { assignRequestRoundRobin } from '@/lib/serviceRequestAllocation';
 
-/**
- * Fair Request Allocation Algorithm - Round-Robin Distribution
- * Distributes client requests evenly among all verified and paid agents
- * Based on last_request_assigned_at timestamp to ensure fairness
- * 
- * Algorithm:
- * 1. Query all eligible agents (verified + paid)
- * 2. Sort by last_request_assigned_at (ASC, NULL first)
- * 3. Assign to agent at top of list (least recently assigned)
- * 4. Update agent timestamp to move them to back of queue
- * 
- * This ensures:
- * - New agents get priority (NULL timestamp)
- * - Agents who haven't received requests recently get next opportunity
- * - Equal distribution over time
- */
-
 export default async function handler(req, res) {
   if (!enforceMethods(req, res, ['POST'])) return;
 

@@ -145,6 +145,74 @@ export default function AdminRequestsPage() {
     return ['30-day', '90-day'].includes(agent.payment_status);
   };
 
+  const sendAgentAndClientAssignmentEmails = async (agent, assignedRequests) => {
+    const sendEmail = async ({ to, subject, htmlContent, textContent }) => {
+      if (!to) return;
+      try {
+        await fetch('/api/send-brevo-email', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ to, subject, htmlContent, textContent }),
+        });
+      } catch (err) {
+        console.warn('Failed to send email:', err);
+      }
+    };
+
+    if (!agent?.email) return;
+
+    const agentContentRows = assignedRequests
+      .map((req) => `
+        <li>
+          ${req.request_type} ${req.property_type} in ${req.location} - ${req.client_name} (${req.client_email})
+        </li>
+      `)
+      .join('');
+
+    await sendEmail({
+      to: agent.email,
+      subject: 'New request(s) assigned to you',
+      htmlContent: `
+        <p>Hi ${agent.full_name || 'Agent'},</p>
+        <p>The following requests have just been assigned to you:</p>
+        <ul>${agentContentRows}</ul>
+        <p>Please follow up with these clients promptly.</p>
+      `,
+      textContent: `Hi ${agent.full_name || 'Agent'},\n\nThe following requests have just been assigned to you:\n${assignedRequests
+        .map((req) => `- ${req.request_type} ${req.property_type} in ${req.location} - ${req.client_name} (${req.client_email})`)
+        .join('\n')}\n\nPlease follow up with these clients promptly.`,
+    });
+
+    for (const request of assignedRequests) {
+      if (!request.client_email) continue;
+      await sendEmail({
+        to: request.client_email,
+        subject: 'Your service request has been assigned to an agent',
+        htmlContent: `
+          <p>Hi ${request.client_name},</p>
+          <p>Your request has been assigned to ${agent.full_name || 'one of our agents'}.</p>
+          <p>Agent Email: ${agent.email}</p>
+          <p>They will contact you shortly.</p>
+        `,
+        textContent: `Hi ${request.client_name},\n\nYour request has been assigned to ${agent.full_name || 'one of our agents'} (${agent.email}). They will contact you shortly.`,
+      });
+    }
+  };
+    // Paid but expired: not eligible
+    if (!isActivePaid(agent)) return false;
+
+    // 7-day restrictions
+    if (agent.payment_status === '7-day') {
+      if (type === 'sell') return false; // No sales leads
+      if (type === 'rent') return budget <= 100000;
+      if (type === 'buy') return budget <= 10000000; // <= J$10M buys
+      return false;
+    }
+
+    // 30-day & 90-day: full access while active
+    return ['30-day', '90-day'].includes(agent.payment_status);
+  };
+
   const handleManualAssign = async (requestId, agentId) => {
     setAssignLoading(true);
     try {
@@ -217,6 +285,8 @@ export default function AdminRequestsPage() {
       const response = await authedPost('/api/admin/requests', { action: 'autoAssign', ids, agentId: autoAssignAgentId });
       const payload = await response.json();
       if (!response.ok || !payload?.success) throw new Error(payload?.error || 'Failed to auto-assign');
+
+      await sendAgentAndClientAssignmentEmails(selectedAgent, candidates);
 
       toast.success(`Assigned ${ids.length} request${ids.length === 1 ? '' : 's'}.`);
       setShowAutoAssign(false);
