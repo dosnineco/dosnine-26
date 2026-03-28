@@ -13,10 +13,10 @@
     "@headlessui/react": "^2.2.9",
     "@microsoft/clarity": "^1.0.2",
     "@paypal/react-paypal-js": "^8.9.2",
-    "@upstash/ratelimit": "^2.0.6",
-    "@upstash/redis": "^1.35.6",
     "@sendgrid/mail": "^8.1.4",
     "@supabase/supabase-js": "^2.27.0",
+    "@upstash/ratelimit": "^2.0.6",
+    "@upstash/redis": "^1.35.6",
     "axios": "^1.13.2",
     "clsx": "^1.2.1",
     "lucide-react": "^0.554.0",
@@ -28,7 +28,7 @@
     "react-icons": "^5.5.0",
     "react-quill": "^2.0.0",
     "sharp": "^0.34.5",
-    "zod": "^3.25.76"
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "autoprefixer": "^10.4.14",
