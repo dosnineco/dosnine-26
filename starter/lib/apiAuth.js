@@ -7,7 +7,14 @@ export function getDbClient() {
     return supabaseAdmin;
   }
 
-  throw new Error('SUPABASE_SERVICE_ROLE_KEY is missing or not loaded. Restart server after updating env vars.');
+  const missingVars = [];
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL) missingVars.push('NEXT_PUBLIC_SUPABASE_URL');
+  if (!process.env.SUPABASE_SERVICE_ROLE_KEY) missingVars.push('SUPABASE_SERVICE_ROLE_KEY');
+
+  throw new Error(
+    `Supabase admin client is not initialized. Missing environment variable(s): ${missingVars.join(', ')}. ` +
+      'Add them to your environment (for example starter/.env.local) and restart the server.'
+  );
 }
 
 export function getClerkUserId(req) {

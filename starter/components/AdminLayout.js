@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { useEffect, useMemo, useState } from 'react';
-import { FiGrid, FiUsers, FiZap, FiTrendingUp, FiPackage } from 'react-icons/fi';
+import { FiGrid, FiUsers, FiZap, FiTrendingUp, FiPackage, FiMail } from 'react-icons/fi';
 
 export default function AdminLayout() {
   const router = useRouter();
@@ -150,6 +150,10 @@ export default function AdminLayout() {
             <FiUsers size={14} />
             Advertisements
             {renderCount(counts.advertisements)}
+          </Link>
+          <Link href="/admin/newsletter" className={`px-3 py-2 rounded-md text-sm font-medium flex items-center gap-1.5 whitespace-nowrap ${isActive('/admin/newsletter') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-100'}`}>
+            <FiMail size={14} />
+            Newsletter
           </Link>
           <Link href="/admin/allocation" className={`px-3 py-2 rounded-md text-sm font-medium flex items-center gap-1.5 whitespace-nowrap ${isActive('/admin/allocation') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-100'}`}>
             <FiTrendingUp size={14} />
