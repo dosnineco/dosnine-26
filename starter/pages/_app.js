@@ -180,13 +180,8 @@ function AppContent({ Component, pageProps }) {
         setIsSynced(true);
         setSyncError(null);
 
-        // Immediately redirect verified agents to the agent dashboard
-        const agent = Array.isArray(profile?.agent) ? profile.agent[0] : profile?.agent;
-        const isVerifiedAgent = agent?.verification_status === 'approved';
-        if (isVerifiedAgent && !router.pathname.startsWith('/agent')) {
-          router.replace('/agent/dashboard');
-          return;
-        }
+        // Removed: No longer redirecting verified agents to agent dashboard from all pages
+        // The redirect should only happen on the /dashboard route
       } catch (err) {
         console.error('Failed to sync user to Supabase:', err);
         setSyncError(err.message || 'Failed to sync user data');

@@ -23,8 +23,16 @@ function formatTemplate(template, values) {
   });
 }
 
+function normalizeRecipientName(name) {
+  const trimmed = String(name || '').trim();
+  if (trimmed.toLowerCase() === 'website visitor') {
+    return 'friend';
+  }
+  return trimmed;
+}
+
 function extractNameParts(fullName) {
-  const name = String(fullName || '').trim();
+  const name = normalizeRecipientName(fullName);
   if (!name) return { firstName: '', lastName: '' };
   const parts = name.split(/\s+/);
   return {
@@ -65,7 +73,8 @@ export default async function handler(req, res) {
         const parish = normalizeParish(item?.parish || '');
         if (!email) return;
         if (parishFilter && parish !== parishFilter) return;
-        const name = String(item?.client_name || '').trim();
+        const rawName = String(item?.client_name || '').trim();
+        const name = normalizeRecipientName(rawName);
         const { firstName, lastName } = extractNameParts(name);
         recipients.push({
           email,
@@ -91,7 +100,8 @@ export default async function handler(req, res) {
         const parish = normalizeParish(item?.parish || '');
         if (!email) return;
         if (parishFilter && parish !== parishFilter) return;
-        const name = String(item?.full_name || '').trim();
+        const rawName = String(item?.full_name || '').trim();
+        const name = normalizeRecipientName(rawName);
         const { firstName, lastName } = extractNameParts(name);
         recipients.push({
           email,
@@ -146,7 +156,7 @@ export default async function handler(req, res) {
       sendSmtpEmail.htmlContent = personalizedHtml;
       sendSmtpEmail.textContent = sanitizeString(personalizedText, 5000);
       sendSmtpEmail.sender = {
-        name: 'Dosnine',
+        name: 'Tahjay- Dosnine',
         email: 'dosnineco@gmail.com',
       };
       sendSmtpEmail.to = [{ email: recipient.email, name: recipient.name }];

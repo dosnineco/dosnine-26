@@ -75,6 +75,12 @@ WITH CHECK (
   )
 );
 
+-- Policy 4d: Users can insert their own profile
+CREATE POLICY "Users can insert own profile"
+ON public.users
+FOR INSERT
+WITH CHECK (auth.uid()::text = clerk_id);
+
 -- Step 5: FIX AGENTS TABLE INSERT POLICY (remove "OR true")
 DROP POLICY IF EXISTS "Users can insert own agent profile" ON public.agents;
 

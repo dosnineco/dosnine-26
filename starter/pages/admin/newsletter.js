@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from 'react';
-import dynamic from 'next/dynamic';
 import Head from 'next/head';
 import { useRouter } from 'next/router';
 import { useUser } from '@clerk/nextjs';
@@ -8,12 +7,11 @@ import AdminLayout from '../../components/AdminLayout';
 import { FiMail } from 'react-icons/fi';
 import { supabase } from '@/lib/supabase';
 import { PARISHES } from '@/lib/normalizeParish';
-import 'react-quill/dist/quill.snow.css';
-
-const ReactQuill = dynamic(() => import('react-quill').then((mod) => mod.default), {
-  ssr: false,
-  loading: () => <div className="py-8 text-center text-sm text-gray-500">Loading editor…</div>,
-});
+import { useEditor, EditorContent } from '@tiptap/react';
+import StarterKit from '@tiptap/starter-kit';
+import Link from '@tiptap/extension-link';
+import ImageExtension from '@tiptap/extension-image';
+import DOMPurify from 'dompurify';
 
 const formatRate = (numerator, denominator) => {
   if (!denominator || denominator === 0) return '0%';
@@ -40,7 +38,43 @@ export default function AdminNewsletterPage() {
   const [draftId, setDraftId] = useState(null);
   const [sendResult, setSendResult] = useState(null);
   const [testResult, setTestResult] = useState(null);
-  const quillRef = useRef(null);
+  const [linkUrl, setLinkUrl] = useState('');
+  const [showLinkInput, setShowLinkInput] = useState(false);
+  const uploadInputRef = useRef(null);
+
+  const editor = useEditor({
+    extensions: [
+      StarterKit,
+      Link.configure({ openOnClick: false }),
+      ImageExtension.configure({ inline: false, allowBase64: false }),
+    ],
+    content: newsletter.htmlContent || '',
+    immediatelyRender: false,
+    editorProps: {
+      attributes: {
+        class: 'min-h-[340px] prose prose-sm sm:prose lg:prose-lg max-w-full focus:outline-none p-4',
+      },
+    },
+    onUpdate: ({ editor }) => {
+      const html = editor.getHTML();
+      setNewsletter((prev) => {
+        if (prev.htmlContent === html) return prev;
+        return { ...prev, htmlContent: html };
+      });
+    },
+  });
+
+  useEffect(() => {
+    if (!editor) return;
+    const currentHtml = editor.getHTML();
+    if (newsletter.htmlContent !== currentHtml) {
+      if (newsletter.htmlContent) {
+        editor.commands.setContent(newsletter.htmlContent, false);
+      } else {
+        editor.commands.clearContent();
+      }
+    }
+  }, [editor, newsletter.htmlContent]);
 
   useEffect(() => {
     if (!isLoaded) return;
@@ -154,13 +188,6 @@ export default function AdminNewsletterPage() {
     });
     setSendResult(null);
     setTestResult(null);
-
-    setTimeout(() => {
-      const editor = getEditor();
-      if (editor) {
-        editor.root.innerHTML = draft.html_content || '';
-      }
-    }, 0);
   };
 
   const deleteDraft = (id) => {
@@ -180,35 +207,116 @@ export default function AdminNewsletterPage() {
     setNewsletter({ subject: '', previewText: '', htmlContent: '' });
     setSendResult(null);
     setTestResult(null);
-
-    setTimeout(() => {
-      const editor = getEditor();
-      if (editor) {
-        editor.root.innerHTML = '';
-      }
-    }, 0);
+    setLinkUrl('');
+    setShowLinkInput(false);
   };
 
-  const getEditor = () => {
-    if (!quillRef.current) return null;
-    if (typeof quillRef.current.getEditor === 'function') {
-      return quillRef.current.getEditor();
+  const handleAddLink = () => {
+    if (!editor) return;
+    if (!linkUrl.trim()) {
+      editor.chain().focus().unsetLink().run();
+      setShowLinkInput(false);
+      return;
     }
-    return quillRef.current.editor ?? null;
+    editor.chain().focus().extendMarkRange('link').setLink({ href: linkUrl.trim(), target: '_blank' }).run();
+    setShowLinkInput(false);
   };
 
-  const modules = {
-    toolbar: {
-      container: [
-        ['bold', 'italic', 'underline'],
-        [{ list: 'ordered' }, { list: 'bullet' }],
-        ['link'],
-        ['clean'],
-      ],
-    },
+  const handleToggleLinkInput = () => {
+    if (!editor) return;
+    const existing = editor.getAttributes('link').href || '';
+    setLinkUrl(existing);
+    setShowLinkInput((prev) => !prev);
   };
 
-  const formats = ['bold', 'italic', 'underline', 'list', 'bullet', 'link'];
+  const compressImage = (file) => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const image = new Image();
+        image.onload = () => {
+          const maxDimension = 1200;
+          let { width, height } = image;
+
+          if (width > maxDimension || height > maxDimension) {
+            if (width > height) {
+              height = Math.round((height * maxDimension) / width);
+              width = maxDimension;
+            } else {
+              width = Math.round((width * maxDimension) / height);
+              height = maxDimension;
+            }
+          }
+
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) {
+            reject(new Error('Could not get canvas context'));
+            return;
+          }
+          ctx.drawImage(image, 0, 0, width, height);
+          canvas.toBlob(
+            (blob) => {
+              if (!blob) {
+                reject(new Error('Image compression failed'));
+                return;
+              }
+              resolve(blob);
+            },
+            file.type || 'image/jpeg',
+            0.8
+          );
+        };
+        image.onerror = () => reject(new Error('Failed to load image for compression'));
+        image.src = reader.result;
+      };
+      reader.onerror = () => reject(new Error('Failed to read image file'));
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const uploadImageToEditor = async (file) => {
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please select a valid image file.');
+      return;
+    }
+
+    try {
+      const compressedFile = await compressImage(file);
+      const sanitizedFilename = file.name.replace(/\s+/g, '-').replace(/[^a-zA-Z0-9-_.]/g, '');
+      const fileName = `newsletter-images/${Date.now()}-${sanitizedFilename}`;
+      const { data, error } = await supabase.storage.from('property-images').upload(fileName, compressedFile, {
+        cacheControl: '3600',
+        upsert: true,
+        contentType: file.type,
+      });
+
+      if (error) throw error;
+      const { data: publicData } = supabase.storage.from('property-images').getPublicUrl(data.path);
+      const publicUrl = publicData?.publicUrl || publicData?.publicURL || '';
+
+      if (editor && publicUrl) {
+        editor.chain().focus().setImage({ src: publicUrl }).run();
+        setNewsletter((prev) => ({ ...prev, htmlContent: editor.getHTML() }));
+      }
+    } catch (err) {
+      console.error('Image upload error:', err);
+      toast.error(err?.message || 'Failed to upload image');
+    }
+  };
+
+  const handleImageUpload = async (event) => {
+    const file = event.target?.files?.[0];
+    if (!file) return;
+    event.target.value = '';
+    await uploadImageToEditor(file);
+  };
+
+  const openImageUpload = () => {
+    uploadInputRef.current?.click();
+  };
 
   const handleSendNewsletter = async (event) => {
     event.preventDefault();
@@ -225,13 +333,14 @@ export default function AdminNewsletterPage() {
     setSendResult(null);
 
     try {
+      const sanitizedHtml = DOMPurify.sanitize(newsletter.htmlContent);
       const response = await fetch('/api/newsletter/send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           subject: newsletter.subject,
           previewText: newsletter.previewText,
-          htmlContent: newsletter.htmlContent,
+          htmlContent: sanitizedHtml,
           target: recipientSource,
           parish: targetParish || undefined,
         }),
@@ -274,13 +383,14 @@ export default function AdminNewsletterPage() {
     setTestResult(null);
 
     try {
+      const sanitizedHtml = DOMPurify.sanitize(newsletter.htmlContent);
       const response = await fetch('/api/newsletter/send-test', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           subject: newsletter.subject,
           previewText: newsletter.previewText,
-          htmlContent: newsletter.htmlContent,
+          htmlContent: sanitizedHtml,
         }),
       });
       const payload = await response.json();
@@ -401,19 +511,117 @@ export default function AdminNewsletterPage() {
                         <span className="text-sm font-semibold text-gray-700">Body</span>
                         <span className="text-xs text-gray-500">This will be sent as HTML</span>
                       </div>
-                      <div className="rounded-3xl border border-gray-200 bg-white w-full overflow-hidden">
-                        <ReactQuill
-                          ref={quillRef}
-                          className="min-h-[340px] w-full"
-                          style={{ minHeight: '340px' }}
-                          theme="snow"
-                          value={newsletter.htmlContent}
-                          onChange={(content) => setNewsletter((prev) => ({ ...prev, htmlContent: content }))}
-                          placeholder="Write the newsletter content here..."
-                          modules={modules}
-                          formats={formats}
-                        />
+                      <div className="mb-3 flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          onClick={() => editor?.chain().focus().toggleBold().run()}
+                          className={`rounded-2xl border px-3 py-2 text-xs font-semibold transition ${editor?.isActive('bold') ? 'border-accent bg-accent text-white' : 'border-gray-200 bg-gray-50 text-gray-700 hover:bg-gray-100'}`}
+                        >
+                          Bold
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => editor?.chain().focus().toggleItalic().run()}
+                          className={`rounded-2xl border px-3 py-2 text-xs font-semibold transition ${editor?.isActive('italic') ? 'border-accent bg-accent text-white' : 'border-gray-200 bg-gray-50 text-gray-700 hover:bg-gray-100'}`}
+                        >
+                          Italic
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => editor?.chain().focus().toggleStrike().run()}
+                          className={`rounded-2xl border px-3 py-2 text-xs font-semibold transition ${editor?.isActive('strike') ? 'border-accent bg-accent text-white' : 'border-gray-200 bg-gray-50 text-gray-700 hover:bg-gray-100'}`}
+                        >
+                          Strike
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => editor?.chain().focus().toggleHeading({ level: 2 }).run()}
+                          className={`rounded-2xl border px-3 py-2 text-xs font-semibold transition ${editor?.isActive('heading', { level: 2 }) ? 'border-accent bg-accent text-white' : 'border-gray-200 bg-gray-50 text-gray-700 hover:bg-gray-100'}`}
+                        >
+                          H2
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => editor?.chain().focus().toggleBulletList().run()}
+                          className={`rounded-2xl border px-3 py-2 text-xs font-semibold transition ${editor?.isActive('bulletList') ? 'border-accent bg-accent text-white' : 'border-gray-200 bg-gray-50 text-gray-700 hover:bg-gray-100'}`}
+                        >
+                          Bullet
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleToggleLinkInput}
+                          className={`rounded-2xl border px-3 py-2 text-xs font-semibold transition ${editor?.isActive('link') ? 'border-accent bg-accent text-white' : 'border-gray-200 bg-gray-50 text-gray-700 hover:bg-gray-100'}`}
+                        >
+                          {editor?.isActive('link') ? 'Edit link' : 'Add link'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={openImageUpload}
+                          className="rounded-2xl border border-gray-200 bg-gray-50 px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-100"
+                        >
+                          Image
+                        </button>
                       </div>
+                      {showLinkInput && (
+                        <div className="mb-3 flex flex-wrap gap-2 rounded-2xl border border-gray-200 bg-gray-50 p-3">
+                          <input
+                            type="url"
+                            value={linkUrl}
+                            onChange={(event) => setLinkUrl(event.target.value)}
+                            placeholder="https://example.com"
+                            className="min-w-0 flex-1 rounded-2xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 focus:border-accent focus:outline-none"
+                          />
+                          <button
+                            type="button"
+                            onClick={handleAddLink}
+                            className="rounded-2xl border border-accent bg-accent px-4 py-2 text-xs font-semibold text-white hover:bg-accent/90"
+                          >
+                            Apply
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setShowLinkInput(false)}
+                            className="rounded-2xl border border-gray-200 bg-white px-4 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-100"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      )}
+                      <div className="mb-3 flex flex-wrap gap-2 text-xs text-gray-600">
+                        <span className="font-semibold">Active formatting:</span>
+                        {[
+                          editor?.isActive('bold') && 'Bold',
+                          editor?.isActive('italic') && 'Italic',
+                          editor?.isActive('strike') && 'Strike',
+                          editor?.isActive('heading', { level: 2 }) && 'H2',
+                          editor?.isActive('bulletList') && 'Bullet',
+                          editor?.isActive('link') && 'Link',
+                        ]
+                          .filter(Boolean)
+                          .map((format) => (
+                            <span key={format} className="rounded-full bg-gray-100 px-2 py-1 font-medium text-gray-700">
+                              {format}
+                            </span>
+                          ))}
+                        {[
+                          editor?.isActive('bold'),
+                          editor?.isActive('italic'),
+                          editor?.isActive('strike'),
+                          editor?.isActive('heading', { level: 2 }),
+                          editor?.isActive('bulletList'),
+                          editor?.isActive('link'),
+                        ].some(Boolean) ? null : <span className="text-gray-500">None</span>}
+                      </div>
+                      <div className="rounded-3xl border border-gray-200 bg-white w-full overflow-hidden">
+                        <EditorContent editor={editor} />
+                      </div>
+                      <input
+                        ref={uploadInputRef}
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={handleImageUpload}
+                      />
                     </label>
 
                     <div className="flex flex-wrap gap-3 mt-4">
@@ -646,7 +854,7 @@ export default function AdminNewsletterPage() {
               <div className="rounded-3xl bg-white border border-gray-200 p-4 space-y-3">
                 <h3 className="text-sm font-semibold text-gray-900">Email deliverability tips</h3>
                 <ul className="list-disc pl-5 text-sm text-gray-700 space-y-2">
-                  <li>Keep subject lines clear and avoid spammy words like "free" or "urgent".</li>
+                  <li>Keep subject lines clear and avoid spammy words like free or urgent.</li>
                   <li>Send only to opted-in recipients and avoid purchased or stale mailing lists.</li>
                   <li>Include a visible unsubscribe link and a plain-text fallback when possible.</li>
                   <li>Use a consistent sending address and authenticate with SPF/DKIM/DMARC.</li>
