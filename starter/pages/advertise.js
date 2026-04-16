@@ -8,6 +8,14 @@ import { supabase } from '@/lib/supabase';
 
 const plans = [
   {
+    id: '3-day',
+    name: '3 Day Ad',
+    duration: '3 days',
+    price: 1500,
+    badge: 'Starter Boost',
+    highlight: 'Quick, budget-friendly exposure',
+  },
+  {
     id: '7-day',
     name: '1 Week Ad',
     duration: '7 days',
@@ -21,7 +29,7 @@ const plans = [
     duration: '30 days',
     price: 20000,
     badge: 'Best Reach',
-    highlight: 'Maximum exposure to our wide audience',
+    highlight: 'Sent directly to 500+ active homeowners via email',
   },
 ];
 
