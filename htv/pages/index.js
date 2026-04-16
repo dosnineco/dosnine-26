@@ -4,10 +4,28 @@ import Head from 'next/head'
 import { supabase } from '@/lib/supabase'
 import toast from 'react-hot-toast'
 
+const COMBO_DEALS = [
+  { label: '10 Small + 10 Large', price: 11500, badge: 'MOST POPULAR' },
+  { label: '5 Small + 5 Large', price: 6500 },
+]
+
 const PRICING = {
-  small: { size: '3-5"', price: 800, label: 'Small' },
-  medium: { size: '6-9"', price: 1200, label: 'Medium' },
-  large: { size: '10-12"', price: 1800, label: 'Large' }
+  small: {
+    label: 'Small (3 inch)',
+    quantities: {
+      5: 2500,
+      10: 4000,
+      20: 7000,
+    },
+  },
+  large: {
+    label: 'Large (6 inch)',
+    quantities: {
+      5: 4000,
+      10: 7500,
+      20: 13000,
+    },
+  },
 }
 
 const DELIVERY = {
@@ -17,12 +35,6 @@ const DELIVERY = {
   constantSpring: { label: 'Constant Spring Area', fee: 700 },
   portmore: { label: 'Portmore', fee: 1000 },
   knutsford: { label: 'Knutsford Express Pickup', fee: 300 },
-}
-
-const BULK_DISCOUNTS = [
-  { min: 10, max: 19, discount: 0.10, label: '10-19 logos → 10% off' },
-  { min: 20, max: 49, discount: 0.15, label: '20-49 logos → 15% off' },
-  { min: 50, max: Infinity, discount: 0.20, label: '50+ logos → 20% off' }
 ]
 
 export default function LogoCutting() {
@@ -31,9 +43,9 @@ export default function LogoCutting() {
     business: '',
     phone: '',
     email: '',
-    size: 'medium',
+    size: 'small',
     color: 'black',
-    quantity: 4,
+    quantity: 5,
     deliveryArea: 'halfWayTree',
     rush: false,
     logoFile: null
@@ -140,6 +152,13 @@ export default function LogoCutting() {
         subtotal: pricing.subtotal,
         delivery_fee: pricing.deliveryFee,
         total: pricing.total,
+        raw_materials: [],
+        raw_material_cost: 0,
+        labor_cost: 0,
+        other_expenses: 0,
+        revenue: pricing.total,
+        expenses: 0,
+        profit: pricing.total,
         status: 'pending'
       }])
 
@@ -151,7 +170,10 @@ export default function LogoCutting() {
     // Return a placeholder object since we can't read back due to RLS
     return { 
       id: Date.now().toString(36) + Math.random().toString(36).substring(2),
-      ...pricing 
+      ...pricing,
+      revenue: pricing.total,
+      expenses: 0,
+      profit: pricing.total
     }
   }
 
@@ -160,28 +182,31 @@ export default function LogoCutting() {
   }
 
   function calculateTotal() {
-    const basePrice = PRICING[formData.size].price
-    const quantity = parseInt(formData.quantity) || 1
-    const baseSubtotal = basePrice * quantity
-    
-    const bulkDiscount = BULK_DISCOUNTS.find(d => quantity >= d.min && quantity <= d.max)
-    const discountAmount = bulkDiscount ? Math.round(baseSubtotal * bulkDiscount.discount) : 0
-    
-    let subtotal = baseSubtotal - discountAmount
-    
+    const sizeData = PRICING[formData.size]
+    const quantity = Math.max(5, parseInt(formData.quantity) || 5)
+    const exactPrice = sizeData.quantities[quantity]
+
+    let subtotal = exactPrice ?? (() => {
+      if (quantity >= 20) {
+        return sizeData.quantities[20] + (quantity - 20) * Math.round(sizeData.quantities[20] / 20)
+      }
+      if (quantity >= 10) {
+        return sizeData.quantities[10] + (quantity - 10) * Math.round(sizeData.quantities[10] / 10)
+      }
+      return sizeData.quantities[5] + (quantity - 5) * Math.round(sizeData.quantities[5] / 5)
+    })()
+
     if (formData.rush) {
       subtotal = Math.round(subtotal * 1.5)
     }
-    
+
     const deliveryFee = subtotal >= 10000 ? 0 : DELIVERY[formData.deliveryArea].fee
-    
+
     return {
-      baseSubtotal: Math.round(baseSubtotal),
-      discountAmount,
+      quantity,
       subtotal: Math.round(subtotal),
       deliveryFee,
       total: Math.round(subtotal + deliveryFee),
-      bulkDiscount: bulkDiscount ? bulkDiscount.discount * 100 : 0
     }
   }
 
@@ -213,7 +238,7 @@ export default function LogoCutting() {
         `Phone: ${formData.phone}\n` +
         `Email: ${formData.email || 'Not provided'}\n\n` +
         `📦 Order Details:\n` +
-        `Size: ${PRICING[formData.size].label} (${PRICING[formData.size].size})\n` +
+        `Size: ${PRICING[formData.size].label}\n` +
         `Color: ${formData.color === 'black' ? '⚫ Black' : '⚪ White'}\n` +
         `Quantity: ${formData.quantity}\n` +
         `Rush: ${formData.rush ? 'Yes (+50%)' : 'No'}\n\n` +
@@ -234,9 +259,9 @@ export default function LogoCutting() {
             business: '',
             phone: '',
             email: '',
-            size: 'medium',
+            size: 'small',
             color: 'black',
-            quantity: 4,
+            quantity: 5,
             deliveryArea: 'halfWayTree',
             rush: false,
             logoFile: null
@@ -282,7 +307,7 @@ export default function LogoCutting() {
               onClick={scrollToForm}
               className="w-full rounded-xl bg-accent px-6 py-4 text-base font-bold text-white hover:bg-accent/90 transition-colors"
             >
-              Get Your Logos Cut — From JMD 800/logo
+              Get Your Logos Cut — From JMD 2,500
             </button>
           </div>
         )}
@@ -292,15 +317,14 @@ export default function LogoCutting() {
           <div className="text-center">
             <div className="mb-6">
               <h1 className="text-4xl font-black leading-[1.05] text-black sm:text-6xl lg:text-7xl">
-                Flat Logo Cuts.<br />
+                HTV LOGO CUTTING.<br />
                 <span className="text-gray-800">Black or White.</span><br />
                 <span className="text-gray-600">Ready to Press.</span>
               </h1>
             </div>
 
             <p className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-gray-700 sm:text-xl">
-              Professional HTV logos cut + weeded for barbers, food spots, churches, and schools. 
-              No multicolor. No complexity. Just clean, flat logos ready for your heat press.
+              High-value HTV logo cutting for quick press-ready branding. Simple black or white logos with clean cuts, fast turnaround and transparent pricing.
             </p>
 
             {/* Quick Stats */}
@@ -310,12 +334,12 @@ export default function LogoCutting() {
                 <div className="mt-1 text-xs font-medium text-gray-600 sm:text-sm">Delivery</div>
               </div>
               <div className="rounded-xl bg-accent p-4 text-white sm:p-6">
-                <div className="text-2xl font-black sm:text-3xl">JMD 800</div>
-                <div className="mt-1 text-xs font-medium text-gray-300 sm:text-sm">Per Logo</div>
+                <div className="text-2xl font-black sm:text-3xl">From JMD 2,500</div>
+                <div className="mt-1 text-xs font-medium text-gray-300 sm:text-sm">For 5 small logos</div>
               </div>
               <div className="rounded-xl bg-gray-100 p-4 sm:p-6">
-                <div className="text-2xl font-black text-black sm:text-3xl">2 Colors</div>
-                <div className="mt-1 text-xs font-medium text-gray-600 sm:text-sm">B&W Only</div>
+                <div className="text-2xl font-black text-black sm:text-3xl">Single-color</div>
+                <div className="mt-1 text-xs font-medium text-gray-600 sm:text-sm">Black or White</div>
               </div>
             </div>
 
@@ -323,7 +347,7 @@ export default function LogoCutting() {
               onClick={scrollToForm}
               className="mt-10 rounded-xl bg-accent px-10 py-5 text-lg font-bold text-white transition hover:bg-accent/90"
             >
-              Order Now — From JMD 800/logo →
+              Order Now — From JMD 2,500 →
             </button>
           </div>
 
@@ -332,48 +356,58 @@ export default function LogoCutting() {
             <h2 className="mb-8 text-center text-3xl font-black text-black sm:text-4xl">Simple Pricing</h2>
             
             <div className="grid gap-6 sm:grid-cols-3">
-              {Object.entries(PRICING).map(([key, data]) => (
-                <div 
-                  key={key}
-                  className={`rounded-2xl p-8 transition hover:scale-105 ${
-                    key === 'medium' 
-                      ? 'bg-accent text-white' 
-                      : 'bg-gray-100'
-                  }`}
-                >
-                  <div className={`text-sm font-bold uppercase tracking-wide ${key === 'medium' ? 'text-gray-400' : 'text-gray-500'}`}>
-                    {data.label}
-                  </div>
-                  <div className={`mt-2 text-xs ${key === 'medium' ? 'text-gray-500' : 'text-gray-500'}`}>{data.size}</div>
-                  <div className="mt-4 text-4xl font-black">
-                    JMD {data.price.toLocaleString()}
-                  </div>
-                  <div className={`mt-1 text-xs ${key === 'medium' ? 'text-gray-300' : 'text-gray-500'}`}>per logo</div>
-                  <div className="mt-6 space-y-2 text-sm">
-                    <div className="flex items-center gap-2">
-                      <FiCheck className="flex-shrink-0" />
-                      <span>Cut + Weeded</span>
+              {Object.entries(PRICING).map(([key, data]) => {
+                const quantities = Object.entries(data.quantities)
+                return (
+                  <div 
+                    key={key}
+                    className="rounded-2xl p-8 transition hover:scale-105 bg-gray-100"
+                  >
+                    <div className="text-sm font-bold uppercase tracking-wide text-gray-500">
+                      {data.label}
                     </div>
-                    <div className="flex items-center gap-2">
-                      <FiCheck className="flex-shrink-0" />
-                      <span>Black or White</span>
+                    <div className="mt-2 text-xs text-gray-500">Single-size pricing</div>
+                    <div className="mt-4 text-4xl font-black">
+                      From JMD {quantities[0][1].toLocaleString()}
                     </div>
-                    <div className="flex items-center gap-2">
-                      <FiCheck className="flex-shrink-0" />
-                      <span>Flat design only</span>
+                    <div className="mt-1 text-xs text-gray-500">for 5 logos</div>
+                    <div className="mt-6 space-y-2 text-sm">
+                      {quantities.map(([qty, price]) => (
+                        <div key={qty} className="flex items-center gap-2 text-gray-700">
+                          <FiCheck className="flex-shrink-0" />
+                          <span>{qty} logos — JMD {price.toLocaleString()}</span>
+                        </div>
+                      ))}
+                      <div className="flex items-center gap-2">
+                        <FiCheck className="flex-shrink-0" />
+                        <span>Black or White</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <FiCheck className="flex-shrink-0" />
+                        <span>Fast turnaround</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <FiCheck className="flex-shrink-0" />
+                        <span>Clean cuts, easy to press</span>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
 
-            {/* Bulk Discounts */}
+            {/* Combo Deals */}
             <div className="mt-8 rounded-2xl bg-gray-50 p-6">
-              <h3 className="mb-4 text-center text-xl font-bold text-black">Volume Discounts</h3>
-              <div className="grid gap-3 sm:grid-cols-3">
-                {BULK_DISCOUNTS.map((discount, i) => (
-                  <div key={i} className="rounded-lg bg-gray-100 p-4 text-center">
-                    <div className="text-sm font-bold text-black">{discount.label}</div>
+              <h3 className="mb-2 text-center text-xl font-bold text-black">Combo Deals (BEST VALUE)</h3>
+              <p className="mb-4 text-center text-sm text-gray-600">Best for businesses & bulk orders</p>
+              <div className="grid gap-3 sm:grid-cols-2">
+                {COMBO_DEALS.map((combo) => (
+                  <div key={combo.label} className="rounded-lg bg-gray-100 p-4 text-center">
+                    <div className="text-sm font-bold text-black">{combo.label}</div>
+                    <div className="mt-2 text-2xl font-black text-black">JMD {combo.price.toLocaleString()}</div>
+                    {combo.badge ? (
+                      <div className="mt-2 text-xs font-semibold uppercase text-accent">{combo.badge}</div>
+                    ) : null}
                   </div>
                 ))}
               </div>
@@ -413,7 +447,7 @@ export default function LogoCutting() {
                       >
                         {Object.entries(PRICING).map(([key, data]) => (
                           <option key={key} value={key}>
-                            {data.label} — JMD {data.price}
+                            {data.label} — from JMD {data.quantities[5].toLocaleString()}
                           </option>
                         ))}
                       </select>
@@ -432,11 +466,11 @@ export default function LogoCutting() {
                     </div>
 
                     <div>
-                      <label className="mb-2 block text-sm font-bold text-black">Quantity (min 4)</label>
+                      <label className="mb-2 block text-sm font-bold text-black">Quantity (min 5)</label>
                       <div className="flex items-center gap-3">
                         <button
                           type="button"
-                          onClick={() => setFormData({ ...formData, quantity: Math.max(4, formData.quantity - 1) })}
+                          onClick={() => setFormData({ ...formData, quantity: Math.max(5, formData.quantity - 1) })}
                           className="flex h-12 w-12 items-center justify-center rounded-lg bg-gray-200 text-black hover:bg-gray-300 transition-colors"
                         >
                           <FiMinus className="h-5 w-5" />
@@ -444,15 +478,15 @@ export default function LogoCutting() {
                         <input
                           required
                           type="number"
-                          min="4"
+                          min="5"
                           value={formData.quantity}
                           onChange={e => {
-                            const val = parseInt(e.target.value) || 4
-                            setFormData({ ...formData, quantity: Math.max(4, val) })
+                            const val = parseInt(e.target.value) || 5
+                            setFormData({ ...formData, quantity: Math.max(5, val) })
                           }}
                           onBlur={e => {
-                            const val = parseInt(e.target.value) || 4
-                            if (val < 4) setFormData({ ...formData, quantity: 4 })
+                            const val = parseInt(e.target.value) || 5
+                            if (val < 5) setFormData({ ...formData, quantity: 5 })
                           }}
                           className="block w-full rounded-lg bg-gray-50 px-4 py-3 text-center text-black focus:outline-none"
                         />
@@ -640,20 +674,8 @@ export default function LogoCutting() {
                   <div className="rounded-lg bg-accent/5 p-5">
                     <div className="mb-3 text-sm font-bold text-black">Order Summary</div>
                     <div className="space-y-2 text-sm">
-                      {pricing.bulkDiscount > 0 ? (
-                        <>
-                          <div className="flex justify-between">
-                            <span className="text-gray-700">Base Price ({formData.quantity} logos)</span>
-                            <span className="text-gray-600">JMD {pricing.baseSubtotal.toLocaleString()}</span>
-                          </div>
-                          <div className="flex justify-between text-green-700">
-                            <span>Bulk Discount ({pricing.bulkDiscount}%)</span>
-                            <span className="font-bold">-JMD {pricing.discountAmount.toLocaleString()}</span>
-                          </div>
-                        </>
-                      ) : null}
                       <div className="flex justify-between">
-                        <span className="text-gray-700">{pricing.bulkDiscount > 0 ? 'Subtotal After Discount' : 'Subtotal'}</span>
+                        <span className="text-gray-700">Subtotal</span>
                         <span className="font-bold text-black">JMD {pricing.subtotal.toLocaleString()}</span>
                       </div>
                       <div className="flex justify-between">

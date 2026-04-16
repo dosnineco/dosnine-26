@@ -146,6 +146,10 @@ export default function AdminLayout() {
             <FiUsers size={14} />
             Agents
           </Link>
+          <Link href="/admin/htv" className={`px-3 py-2 rounded-md text-sm font-medium flex items-center gap-1.5 whitespace-nowrap ${isActive('/admin/htv') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-100'}`}>
+            <FiPackage size={14} />
+            HTV
+          </Link>
           <Link href="/admin/advertisements" onClick={() => onNavClick('/admin/advertisements')} className={`px-3 py-2 rounded-md text-sm font-medium flex items-center gap-1.5 whitespace-nowrap ${isActive('/admin/advertisements') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-100'}`}>
             <FiUsers size={14} />
             Advertisements
