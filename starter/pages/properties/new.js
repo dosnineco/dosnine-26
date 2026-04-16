@@ -49,6 +49,14 @@ export default function NewProperty() {
     checkAgentPaymentStatus();
   }, [user, isLoaded, router, getToken]);
 
+  const PROPERTY_TYPES = [
+    { value: 'house', label: 'House' },
+    { value: 'apartment', label: 'Apartment' },
+    { value: 'land', label: 'Land' },
+    { value: 'commercial', label: 'Commercial' },
+    { value: 'other', label: 'Other' },
+  ];
+
   const initialFormState = {
     title: '',
     description: '',
@@ -60,6 +68,7 @@ export default function NewProperty() {
     price: '',
     currency: 'JMD',
     type: 'rent',
+    property_type: 'house',
     status: 'available',
     available_date: '',
     phone_number: '',
@@ -192,6 +201,15 @@ const handleSubmit = async (e) => {
       images.map(async (img) => ({ dataUrl: await fileToDataUrl(img.file) }))
     );
 
+    const useRoomCounts = ['house', 'apartment'].includes(form.property_type);
+    const payloadForm = {
+      ...form,
+      bedrooms: useRoomCounts ? Number(form.bedrooms || 0) : 0,
+      bathrooms: useRoomCounts ? Number(form.bathrooms || 0) : 0,
+      price: Number(form.price),
+      property_type: form.property_type,
+    };
+
     const response = await fetch('/api/properties/create', {
       method: 'POST',
       credentials: 'include',
@@ -200,12 +218,7 @@ const handleSubmit = async (e) => {
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
       body: JSON.stringify({
-        form: {
-          ...form,
-          bedrooms: Number(form.bedrooms),
-          bathrooms: Number(form.bathrooms),
-          price: Number(form.price),
-        },
+        form: payloadForm,
         images: imagePayload,
       })
     });
@@ -265,14 +278,16 @@ const handleSubmit = async (e) => {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="mb-4">
-        <Link href="/properties/my-listings" className="text-blue-600 hover:underline">← Back to My Properties</Link>
-      </div>
-      
-      <h1 className="text-3xl font-bold mb-8">Post New Property</h1>
+    <div className="min-h-screen bg-gray-50 py-12">
+      <div className="container mx-auto px-4 flex justify-center">
+        <div className="w-full max-w-3xl">
+          <div className="mb-4">
+            <Link href="/properties/my-listings" className="text-blue-600 hover:underline">← Back to My Properties</Link>
+          </div>
+          
+          <h1 className="text-3xl font-bold mb-8 text-center">Post New Property</h1>
 
-      <form onSubmit={handleSubmit} className="max-w-2xl bg-white rounded-lg  p-6">
+          <form onSubmit={handleSubmit} className="w-full bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
         {/* Basic Info */}
         <div className="mb-4">
           <label className="block text-sm font-medium mb-1">Title *</label>
@@ -299,7 +314,7 @@ const handleSubmit = async (e) => {
         </div>
 
         {/* Location */}
-        <div className="grid grid-cols-2 gap-4 mb-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
           <div>
             <label className="block text-sm font-medium mb-1">Parish *</label>
             <select
@@ -314,7 +329,7 @@ const handleSubmit = async (e) => {
               ))}
             </select>
           </div>
-          <div>
+          <div className="md:col-span-1">
             <label className="block text-sm font-medium mb-1">Town/Area *</label>
             <input
               type="text"
@@ -324,6 +339,19 @@ const handleSubmit = async (e) => {
               value={form.town}
               onChange={(e) => setForm({ ...form, town: e.target.value })}
             />
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-1">Category *</label>
+            <select
+              required
+              className="w-full border rounded px-3 py-2"
+              value={form.property_type}
+              onChange={(e) => setForm({ ...form, property_type: e.target.value })}
+            >
+              {PROPERTY_TYPES.map((option) => (
+                <option key={option.value} value={option.value}>{option.label}</option>
+              ))}
+            </select>
           </div>
         </div>
 
@@ -350,30 +378,36 @@ const handleSubmit = async (e) => {
         </div>
 
         {/* Details */}
-        <div className="grid grid-cols-2 gap-4 mb-4">
-          <div>
-            <label className="block text-sm font-medium mb-1">Bedrooms *</label>
-            <input
-              type="number"
-              required
-              min="0"
-              className="w-full border rounded px-3 py-2"
-              value={form.bedrooms}
-              onChange={(e) => setForm({ ...form, bedrooms: e.target.value })}
-            />
+        {['house', 'apartment'].includes(form.property_type) ? (
+          <div className="grid grid-cols-2 gap-4 mb-4">
+            <div>
+              <label className="block text-sm font-medium mb-1">Bedrooms *</label>
+              <input
+                type="number"
+                required
+                min="0"
+                className="w-full border rounded px-3 py-2"
+                value={form.bedrooms}
+                onChange={(e) => setForm({ ...form, bedrooms: e.target.value })}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Bathrooms *</label>
+              <input
+                type="number"
+                required
+                min="0"
+                className="w-full border rounded px-3 py-2"
+                value={form.bathrooms}
+                onChange={(e) => setForm({ ...form, bathrooms: e.target.value })}
+              />
+            </div>
           </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">Bathrooms *</label>
-            <input
-              type="number"
-              required
-              min="0"
-              className="w-full border rounded px-3 py-2"
-              value={form.bathrooms}
-              onChange={(e) => setForm({ ...form, bathrooms: e.target.value })}
-            />
+        ) : (
+          <div className="mb-4 rounded-lg bg-gray-50 p-4 text-sm text-gray-600">
+            Bedrooms and bathrooms are not required for this category. Values will default to 0.
           </div>
-        </div>
+        )}
 
         {/* Price */}
         <div className="grid grid-cols-2 gap-4 mb-4">
@@ -405,7 +439,7 @@ const handleSubmit = async (e) => {
         {/* Status */}
         <div className="grid grid-cols-2 gap-4 mb-4">
           <div>
-            <label className="block text-sm font-medium mb-1">Type</label>
+            <label className="block text-sm font-medium mb-1">Market</label>
             <select
               className="w-full border rounded px-3 py-2"
               value={form.type}
@@ -485,5 +519,7 @@ const handleSubmit = async (e) => {
         </button>
       </form>
     </div>
+  </div>
+</div>
   );
 }

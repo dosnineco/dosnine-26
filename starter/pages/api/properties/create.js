@@ -58,7 +58,7 @@ export default async function handler(req, res) {
     const db = getDbClient();
     const { form, images = [] } = req.body || {};
 
-    if (!form?.title || !form?.description || !form?.parish || !form?.town || !form?.price) {
+    if (!form?.title || !form?.description || !form?.parish || !form?.town || !form?.price || !form?.property_type) {
       return res.status(400).json({ error: 'Missing required property fields' });
     }
 
@@ -82,11 +82,12 @@ export default async function handler(req, res) {
         parish: normalizeParish(form.parish),
         town: form.town,
         address: form.address || '',
-        bedrooms: Number(form.bedrooms),
-        bathrooms: Number(form.bathrooms),
+        bedrooms: Number(form.bedrooms) || 0,
+        bathrooms: Number(form.bathrooms) || 0,
         price: Number(form.price),
         currency: form.currency || 'JMD',
         type: form.type || 'rent',
+        property_type: form.property_type,
         status: form.status || 'available',
         available_date: form.available_date || null,
         phone_number: form.phone_number || null,
@@ -95,7 +96,7 @@ export default async function handler(req, res) {
       .single();
 
     if (propertyError || !property?.id) {
-      return res.status(500).json({ error: 'Failed to create property' });
+      return res.status(500).json({ error: propertyError?.message || 'Failed to create property' });
     }
 
     const uploadedFiles = [];

@@ -221,7 +221,7 @@ export default function AdvertisePage() {
         <div className="max-w-4xl mx-auto space-y-6">
           {step === 2 ? (
             <div className="bg-white rounded-xl p-6 sm:p-8 space-y-6">
-              <div className="bg-accent text-white rounded-xl p-6">
+              <div className="bg-green-600 text-white rounded-xl p-6">
                 <h1 className="text-3xl font-bold">Complete Payment to Activate Your Ad</h1>
                 <p className="mt-2 text-white/90 text-sm sm:text-base">
                   Your ad request is received. Send payment proof on WhatsApp for verification.

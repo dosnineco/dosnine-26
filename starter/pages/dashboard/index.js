@@ -33,6 +33,11 @@ export default function Dashboard() {
   const [paidAgentCount, setPaidAgentCount] = useState(null);
   const [paidAgentLoading, setPaidAgentLoading] = useState(true);
   const [shouldLoadData, setShouldLoadData] = useState(false);
+  const [userType, setUserType] = useState('landlord');
+  const [editingAdId, setEditingAdId] = useState(null);
+  const [editingAdValues, setEditingAdValues] = useState({ title: '', description: '', phone: '', website: '' });
+  const [adOperationLoading, setAdOperationLoading] = useState(false);
+  const [adMessage, setAdMessage] = useState(null);
 
   const isApprovedAgent = (agent) => {
     const status = String(agent?.verification_status || '').trim().toLowerCase();
@@ -43,6 +48,32 @@ export default function Dashboard() {
     if (!value) return 'Not available';
     const date = new Date(value);
     return Number.isNaN(date.getTime()) ? 'Not available' : date.toLocaleDateString();
+  };
+
+  const isRegularOwner = () => userType !== 'agent';
+
+  const handleAdFieldChange = (field, value) => {
+    setEditingAdValues((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
+  };
+
+  const startEditingAd = (ad) => {
+    setEditingAdId(ad.id);
+    setEditingAdValues({
+      title: ad.title || ad.company_name || '',
+      description: ad.description || '',
+      phone: ad.phone || '',
+      website: ad.website || '',
+    });
+    setAdMessage(null);
+  };
+
+  const cancelEditAd = () => {
+    setEditingAdId(null);
+    setEditingAdValues({ title: '', description: '', phone: '', website: '' });
+    setAdMessage(null);
   };
 
   // SECURITY: Check user status and redirect BEFORE loading any data
@@ -167,6 +198,7 @@ export default function Dashboard() {
         : (payload?.agent || null);
 
       setAgentData(agent);
+      setUserType(payload?.user?.user_type || 'landlord');
       setShowAgentPrompt(!agent);
 
       if (payload?.stats) {
@@ -210,6 +242,67 @@ export default function Dashboard() {
     }
   }
 
+  const saveAdEdits = async (adId) => {
+    setAdOperationLoading(true);
+    setAdMessage(null);
+
+    try {
+      const response = await fetch('/api/advertisements/update', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: adId,
+          title: editingAdValues.title,
+          description: editingAdValues.description,
+          phone: editingAdValues.phone,
+          website: editingAdValues.website,
+        }),
+      });
+
+      const payload = await response.json();
+      if (!response.ok || !payload?.success) {
+        throw new Error(payload?.error || 'Unable to update ad');
+      }
+
+      setAdMessage('Ad updated successfully');
+      cancelEditAd();
+      fetchDashboardData();
+    } catch (error) {
+      setAdMessage(error.message || 'Failed to update ad');
+    } finally {
+      setAdOperationLoading(false);
+    }
+  };
+
+  const deleteAd = async (adId) => {
+    const confirmed = window.confirm('Delete this ad? This action cannot be undone and ads are non-refundable.');
+    if (!confirmed) return;
+
+    setAdOperationLoading(true);
+    setAdMessage(null);
+
+    try {
+      const response = await fetch('/api/advertisements/delete', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: adId }),
+      });
+
+      const payload = await response.json();
+      if (!response.ok || !payload?.success) {
+        throw new Error(payload?.error || 'Unable to delete ad');
+      }
+
+      setAdMessage('Ad deleted successfully');
+      if (editingAdId === adId) cancelEditAd();
+      fetchDashboardData();
+    } catch (error) {
+      setAdMessage(error.message || 'Failed to delete ad');
+    } finally {
+      setAdOperationLoading(false);
+    }
+  };
+
   // Prevent rendering if still checking auth status or redirecting
   if (!isLoaded || redirecting || !shouldLoadData) {
     return (
@@ -229,10 +322,10 @@ export default function Dashboard() {
       </Head>
 
       <div className="container mx-auto px-4 py-8">
-        <h1 className="text-3xl font-bold mb-8">Welcome, {user?.username || 'User'}!</h1>
+        <h1 className="text-3xl font-bold mb-8">Hi, {user?.username || 'User'}!</h1>
 
         {/* Quick Actions */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
           <Link
             href="/properties/my-listings"
             className="flex items-center gap-4 bg-white border border-gray-200 rounded-lg p-6 hover:shadow-lg transition"
@@ -262,7 +355,45 @@ export default function Dashboard() {
               <p className="text-sm text-white/80">Add a new listing</p>
             </div>
           </Link>
+
+          <Link
+            href="/advertise"
+            className="flex items-center gap-4 bg-white border border-gray-200 rounded-lg p-6 hover:shadow-lg transition"
+          >
+            <div className="w-12 h-12 bg-accent/10 rounded-lg flex items-center justify-center">
+              <svg className="w-6 h-6 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+            <div>
+              <h3 className="font-semibold text-gray-900">Create an Ad</h3>
+              <p className="text-sm text-gray-500">Reach buyers and renters fast</p>
+            </div>
+          </Link>
         </div>
+
+          {/* Become Agent Prompt */}
+        {!agentData && showAgentPrompt && !pendingAdVerificationAt && (
+          <div className="bg-blue-50 border-l-4 border-accent p-6 rounded-lg mb-8">
+            <div className="flex items-start gap-3">
+              <Briefcase className="w-6 h-6 text-accent flex-shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <h3 className="text-lg font-semibold text-gray-900 mb-1">
+                  Become a Verified Agent
+                </h3>
+                <p className="text-gray-700 mb-3">
+                  Connect with clients, post unlimited properties, and grow your business!
+                </p>
+                <Link
+                  href="/agent/signup"
+                  className="btn-accent inline-block"
+                >
+                  Apply Now
+                </Link>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Agent Status Banner */}
         {agentData && (
@@ -352,28 +483,137 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* Become Agent Prompt */}
-        {!agentData && showAgentPrompt && !pendingAdVerificationAt && (
-          <div className="bg-gradient-to-r from-accent/10 to-accent/5 border-l-4 border-accent p-6 rounded-lg mb-8">
-            <div className="flex items-start gap-3">
-              <Briefcase className="w-6 h-6 text-accent flex-shrink-0 mt-0.5" />
-              <div className="flex-1">
-                <h3 className="text-lg font-semibold text-gray-900 mb-1">
-                  Become a Verified Agent
-                </h3>
-                <p className="text-gray-700 mb-3">
-                  Connect with clients, post unlimited properties, and grow your business!
-                </p>
-                <Link
-                  href="/agent/signup"
-                  className="btn-accent inline-block"
-                >
-                  Apply Now
-                </Link>
-              </div>
+        <div className="bg-white rounded-xl border border-gray-200 p-6 mb-8">
+          <div className="flex items-center justify-between gap-4 mb-4">
+            <div>
+              <h2 className="text-2xl font-bold text-gray-900">Your Ad Portfolio</h2>
+              <p className="text-sm text-gray-600">View your ad stats and manage your ad listings in one place.</p>
+            </div>
+            <div className="text-right text-sm text-gray-500">
+              No refund for ads once submitted.
             </div>
           </div>
-        )}
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+            <div className="bg-gray-50 rounded-xl p-4">
+              <p className="text-sm text-gray-500">Total Ads</p>
+              <p className="text-3xl font-semibold text-gray-900">{adStats.totalAds || 0}</p>
+            </div>
+            <div className="bg-gray-50 rounded-xl p-4">
+              <p className="text-sm text-gray-500">Active Ads</p>
+              <p className="text-3xl font-semibold text-gray-900">{adStats.activeAds || 0}</p>
+              <p className="text-xs text-gray-500 mt-1">Clicks: {Number(adStats.totalClicks || 0).toLocaleString()} · Views: {Number(adStats.totalViews || 0).toLocaleString()}</p>
+            </div>
+          </div>
+
+          {adMessage && (
+            <div className="mb-4 rounded-lg bg-yellow-50 border border-yellow-200 px-4 py-3 text-sm text-yellow-700">
+              {adMessage}
+            </div>
+          )}
+
+          {advertisements.length === 0 ? (
+            <div className="rounded-xl bg-gray-50 p-6 text-center text-gray-600">
+              You don't have any ads yet. Create one now to start promoting your business.
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {advertisements.map((ad) => (
+                <div key={ad.id} className="bg-gray-50 rounded-xl p-4 border border-gray-100">
+                  <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+                    <div>
+                      <h3 className="font-semibold text-gray-900">{ad.title || ad.company_name || 'Untitled ad'}</h3>
+                      <p className="text-sm text-gray-500">{ad.company_name}</p>
+                      <p className="text-sm text-gray-500 mt-2">Status: {ad.is_active ? 'Active' : 'Inactive / Pending'}</p>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => startEditingAd(ad)}
+                        className="px-4 py-2 rounded-xl border border-gray-200 bg-white text-gray-700 hover:bg-gray-100"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => deleteAd(ad.id)}
+                        disabled={adOperationLoading}
+                        className="px-4 py-2 rounded-xl bg-red-600 text-white hover:bg-red-700 disabled:opacity-50"
+                      >
+                        Delete
+                      </button>
+                      <Link
+                        href={`/ads/${ad.id}`}
+                        className="px-4 py-2 rounded-xl border border-gray-200 bg-white text-gray-700 hover:bg-gray-100"
+                      >
+                        View
+                      </Link>
+                    </div>
+                  </div>
+
+                  {editingAdId === ad.id && (
+                    <div className="mt-4 space-y-4 bg-white rounded-xl p-4 border border-gray-200">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">Title</label>
+                        <input
+                          value={editingAdValues.title}
+                          onChange={(e) => handleAdFieldChange('title', e.target.value)}
+                          className="mt-2 w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 focus:border-accent focus:ring-accent/40"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">Description</label>
+                        <textarea
+                          value={editingAdValues.description}
+                          onChange={(e) => handleAdFieldChange('description', e.target.value)}
+                          className="mt-2 w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 focus:border-accent focus:ring-accent/40"
+                          rows={3}
+                        />
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700">Phone</label>
+                          <input
+                            value={editingAdValues.phone}
+                            onChange={(e) => handleAdFieldChange('phone', e.target.value)}
+                            className="mt-2 w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 focus:border-accent focus:ring-accent/40"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700">Website</label>
+                          <input
+                            value={editingAdValues.website}
+                            onChange={(e) => handleAdFieldChange('website', e.target.value)}
+                            className="mt-2 w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 focus:border-accent focus:ring-accent/40"
+                          />
+                        </div>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          onClick={() => saveAdEdits(ad.id)}
+                          disabled={adOperationLoading}
+                          className="rounded-xl bg-accent px-4 py-2 text-white hover:bg-accent/90 disabled:opacity-50"
+                        >
+                          Save Changes
+                        </button>
+                        <button
+                          type="button"
+                          onClick={cancelEditAd}
+                          className="rounded-xl border border-gray-200 bg-white px-4 py-2 text-gray-700 hover:bg-gray-50"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+    
 
         {redirecting && (
           <div className="bg-white rounded-lg p-6 mb-8">
@@ -382,7 +622,7 @@ export default function Dashboard() {
         )}
 
         {/* Stats Cards */}
-        {!redirecting && (
+        {/* {!redirecting && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
           <div className="bg-white rounded-lg  p-6">
             <div className="text-gray-600 text-sm font-semibold">Total Properties</div>
@@ -391,7 +631,9 @@ export default function Dashboard() {
                 ? `${stats.properties}/∞` 
                 : `${stats.properties}/2`}
             </div>
-          </div>
+          </div> */}
+
+
           {/* <div className="bg-white rounded-lg  p-6">
             <div className="text-gray-600 text-sm font-semibold">Active Listings</div>
             <div className="text-4xl font-bold text-green-600 mt-2">
@@ -400,7 +642,7 @@ export default function Dashboard() {
                 : `${stats.activeListings}/2`}
             </div>
           </div> */}
-          <div className="bg-white rounded-lg p-6">
+          {/* <div className="bg-white rounded-lg p-6">
             <div className="text-gray-600 text-sm font-semibold">Active Ads</div>
             <div className="text-4xl font-bold text-purple-600 mt-2">
               {adStats.activeAds || 0}
@@ -410,9 +652,9 @@ export default function Dashboard() {
             </p>
           </div>
         </div>
-        )}
+        )} */}
 
-            {!redirecting && (
+            {/* {!redirecting && (
           <div className="bg-gray-100 rounded-lg p-6 mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
               <h2 className="text-xl font-bold text-gray-900">Create More Ads</h2>
@@ -427,7 +669,7 @@ export default function Dashboard() {
               Create Ad Campaign
             </Link>
           </div>
-        )}
+        )} */}
 
 
         {!redirecting && adStats.verifiedAds > 0 && (

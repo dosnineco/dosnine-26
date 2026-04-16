@@ -142,58 +142,50 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen bg-white text-black">
-
+    <div className="min-h-screen bg-gray-50">
       <main className="container mx-auto px-4 py-8">
-
         <div className="max-w-4xl mx-auto">
-
-          <h1 className="text-3xl font-bold text-center mb-6" style={{ color: '#840DD9' }}>
+          <h1 className="text-3xl font-bold text-center mb-6 text-accent">
             Chargeback Generator
           </h1>
 
-          <div className="bg-white rounded-lg border-2 gray-100 p-6 mb-8">
-
-            <h2 className="text-xl font-semibold mb-4" style={{ color: '#840DD9' }}>
+          <div className="bg-gray-100 rounded-xl p-6 mb-8">
+            <h2 className="text-xl font-semibold mb-4 text-accent">
               Configuration
             </h2>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-
               <div>
                 <label className="block text-sm mb-1">Report Date</label>
-
                 <input
                   type="date"
                   name="reportDate"
                   value={formData.reportDate}
                   onChange={handleFormChange}
-                  className="w-full border-2 border-gray-100 px-3 py-2 rounded"
+                  className="w-full bg-gray-50 px-3 py-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent"
                 />
               </div>
 
               <div>
                 <label className="block text-sm mb-1">Card Prefix</label>
-
                 <input
                   name="fFour"
                   value={formData.fFour}
                   onChange={handleFormChange}
-                  className="w-full border-2 gray-100 px-3 py-2 rounded"
+                  className="w-full bg-gray-50 px-3 py-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent"
                 />
               </div>
 
               <div>
                 <label className="block text-sm mb-1">Reason Code</label>
-
                 <select
                   name="reasonCode"
                   value={formData.reasonCode}
                   onChange={handleFormChange}
-                  className="w-full border-2 gray-100 px-3 py-2 rounded"
+                  className="w-full bg-gray-50 px-3 py-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent"
                 >
-                    <option value="NO C/HOLDER AUTH">NO C/HOLDER AUTH</option>
-                   <option value="DUPLICATE PROCESSING">DUPLICATE PROCESSING</option>
+                  <option value="NO C/HOLDER AUTH">NO C/HOLDER AUTH</option>
+                  <option value="DUPLICATE PROCESSING">DUPLICATE PROCESSING</option>
                   <option value="GOODS/SERVICE NOT AS DESCRIBED/DAMAGED">GOODS/SERVICE NOT AS DESCRIBED/DAMAGED</option>
                   <option value="INCORRECT AMOUNT">INCORRECT AMOUNT</option>
                   <option value="GOODS/SERVICES NOT RECEIVED">GOODS/SERVICES NOT RECEIVED</option>
@@ -211,12 +203,11 @@ export default function Home() {
 
               <div>
                 <label className="block text-sm mb-1">OTP</label>
-
                 <select
                   name="otp"
                   value={formData.otp}
                   onChange={handleFormChange}
-                  className="w-full border-2 gray-100 px-3 py-2 rounded"
+                  className="w-full bg-gray-50 px-3 py-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent"
                 >
                   <option value="Y">Y</option>
                   <option value="N">N</option>
@@ -225,12 +216,11 @@ export default function Home() {
 
               <div>
                 <label className="block text-sm mb-1">Card Type</label>
-
                 <select
                   name="cardtype"
                   value={formData.cardtype}
                   onChange={handleFormChange}
-                  className="w-full border-2 gray-100 px-3 py-2 rounded"
+                  className="w-full bg-gray-50 px-3 py-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent"
                 >
                   <option>Debit</option>
                   <option>Credit</option>
@@ -239,67 +229,54 @@ export default function Home() {
 
               <div>
                 <label className="block text-sm mb-1">Product Type</label>
-
                 <select
                   name="producttype"
                   value={formData.producttype}
                   onChange={handleFormChange}
-                  className="w-full border-2 gray-100 px-3 py-2 rounded"
+                  className="w-full bg-gray-50 px-3 py-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent"
                 >
                   <option>Consumer</option>
                   <option>Business</option>
                 </select>
               </div>
-
             </div>
-
           </div>
 
-          <div className="bg-white rounded-lg border-2 gray-100 p-6 mb-8">
-
-            <h2 className="text-xl font-semibold mb-4" style={{ color: '#840DD9' }}>Input</h2>
-
+          <div className="bg-gray-100 rounded-xl p-6 mb-8">
+            <h2 className="text-xl font-semibold mb-4 text-accent">Input</h2>
             <textarea
               rows={10}
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              className="w-full border-2 gray-100 px-3 py-2 rounded"
+              className="w-full bg-gray-50 px-3 py-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent"
               placeholder="Paste transaction text..."
             />
-
             <button
               onClick={handleProcess}
-              className="mt-4 text-white px-6 py-2 rounded font-semibold"
-              style={{ backgroundColor: '#840DD9' }}
+              className="mt-4 bg-accent hover:bg-accent/90 text-white px-6 py-3 rounded-xl font-semibold transition"
             >
               Process Transactions
             </button>
-
           </div>
 
-          <div className="bg-white rounded-lg border-2 gray-100 p-6">
-
+          <div className="bg-gray-100 rounded-xl p-6">
             <div className="flex justify-between mb-4">
-
-              <h2 className="text-xl font-semibold" style={{ color: '#840DD9' }}>Output</h2>
-
+              <h2 className="text-xl font-semibold text-accent">Output</h2>
               <button
                 onClick={handleCopy}
-                className="flex items-center gap-2 px-4 py-2 rounded border-2 gray-100 font-semibold"
-                style={{ color: '#840DD9' }}
+                className="flex items-center gap-2 px-4 py-2 bg-accent hover:bg-accent/90 text-white rounded-xl font-semibold transition"
               >
                 {copied ? <CheckCircle size={18} /> : <Copy size={18} />}
                 {copied ? "Copied" : "Copy"}
               </button>
-
             </div>
 
-            <div className="overflow-auto border-2 gray-100 rounded">
+            <div className="bg-gray-50 rounded-lg p-4">
               <table className="min-w-full border-collapse text-sm">
                 <thead>
-                  <tr className="bg-black text-white">
+                  <tr className="bg-accent text-white">
                     {outputHeaders.map((header) => (
-                      <th key={header} className="px-3 py-2 text-left whitespace-nowrap border-b border-white/20">
+                      <th key={header} className="px-3 py-2 text-left whitespace-nowrap">
                         {header}
                       </th>
                     ))}
@@ -310,8 +287,7 @@ export default function Home() {
                     <tr>
                       <td
                         colSpan={outputHeaders.length}
-                        className="px-3 py-6 text-center"
-                        style={{ color: '#840DD9' }}
+                        className="px-3 py-6 text-center text-accent"
                       >
                         Process transactions to preview output rows.
                       </td>
@@ -320,7 +296,7 @@ export default function Home() {
                   {outputRows.map((row, rowIndex) => (
                     <tr key={`${row[20] || 'row'}-${rowIndex}`} className="even:bg-gray-100">
                       {outputHeaders.map((_, colIndex) => (
-                        <td key={`${rowIndex}-${colIndex}`} className="px-3 py-2 border-t gray-100/10 whitespace-nowrap">
+                        <td key={`${rowIndex}-${colIndex}`} className="px-3 py-2 whitespace-nowrap">
                           {row[colIndex] || ""}
                         </td>
                       ))}
@@ -330,16 +306,12 @@ export default function Home() {
               </table>
             </div>
 
-            <p className="mt-3 text-sm" style={{ color: '#840DD9' }}>
+            <p className="mt-3 text-sm text-accent">
               Copy still uses the original tab-delimited output format.
             </p>
-
           </div>
-
         </div>
-
       </main>
-
     </div>
   );
 }
