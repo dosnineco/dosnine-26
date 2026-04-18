@@ -11,7 +11,7 @@ const plans = [
     id: '3-day',
     name: '3 Day Ad',
     duration: '3 days',
-    price: 1500,
+    price: 1499,
     badge: 'Starter Boost',
     highlight: 'Quick, budget-friendly exposure',
   },
@@ -19,7 +19,7 @@ const plans = [
     id: '7-day',
     name: '1 Week Ad',
     duration: '7 days',
-    price: 5000,
+    price: 4999,
     badge: 'Quick Boost',
     highlight: 'Reach active buyers and renters fast',
   },
@@ -27,7 +27,7 @@ const plans = [
     id: '30-day',
     name: '1 Month Ad',
     duration: '30 days',
-    price: 20000,
+    price: 14999,
     badge: 'Best Reach',
     highlight: 'Sent directly to 500+ active homeowners via email',
   },
@@ -361,7 +361,7 @@ export default function AdvertisePage() {
                         onClick={() => setForm((prev) => ({ ...prev, plan_id: plan.id }))}
                         className={`text-left rounded-xl p-5 transition relative ${
                           selected
-                            ? 'bg-accent text-white ring-2 ring-accent/40'
+                            ? 'bg-accent text-white border-2 border-gray-900'
                             : 'bg-gray-50 hover:bg-gray-100'
                         }`}
                       >

@@ -16,7 +16,7 @@ const plans = [
   {
     id: '7-day',
     name: '7-Day Access',
-    price: 1500,
+    price: 1499,
     duration: '7 days',
     headline: 'Get qualified leads for 7 days straight',
     included: [
@@ -34,7 +34,7 @@ const plans = [
   {
     id: '30-day',
     name: '1 Month Access',
-    price: 6000,
+    price: 4999,
     duration: '30 days',
     headline: 'Full access to all resquest and features',
     included: [
@@ -52,8 +52,8 @@ const plans = [
   {
     id: '90-day',
     name: '3 Month Access',
-    price: 15000,
-    duration: '90 days',
+    price: 14999,
+    duration: '3 - months',
     headline: 'Same power, lower cost per day',
     included: [
    
