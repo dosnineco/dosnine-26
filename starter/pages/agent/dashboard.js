@@ -406,7 +406,87 @@ export default function AgentDashboard() {
             </Link>
           </div>
 
-  
+          {/* Agent Benefits Section */}
+          <div className="bg-gradient-to-r from-accent/10 to-blue-50 border border-accent/20 rounded-xl p-6 mb-8">
+            <div className="flex items-center gap-3 mb-4">
+              <Award className="w-8 h-8 text-accent" />
+              <h2 className="text-xl font-bold text-gray-900">Your Agent Benefits</h2>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="bg-white/70 rounded-lg p-4 border border-white/50">
+                <div className="flex items-center gap-3 mb-2">
+                  <Users className="w-6 h-6 text-accent" />
+                  <h3 className="font-semibold text-gray-900">Connect with Clients</h3>
+                </div>
+                <p className="text-sm text-gray-600">Receive qualified leads and client requests directly in your dashboard.</p>
+              </div>
+              <div className="bg-white/70 rounded-lg p-4 border border-white/50">
+                <div className="flex items-center gap-3 mb-2">
+                  <Home className="w-6 h-6 text-accent" />
+                  <h3 className="font-semibold text-gray-900">Post Unlimited Properties</h3>
+                </div>
+                <p className="text-sm text-gray-600">List as many properties as you want with premium placement and features.</p>
+              </div>
+              <div className="bg-white/70 rounded-lg p-4 border border-white/50">
+                <div className="flex items-center gap-3 mb-2">
+                  <DollarSign className="w-6 h-6 text-accent" />
+                  <h3 className="font-semibold text-gray-900">Grow Your Business</h3>
+                </div>
+                <p className="text-sm text-gray-600">Access analytics, manage ads, and track your performance metrics.</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Quick Actions Section */}
+          <div className="bg-white rounded-xl border border-gray-200 p-6 mb-8">
+            <div className="flex items-center gap-3 mb-4">
+              <CheckCircle className="w-8 h-8 text-accent" />
+              <h2 className="text-xl font-bold text-gray-900">Quick Actions</h2>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <Link
+                href="/properties/new"
+                className="flex items-center gap-3 p-4 bg-accent/5 border border-accent/20 rounded-lg hover:bg-accent/10 transition group"
+              >
+                <Plus className="w-6 h-6 text-accent group-hover:scale-110 transition" />
+                <div>
+                  <h3 className="font-semibold text-gray-900">New Property</h3>
+                  <p className="text-sm text-gray-600">Add a listing</p>
+                </div>
+              </Link>
+              <Link
+                href="/properties/bulk-create"
+                className="flex items-center gap-3 p-4 bg-accent/5 border border-accent/20 rounded-lg hover:bg-accent/10 transition group"
+              >
+                <Plus className="w-6 h-6 text-accent group-hover:scale-110 transition" />
+                <div>
+                  <h3 className="font-semibold text-gray-900">Bulk Create</h3>
+                  <p className="text-sm text-gray-600">Upload multiple</p>
+                </div>
+              </Link>
+              <Link
+                href="/advertise"
+                className="flex items-center gap-3 p-4 bg-accent/5 border border-accent/20 rounded-lg hover:bg-accent/10 transition group"
+              >
+                <CheckCircle className="w-6 h-6 text-accent group-hover:scale-110 transition" />
+                <div>
+                  <h3 className="font-semibold text-gray-900">Create Ad</h3>
+                  <p className="text-sm text-gray-600">Promote your business</p>
+                </div>
+              </Link>
+              <Link
+                href="/agent/parish-requests"
+                className="flex items-center gap-3 p-4 bg-accent/5 border border-accent/20 rounded-lg hover:bg-accent/10 transition group relative"
+              >
+                <span className="absolute -top-2 -right-2 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full shadow-sm z-10">NEW</span>
+                <Search className="w-6 h-6 text-accent group-hover:scale-110 transition" />
+                <div>
+                  <h3 className="font-semibold text-gray-900">Parish Search</h3>
+                  <p className="text-sm text-gray-600">Find opportunities</p>
+                </div>
+              </Link>
+            </div>
+          </div>
 
           {/* Free Plan Alert */}
           {isFreePlan() && (
@@ -536,6 +616,43 @@ export default function AgentDashboard() {
             ) : (
               <p className="text-sm text-gray-500">No active ads yet.</p>
             )}
+          </div>
+
+          {/* Recent Activity Section */}
+          <div className="bg-white rounded-lg border border-gray-200 p-4 mb-8">
+            <div className="flex items-center gap-3 mb-4">
+              <BellDot className="w-6 h-6 text-accent" />
+              <h2 className="text-lg font-semibold text-gray-900">Recent Activity</h2>
+            </div>
+            <div className="space-y-3">
+              {requests.slice(0, 3).map((request) => (
+                <div key={request.id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                  <div className={`w-3 h-3 rounded-full ${
+                    request.status === 'completed' ? 'bg-green-500' :
+                    request.status === 'assigned' || request.status === 'in_progress' ? 'bg-orange-500' :
+                    'bg-blue-500'
+                  }`} />
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-gray-900">
+                      {request.request_type?.toUpperCase()} - {request.property_type}
+                    </p>
+                    <p className="text-xs text-gray-600">
+                      {request.client_name} • {getRelativeTime(request.created_at)}
+                    </p>
+                  </div>
+                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                    request.status === 'completed' ? 'bg-green-100 text-green-800' :
+                    request.status === 'assigned' || request.status === 'in_progress' ? 'bg-orange-100 text-orange-800' :
+                    'bg-blue-100 text-blue-800'
+                  }`}>
+                    {request.status}
+                  </span>
+                </div>
+              ))}
+              {requests.length === 0 && (
+                <p className="text-sm text-gray-500 text-center py-4">No recent activity yet.</p>
+              )}
+            </div>
           </div>
 
           {/* Filters */}

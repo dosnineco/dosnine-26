@@ -2,6 +2,20 @@ import { getAuth } from '@clerk/nextjs/server';
 import { supabase } from '@/lib/supabase';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 
+const PLACEHOLDER_EMAIL_SUFFIX = '@placeholder.dosnine.local';
+const PLACEHOLDER_FULL_NAME = 'Dosnine User';
+
+export function isPlaceholderEmail(email) {
+  return typeof email === 'string' && email.trim().toLowerCase().endsWith(PLACEHOLDER_EMAIL_SUFFIX);
+}
+
+export function isPlaceholderUser(user) {
+  return Boolean(
+    user &&
+    (isPlaceholderEmail(user.email) || user.full_name === PLACEHOLDER_FULL_NAME)
+  );
+}
+
 export function getDbClient() {
   if (supabaseAdmin) {
     return supabaseAdmin;
@@ -108,13 +122,18 @@ export async function getDbUserByClerkId(clerkId, { createIfMissing = false, fal
     }
   }
 
-  if (!createIfMissing) {
+  if (!createIfMissing || !fallbackEmail) {
+    return { user: null, error: null };
+  }
+
+  const normalizedEmail = fallbackEmail.trim().toLowerCase();
+  if (isPlaceholderEmail(normalizedEmail)) {
     return { user: null, error: null };
   }
 
   const bootstrapUser = {
     clerk_id: clerkId,
-    email: fallbackEmail || `${clerkId}@placeholder.dosnine.local`,
+    email: normalizedEmail,
     full_name: fallbackFullName || 'Dosnine User',
     user_type: 'landlord',
   };
@@ -173,6 +192,11 @@ export async function requireDbUser(req, res, { createIfMissing = false } = {}) 
 
   if (!user) {
     res.status(404).json({ error: 'User not found' });
+    return null;
+  }
+
+  if (isPlaceholderUser(user)) {
+    res.status(403).json({ error: 'Incomplete account. Sign in with a verified email to continue.' });
     return null;
   }
 

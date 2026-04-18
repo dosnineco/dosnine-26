@@ -78,9 +78,9 @@ export function useRoleProtection({
         // Fetch user data from database
         const { data } = await axios.get('/api/user/profile');
 
-        console.log('useRoleProtection - Fetched fresh user data:', data);
-        console.log('useRoleProtection - Agent data:', data?.agent);
-        console.log('useRoleProtection - User role:', data?.role);
+        // console.log('useRoleProtection - Fetched fresh user data:', data);
+        // console.log('useRoleProtection - Agent data:', data?.agent);
+        // console.log('useRoleProtection - User role:', data?.role);
 
         // Cache the data with timestamp
         const dataWithCache = { ...data, _cacheTime: Date.now() };

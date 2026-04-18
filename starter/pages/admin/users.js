@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useUser } from '@clerk/nextjs';
 import AdminLayout from '../../components/AdminLayout';
 import toast from 'react-hot-toast';
-import { FiEdit2, FiTrash2, FiPlus, FiX } from 'react-icons/fi';
+import { FiEdit2, FiTrash2, FiRefreshCw, FiX } from 'react-icons/fi';
 
 export default function AdminUsersPage() {
   const { user } = useUser();
@@ -60,24 +60,16 @@ export default function AdminUsersPage() {
     }
   };
 
-  const handleOpenModal = (userToEdit = null) => {
-    if (userToEdit) {
-      setEditingUser(userToEdit);
-      setFormData({
-        full_name: userToEdit.full_name || '',
-        email: userToEdit.email || '',
-        phone: userToEdit.phone || '',
-        role: userToEdit.role || 'tenant'
-      });
-    } else {
-      setEditingUser(null);
-      setFormData({
-        full_name: '',
-        email: '',
-        phone: '',
-        role: 'tenant'
-      });
-    }
+  const handleOpenModal = (userToEdit) => {
+    if (!userToEdit) return;
+
+    setEditingUser(userToEdit);
+    setFormData({
+      full_name: userToEdit.full_name || '',
+      email: userToEdit.email || '',
+      phone: userToEdit.phone || '',
+      role: userToEdit.role || 'tenant'
+    });
     setShowModal(true);
   };
 
@@ -207,11 +199,11 @@ export default function AdminUsersPage() {
             
             </div>
             <button
-              onClick={() => handleOpenModal()}
+              onClick={fetchUsers}
               className="flex items-center gap-2 px-4 py-2 btn-accent text-white rounded-lg transition-colors"
             >
-              <FiPlus size={20} />
-              Add User
+              <FiRefreshCw size={20} />
+              Refresh Users
             </button>
           </div>
 
@@ -247,6 +239,7 @@ export default function AdminUsersPage() {
                       <div className="flex-1 min-w-0">
                         <h3 className="font-bold text-gray-800 truncate text-lg">{u.full_name || 'No name'}</h3>
                         <p className="text-sm text-gray-600 truncate">{u.email}</p>
+                        <p className="text-xs text-gray-500 mt-1">ID: {u.id}</p>
                         {u.phone && (
                           <p className="text-sm text-gray-600 mt-1">📞 {u.phone}</p>
                         )}
@@ -292,7 +285,7 @@ export default function AdminUsersPage() {
           <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-2xl font-bold text-gray-900">
-                {editingUser ? 'Edit User' : 'Add New User'}
+                Edit User
               </h2>
               <button
                 onClick={handleCloseModal}
@@ -369,7 +362,7 @@ export default function AdminUsersPage() {
                   type="submit"
                   className="flex-1 px-4 py-2 btn-accent text-white rounded-lg font-medium"
                 >
-                  {editingUser ? 'Update' : 'Create'}
+                  Update
                 </button>
               </div>
             </form>
