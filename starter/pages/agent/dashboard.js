@@ -626,7 +626,7 @@ export default function AgentDashboard() {
           </div>
 
           {/* Recent Activity Section */}
-          <div className="bg-white rounded-lg border border-gray-200 p-4 mb-8">
+          {/* <div className="bg-white rounded-lg border border-gray-200 p-4 mb-8">
             <div className="flex items-center gap-3 mb-4">
               <BellDot className="w-6 h-6 text-accent" />
               <h2 className="text-lg font-semibold text-gray-900">Recent Activity</h2>
@@ -660,7 +660,7 @@ export default function AgentDashboard() {
                 <p className="text-sm text-gray-500 text-center py-4">No recent activity yet.</p>
               )}
             </div>
-          </div>
+          </div> */}
 
           {/* Filters */}
           <div className="mb-8 sm:mb-6">
