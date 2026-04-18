@@ -11,7 +11,7 @@ import AgentFeedbackPopup from '../../components/AgentFeedbackPopup';
 import { useRoleProtection } from '../../lib/useRoleProtection';
 import { isVerifiedAgent } from '../../lib/rbac';
 import { 
-  Home, Users, Mail, Phone, MapPin, DollarSign, 
+  Home, Users, Mail, Phone, MapPin, DollarSign,Award, 
   Bed, Bath, Calendar, Filter, CheckCircle, XCircle,
   AlertCircle, Clock, Plus, RotateCcw, Trash2, BellDot, MessageCircle, Phone as PhoneIcon, CreditCard, Info, MessageSquare, Search
 } from 'lucide-react';
@@ -342,69 +342,7 @@ export default function AgentDashboard() {
         
 
          
-          <div className="mb-10 grid grid-cols-2 sm:flex sm:flex-nowrap gap-3">
-            <Link 
-              href="/properties/my-listings"
-              className="px-4 py-2 bg-white text-black rounded-lg hover:bg-gray-100 transition font-medium flex items-center justify-center gap-1.5 border border-gray-300"
-            >
-              <Home className="w-5 h-5" />
-              <span className="hidden sm:inline">My Properties</span>
-              <span className="sm:hidden">Properties</span>
-            </Link>
-            <Link 
-              href="/properties/new"
-              className="px-4 py-2 bg-white text-black rounded-lg hover:bg-gray-100 transition font-medium flex items-center justify-center gap-1.5 border border-gray-300"
-            >
-              <Plus className="w-5 h-5" />
-              <span>Create</span>
-            </Link>
-            <Link 
-              href="/properties/bulk-create"
-              className="px-4 py-2 bg-white text-black rounded-lg hover:bg-gray-100 transition font-medium flex items-center justify-center gap-1.5 border border-gray-300 col-span-2 sm:col-span-1"
-            >
-              <Plus className="w-5 h-5" />
-              <span>Bulk Create</span>
-            </Link>
-            <Link 
-              href="/agent/parish-requests"
-              className="relative px-4 py-2 bg-white text-black rounded-lg hover:bg-gray-100 transition font-medium flex items-center justify-center gap-1.5 border border-gray-300 col-span-2 sm:col-span-1"
-            >
-              <span className="absolute -top-2 -right-2 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full shadow-sm z-10">NEW</span>
-              <Search className="w-5 h-5" />
-              <span className="hidden sm:inline">Parish Search</span>
-              <span className="sm:hidden">Search</span>
-            </Link>
-            <Link 
-              href="/agent/my-applications"
-              className="px-4 py-2 bg-white text-black rounded-lg hover:bg-gray-100 transition font-medium flex items-center justify-center gap-1.5 border border-gray-300 col-span-2 sm:col-span-1"
-            >
-              
-              <Mail className="w-5 h-5" />
-              <span className="hidden sm:inline">My Applications</span>
-              <span className="sm:hidden">Applications</span>
-            </Link>
-            
-            
-            <Link 
-              href="/agent/payment"
-              onClick={(e) => {
-                if (isAccessExpired()) {
-                  toast.error('Your access has expired. Please upgrade to continue receiving leads.', { duration: 4000 });
-                } else if (isFreePlan()) {
-                  toast('Upgrade to unlock higher-value leads!', {  duration: 4000 });
-                }
-              }}
-              className={`px-4 py-2 rounded-lg transition font-medium flex items-center justify-center gap-1.5 border col-span-2 sm:col-span-1 ${
-                shouldShowUpgrade() 
-                  ? 'bg-orange-500 text-white border-orange-600 hover:bg-orange-600 animate-pulse' 
-                  : 'bg-white text-black border-gray-300 hover:bg-gray-100'
-              }`}
-            >
-              <CreditCard className="w-5 h-5" />
-              <span className="hidden sm:inline">{shouldShowUpgrade() ? 'Upgrade Now' : 'Access Plan'}</span>
-              <span className="sm:hidden">{shouldShowUpgrade() ? 'Upgrade' : 'Plan'}</span>
-            </Link>
-          </div>
+         
 
           {/* Agent Benefits Section */}
           <div className="bg-gradient-to-r from-accent/10 to-blue-50 border border-accent/20 rounded-xl p-6 mb-8">
@@ -438,7 +376,7 @@ export default function AgentDashboard() {
           </div>
 
           {/* Quick Actions Section */}
-          <div className="bg-white rounded-xl border border-gray-200 p-6 mb-8">
+          <div className="bg-white rounded-xl border border-gray-200 p-6 mb-4 ">
             <div className="flex items-center gap-3 mb-4">
               <CheckCircle className="w-8 h-8 text-accent" />
               <h2 className="text-xl font-bold text-gray-900">Quick Actions</h2>
@@ -486,6 +424,75 @@ export default function AgentDashboard() {
                 </div>
               </Link>
             </div>
+
+             <div className="mb-5 mt-5 grid grid-cols-2 sm:flex sm:flex-nowrap gap-3">
+
+            <Link 
+              href="/properties/my-listings"
+              className="px-4 py-2 bg-white text-black rounded-lg hover:bg-gray-100 transition font-medium flex items-center justify-center gap-1.5 border border-gray-300"
+            >
+              <Home className="w-5 h-5" />
+              <span className="hidden sm:inline">My Properties</span>
+              <span className="sm:hidden">Properties</span>
+            </Link>
+
+            {/* <Link 
+              href="/properties/new"
+              className="px-4 py-2 bg-white text-black rounded-lg hover:bg-gray-100 transition font-medium flex items-center justify-center gap-1.5 border border-gray-300"
+            >
+              <Plus className="w-5 h-5" />
+              <span>Create</span>
+            </Link> */}
+
+
+            {/* <Link 
+              href="/properties/bulk-create"
+              className="px-4 py-2 bg-white text-black rounded-lg hover:bg-gray-100 transition font-medium flex items-center justify-center gap-1.5 border border-gray-300 col-span-2 sm:col-span-1"
+            >
+              <Plus className="w-5 h-5" />
+              <span>Bulk Create</span>
+            </Link> */}
+            
+            {/* <Link 
+              href="/agent/parish-requests"
+              className="relative px-4 py-2 bg-white text-black rounded-lg hover:bg-gray-100 transition font-medium flex items-center justify-center gap-1.5 border border-gray-300 col-span-2 sm:col-span-1"
+            >
+              <span className="absolute -top-2 -right-2 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full shadow-sm z-10">NEW</span>
+              <Search className="w-5 h-5" />
+              <span className="hidden sm:inline">Parish Search</span>
+              <span className="sm:hidden">Search</span>
+            </Link> */}
+            <Link 
+              href="/agent/my-applications"
+              className="px-4 py-2 bg-white text-black rounded-lg hover:bg-gray-100 transition font-medium flex items-center justify-center gap-1.5 border border-gray-300 col-span-2 sm:col-span-1"
+            >
+              
+              <Mail className="w-5 h-5" />
+              <span className="hidden sm:inline">My Applications</span>
+              <span className="sm:hidden">Applications</span>
+            </Link>
+            
+            
+            <Link 
+              href="/agent/payment"
+              onClick={(e) => {
+                if (isAccessExpired()) {
+                  toast.error('Your access has expired. Please upgrade to continue receiving leads.', { duration: 4000 });
+                } else if (isFreePlan()) {
+                  toast('Upgrade to unlock higher-value leads!', {  duration: 4000 });
+                }
+              }}
+              className={`px-4 py-2 rounded-lg transition font-medium flex items-center justify-center gap-1.5 border col-span-2 sm:col-span-1 ${
+                shouldShowUpgrade() 
+                  ? 'bg-green-500 text-white border-green-600 hover:bg-green-600 animate-pulse' 
+                  : 'bg-white text-black border-gray-300 hover:bg-gray-100'
+              }`}
+            >
+              <CreditCard className="w-5 h-5" />
+              <span className="hidden sm:inline">{shouldShowUpgrade() ? 'Upgrade Now' : 'Access Plan'}</span>
+              <span className="sm:hidden">{shouldShowUpgrade() ? 'Upgrade' : 'Plan'}</span>
+            </Link>
+          </div>
           </div>
 
           {/* Free Plan Alert */}
