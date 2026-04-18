@@ -135,7 +135,7 @@ export default function AgentApplicationsPage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="animate-spin">Loading...</div>
+        <div className="">Loading...</div>
       </div>
     );
   }
@@ -145,9 +145,9 @@ export default function AgentApplicationsPage() {
   }
 
   const statusConfig = {
-    pending: { icon: Clock, color: 'text-yellow-600', bg: 'bg-yellow-50', border: 'border-yellow-200' },
-    approved: { icon: CheckCircle, color: 'text-green-600', bg: 'bg-green-50', border: 'border-green-200' },
-    rejected: { icon: XCircle, color: 'text-red-600', bg: 'bg-red-50', border: 'border-red-200' }
+    pending: { icon: Clock, color: 'text-yellow-600', bg: 'bg-gray-50', border: 'border-yellow-500' },
+    approved: { icon: CheckCircle, color: 'text-green-600', bg: 'bg-gray-50', border: 'border-green-500' },
+    rejected: { icon: XCircle, color: 'text-red-600', bg: 'bg-gray-50', border: 'border-red-500' }
   };
 
   return (
@@ -193,20 +193,19 @@ export default function AgentApplicationsPage() {
                 return (
                   <div
                     key={app.id}
-                    className={`rounded-lg border p-6 ${statusInfo.bg} ${statusInfo.border}`}
+                    className={`rounded-lg border-l-4 p-4 ${statusInfo.bg} ${statusInfo.border}`}
                   >
                     <div className="flex items-start justify-between gap-4 flex-wrap">
                       <div className="flex-1 min-w-[250px]">
-                        <div className="flex items-center gap-3 mb-3">
-                          <StatusIcon className={`w-5 h-5 ${statusInfo.color}`} />
-                          <span className={`px-3 py-1 rounded-full text-sm font-medium ${statusInfo.color} bg-white border ${statusInfo.border}`}>
-                            {app.status.charAt(0).toUpperCase() + app.status.slice(1)}
-                          </span>
-                        </div>
+                        
 
                         <div className="space-y-2 mb-4">
                           <div>
-                            <h3 className="font-semibold text-gray-900">Request</h3>
+                          <div className="flex items-center gap-3 mb-3">
+                        <span className={`p-2 m-2  rounded-full text-sm font-medium ${statusInfo.color} bg-white border ${statusInfo.border}`}>
+                            Request {app.status.charAt(0).toUpperCase() + app.status.slice(1)}
+                          </span>
+                        </div>
                             <p className="text-sm text-gray-600">
                               {request?.request_type?.toUpperCase()} • {request?.property_type} • {request?.bedrooms}bd {request?.bathrooms}ba
                             </p>

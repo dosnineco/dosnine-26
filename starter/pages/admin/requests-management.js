@@ -363,7 +363,7 @@ export default function RequestsManagementPage() {
       <div className="min-h-screen bg-gray-100 pb-8">
         <AdminLayout />
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
-          <div className="bg-gray-200 rounded-xl p-4 sm:p-6">
+          <div className="bg-white rounded-xl p-4 sm:p-6">
             <div className="mb-4">
               <h1 className="text-xl font-bold text-gray-900">Manage Requests</h1>
               <p className="text-sm text-gray-600">Bulk manage request status, contact state, and assignment.</p>

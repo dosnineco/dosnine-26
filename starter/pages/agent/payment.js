@@ -5,9 +5,11 @@ import Head from 'next/head';
 import toast from 'react-hot-toast';
 import { useRoleProtection } from '../../lib/useRoleProtection';
 import { isVerifiedAgent } from '../../lib/rbac';
-import { Copy, Check, AlertCircle, ChevronDown, Activity } from 'lucide-react';
+import { Copy, Check, AlertCircle, ChevronDown, Award,Users,Home,DollarSign } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { getSiteSettings } from '../../lib/siteSettings';
+
+
 
 const plans = [
  
@@ -206,6 +208,8 @@ export default function AgentPayment() {
             <div className="bg-gray-500 text-white px-6 py-8 sm:px-8 sm:py-10 rounded-lg">
               <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Agent Access Plans</h1>
               <p className="mt-2 text-gray-300 text-sm sm:text-base">Based on deal value. Choose your plan and get verified in 24 hours.</p>
+
+          
               
               {/* Current Plan Status */}
               {userData?.agent && (
@@ -255,6 +259,30 @@ export default function AgentPayment() {
                 </div>
               </div>
 
+      {/* Agent Benefits Section */}
+          <div className="bg-gradient-to-r from-accent/10 to-blue-50 border border-accent/20 rounded-xl p-6 mb-8">
+            <div className="flex items-center gap-3 mb-4">
+              <Award className="w-8 h-8 text-accent" />
+              <h2 className="text-xl font-bold text-gray-900">Your Agent Benefits</h2>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="bg-white/70 rounded-lg p-4 border border-white/50">
+                <div className="flex items-center gap-3 mb-2">
+                  <Users className="w-6 h-6 text-accent" />
+                  <h3 className="font-semibold text-gray-900">Connect with Clients</h3>
+                </div>
+                <p className="text-sm text-gray-600">Receive qualified leads and client requests directly in your dashboard.</p>
+              </div>
+              <div className="bg-white/70 rounded-lg p-4 border border-white/50">
+                <div className="flex items-center gap-3 mb-2">
+                  <Home className="w-6 h-6 text-accent" />
+                  <h3 className="font-semibold text-gray-900">Post Unlimited Properties</h3>
+                </div>
+                <p className="text-sm text-gray-600">List as many properties as you want with premium placement and features.</p>
+              </div>
+            
+            </div>
+          </div>
               {/* Plans */}
               <div className="space-y-8">
                 <h2 className="text-lg sm:text-xl font-bold text-gray-900">Pick your plan</h2>
