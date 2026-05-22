@@ -96,8 +96,8 @@ export default function Header() {
                 Browse
               </Link>
               <Link 
-                href="/dashboard" 
-                className={`px-3 py-2 rounded-lg transition text-sm ${router.pathname === '/dashboard' ? 'bg-gray-200 text-gray-900 font-medium' : 'text-gray-600 hover:bg-gray-100'}`}
+                href="/agent/dashboard" 
+                className={`px-3 py-2 rounded-lg transition text-sm ${router.pathname === '/agent/dashboard' ? 'bg-gray-200 text-gray-900 font-medium' : 'text-gray-600 hover:bg-gray-100'}`}
               >
                 Sign In
               </Link>
