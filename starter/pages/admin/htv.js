@@ -681,7 +681,7 @@ export default function AdminDashboard() {
                 </div>
               </div>
 
-              <div className="mt-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              {/* <div className="mt-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <h2 className="text-sm font-semibold text-black">Filter orders by month</h2>
                   <p className="text-sm text-gray-600">Select a month to view weekly revenue, expenses and profit.</p>
@@ -699,9 +699,9 @@ export default function AdminDashboard() {
                     ))}
                   </select>
                 </div>
-              </div>
+              </div> */}
 
-              <section className="mt-10 rounded-3xl bg-gray-50 
+              {/* <section className="mt-10 rounded-3xl bg-gray-50 
               p-6">
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                   <div>
@@ -747,7 +747,7 @@ export default function AdminDashboard() {
                     ))
                   )}
                 </div>
-              </section>
+              </section> */}
 
               <section className="mt-10 rounded-3xl bg-white p-6 shadow-sm ring-1 ring-black/5">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
