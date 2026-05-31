@@ -29,12 +29,6 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true, message: 'Analytics tracked successfully' });
     }
 
-    console.log('Analytics tracked:', {
-      event: sanitizeString(data.event_type, 100),
-      page: data.page_url ? sanitizeString(data.page_url, 2000) : null,
-      timestamp: data.created_at ? sanitizeString(data.created_at, 100) : null,
-    });
-
     return res.status(200).json({ 
       success: true,
       message: 'Analytics tracked successfully'
@@ -45,7 +39,6 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Invalid request payload' });
     }
 
-    console.error('Error tracking analytics');
     return res.status(500).json({ error: 'Failed to track analytics' });
   }
 }

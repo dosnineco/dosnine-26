@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
 import Link from 'next/link'
-import { Star, Eye, Share2 } from 'lucide-react'
+import { Eye, Share2 } from 'lucide-react'
 
 export default function AdvertisementGrid({ compact = false }) {
   // State and refs
@@ -9,22 +9,73 @@ export default function AdvertisementGrid({ compact = false }) {
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState('')
   const [redirecting, setRedirecting] = useState(false)
+  const [activeAdIndex, setActiveAdIndex] = useState(0)
   const impressionTracked = useRef(new Set())
-  const scrollContainerRef = useRef(null)
-  const autoScrollInterval = useRef(null)
-  const autoScrollDirection = useRef(1)
   const MAX_AD_SLOTS = 12
-  const placeholderLimit = compact ? 1 : 2
-  const placeholderCount = ads.length > 3
-    ? 0
-    : Math.min(placeholderLimit, Math.max(0, MAX_AD_SLOTS - ads.length))
-  const gridItems = [
-    ...ads,
-    ...Array.from({ length: placeholderCount }, (_, index) => ({
-      id: `placeholder-${index}`,
-      isPlaceholder: true,
-    })),
-  ]
+
+  const getRotationSeed = () => {
+    if (typeof window === 'undefined') return 0
+    let seed = sessionStorage.getItem('dosnineAdsRotationSeed')
+    if (!seed) {
+      seed = String(Math.floor(Math.random() * 1000000))
+      sessionStorage.setItem('dosnineAdsRotationSeed', seed)
+    }
+    return parseInt(seed, 10)
+  }
+
+  const getRotationOffset = (length) => {
+    if (typeof window === 'undefined' || length === 0) return 0
+    const seed = getRotationSeed()
+    const pathHash = window.location.pathname
+      .split('')
+      .reduce((sum, char) => sum + char.charCodeAt(0), seed)
+    return Math.abs(pathHash) % length
+  }
+
+  const sortAdsForBalance = (adList) => {
+    return [...adList].sort((a, b) => {
+      const aScore = Number(a.impressions || 0) + (a.is_featured ? -30 : 0)
+      const bScore = Number(b.impressions || 0) + (b.is_featured ? -30 : 0)
+
+      if (aScore !== bScore) return aScore - bScore
+      if ((a.display_order || 0) !== (b.display_order || 0)) {
+        return (a.display_order || 0) - (b.display_order || 0)
+      }
+      return new Date(a.created_at) - new Date(b.created_at)
+    })
+  }
+
+  const rotateAds = (adList, offset) => {
+    if (adList.length === 0) return adList
+    const index = offset % adList.length
+    return [...adList.slice(index), ...adList.slice(0, index)]
+  }
+
+  const getBalancedAds = (allAds) => {
+    if (!Array.isArray(allAds) || allAds.length === 0) return []
+    const sorted = sortAdsForBalance(allAds)
+    const selected = sorted.slice(0, MAX_AD_SLOTS)
+    return rotateAds(selected, getRotationOffset(selected.length))
+  }
+
+  const activeAd = ads[activeAdIndex] || null
+
+  useEffect(() => {
+    if (ads.length === 0) return
+    setActiveAdIndex(getRotationOffset(ads.length))
+  }, [ads.length])
+
+  useEffect(() => {
+    if (ads.length <= 1) return
+
+    const swapInterval = setInterval(() => {
+      setActiveAdIndex((prevIndex) => (prevIndex + 1) % ads.length)
+    }, 8000)
+
+    return () => {
+      clearInterval(swapInterval)
+    }
+  }, [ads.length])
 
   // Load ads from Supabase and arrange featured placement
   const loadAds = async () => {
@@ -35,44 +86,12 @@ export default function AdvertisementGrid({ compact = false }) {
         .select('*')
         .eq('is_active', true)
         .or('expires_at.is.null,expires_at.gt.now()')
-        .order('is_featured', { ascending: false })
-        .order('created_at', { ascending: false })
         .limit(12)
 
       if (error) throw error
 
       if (data && data.length > 0) {
-        const featured = data.filter((ad) => ad.is_featured)
-        const regular = data.filter((ad) => !ad.is_featured)
-
-        if (featured.length > 0 && typeof window !== 'undefined') {
-          const isMobile = window.innerWidth < 768
-
-          if (isMobile) {
-            setAds([...featured, ...regular])
-          } else {
-            const interleaved = []
-            let featuredIndex = 0
-
-            for (let i = 0; i < regular.length; i++) {
-              interleaved.push(regular[i])
-
-              if ((i + 1) % 3 === 0 && featuredIndex < featured.length) {
-                interleaved.push(featured[featuredIndex])
-                featuredIndex++
-              }
-            }
-
-            while (featuredIndex < featured.length) {
-              interleaved.push(featured[featuredIndex])
-              featuredIndex++
-            }
-
-            setAds(interleaved)
-          }
-        } else {
-          setAds(data)
-        }
+        setAds(getBalancedAds(data))
       } else {
         setAds([])
       }
@@ -188,47 +207,6 @@ export default function AdvertisementGrid({ compact = false }) {
     }
   }
 
-  // Auto-scroll cards forward and backward
-  useEffect(() => {
-    if (typeof window === 'undefined' || !scrollContainerRef.current) return
-
-    const shouldAutoScroll = true
-    if (!shouldAutoScroll || ads.length === 0) return
-
-    autoScrollDirection.current = 1
-
-    autoScrollInterval.current = setInterval(() => {
-      if (scrollContainerRef.current) {
-        const container = scrollContainerRef.current
-        const cardWidth = container.children[0]?.offsetWidth || 0
-        const gap = 24
-        const isSmallScreen = window.innerWidth < 640
-        const scrollAmount = isSmallScreen ? container.clientWidth : cardWidth + gap
-        const maxScrollLeft = Math.max(0, container.scrollWidth - container.clientWidth)
-
-        if (maxScrollLeft === 0) return
-
-        const tolerance = 10
-        let nextScrollLeft = container.scrollLeft + (scrollAmount * autoScrollDirection.current)
-
-        if (nextScrollLeft >= maxScrollLeft - tolerance) {
-          nextScrollLeft = maxScrollLeft
-          autoScrollDirection.current = -1
-        } else if (nextScrollLeft <= tolerance) {
-          nextScrollLeft = 0
-          autoScrollDirection.current = 1
-        }
-
-        container.scrollTo({ left: nextScrollLeft, behavior: 'smooth' })
-      }
-    }, 4000)
-
-    return () => {
-      if (autoScrollInterval.current) {
-        clearInterval(autoScrollInterval.current)
-      }
-    }
-  }, [ads, compact])
 
   // Loading state UI
   if (loading) {
@@ -244,117 +222,56 @@ export default function AdvertisementGrid({ compact = false }) {
 
   // Main render
   return (
-    <div className={`w-full rounded-xl overflow-hidden ${compact ? 'mb-4 py-3' : 'mb-6 py-2'}`}>
-      {/* <h3 className={`font-bold text-gray-900 mb-1 ${compact ? 'text-lg px-4' : 'text-xl px-6'}`}>Services You Might Also Need</h3>
-      
+    <div className={`w-full  bg-gray-100 text-white overflow-hidden ${compact ? 'mb-4 py-3' : 'mb-6 py-2'}`}>
 
-        <Link
-          href="/advertise"
-          className={`text-accent text-sm mb-2 underline rounded-lg font-bold hover:text-accent/80 transition inline-block ${compact ? 'px-4' : 'px-6'}`}
-        >
-          Advertise Your Business Here
-        </Link> */}
 
       {/* Top section: horizontal ad cards */}
-      {ads.length > 0 ? (
-        <div
-          ref={scrollContainerRef}
-          className={compact
-            ? 'flex gap-0 sm:gap-3 overflow-x-auto snap-x snap-mandatory scroll-smooth px-0 sm:px-4 py-2'
-            : 'flex gap-0 sm:gap-4 md:gap-6 overflow-x-auto snap-x snap-mandatory scroll-smooth px-0 sm:px-4 md:px-6 py-2'}
-          style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
-        >
-          <style jsx>{`
-            div::-webkit-scrollbar {
-              display: none;
-            }
-          `}</style>
-          {gridItems.map((ad) => {
-            if (ad.isPlaceholder) {
-              return (
-              <Link
-                key={ad.id}
-                href="/advertise"
-                className={`relative  border border-gray-100 rounded-xl transition-all duration-300 h-auto overflow-hidden ${compact ? 'snap-center w-full sm:w-[230px] flex-shrink-0' : 'snap-center w-full sm:w-[230px] md:w-[250px] flex-shrink-0'}`}
-              >
-                <span className="absolute top-1 right-1 z-10 text-[10px] font-bold uppercase bg-gray-900 text-white px-2 py-0.5 rounded-full">
-                  Ad
-                </span>
-                <div className="h-2 caution-tape-bg"></div>
-                <div className={`text-center flex flex-col items-center justify-center ${compact ? 'p-4 min-h-[170px]' : 'p-6 min-h-[190px]'}`}>
-                  <p className="text-sm font-bold text-gray-900 mb-2">This Spot Is Available</p>
-                  <p className="text-xs text-gray-600 mb-4">Put your business in front of active buyers and renters.</p>
-                  <span className="inline-block bg-accent text-white px-4 py-2 rounded-lg text-xs font-semibold">
-                    Advertise Here
-                  </span>
+
+        <div className={`relative ${compact ? 'px-4 py-2' : 'px-4 md:px-6 py-2'}`}>
+          <div className={`mx-auto w-full ${compact ? 'max-w-[380px]' : 'max-w-[520px]'}`}>
+            <Link
+              key={activeAd.id}
+              href={`/ads/${activeAd.id}`}
+              data-ad-id={activeAd.id}
+              className={`relative bg-white border border-gray-200 rounded-3xl shadow-sm transition-all duration-300 overflow-hidden ${activeAd.is_featured ? 'ring-1 ring-accent/15' : ''}`}
+            >
+              <span className="absolute top-4 left-4 z-20 inline-flex items-center rounded-full bg-black text-white px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] shadow-sm">
+                Sponsored
+              </span>
+              {activeAd.is_featured && (
+                <div className="absolute top-3 left-3 z-10 bg-accent/10 text-accent text-[11px] px-2 py-1 rounded-full font-semibold">
+                  Featured
                 </div>
-              </Link>
-              )
-            }
+              )}
 
-            const adImage = (Array.isArray(ad.image_urls) && ad.image_urls.length > 0)
-              ? ad.image_urls[0]
-              : ad.image_url
-
-            return (
-              <Link
-                key={ad.id}
-                href={`/ads/${ad.id}`}
-                data-ad-id={ad.id}
-                className={`relative bg-gray-25 border border-gray-200 rounded-xl transition-all duration-300 h-auto overflow-hidden ${compact ? 'snap-center w-full sm:w-[230px] flex-shrink-0' : 'snap-center w-full sm:w-[230px] md:w-[250px] flex-shrink-0'} ${
-                  ad.is_featured ? 'ring-2 ring-yellow-400' : ''
-                }`}
-              >
-                <span className="absolute top-2 right-2 z-10 text-[10px] font-bold uppercase bg-gray-900 text-white px-2 py-0.5 rounded-full">
-                  Ad
-                </span>
-                {ad.is_featured && (
-                  <div className="absolute top-2 left-2 z-10 bg-yellow-400 text-black text-xs px-3 py-1 rounded-full font-bold">
-                    <Star className="inline-block w-3 h-3 mr-1" />
-                    FEATURED
-                  </div>
-                )}
-
-                {adImage && (
-                  <div className="w-full aspect-[4/3] bg-gray-50 overflow-hidden">
-                    <img src={adImage} alt={ad.company_name} className="w-full h-full object-cover" />
-                  </div>
-                )}
-                <div className="p-4">
-                  <h3 className="font-bold capitalize text-base mb-2 text-gray-800 line-clamp-1">
-                    {ad.company_name}
-                  </h3>
-
-                  <p className="text-xs text-gray-500 uppercase font-medium mb-1">
-                    {ad.category?.replace('_', ' ')}
-                  </p>
-
-                  <p className="text-xs text-blue-600 mb-2 flex items-center gap-1">
-                    <Eye className="w-3 h-3" />
-                    {ad.impressions || 0} views
-                  </p>
-
-                  <p className="text-xs text-gray-600 line-clamp-2">{ad.description}</p>
+              {((Array.isArray(activeAd.image_urls) && activeAd.image_urls.length > 0) ? activeAd.image_urls[0] : activeAd.image_url) && (
+                <div className="w-full aspect-[4/3]  overflow-hidden">
+                  <img src={(Array.isArray(activeAd.image_urls) && activeAd.image_urls.length > 0) ? activeAd.image_urls[0] : activeAd.image_url} alt={activeAd.company_name} className="w-full h-full object-cover" />
                 </div>
-              </Link>
-            )
-          })}
+              )}
+              <div className="p-4">
+                <h3 className="font-bold capitalize text-base mb-2 text-gray-800 line-clamp-1">
+                  {activeAd.company_name}
+                </h3>
+
+                <p className="text-xs text-gray-500 uppercase font-medium mb-1">
+                  {activeAd.category?.replace('_', ' ')}
+                </p>
+
+                <p className="text-xs text-blue-600 mb-2 flex items-center gap-1">
+                  <Eye className="w-3 h-3" />
+                  {activeAd.impressions || 0} views
+                </p>
+
+                <p className="text-xs text-gray-600 line-clamp-2">{activeAd.description}</p>
+              </div>
+            </Link>
+          </div>
         </div>
-      ) : (
-        // Empty state CTA
-        <div className="text-center w-full py-12">
-          {loadError && <p className="text-sm text-red-600 mb-3">{loadError}</p>}
-          <Link
-            href="/advertise"
-            className="inline-block bg-accent text-white px-8 py-4 rounded-lg font-semibold hover:bg-accent/90 transition"
-          >
-            Create More Ads
-          </Link>
-        </div>
-      )}
+      
 
       {/* Bottom section: advertising CTA panel */}
-      {!redirecting && (
+      {/* {!redirecting && (
         <div className={`  bg-gray-100 rounded-lg   ${compact ? ' p-4 mb-4 mt-3 mx-4' : ' p-6 mb-8 mt-4 mx-4 md:mx-6 flex flex-col sm:flex-row sm:items-center sm:justify-between'}`}>
           <div>
             <h2 className={`${compact ? 'text-lg' : 'text-xl'} font-bold text-gray-900`}>Create More Ads</h2>
@@ -382,7 +299,7 @@ export default function AdvertisementGrid({ compact = false }) {
             </Link>
           </div>
         </div>
-      )}
+      )} */}
     </div>
   )
 }

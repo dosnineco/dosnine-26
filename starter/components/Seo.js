@@ -5,6 +5,7 @@ export default function Seo({
   description = 'Browse and post rental properties across Jamaica. Search by location, price, bedrooms and more.',
   image = '/dosnine_preview.png',
   url = process.env.NEXT_PUBLIC_SITE_URL || 'https://dosnine.co',
+  robots = 'index, follow',
   structuredData = null,
 }) {
   const canonical = url;
@@ -12,7 +13,7 @@ export default function Seo({
     <Head>
       <title>{title}</title>
       <meta name="description" content={description} />
-      <meta name="robots" content="index, follow" />
+      <meta name="robots" content={robots} />
 
       {/* Open Graph */}
       <meta property="og:title" content={title} />

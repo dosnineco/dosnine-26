@@ -1,4 +1,5 @@
 import React, { useState,useEffect} from 'react';
+import Head from 'next/head';
 import { Copy, CheckCircle, Menu, X } from 'lucide-react';
 
 export default function Home() {
@@ -95,6 +96,10 @@ export default function Home() {
       {/* <button
                 className="flex bg-yellow-200  rounded-lg		items-center gap-2 px-4 py-2 text-sm text-black-600 "
               >Total Times Used: {clickCount}</button> */}
+      <Head>
+        <title>Finacle Generator — Dosnine</title>
+        <meta name="robots" content="noindex, nofollow" />
+      </Head>
       <div className="bg-white rounded-lg shadow-md p-6 mb-8">
             <h2 className="text-xl font-semibold mb-4">Configuration</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

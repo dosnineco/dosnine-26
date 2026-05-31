@@ -48,6 +48,7 @@ export default function NewsletterUnsubscribePage() {
     <>
       <Head>
         <title>Unsubscribe from Dosnine Newsletter</title>
+        <meta name="robots" content="noindex, nofollow" />
       </Head>
       <main className="min-h-screen bg-gray-50 py-16">
         <div className="mx-auto w-full max-w-xl rounded-3xl border border-gray-200 bg-white p-8 shadow-sm">

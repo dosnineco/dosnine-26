@@ -1,9 +1,10 @@
-import React, { useState, useEffect, Link } from 'react';
+import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { useRouter } from 'next/router';
 import toast from 'react-hot-toast';
 import RequestAgentPopup from './RequestAgentPopup';
 import { Search, MapPin, DollarSign, Clock, FileText, CheckCircle, Lock, Users, Home, Smartphone, Star, Circle, Building2, Building, Filter, X, ArrowRight } from 'lucide-react';
-import AdList from './AdList';
+const PropertyCard = lazy(() => import('./PropertyCard'));
+import Link from 'next/link';
 
 export default function PropertyRequestsMarketplace() {
   const router = useRouter();
@@ -11,6 +12,25 @@ export default function PropertyRequestsMarketplace() {
   const [loading, setLoading] = useState(true);
   const [showPopup, setShowPopup] = useState(false);
   const [showTypingIndicator, setShowTypingIndicator] = useState(false);
+ const [featuredProperties, setFeaturedProperties] = useState([]);
+  const [loadingFeatured, setLoadingFeatured] = useState(true);
+
+  useEffect(() => {
+    const fetchFeaturedProperties = async () => {
+      try {
+        const response = await fetch('/api/properties/public-list?perPage=4&page=1');
+        const payload = await response.json();
+        if (payload?.success && payload?.properties) {
+          setFeaturedProperties(payload.properties);
+        }
+      } catch (error) {
+        console.error('Failed to load featured properties:', error);
+      } finally {
+        setLoadingFeatured(false);
+      }
+    };
+    fetchFeaturedProperties();
+  }, []);
 
   // Fetch requests from both service_requests and visitor_emails tables
   useEffect(() => {
@@ -263,7 +283,30 @@ export default function PropertyRequestsMarketplace() {
           </div>
         </div>
 
-                  <AdList/>
+
+               {/* Featured Properties Preview */}
+      {!loadingFeatured && featuredProperties.length > 0 && (
+        <div className="bg-gray-50 py-12 px-4 mt-12">
+          <div className="container mx-auto">
+            <div className="flex items-center justify-between mb-8">
+              <div>
+                <h2 className="text-3xl font-bold text-gray-900">Featured Properties</h2>
+                <p className="text-gray-600 mt-2">Browse available rentals across Jamaica</p>
+              </div>
+              <Link href="/listing" className="btn-primary">
+                View All →
+              </Link>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              {featuredProperties.map((prop, idx) => (
+                <Suspense key={prop.id} fallback={<div className="bg-white rounded-lg border p-4 h-48" />}>
+                  <PropertyCard property={prop} index={idx} />
+                </Suspense>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
 
         {loading ? (

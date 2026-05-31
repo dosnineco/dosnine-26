@@ -48,11 +48,37 @@ export default function PropertyPage({ property, similarProperties, isVerifiedAg
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [isOwner, setIsOwner] = useState(false);
   const [showRequestForm, setShowRequestForm] = useState(false);
+  const [fullscreenIndex, setFullscreenIndex] = useState(null);
 
-  // Debug: Log verified status
+  // Support both image_urls array and property_images table
+  const imageUrls = property.image_urls || [];
+  const propertyImages = property.property_images || [];
+  const allImages = imageUrls.length > 0 ? imageUrls : propertyImages.map(img => img.image_url);
+  const currentImage = allImages[currentImageIndex] || '/placeholder.png';
+  const fullscreenImage = fullscreenIndex !== null ? allImages[fullscreenIndex] : null;
+
+  // Aggressive scroll to top on any route or property change
   useEffect(() => {
  
   }, [property.owner_id, isVerifiedAgent]);
+
+  // Handle keyboard navigation in fullscreen mode
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (fullscreenIndex === null) return;
+      
+      if (e.key === 'Escape') {
+        setFullscreenIndex(null);
+      } else if (e.key === 'ArrowLeft') {
+        setFullscreenIndex((i) => (i === 0 ? allImages.length - 1 : i - 1));
+      } else if (e.key === 'ArrowRight') {
+        setFullscreenIndex((i) => (i === allImages.length - 1 ? 0 : i + 1));
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [fullscreenIndex, allImages.length]);
 
   // Aggressive scroll to top on any route or property change
   useEffect(() => {
@@ -96,12 +122,6 @@ export default function PropertyPage({ property, similarProperties, isVerifiedAg
     };
     checkOwner();
   }, [user, property.owner_id]);
-
-  // Support both image_urls array and property_images table
-  const imageUrls = property.image_urls || [];
-  const propertyImages = property.property_images || [];
-  const allImages = imageUrls.length > 0 ? imageUrls : propertyImages.map(img => img.image_url);
-  const currentImage = allImages[currentImageIndex] || '/placeholder.png';
 
   const handlePrevImage = () => {
     setCurrentImageIndex((i) => (i === 0 ? allImages.length - 1 : i - 1));
@@ -394,7 +414,12 @@ export default function PropertyPage({ property, similarProperties, isVerifiedAg
           {/* Images Section */}
           <div className="lg:col-span-2">
             <div className="relative bg-gray-200 rounded-xl overflow-hidden mb-4">
-              <img src={currentImage} alt={property.title} className="w-full h-96 object-cover" />
+              <img 
+                src={currentImage} 
+                alt={property.title} 
+                className="w-full h-96 object-cover cursor-pointer hover:opacity-90 transition" 
+                onClick={() => setFullscreenIndex(currentImageIndex)}
+              />
             
 
               {allImages.length > 1 && (
@@ -424,10 +449,10 @@ export default function PropertyPage({ property, similarProperties, isVerifiedAg
                 {allImages.map((imgUrl, i) => (
                   <button
                     key={i}
-                    onClick={() => setCurrentImageIndex(i)}
-                    className={`h-20 rounded-lg overflow-hidden border-2 transition ${i === currentImageIndex ? 'border-blue-500' : 'border-gray-300 hover:border-gray-400'}`}
+                    onClick={() => setFullscreenIndex(i)}
+                    className={`h-20 rounded-lg overflow-hidden border-2 transition cursor-pointer ${i === currentImageIndex ? 'border-blue-500' : 'border-gray-300 hover:border-gray-400'}`}
                   >
-                    <img src={imgUrl} alt={`${property.title} ${i + 1}`} className="w-full h-full object-cover" />
+                    <img src={imgUrl} alt={`${property.title} ${i + 1}`} className="w-full h-full object-cover hover:opacity-80 transition" />
                   </button>
                 ))}
               </div>
@@ -435,7 +460,7 @@ export default function PropertyPage({ property, similarProperties, isVerifiedAg
 
                <div className="bg-yellow-50 border-l-4 border-yellow-600 p-4 mt-4">
                 <p className="text-gray-700 mb-2">
-                  <strong>Important:</strong> Never pay a deposit in order to view or "hold" a property
+                  <strong>Important:</strong> Never pay a deposit in order to view or &quot;hold&quot; a property
                 </p>
               
               </div> 
@@ -498,6 +523,7 @@ export default function PropertyPage({ property, similarProperties, isVerifiedAg
 
           {/* Sidebar: Contact Info */}
           <div>
+              <AdList compact />
             <div className="bg-white rounded-xl  p-6 relative top-4">
               
               <h3 className="text-xl font-bold mb-4">{isVerifiedAgent ? 'Contact Agent' : 'Contact Landlord'}</h3>
@@ -535,7 +561,9 @@ export default function PropertyPage({ property, similarProperties, isVerifiedAg
                 </>
               )}
               
+              
               <div className="space-y-4">
+                
                 <div className="grid grid-cols-2 gap-3">
                   <a
                     href={`https://wa.me/${property.phone_number}?text=Hi, I'm interested in ${encodeURIComponent(property.title)} at ${encodeURIComponent(property.address)}`}
@@ -564,9 +592,7 @@ export default function PropertyPage({ property, similarProperties, isVerifiedAg
               </div>
             </div>
 
-            <div className="mt-8">
-              <AdList compact />
-            </div>
+         
           </div>
         </div>
 
@@ -579,11 +605,11 @@ export default function PropertyPage({ property, similarProperties, isVerifiedAg
                 <p className="mb-3">
                   Interested in <strong>land for sale in {property.parish}, Jamaica</strong>? 
                   This property in {property.town || property.parish} is available at <strong>{formatMoney(property.price)}</strong>. 
-                  It's an excellent opportunity to invest in real estate in one of Jamaica's desirable locations.
+                  It&apos;s an excellent opportunity to invest in real estate in one of Jamaica&apos;s desirable locations.
                 </p>
                 <p className="mb-3">
                   {property.parish} is a popular area for land investments in Jamaica, offering various development opportunities. 
-                  Whether you're searching for <strong>residential land in {property.parish}</strong>, 
+                  Whether you&apos;re searching for <strong>residential land in {property.parish}</strong>, 
                   commercial properties, or investment opportunities, Dosnine Properties connects you directly with property owners and developers.
                 </p>
                 <div className="mt-4">
@@ -607,7 +633,7 @@ export default function PropertyPage({ property, similarProperties, isVerifiedAg
                 </p>
                 <p className="mb-3">
                   {property.parish} is a popular area for rentals in Jamaica, with properties ranging from apartments to houses. 
-                  Whether you're searching for <strong>houses for rent in {property.parish} Jamaica</strong> or apartments, 
+                  Whether you&apos;re searching for <strong>houses for rent in {property.parish} Jamaica</strong> or apartments, 
                   Dosnine Properties connects you directly with landlords for the best rental deals.
                 </p>
                 <div className="mt-4">
@@ -696,6 +722,79 @@ export default function PropertyPage({ property, similarProperties, isVerifiedAg
         isOpen={showRequestForm}
         onClose={() => setShowRequestForm(false)}
       />
+
+      {/* Fullscreen Image Viewer */}
+      {fullscreenIndex !== null && (
+        <div 
+          className="fixed inset-0 z-50 bg-black/95 flex flex-col items-center justify-center"
+          onClick={() => setFullscreenIndex(null)}
+        >
+          {/* Close button */}
+          <button
+            onClick={() => setFullscreenIndex(null)}
+            className="absolute top-4 right-4 z-10 text-white hover:bg-white/20 p-2 rounded-lg transition"
+            title="Close (Esc)"
+          >
+            <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+
+          {/* Main image */}
+          <div 
+            className="flex items-center justify-center h-full w-full relative px-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <img 
+              src={fullscreenImage} 
+              alt="Fullscreen" 
+              className="max-h-[90vh] max-w-full object-contain"
+            />
+
+            {/* Navigation buttons */}
+            {allImages.length > 1 && (
+              <>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setFullscreenIndex((i) => (i === 0 ? allImages.length - 1 : i - 1));
+                  }}
+                  className="absolute left-4 top-1/2 -translate-y-1/2 text-white hover:bg-white/20 p-3 rounded-full transition"
+                  title="Previous (←)"
+                >
+                  <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                  </svg>
+                </button>
+
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setFullscreenIndex((i) => (i === allImages.length - 1 ? 0 : i + 1));
+                  }}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-white hover:bg-white/20 p-3 rounded-full transition"
+                  title="Next (→)"
+                >
+                  <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </button>
+
+                {/* Image counter */}
+                <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/50 text-white px-4 py-2 rounded-full text-sm">
+                  {fullscreenIndex + 1} / {allImages.length}
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* Instructions */}
+          <div className="absolute bottom-4 left-4 text-white/70 text-sm">
+            {allImages.length > 1 && <p>← → Arrow keys or buttons to navigate</p>}
+            <p>Esc or click outside to close</p>
+          </div>
+        </div>
+      )}
     </>
   );
 }

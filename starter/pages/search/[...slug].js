@@ -78,10 +78,11 @@ export default function SearchLandingPage({ slug, properties: initialProperties,
         <meta property="og:title" content={pageTitle} />
         <meta property="og:description" content={pageDescription} />
         <meta property="og:type" content="website" />
+        <meta name="robots" content="noindex, follow" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content={pageTitle} />
         <meta name="twitter:description" content={pageDescription} />
-        <link rel="canonical" href={`https://dosnine.com/search/${(slug || []).join('/')}`} />
+        <link rel="canonical" href={`${process.env.NEXT_PUBLIC_SITE_URL || 'https://dosnine.com'}/listing`} />
 
         {/* Schema.org Structured Data */}
         <script
@@ -210,7 +211,7 @@ export default function SearchLandingPage({ slug, properties: initialProperties,
         {properties.length === 0 ? (
           <div className="text-center py-12 bg-blue-50 rounded-lg border border-blue-200 p-8">
             <h2 className="text-2xl font-bold text-gray-800 mb-2">No Properties Found</h2>
-            <p className="text-gray-600 mb-6">We don't currently have listings matching "{generateTitle()}". Check back soon!</p>
+            <p className="text-gray-600 mb-6">We don&apos;t currently have listings matching {generateTitle()}. Check back soon!</p>
             <Link href="/" className="btn-primary">
               Browse All Properties
             </Link>

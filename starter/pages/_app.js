@@ -1,3 +1,4 @@
+import Head from 'next/head';
 import { useRouter } from 'next/router';
 import { ClerkProvider } from '@clerk/nextjs';
 import { SignedIn, SignedOut, SignInButton, SignUpButton, useUser } from '@clerk/nextjs';
@@ -24,6 +25,8 @@ const PUBLIC_ROUTES = [
   '/advertise',
   '/ads/[id]',
   '/ads/request-agent',
+  '/newsletter/unsubscribe',
+  '/search/[...slug]',
   '/tools',
   '/blog',
   '/contact',
@@ -31,6 +34,7 @@ const PUBLIC_ROUTES = [
   '/terms-of-service',
   '/refund-policy',
   '/about',
+  '/agent/signup',
   '/requests-marketplace',
   '/listing',
   '/course',
@@ -203,6 +207,9 @@ function AppContent({ Component, pageProps }) {
   if (Component.getLayout) {
     return getLayout(
       <>
+        <Head>
+          {!isCurrentPagePublic && <meta name="robots" content="noindex, nofollow" />}
+        </Head>
         <Seo />
         <SiteProtection />
         <Toaster position="top-center" />
@@ -231,6 +238,9 @@ function AppContent({ Component, pageProps }) {
   // Default layout with Header and Footer
   return (
     <>
+      <Head>
+        {!isCurrentPagePublic && <meta name="robots" content="noindex, nofollow" />}
+      </Head>
       <Seo />
       <SiteProtection />
       <Toaster position="top-center" />

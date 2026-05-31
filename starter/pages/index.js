@@ -3,7 +3,10 @@ import PropertyRequestsMarketplace from '../components/PropertyRequestsMarketpla
 // import BecomeAgentBanner from '../components/BecomeAgentBanner';
 import VisitorEmailPopup from '../components/VisitorEmailPopup';
 
+
+
 export default function PropertyRequestsPage() {
+ 
   return (
     <>
       <Head>
@@ -18,8 +21,10 @@ export default function PropertyRequestsPage() {
       </Head>
       {/* <BecomeAgentBanner /> */}
           <VisitorEmailPopup/>
-      
+    
       <PropertyRequestsMarketplace />
+
+ 
     </>
   );
 }
