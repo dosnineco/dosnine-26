@@ -2,6 +2,7 @@ import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { useRouter } from 'next/router';
 import toast from 'react-hot-toast';
 import RequestAgentPopup from './RequestAgentPopup';
+import ParishRequestAnalytics from './ParishRequestAnalytics';
 import { Search, MapPin, DollarSign, Clock, FileText, CheckCircle, Lock, Users, Home, Smartphone, Star, Circle, Building2, Building, Filter, X, ArrowRight } from 'lucide-react';
 const PropertyCard = lazy(() => import('./PropertyCard'));
 import Link from 'next/link';
@@ -11,17 +12,17 @@ export default function PropertyRequestsMarketplace() {
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showPopup, setShowPopup] = useState(false);
-  const [showTypingIndicator, setShowTypingIndicator] = useState(false);
- const [featuredProperties, setFeaturedProperties] = useState([]);
+  const [featuredProperties, setFeaturedProperties] = useState([]);
   const [loadingFeatured, setLoadingFeatured] = useState(true);
+  const MAX_CAROUSEL_ITEMS = 15;
 
   useEffect(() => {
     const fetchFeaturedProperties = async () => {
       try {
-        const response = await fetch('/api/properties/public-list?perPage=4&page=1');
+        const response = await fetch(`/api/properties/public-list?perPage=${MAX_CAROUSEL_ITEMS}&page=1`);
         const payload = await response.json();
         if (payload?.success && payload?.properties) {
-          setFeaturedProperties(payload.properties);
+          setFeaturedProperties(payload.properties.slice(0, MAX_CAROUSEL_ITEMS));
         }
       } catch (error) {
         console.error('Failed to load featured properties:', error);
@@ -37,12 +38,12 @@ export default function PropertyRequestsMarketplace() {
     const fetchRequests = async () => {
       try {
         setLoading(true);
-        const response = await fetch('/api/marketplace/requests');
+        const response = await fetch(`/api/marketplace/requests?limit=${MAX_CAROUSEL_ITEMS}&page=1`);
         const payload = await response.json();
         if (!response.ok || !payload?.success) {
           throw new Error(payload?.error || 'Failed to load requests');
         }
-        setRequests(payload.requests || []);
+        setRequests((payload.requests || []).slice(0, MAX_CAROUSEL_ITEMS));
       } catch (err) {
         console.error('Error fetching requests:', err);
         toast.error('Failed to load requests');
@@ -53,19 +54,11 @@ export default function PropertyRequestsMarketplace() {
 
     fetchRequests();
 
-    const refreshInterval = setInterval(fetchRequests, 15000);
-
-    // Simulate typing indicator for now (checks if users on request page)
-    const checkActivity = setInterval(() => {
-      // Random chance to show typing to simulate real activity
-      const randomChance = Math.random() > 0.7;
-      setShowTypingIndicator(randomChance);
-    }, 3000);
+    const refreshInterval = setInterval(fetchRequests, 60000);
 
     // Cleanup subscriptions
     return () => {
       clearInterval(refreshInterval);
-      clearInterval(checkActivity);
     };
   }, []);
 
@@ -236,76 +229,74 @@ export default function PropertyRequestsMarketplace() {
           
           {/* Action Links */}
           <div className="flex flex-wrap justify-center gap-8 mb-12">
-            <a
+            <Link
               href="/listing"
               className="flex items-center gap-2 text-sm text-gray-900 font-semibold hover:text-gray-700 transition-colors border-b-2 border-gray-900 hover:border-gray-700 pb-2"
             >
               View Properties
               <ArrowRight size={20} />
-            </a>
-            <a
+            </Link>
+            <Link
               href="/request"
               className="flex items-center gap-2 text-sm text-gray-900 font-semibold hover:text-gray-700 transition-colors border-b-2 border-gray-900 hover:border-gray-700 pb-2"
             >
               Submit a Request
               <ArrowRight size={20} />
-            </a>
-            <a
+            </Link>
+            <Link
               href="/agent/signup"
               className="flex items-center gap-2 text-sm text-gray-900 font-semibold hover:text-gray-700 transition-colors border-b-2 border-gray-900 hover:border-gray-700 pb-2"
             >
-              Become an Agent
+              Create a free agent account
               <ArrowRight size={16} />
-            </a>
-            <a
+            </Link>
+            <Link
               href="/advertise"
               className="flex items-center gap-2 text-sm text-gray-900 font-semibold hover:text-gray-700 transition-colors border-b-2 border-gray-900 hover:border-gray-700 pb-2"
             >
               Advertise
               <ArrowRight size={16} />
-            </a>  
+            </Link>  
           </div>
 
      
 
           {/* Live Typing Indicator - Reserved Space */}
           <div className="h-12 flex items-center justify-center">
-            {showTypingIndicator && (
-              <div className="inline-flex items-center gap-2 bg-green-50 border border-green-200 text-green-700 text-xs font-semibold px-4 py-2 rounded-full animate-pulse">
-                <div className="flex gap-1">
-                  <div className="w-2 h-2 bg-green-500 rounded-full animate-bounce" style={{animationDelay: '0ms'}}></div>
-                  <div className="w-2 h-2 bg-green-500 rounded-full animate-bounce" style={{animationDelay: '150ms'}}></div>
-                  <div className="w-2 h-2 bg-green-500 rounded-full animate-bounce" style={{animationDelay: '300ms'}}></div>
-                </div>
-                <span>Anonymous is typing another request...</span>
-              </div>
-            )}
+            <div className="text-sm text-gray-500">Live request data refreshes every minute for stability.</div>
           </div>
         </div>
 
 
-               {/* Featured Properties Preview */}
+      {/* Featured Properties Preview */}
       {!loadingFeatured && featuredProperties.length > 0 && (
-        <div className="bg-gray-50 py-12 px-4 mt-12">
+        <section className="bg-white rounded-xl  py-12 px-4 mt-12">
           <div className="container mx-auto">
-            <div className="flex items-center justify-between mb-8">
+            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-8">
               <div>
                 <h2 className="text-3xl font-bold text-gray-900">Featured Properties</h2>
-                <p className="text-gray-600 mt-2">Browse available rentals across Jamaica</p>
+                <p className="text-gray-600 mt-2">Browse available rentals across Jamaica.</p>
               </div>
-              <Link href="/listing" className="btn-primary">
-                View All →
+              <Link href="/listing" className="inline-flex items-center gap-2 rounded-full bg-gray-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-gray-800">
+                View All
+                <ArrowRight size={18} />
               </Link>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-              {featuredProperties.map((prop, idx) => (
-                <Suspense key={prop.id} fallback={<div className="bg-white rounded-lg border p-4 h-48" />}>
-                  <PropertyCard property={prop} index={idx} />
-                </Suspense>
-              ))}
+            <div className="relative overflow-hidden">
+              <div className="-mx-4 overflow-x-auto pb-4 px-4 flex gap-4 snap-x snap-mandatory scrollbar-hide">
+                {featuredProperties.map((prop, idx) => (
+                  <div key={prop.id} className="min-w-[300px] flex-shrink-0 snap-start">
+                    <div className="h-80">
+                      <Suspense fallback={<div className="bg-white rounded-xl border p-4 h-full" />}>
+                        <PropertyCard property={prop} index={idx} />
+                      </Suspense>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
-        </div>
+        </section>
       )}
 
 
@@ -318,28 +309,29 @@ export default function PropertyRequestsMarketplace() {
             <p className="text-gray-600 text-lg">No requests available</p>
           </div>
         ) : (
-          <div className=" grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {requests.map(request => {
-              const tier = getBudgetTier(request.budget_min, request.budget_max);
-              const urgencyBadge = getUrgencyBadge(request.created_at);
-              const similarCount = getSimilarCount(request, requests);
-              
-              return (
-              <div key={`${request.type}-${request.id}`} className="relative h-full">
-                {/* Stacked cards effect - show background cards for similar requests */}
-                {similarCount > 0 && (
-                  <>
-                    <div className="absolute top-1 left-1 right-1 bottom-0 bg-gray-100 rounded-lg border border-gray-200 -z-10"></div>
-                    {similarCount > 1 && (
-                      <div className="absolute top-2 left-2 right-2 bottom-0 bg-gray-50 rounded-lg border border-gray-100 -z-20"></div>
-                    )}
-                  </>
-                )}
-                
-              <div
-                className='bg-white rounded-lg p-6 border border-gray-200 transition-all relative h-full flex flex-col'
-              
-              >
+          <>
+          <section className="bg-white rounded-xl  py-12 px-4 mt-12">
+            <div className="container mx-auto">
+              <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-8">
+                <div>
+                  <h2 className="text-3xl font-bold text-gray-900">Active Requests</h2>
+                  <p className="text-gray-600 mt-2">Review the most recent buyer and renter requests across the island.</p>
+                </div>
+                <Link href="/request" className="inline-flex items-center gap-2 rounded-full bg-gray-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-gray-800">
+                  Submit a request
+                  <ArrowRight size={18} />
+                </Link>
+              </div>
+
+              <div className="-mx-4 overflow-x-auto pb-4 px-4 flex gap-4 snap-x snap-mandatory scrollbar-hide">
+                {requests.map((request) => {
+                const tier = getBudgetTier(request.budget_min, request.budget_max);
+                const urgencyBadge = getUrgencyBadge(request.created_at);
+                const similarCount = getSimilarCount(request, requests);
+
+                return (
+                  <div key={`${request.type}-${request.id}`} className="min-w-[300px] flex-shrink-0 snap-start scrollbar-hide">
+                    <div className="h-auto  rounded-xl border border-gray-200 p-6 transition-all relative flex flex-col shadow-sm">
             
 
 
@@ -378,16 +370,37 @@ export default function PropertyRequestsMarketplace() {
 
                  {/* Similar requests badge */}
                 {similarCount > 0 && (
-                  <div className="inline-flex  text-blue-700 text-[10px] font-semibold  py-0.5 rounded-full mb-2 ml-2 items-center gap-1">
+                  <div className="inline-flex text-blue-700 text-[10px] font-semibold py-0.5 rounded-full mb-2 items-center gap-1">
                     +{similarCount} similar {similarCount === 1 ? 'request' : 'requests'}
                   </div>
                 )}
+              </div>
+              </div>
+            );
+          })}
+              </div>
+            </div>
+          </section>
 
-               
+          <section className="bg-white rounded-xl py-12 px-4 mt-8">
+            <div className="container mx-auto">
+              <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between mb-8">
+                <div>
+                  <p className="text-sm uppercase tracking-[0.18em] text-accent font-semibold">Free Market Data</p>
+                  <h2 className="text-3xl font-bold text-gray-900 mt-2">Latest free demand metrics</h2>
+                  <p className="text-gray-600 mt-3 max-w-2xl">All market metrics are available for free right here. No premium lock, no hidden report fees.</p>
+                </div>
+                <Link href="/listing" className="inline-flex items-center gap-2 rounded-full bg-gray-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-gray-800">
+                  Explore free market data
+                </Link>
               </div>
+
+              <div className="mt-8">
+                <ParishRequestAnalytics />
               </div>
-            );})}
-          </div>
+            </div>
+          </section>
+          </>
         )}
       </div>
 

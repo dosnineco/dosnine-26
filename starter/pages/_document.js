@@ -14,6 +14,7 @@ class MyDocument extends Document {
           <link rel="apple-touch-icon" href="/logos/dosnine_co_logo.png" />
           <meta name="theme-color" content="#ff6b35"/>
           <meta name="google-adsense-account" content="ca-pub-8738700447584361"/>
+          <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-2046215299064356" crossorigin="anonymous"></script>
           <script
             async
             src={`https://www.googletagmanager.com/gtag/js?id=${gtag}`}

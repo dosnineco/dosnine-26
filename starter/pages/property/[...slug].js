@@ -29,6 +29,19 @@ export async function getServerSideProps(context) {
     return { notFound: true };
   }
 
+  // If the API reports the property is expired/removed, return 410 and render an archive message
+  if (response.status === 410) {
+    context.res.statusCode = 410;
+    return {
+      props: {
+        property: payload.property || { slug },
+        similarProperties: payload.similarProperties || [],
+        isVerifiedAgent: false,
+        archived: true,
+      },
+    };
+  }
+
   if (!response.ok || !payload?.success || !payload?.property) {
     return { notFound: true };
   }
@@ -42,7 +55,7 @@ export async function getServerSideProps(context) {
   };
 }
 
-export default function PropertyPage({ property, similarProperties, isVerifiedAgent }) {
+export default function PropertyPage({ property, similarProperties, isVerifiedAgent, archived }) {
   const { user } = useUser();
   const router = useRouter();
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
@@ -387,6 +400,37 @@ export default function PropertyPage({ property, similarProperties, isVerifiedAg
       }
     ]
   };
+
+  if (archived) {
+    return (
+      <>
+        <Seo title={`${property.title || 'Property'} — Removed | Dosnine Properties`} description={`This property is no longer available.`} />
+        <div className="max-w-3xl mx-auto py-16 px-4 text-center">
+          <h1 className="text-2xl font-semibold mb-4">This property is no longer available</h1>
+          <p className="mb-6">The listing you requested has been removed or expired. Browse similar available properties below or explore search pages for the area.</p>
+
+          {similarProperties && similarProperties.length > 0 && (
+            <div className="space-y-4">
+              {similarProperties.map((p) => (
+                <Link key={p.id} href={`/property/${p.slug}`} className="block text-left">
+                  <div className="p-3 bg-gray-50 rounded-lg">
+                    <div className="text-lg font-medium">{p.title || `${p.bedrooms || ''} ${p.type || ''}`}</div>
+                    <div className="text-sm text-gray-600">{p.parish} — {p.town}</div>
+                    <div className="text-sm text-accent">{p.price ? formatMoney(p.price) : ''}</div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          )}
+
+          <div className="mt-8">
+            <Link href="/search/houses-for-rent" className="text-accent mr-4">Browse houses for rent</Link>
+            <Link href="/search/apartments-for-rent" className="text-accent">Browse apartments for rent</Link>
+          </div>
+        </div>
+      </>
+    );
+  }
 
   return (
     <>

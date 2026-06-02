@@ -3,7 +3,7 @@ const PropertyCard = lazy(() => import('../components/PropertyCard'));
 import Seo from '../components/Seo';
 import Link from 'next/link';
 import { FiSearch } from 'react-icons/fi';
-import { useUser, useClerk } from '@clerk/nextjs';
+import { useUser, useClerk } from '@clerk/clerk-react';
 import { Home as HomeIcon, Users, ArrowRight } from 'lucide-react';
 import { useRouter } from 'next/router';
 import { PARISHES, normalizeParish } from '../lib/normalizeParish';

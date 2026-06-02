@@ -1,6 +1,5 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://dosnine.co/sitemap.xml
-# Sitemap location for faster discovery
-Sitemap: https://dosnine.com/sitemap.xml
+# Canonical sitemap
+Sitemap: https://www.dosnine.com/sitemap.xml

@@ -1,4 +1,4 @@
-import { SignedIn, SignedOut, RedirectToSignIn, useAuth, useUser } from '@clerk/nextjs';
+import { SignedIn, SignedOut, RedirectToSignIn, useAuth, useUser } from '@clerk/clerk-react';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import BulkListingCreator from '../../components/BulkListingCreator';

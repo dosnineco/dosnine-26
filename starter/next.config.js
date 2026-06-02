@@ -21,6 +21,18 @@ const nextConfig = {
   },
   async redirects() {
     return [
+      // Redirect non-www to www to enforce canonical host
+      {
+        source: '/:path*',
+        has: [
+          {
+            type: 'host',
+            value: 'dosnine.com',
+          },
+        ],
+        destination: 'https://www.dosnine.com/:path*',
+        permanent: true,
+      },
       {
         source: '/landlord/dashboard',
         destination: '/properties/my-listings',

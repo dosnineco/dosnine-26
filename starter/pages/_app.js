@@ -1,7 +1,6 @@
 import Head from 'next/head';
 import { useRouter } from 'next/router';
-import { ClerkProvider } from '@clerk/nextjs';
-import { SignedIn, SignedOut, SignInButton, SignUpButton, useUser } from '@clerk/nextjs';
+import { ClerkProvider, SignedIn, SignedOut, SignInButton, SignUpButton, useUser } from '@clerk/clerk-react';
 import '../styles/globals.css';
 import Header from '../components/Header';
 import Footer from '../components/Footer';

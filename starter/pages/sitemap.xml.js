@@ -1,6 +1,6 @@
 import { supabase } from '../lib/supabase';
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://dosnine.com';
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.dosnine.com';
 
 function toXml(urls) {
   return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls
@@ -10,9 +10,14 @@ function toXml(urls) {
 
 export async function getServerSideProps({ res }) {
   try {
-    const staticPages = ['/', '/property', '/blog', '/properties/my-listings', '/properties/new', '/contact', '/privacy-policy', '/terms-of-service'];
+    const staticPages = ['/','/listing', '/property', '/blog', '/contact', '/privacy-policy', '/terms-of-service','/request','/advertise','/refund-policy'];
 
-    const { data: properties, error } = await supabase.from('properties').select('slug, updated_at').limit(1000);
+    // Only export properties that are publicly visible to avoid dead URLs in sitemap
+    const { data: properties, error } = await supabase
+      .from('properties')
+      .select('slug, updated_at, status')
+      .in('status', ['available', 'active', 'coming_soon'])
+      .limit(1000);
     const urls = [];
 
     staticPages.forEach((p) => {

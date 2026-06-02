@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev --hostname 0.0.0.0 --port 3000",
     "build": "next build",
     "start": "next start"
   },
@@ -26,6 +26,7 @@
     "dompurify": "^3.3.3",
     "lucide-react": "^0.554.0",
     "next": "^13.4.12",
+    "puppeteer": "^25.1.0",
     "quill": "^2.0.3",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
@@ -37,6 +38,7 @@
   },
   "devDependencies": {
     "autoprefixer": "^10.4.14",
+    "broken-link-checker": "^0.7.8",
     "eslint": "^8.52.0",
     "eslint-config-next": "^13.4.12",
     "postcss": "^8.4.24",

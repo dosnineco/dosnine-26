@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { BarChart3, TrendingUp, Users, MapPin, ArrowUpRight, ArrowDownRight, AlertCircle, DollarSign, Target, Zap, Lock } from 'lucide-react';
+import { BarChart3, TrendingUp, Users, MapPin, AlertCircle, DollarSign, Target, Zap } from 'lucide-react';
 import Link from 'next/link';
 
 export default function ParishRequestAnalytics() {
@@ -38,7 +38,7 @@ export default function ParishRequestAnalytics() {
       // Fetch service requests with budget and location
       const { data: requests } = await supabase
         .from('service_requests')
-        .select('location, budget_min, budget_max, created_at');
+        .select('location, budget_min, budget_max, created_at, request_type');
 
       // Process visitor data
       const visitorCounts = {};
@@ -55,6 +55,20 @@ export default function ParishRequestAnalytics() {
       const requestCounts = {};
       const budgetByParishData = {};
       const priceRangesData = {};
+      const demandByPricePointData = {
+        under120k: 0,
+        '120k-200k': 0,
+        '200k-300k': 0,
+        '300k-500k': 0,
+        above500k: 0,
+      };
+      const requestsByTypeData = {
+        buy: 0,
+        rent: 0,
+        sell: 0,
+        lease: 0,
+        valuation: 0,
+      };
 
       jamaicaParishes.forEach(p => {
         requestCounts[p] = 0;
@@ -62,17 +76,34 @@ export default function ParishRequestAnalytics() {
         priceRangesData[p] = { avgMin: 0, avgMax: 0, count: 0 };
       });
 
+      const oneWeekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+      let weeklyCount = 0;
+
       requests?.forEach(item => {
-        // Match location to parish
         const matchedParish = jamaicaParishes.find(p => 
           item.location?.toLowerCase().includes(p.toLowerCase())
         );
         
         if (matchedParish) {
           requestCounts[matchedParish]++;
+          const minBudget = Number(item.budget_min || 0);
 
-          // Budget categorization
-          const minBudget = item.budget_min || 0;
+          if (minBudget < 120000) {
+            demandByPricePointData.under120k++;
+          } else if (minBudget < 200000) {
+            demandByPricePointData['120k-200k']++;
+          } else if (minBudget < 300000) {
+            demandByPricePointData['200k-300k']++;
+          } else if (minBudget < 500000) {
+            demandByPricePointData['300k-500k']++;
+          } else {
+            demandByPricePointData.above500k++;
+          }
+
+          if (item.request_type && requestsByTypeData.hasOwnProperty(item.request_type)) {
+            requestsByTypeData[item.request_type]++;
+          }
+
           if (minBudget < 10000000) {
             budgetByParishData[matchedParish].low++;
           } else if (minBudget < 50000000) {
@@ -81,12 +112,13 @@ export default function ParishRequestAnalytics() {
             budgetByParishData[matchedParish].high++;
           }
 
-          // Price ranges
-          if (priceRangesData[matchedParish]) {
-            priceRangesData[matchedParish].avgMin += item.budget_min || 0;
-            priceRangesData[matchedParish].avgMax += item.budget_max || 0;
-            priceRangesData[matchedParish].count++;
-          }
+          priceRangesData[matchedParish].avgMin += minBudget;
+          priceRangesData[matchedParish].avgMax += Number(item.budget_max || 0);
+          priceRangesData[matchedParish].count++;
+        }
+
+        if (item.created_at && new Date(item.created_at).getTime() >= oneWeekAgo) {
+          weeklyCount++;
         }
       });
 
@@ -116,10 +148,29 @@ export default function ParishRequestAnalytics() {
         .sort((a, b) => b.count - a.count)
         .slice(0, 5);
 
+      const underserved = jamaicaParishes
+        .map(parish => {
+          const demand = visitorCounts[parish] || 0;
+          const supply = requestCounts[parish] || 0;
+          return {
+            parish,
+            demand,
+            supply,
+            ratio: supply > 0 ? demand / supply : demand
+          };
+        })
+        .filter(area => area.demand > 0)
+        .sort((a, b) => b.ratio - a.ratio)
+        .slice(0, 8);
+
       setServiceRequestData(requestCounts);
       setBudgetByParish(budgetByParishData);
       setPriceRanges(priceRangesData);
+      setDemandByPricePoint(demandByPricePointData);
+      setRequestsByType(requestsByTypeData);
+      setWeeklyVolume(weeklyCount);
       setTrendingParishes(trending);
+      setUnderservedAreas(underserved);
     } catch (error) {
       console.error('Error fetching analytics:', error);
     } finally {
@@ -200,10 +251,7 @@ export default function ParishRequestAnalytics() {
 
     return (
       <div className="bg-white rounded-lg shadow-md p-6 border-t-4 border-t-green-500">
-        <div className="flex items-center gap-2 mb-4">
-          <BarChart3 className="w-5 h-5 text-green-600" />
-          <h3 className="text-lg font-bold text-gray-900">Budget Range Requests by Parish</h3>
-        </div>
+      
 
         <div className="space-y-4">
           {parishesWithRequests.map(([parish, budgets]) => {
@@ -547,9 +595,7 @@ export default function ParishRequestAnalytics() {
           </div>
         </div>
 
-        <div className="mt-4 p-3 bg-blue-50 border-l-4 border-blue-500 rounded">
-          <p className="text-xs text-blue-900 font-semibold">📈 Volume & Urgency: {weeklyVolume} requests in last 7 days</p>
-        </div>
+        
       </div>
     );
   };
@@ -587,19 +633,6 @@ export default function ParishRequestAnalytics() {
     );
   };
 
-  const PremiumLockOverlay = ({ children }) => {
-    return (
-      <div className="relative">
-        {children}
-        <div className="absolute inset-0 bg-black/40 rounded-lg flex flex-col items-center justify-center backdrop-blur-sm">
-          <Lock className="w-8 h-8 text-white mb-2" />
-          <p className="text-white font-bold text-sm">Premium Feature</p>
-          <p className="text-white/80 text-xs">Unlock with Pro Plan</p>
-        </div>
-      </div>
-    );
-  };
-
   if (loading) {
     return (
       <div className="flex items-center justify-center p-8">
@@ -614,18 +647,10 @@ export default function ParishRequestAnalytics() {
   return (
     <div className="w-full">
       {/* Header with SEO */}
-      <div className="mb-8">
-        <h2 className="text-3xl font-bold text-gray-900 mb-2">Jamaica Real Estate Market Analytics</h2>
-        <p className="text-gray-600 text-lg">Demand intelligence engine - real-time market data insights</p>
-        <div className="mt-4 flex gap-3">
-          <Link href="/market" className="btn-accent btn-sm">
-            View Full Market Report
-          </Link>
-        </div>
-      </div>
+     
 
       {/* Graphs Grid - 3 columns */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <BarGraph
           data={visitorData}
           percentages={visitorPercentages}
@@ -644,21 +669,19 @@ export default function ParishRequestAnalytics() {
 
         <TrendingParishesCard />
 
-        <div className="lg:col-span-2">
+        <div className="lg:col-span-3">
           <DemandPricePointGraph />
         </div>
 
         <UnderservedDemandCard />
 
-        <PremiumLockOverlay>
-          <DemandSupplyRatioCard />
-        </PremiumLockOverlay>
+        <DemandSupplyRatioCard />
 
-        <PremiumLockOverlay>
-          <BudgetByParishGraph />
-        </PremiumLockOverlay>
+        {/* <BudgetByParishGraph /> */}
 
-        <RequestTypeDistributionCard />
+        <div className="lg:col-span-3">
+          <RequestTypeDistributionCard />
+        </div>
       </div>
     </div>
   );
