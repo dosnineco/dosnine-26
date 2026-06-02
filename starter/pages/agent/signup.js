@@ -1,6 +1,5 @@
-import { useUser, SignedOut, SignedIn } from '@clerk/clerk-react';
+import { useUser, SignedOut, SignedIn, SignInButton, SignUpButton } from '@clerk/clerk-react';
 import AgentSignup from '@/components/AgentSignup';
-import Link from 'next/link';
 import Seo from '@/components/Seo';
 
 export default function AgentSignupPage() {
@@ -16,18 +15,30 @@ export default function AgentSignupPage() {
         url={pageUrl}
       />
       <SignedOut>
-        <div className="min-h-screen bg-gradient-to-br from-purple-50 to-blue-50 p-4 flex items-center">
-          <div className="max-w-md mx-auto bg-white rounded-lg shadow-2xl p-8 text-center">
-            <h1 className="text-2xl font-bold text-gray-800 mb-4">Sign In Required</h1>
-            <p className="text-gray-600 mb-6">
-              Please sign in to register as an agent on DoSnine.
+        <div
+          className="flex items-center justify-center min-h-screen bg-cover bg-center bg-no-repeat relative"
+          style={{
+            backgroundImage: "url('https://etikxypnxjsonefwnzkr.supabase.co/storage/v1/object/public/property-images/avi-waxman-f9qZuKoZYoY-unsplash.jpg')",
+          }}
+        >
+          <div className="absolute inset-0 bg-black bg-opacity-50"></div>
+          <div className="relative z-10 bg-white/95 backdrop-blur-md rounded-2xl shadow-2xl p-8 max-w-lg w-full mx-4 text-center border border-white/20">
+            <h1 className="text-4xl font-bold text-gray-900 mb-2">Sign In Required</h1>
+            <p className="text-lg text-gray-600 mb-8">
+              Please sign in or sign up to register as an agent on DoSnine.
             </p>
-            <Link
-              href="/sign-in"
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-3 rounded font-semibold transition inline-block"
-            >
-              Sign In / Create Account
-            </Link>
+            <div className="flex flex-col sm:flex-row gap-4">
+              <SignInButton mode="redirect" redirectUrl="/agent/signup">
+                <button className="w-full px-6 py-4 font-bold text-lg rounded-lg shadow-lg hover:shadow-xl transition duration-200 transform hover:scale-105 btn-accent">
+                  Sign In
+                </button>
+              </SignInButton>
+              <SignUpButton mode="redirect" redirectUrl="/agent/signup">
+                <button className="w-full px-6 py-4 font-bold text-lg rounded-lg shadow-md hover:shadow-lg transition duration-200 transform hover:scale-105 btn-accent-outline">
+                  Create Account
+                </button>
+              </SignUpButton>
+            </div>
           </div>
         </div>
       </SignedOut>
