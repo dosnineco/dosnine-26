@@ -7,6 +7,8 @@ import { Eye } from 'lucide-react';
 export default function PropertyCard({ property, isOwner = false, index = 0 }) {
   const img = property.image_urls?.[0] || property.property_images?.[0]?.image_url || '/placeholder.png';
   const viewCount = Number(property.views || property.impressions || 0);
+  const status = String(property.status || '').toLowerCase().trim();
+  const isComingSoon = status === 'coming_soon';
 
   return (
     <Link 
@@ -14,8 +16,13 @@ export default function PropertyCard({ property, isOwner = false, index = 0 }) {
       className={clsx('bg-white rounded-xl border flex flex-col h-80 overflow-hidden')} 
       href={`/property/${property.slug || property.id}`}
     >
-      <div className="h-48 w-full flex-shrink-0 overflow-hidden">
+      <div className="relative h-48 w-full flex-shrink-0 overflow-hidden">
         <LazyImage src={img} alt={property.title} className="w-full h-full object-cover" />
+        {isComingSoon && (
+          <div className="absolute left-3 top-3 bg-yellow-400 text-yellow-900 text-xs font-semibold uppercase tracking-wide px-2 py-1 rounded-full shadow-sm">
+            Coming Soon
+          </div>
+        )}
       </div>
 
       <div className="flex-1 p-3 flex flex-col overflow-hidden">

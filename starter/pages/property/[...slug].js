@@ -170,6 +170,15 @@ export default function PropertyPage({ property, similarProperties, isVerifiedAg
 
   // Generate JSON-LD schema for SEO (Property + BreadcrumbList for Feature Snippets)
   const isLand = property.bedrooms == 0 && property.bathrooms == 0;
+  const status = String(property.status || '').toLowerCase().trim();
+  const statusLabel = status === 'coming_soon'
+    ? 'Coming Soon'
+    : status === 'active'
+      ? 'Active'
+      : status === 'available'
+        ? 'Available'
+        : '';
+
   const jsonLdProperty = isLand ? {
     '@context': 'https://schema.org',
     '@type': 'RealEstateListing',
@@ -511,8 +520,16 @@ export default function PropertyPage({ property, similarProperties, isVerifiedAg
 
             {/* Property Details */}
             <div className="bg-white rounded-xl  p-6 mb-6">
-              <div className="flex items-start justify-between mb-2">
-                <h1 className="text-3xl font-bold">{property.title}</h1>
+              <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between mb-2 gap-3">
+                <div>
+                  <h1 className="text-3xl font-bold">{property.title}</h1>
+                  {statusLabel && (
+                    <div className="mt-3 inline-flex items-center rounded-full bg-yellow-100 text-yellow-800 px-3 py-1 text-sm font-semibold uppercase tracking-wide">
+                      {statusLabel}
+                    </div>
+                  )}
+                </div>
+
                 {isVerifiedAgent && (
                   <div className="flex items-center gap-1 bg-blue-50 text-blue-700 px-3 py-1 rounded-full text-sm font-semibold flex-shrink-0">
                     <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">

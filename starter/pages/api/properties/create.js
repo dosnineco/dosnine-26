@@ -72,28 +72,58 @@ export default async function handler(req, res) {
 
     const slug = await generateSlug(db, form.title);
 
-    const { data: property, error: propertyError } = await db
+    const basePropertyPayload = {
+      owner_id: resolved.user.id,
+      slug,
+      title: form.title,
+      description: form.description,
+      parish: normalizeParish(form.parish),
+      town: form.town,
+      address: form.address || '',
+      bedrooms: Number(form.bedrooms) || 0,
+      bathrooms: Number(form.bathrooms) || 0,
+      price: Number(form.price),
+      currency: form.currency || 'JMD',
+      type: form.type || 'rent',
+      status: form.status || 'available',
+      available_date: form.available_date || null,
+      phone_number: form.phone_number || null,
+    };
+
+    if (form.property_type) {
+      basePropertyPayload.property_type = form.property_type;
+    }
+
+    let property = null;
+    let propertyError = null;
+
+    const insertPayload = { ...basePropertyPayload };
+    const firstInsert = await db
       .from('properties')
-      .insert([{
-        owner_id: resolved.user.id,
-        slug,
-        title: form.title,
-        description: form.description,
-        parish: normalizeParish(form.parish),
-        town: form.town,
-        address: form.address || '',
-        bedrooms: Number(form.bedrooms) || 0,
-        bathrooms: Number(form.bathrooms) || 0,
-        price: Number(form.price),
-        currency: form.currency || 'JMD',
-        type: form.type || 'rent',
-        property_type: form.property_type,
-        status: form.status || 'available',
-        available_date: form.available_date || null,
-        phone_number: form.phone_number || null,
-      }])
+      .insert([insertPayload])
       .select('id, slug')
       .single();
+
+    property = firstInsert.data;
+    propertyError = firstInsert.error;
+
+    if (propertyError) {
+      const normalizedMessage = String(propertyError.message || '').toLowerCase();
+      const isMissingPropertyType = normalizedMessage.includes('property_type') &&
+        (normalizedMessage.includes('schema cache') || normalizedMessage.includes('could not find') || normalizedMessage.includes('column'));
+
+      if (isMissingPropertyType) {
+        delete insertPayload.property_type;
+        const retryInsert = await db
+          .from('properties')
+          .insert([insertPayload])
+          .select('id, slug')
+          .single();
+
+        property = retryInsert.data;
+        propertyError = retryInsert.error;
+      }
+    }
 
     if (propertyError || !property?.id) {
       return res.status(500).json({ error: propertyError?.message || 'Failed to create property' });

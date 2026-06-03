@@ -54,7 +54,7 @@ export function isPaidAgent(userData) {
 /**
  * Check if user can post properties
  * - Agents: Must be verified and paid
- * - Regular users: Must have less than 1 property
+ * - Regular users: Must have less than 2 properties
  */
 export function canPostProperty(userData) {
   // Admin can always post
@@ -63,8 +63,8 @@ export function canPostProperty(userData) {
   // Verified and paid agents can post unlimited
   if (isPaidAgent(userData)) return true;
   
-  // Regular users can post 1 property
-  return (userData?.property_count || 0) < 1;
+  // Regular users can post up to 2 properties
+  return (userData?.property_count || 0) < 2;
 }
 
 /**
@@ -150,8 +150,8 @@ export function getBlockMessage(feature, userData) {
       if (needsAgentPayment(userData)) {
         return 'Payment required. Complete your agent payment to post unlimited properties.';
       }
-      if ((userData?.property_count || 0) >= 1) {
-        return 'Property limit reached. Regular users can post 1 property. Become a verified agent for unlimited postings!';
+      if ((userData?.property_count || 0) >= 2) {
+        return 'Property limit reached. Regular users can post 2 properties. Become a verified agent for unlimited postings!';
       }
       return 'You cannot post properties at this time.';
     },

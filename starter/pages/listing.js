@@ -234,7 +234,7 @@ export default function Home() {
 
       <div className="container  mx-auto px-4 py-8">
         <h1 className="text-4xl font-bold text-center mb-4 text-gray-900">Find Your Perfect Property</h1>
-        <p className="text-center text-gray-600 mb-8">Browse available properties across Jamaica</p>
+        <p className="text-center text-gray-600 mb-8">Browse available and coming soon properties across Jamaica</p>
 
         {/* Become Agent Banner */}
 

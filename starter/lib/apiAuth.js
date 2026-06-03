@@ -122,14 +122,13 @@ export async function getDbUserByClerkId(clerkId, { createIfMissing = false, fal
     }
   }
 
-  if (!createIfMissing || !fallbackEmail) {
+  if (!createIfMissing) {
     return { user: null, error: null };
   }
 
-  const normalizedEmail = fallbackEmail.trim().toLowerCase();
-  if (isPlaceholderEmail(normalizedEmail)) {
-    return { user: null, error: null };
-  }
+  const normalizedEmail = fallbackEmail
+    ? fallbackEmail.trim().toLowerCase()
+    : `${clerkId}@placeholder.dosnine.local`;
 
   const bootstrapUser = {
     clerk_id: clerkId,
@@ -195,7 +194,7 @@ export async function requireDbUser(req, res, { createIfMissing = false } = {}) 
     return null;
   }
 
-  if (isPlaceholderUser(user)) {
+  if (isPlaceholderUser(user) && !createIfMissing) {
     res.status(403).json({ error: 'Incomplete account. Sign in with a verified email to continue.' });
     return null;
   }
