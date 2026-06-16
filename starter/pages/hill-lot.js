@@ -127,7 +127,7 @@ export default function HillLotLandingPage() {
                     Register Your Interest
                   </a>
                   <a
-                    href="https://nurayacollection.myflodesk.com/f0amx7epzs"
+                    href=""
                     className="inline-flex w-full justify-center rounded-full border border-[#428475] bg-white px-6 py-4 text-sm font-semibold text-[#428475] transition hover:bg-[#4284750d] sm:w-auto"
                   >
                     Investor Deck
@@ -137,7 +137,7 @@ export default function HillLotLandingPage() {
 
               <div className="relative overflow-hidden rounded-[2rem] border border-[#d8e6dd] bg-[#f6faf6] shadow-2xl shadow-[#00000014]">
                 <img
-                  src="https://images.unsplash.com/photo-1523217582562-09d0def993a6?auto=format&fit=crop&w=1400&q=80"
+                  src="/thehilllot.png"
                   alt="The Sligoville Villa hillside property"
                   className="h-full w-full object-cover"
                 />
