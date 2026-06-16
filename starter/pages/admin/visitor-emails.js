@@ -227,7 +227,7 @@ export default function AdminVisitorEmails() {
                   {emails.length === 0 ? (
                     <tr>
                       <td colSpan="7" className="px-6 py-8 text-center text-gray-600">
-                        No visitor emails yet. The hill-lot interest form submissions will appear here.
+                        No visitor emails yet. The Sligoville Villa interest form submissions will appear here.
                       </td>
                     </tr>
                   ) : (

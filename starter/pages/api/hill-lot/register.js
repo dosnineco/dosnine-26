@@ -40,7 +40,7 @@ export default async function handler(req, res) {
   const sanitizedTier = sanitizeText(tier || 'income-only').slice(0, 50);
   const sanitizedMessage = sanitizeText(message || '').slice(0, 1200);
   const page = '/hill-lot';
-  const source = 'naya-zanzibar-interest-form';
+  const source = 'sligoville-villa-interest-form';
 
   try {
     const db = getDbClient();
@@ -80,24 +80,24 @@ export default async function handler(req, res) {
         const userEmail = new SibApiV3Sdk.SendSmtpEmail();
         userEmail.sender = { name: 'Dosnine Limited', email: 'dosnineco@gmail.com' };
         userEmail.to = [{ email: sanitizedEmail, name: sanitizedFullName }];
-        userEmail.subject = 'Thank you for your interest in Naya Zanzibar';
+        userEmail.subject = 'Thank you for your interest in The Sligoville Villa';
         userEmail.htmlContent = `
           <html>
             <body style="font-family: Arial, sans-serif; background: #f4f7f5; margin: 0; padding: 0;">
               <table width="100%" cellpadding="0" cellspacing="0" style="max-width: 600px; margin: 40px auto; background: #ffffff; border-radius: 16px; overflow: hidden; border: 1px solid #e2ebe7;">
                 <tr>
                   <td style="background: #428475; color: #ffffff; padding: 32px; text-align: center;">
-                    <h1 style="margin: 0; font-size: 24px;">Thank you for registering interest</h1>
+                    <h1 style="margin: 0; font-size: 24px;">Thank you for registering your interest</h1>
                   </td>
                 </tr>
                 <tr>
                   <td style="padding: 32px; color: #1f3e34;">
                     <p style="margin: 0 0 24px;">Hi ${sanitizedFullName},</p>
-                    <p style="margin: 0 0 24px; line-height: 1.75;">Thank you for registering your interest in Naya Zanzibar through Dosnine Limited. We have received your submission and will contact you soon with investor and booking details.</p>
+                    <p style="margin: 0 0 24px; line-height: 1.75;">Thank you for registering your interest in The Sligoville Villa through Dosnine Limited. We have received your submission and will contact you soon with investor and booking details.</p>
                     <p style="margin: 0 0 16px;"><strong>Interest:</strong> ${sanitizedInterest}</p>
                     <p style="margin: 0 0 16px;"><strong>Preferred tier:</strong> ${sanitizedTier}</p>
                     ${sanitizedMessage ? `<p style="margin: 0 0 24px;"><strong>Your message:</strong> ${sanitizedMessage}</p>` : ''}
-                    <p style="margin: 0 0 24px; line-height: 1.75;">If you have questions, reply to this email or contact us at <a href="mailto:hello@nurayacollection.com">hello@nurayacollection.com</a>.</p>
+                    <p style="margin: 0 0 24px; line-height: 1.75;">If you have questions, reply to this email or contact us at <a href="mailto:hello@dosnine.com">hello@dosnine.com</a>.</p>
                     <p style="margin: 0; color: #425f53;">Best regards,<br/>Dosnine Limited</p>
                   </td>
                 </tr>
