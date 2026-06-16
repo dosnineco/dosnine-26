@@ -34,10 +34,18 @@ export default function HillLotLandingPage() {
         }),
       });
 
-      const payload = await response.json();
+      let payload = null;
+      let responseText = await response.text();
+
+      try {
+        payload = responseText ? JSON.parse(responseText) : null;
+      } catch (error) {
+        payload = null;
+      }
 
       if (!response.ok || !payload?.success) {
-        throw new Error(payload?.error || 'Unable to submit your booking request.');
+        const message = payload?.error || response.statusText || responseText || 'Unable to submit your booking request.';
+        throw new Error(message);
       }
 
       setStatus({ type: 'success', message: payload.message || 'Your pre-registration request has been received. We will be in touch shortly.' });
