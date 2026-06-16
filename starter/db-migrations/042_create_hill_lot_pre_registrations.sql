@@ -28,8 +28,13 @@ DROP POLICY IF EXISTS "hill_lot_pre_registrations_select_admin" ON public.hill_l
 
 CREATE POLICY "hill_lot_pre_registrations_insert_policy"
   ON public.hill_lot_pre_registrations
-  FOR INSERT
-  WITH CHECK (true);
+  FOR INSERT TO public, anon, authenticated
+  WITH CHECK (
+    full_name IS NOT NULL AND
+    full_name != '' AND
+    email IS NOT NULL AND
+    email != ''
+  );
 
 CREATE POLICY "hill_lot_pre_registrations_select_admin"
   ON public.hill_lot_pre_registrations

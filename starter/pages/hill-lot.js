@@ -31,7 +31,6 @@ export default function HillLotLandingPage() {
           fullName,
           email,
           phone,
-          stayType,
         }),
       });
 
