@@ -2,17 +2,20 @@ import Head from 'next/head';
 import { useState } from 'react';
 
 export default function HillLotLandingPage() {
+  const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
-  const [interest, setInterest] = useState('stay');
+  const [interest, setInterest] = useState('investor');
+  const [tier, setTier] = useState('income-only');
+  const [message, setMessage] = useState('');
   const [status, setStatus] = useState(null);
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (event) => {
     event.preventDefault();
 
-    if (!email.trim()) {
-      setStatus({ type: 'error', message: 'Please enter your email address.' });
+    if (!fullName.trim() || !email.trim()) {
+      setStatus({ type: 'error', message: 'Please enter your full name and email.' });
       return;
     }
 
@@ -25,19 +28,28 @@ export default function HillLotLandingPage() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ email, phone, interest }),
+        body: JSON.stringify({
+          fullName,
+          email,
+          phone,
+          interest,
+          tier,
+          message,
+        }),
       });
 
       const payload = await response.json();
-
       if (!response.ok) {
-        throw new Error(payload?.error || 'Failed to join the waiting list.');
+        throw new Error(payload?.error || 'Unable to register your interest.');
       }
 
-      setStatus({ type: 'success', message: payload.message || 'You are now on the waiting list.' });
+      setStatus({ type: 'success', message: payload.message || 'Thank you! Your interest has been registered.' });
+      setFullName('');
       setEmail('');
       setPhone('');
-      setInterest('stay');
+      setInterest('investor');
+      setTier('income-only');
+      setMessage('');
     } catch (error) {
       setStatus({ type: 'error', message: error.message || 'Something went wrong. Please try again.' });
     } finally {
@@ -48,138 +60,202 @@ export default function HillLotLandingPage() {
   return (
     <>
       <Head>
-        <title>Hill Lot Airbnb Pre-Registration | Dosnine</title>
+        <title>Naya Zanzibar Interest Registration</title>
         <meta
           name="description"
-          content="Join the waiting list for the Hill Lot Airbnb launch. Get early access, exclusive offers, and first updates for this new boutique stay experience."
+          content="Register your interest in Naya Zanzibar beachfront villas and hospitality investments with Dosnine Limited."
         />
-        <meta property="og:title" content="Hill Lot Airbnb Pre-Registration | Dosnine" />
+        <meta property="og:title" content="Naya Zanzibar Interest Registration" />
         <meta
           property="og:description"
-          content="Join the waiting list for the Hill Lot Airbnb launch. Get early access, exclusive offers, and first updates."
+          content="Secure priority access to Naya Zanzibar investment and booking opportunities through Dosnine Limited."
         />
         <meta property="og:type" content="website" />
         <link rel="canonical" href="https://dosnine.com/hill-lot" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="true" />
+        <link
+          href="https://fonts.googleapis.com/css2?family=Tai+Heritage+Pro:wght@400;600;700&display=swap"
+          rel="stylesheet"
+        />
       </Head>
 
-      <main className="bg-gray-50 text-gray-900">
-        <section className="relative overflow-hidden bg-[radial-gradient(circle_at_top,_rgba(255,191,0,0.18),_transparent_45%)] pb-20 pt-16 md:pb-28">
-          <div className="container mx-auto px-4">
-            <div className="grid gap-12 lg:grid-cols-[1.1fr_0.9fr] lg:items-center">
-              <div className="space-y-6 max-w-2xl">
-                <span className="inline-flex rounded-full bg-black text-white px-4 py-1 text-xs uppercase tracking-[0.28em] font-semibold">
-                  Hill Lot Airbnb
-                </span>
-                <div className="space-y-4">
-                  <p className="text-sm uppercase tracking-[0.35em] text-gray-500">Rooms & suites</p>
-                  <h1 className="text-5xl font-extrabold tracking-tight text-gray-900 sm:text-6xl">
-                    Welcome to<br /> Rooftop & spa
-                  </h1>
-                  <p className="text-sm uppercase tracking-[0.35em] text-gray-500">Opening 2028</p>
-                  <p className="mt-4 text-lg leading-8 text-gray-700">
-                    An experiential stay where timeless design meets modern luxury, elevated service, and curated local culture. Be the first to experience the Hill Lot Airbnb launch with early access invites, exclusive rates, and launch updates.
-                  </p>
+      <main className="bg-[#eff5f2] text-[#10201a]">
+        <section className="relative overflow-hidden bg-white py-16 sm:py-20">
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(66,132,117,0.14),transparent_30%)]" />
+          <div className="relative container mx-auto px-4">
+            <div className="grid gap-12 lg:grid-cols-[1.2fr_0.8fr] lg:items-center">
+              <div className="space-y-6 max-w-3xl">
+                <p className="inline-flex rounded-full border border-[#428475] bg-[#eaf3ef] px-4 py-1 text-xs font-semibold uppercase tracking-[0.32em] text-[#2f5d4a]">
+                  Naya Zanzibar
+                </p>
+                <h1 className="text-5xl font-semibold tracking-[-0.03em] sm:text-6xl" style={{ fontFamily: 'Tai Heritage Pro, serif' }}>
+                  Beachfront ownership and priority bookings for modern investors.
+                </h1>
+                <p className="max-w-2xl text-lg leading-8 text-[#42574d]">
+                  A curated hospitality offering presented through Dosnine Limited, combining premium villa living with passive investment opportunity on Zanzibar’s east coast.
+                </p>
+
+                <div className="grid gap-4 sm:grid-cols-2 sm:max-w-md">
+                  <div className="rounded-[2rem] border border-[#d8e6dd] bg-[#f8fbf8] p-6">
+                    <p className="text-sm uppercase tracking-[0.32em] text-[#5f7f72]">Minimum Commitment</p>
+                    <p className="mt-3 text-3xl font-semibold text-[#10201a]">USD 22,000</p>
+                  </div>
+                  <div className="rounded-[2rem] border border-[#d8e6dd] bg-[#f8fbf8] p-6">
+                    <p className="text-sm uppercase tracking-[0.32em] text-[#5f7f72]">Target Yield</p>
+                    <p className="mt-3 text-3xl font-semibold text-[#10201a]">15%–20%</p>
+                  </div>
                 </div>
 
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-                  <a href="#waiting-list" className="btn-accent btn-lg w-full text-center sm:w-auto">
-                    Join the Waiting List
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+                  <a
+                    href="#interest-form"
+                    className="inline-flex w-full justify-center rounded-full bg-[#428475] px-6 py-4 text-sm font-semibold text-white shadow-lg shadow-[#42847540] transition hover:bg-[#346a5a] sm:w-auto"
+                  >
+                    Register Your Interest
                   </a>
-                  <a href="#features" className="btn-outline w-full text-center sm:w-auto">
-                    Explore the Experience
+                  <a
+                    href="https://nurayacollection.myflodesk.com/f0amx7epzs"
+                    className="inline-flex w-full justify-center rounded-full border border-[#428475] bg-white px-6 py-4 text-sm font-semibold text-[#428475] transition hover:bg-[#4284750d] sm:w-auto"
+                  >
+                    Investor Deck
                   </a>
                 </div>
               </div>
 
-              <div className="relative">
-                <div className="rounded-[2rem] overflow-hidden bg-gray-200 shadow-2xl shadow-gray-300/20">
-                  <img
-                    src="https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=1200&q=80"
-                    alt="Luxury rooftop lounge"
-                    className="h-full w-full object-cover"
-                  />
+              <div className="relative overflow-hidden rounded-[2rem] border border-[#d8e6dd] bg-[#f6faf6] shadow-2xl shadow-[#00000014]">
+                <img
+                  src="https://enduring-spirit-ce192413cd.media.strapiapp.com/Whats_App_Image_2026_05_29_at_12_13_08_e5a48d6d80.jpeg"
+                  alt="Naya Zanzibar villa interior"
+                  className="h-full w-full object-cover"
+                />
+                <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-[#10201a]/85 via-transparent p-6 text-white">
+                  <p className="text-xs uppercase tracking-[0.32em] text-[#d2efe4]">Pwani Mchangani, Zanzibar</p>
+                  <p className="mt-2 text-xl font-semibold">Launch access priority</p>
                 </div>
-                <div className="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-gray-50 via-transparent" />
               </div>
             </div>
           </div>
         </section>
 
-        <section className="bg-white py-16">
-          <div className="container mx-auto px-4 grid gap-12 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
-            <div className="space-y-6">
-              <p className="text-sm uppercase tracking-[0.35em] text-accent font-semibold">Join the waiting list</p>
-              <h2 className="text-4xl font-bold text-gray-900">Sign up for early access, exclusive offers, and launch updates.</h2>
-              <p className="max-w-xl text-gray-600 leading-7">
-                Hill Lot Airbnb is opening soon. Register now to receive first access to booking windows, launch packages, and curated stay experiences designed for modern travelers.
-              </p>
+        <section className="py-16 sm:py-20">
+          <div className="container mx-auto px-4">
+            <div className="grid gap-8 lg:grid-cols-3">
+              {[
+                {
+                  title: 'Premium beachfront villas',
+                  details: 'Four-bedroom signature villa living with private pool, rooftop terrace, and luxury interiors.',
+                },
+                {
+                  title: 'Passive investment structure',
+                  details: 'Invest through Dosnine Limited with professional hospitality management and reporting.',
+                },
+                {
+                  title: 'Priority booking access',
+                  details: 'Book villa stays before public launch with exclusive launch packages.',
+                },
+              ].map((item) => (
+                <div key={item.title} className="rounded-[2rem] border border-[#d8e6dd] bg-white p-8 shadow-sm">
+                  <h3 className="text-xl font-semibold text-[#10201a]">{item.title}</h3>
+                  <p className="mt-4 text-[#42574d] leading-7">{item.details}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
 
-              <div className="grid gap-4 sm:grid-cols-3">
-                <div className="rounded-3xl border border-gray-200 bg-gray-50 p-6">
-                  <p className="text-sm uppercase tracking-[0.35em] text-gray-500">Curated stays</p>
-                  <p className="mt-3 text-base text-gray-700">Boutique rooms, privacy, and local rooftop moments.</p>
-                </div>
-                <div className="rounded-3xl border border-gray-200 bg-gray-50 p-6">
-                  <p className="text-sm uppercase tracking-[0.35em] text-gray-500">Exclusive offers</p>
-                  <p className="mt-3 text-base text-gray-700">Launch pricing and VIP booking notifications.</p>
-                </div>
-                <div className="rounded-3xl border border-gray-200 bg-gray-50 p-6">
-                  <p className="text-sm uppercase tracking-[0.35em] text-gray-500">Local wellness</p>
-                  <p className="mt-3 text-base text-gray-700">Rooftop spa, curated dining, and elevated service.</p>
-                </div>
-              </div>
+        <section id="interest-form" className="bg-[#f8faf6] py-16 sm:py-20">
+          <div className="container mx-auto px-4 grid gap-12 lg:grid-cols-[0.95fr_1.05fr] lg:items-center">
+            <div className="space-y-6 max-w-2xl">
+              <p className="text-sm uppercase tracking-[0.32em] text-[#428475] font-semibold">Priority registration</p>
+              <h2 className="text-4xl font-semibold text-[#10201a]">Investors and bookers can secure early access today</h2>
+              <p className="text-[#42574d] leading-8">
+                Share your interest and we will contact you with an investor briefing, booking details, and the next steps for Naya Zanzibar.
+              </p>
             </div>
 
-            <div id="waiting-list" className="rounded-[2rem] border border-gray-200 bg-gray-50 p-8 shadow-sm">
-              <div className="space-y-3">
-                <p className="text-xs uppercase tracking-[0.35em] text-gray-500">Waiting list form</p>
-                <h3 className="text-3xl font-semibold text-gray-900">Reserve your place on the launch list</h3>
-                <p className="text-gray-600 leading-7">
-                  Enter your details below and we will send you the first announcement when booking opens for Hill Lot Airbnb.
-                </p>
-              </div>
-
-              <form onSubmit={handleSubmit} className="mt-8 space-y-4">
+            <div className="rounded-[2rem] border border-[#d8e6dd] bg-white p-8 shadow-xl">
+              <form onSubmit={handleSubmit} className="space-y-4">
                 <label className="block">
-                  <span className="text-sm font-semibold text-gray-700">Email</span>
+                  <span className="text-sm font-semibold text-[#10201a]">Full Name</span>
+                  <input
+                    type="text"
+                    required
+                    value={fullName}
+                    onChange={(event) => setFullName(event.target.value)}
+                    className="naya-input mt-3"
+                    placeholder="Your full name"
+                  />
+                </label>
+
+                <label className="block">
+                  <span className="text-sm font-semibold text-[#10201a]">Email</span>
                   <input
                     type="email"
                     required
                     value={email}
                     onChange={(event) => setEmail(event.target.value)}
-                    className="input mt-2"
+                    className="naya-input mt-3"
                     placeholder="you@email.com"
                   />
                 </label>
+
                 <label className="block">
-                  <span className="text-sm font-semibold text-gray-700">Phone (optional)</span>
+                  <span className="text-sm font-semibold text-[#10201a]">Phone</span>
                   <input
                     type="tel"
                     value={phone}
                     onChange={(event) => setPhone(event.target.value)}
-                    className="input mt-2"
+                    className="naya-input mt-3"
                     placeholder="+1 876 555 0123"
                   />
                 </label>
+
                 <label className="block">
-                  <span className="text-sm font-semibold text-gray-700">Your interest</span>
+                  <span className="text-sm font-semibold text-[#10201a]">I am interested in</span>
                   <select
                     value={interest}
                     onChange={(event) => setInterest(event.target.value)}
-                    className="input mt-2"
+                    className="naya-input mt-3"
                   >
-                    <option value="stay">Stay & launch updates</option>
-                    <option value="invest">Investment opportunity</option>
-                    <option value="both">Stay + investment</option>
+                    <option value="investor">Investor only</option>
+                    <option value="booker">Booker / Guest</option>
+                    <option value="both">Both investor and booker</option>
                   </select>
                 </label>
 
-                <button type="submit" className="btn-accent btn-lg w-full" disabled={loading}>
-                  {loading ? 'Joining...' : 'Join the Waiting List'}
+                <label className="block">
+                  <span className="text-sm font-semibold text-[#10201a]">Preferred tier</span>
+                  <select
+                    value={tier}
+                    onChange={(event) => setTier(event.target.value)}
+                    className="naya-input mt-3"
+                  >
+                    <option value="income-only">Income Only Tier</option>
+                    <option value="signature-access">Signature Access Tier</option>
+                  </select>
+                </label>
+
+                <label className="block">
+                  <span className="text-sm font-semibold text-[#10201a]">Message</span>
+                  <textarea
+                    value={message}
+                    onChange={(event) => setMessage(event.target.value)}
+                    className="naya-input mt-3 min-h-[140px] resize-none"
+                    placeholder="Share what you are looking for"
+                  />
+                </label>
+
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="inline-flex w-full justify-center rounded-full bg-[#428475] px-6 py-4 text-sm font-semibold text-white shadow-lg shadow-[#42847540] transition hover:bg-[#346a5a] disabled:opacity-70"
+                >
+                  {loading ? 'Submitting...' : 'Send My Interest'}
                 </button>
 
                 {status ? (
-                  <p className={`text-sm ${status.type === 'success' ? 'text-green-700' : 'text-red-600'}`}>
+                  <p className={`text-sm ${status.type === 'success' ? 'text-[#1f5d44]' : 'text-[#9d2d17]'}`}>
                     {status.message}
                   </p>
                 ) : null}
@@ -188,119 +264,77 @@ export default function HillLotLandingPage() {
           </div>
         </section>
 
-        <section id="features" className="py-16">
-          <div className="container mx-auto px-4">
-            <div className="mx-auto max-w-4xl text-center mb-12">
-              <p className="text-sm uppercase tracking-[0.35em] text-accent font-semibold">What to expect</p>
-              <h2 className="mt-3 text-4xl font-bold text-gray-900">Experience more than just a stay</h2>
-              <p className="mt-4 text-gray-600 leading-7">
-                Refined luxury meets vibrant culture, local craft, and unforgettable hospitality — all set within an elevated boutique retreat.
-              </p>
-            </div>
-
-            <div className="grid gap-6 lg:grid-cols-2">
-              {[
-                {
-                  title: 'Refined Luxury',
-                  description: 'Elegant interiors, handcrafted details, and world-class comfort come together for a stay that feels effortlessly indulgent.',
-                  label: 'Luxury',
-                },
-                {
-                  title: 'Vibrant Culture',
-                  description: 'Immerse yourself in the living heritage of the hill lot stay where local craft, design, and culture shape every detail.',
-                  label: 'Culture',
-                },
-                {
-                  title: 'Excellent Location',
-                  description: 'Minutes from the island’s best attractions with nature, dining, and adventure wrapped around your doorstep.',
-                  label: 'Location',
-                },
-                {
-                  title: 'Impressive Experience',
-                  description: 'From sunset rooftop dinners to thoughtful service, every moment is curated to delight and leave a lasting impression.',
-                  label: 'Experience',
-                },
-              ].map((item) => (
-                <div key={item.title} className="group rounded-[2rem] border border-gray-200 bg-white p-8 shadow-sm transition hover:-translate-y-1 hover:shadow-lg">
-                  <span className="inline-flex rounded-full bg-accent/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.35em] text-accent">
-                    {item.label}
-                  </span>
-                  <h3 className="mt-5 text-2xl font-semibold text-gray-900">{item.title}</h3>
-                  <p className="mt-4 text-gray-600 leading-7">{item.description}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        <section className="bg-gradient-to-r from-gray-900 via-gray-800 to-black py-20 text-white">
-          <div className="container mx-auto px-4 grid gap-12 lg:grid-cols-[1.1fr_0.9fr] lg:items-center">
+        <section className="bg-white py-16 sm:py-20">
+          <div className="container mx-auto px-4 grid gap-10 lg:grid-cols-[0.95fr_1.05fr] lg:items-center">
             <div className="space-y-6">
-              <p className="text-sm uppercase tracking-[0.35em] text-blue-200">Invest & become a co-owner</p>
-              <h2 className="text-4xl font-bold">Own a share of the property and operating business</h2>
-              <p className="max-w-xl text-gray-200 leading-7">
-                Earn passive income through annual profit payouts and long-term returns while helping launch a premium hill lot boutique stay experience.
+              <p className="text-sm uppercase tracking-[0.32em] text-[#428475] font-semibold">Investment profile</p>
+              <h2 className="text-4xl font-semibold text-[#10201a]">Designed for a luxury hospitality investor audience.</h2>
+              <p className="text-[#42574d] leading-8">
+                Naya Zanzibar is structured to combine passive cash flow, premium experience access, and a registered local partnership with Dosnine Limited.
               </p>
 
-              <a
-                href="https://dosnine.com"
-                className="btn-outline inline-flex rounded-full border-white text-white hover:bg-white hover:text-gray-900"
-              >
-                Learn More
-              </a>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="rounded-[2rem] border border-[#d8e6dd] bg-[#f7faf8] p-6">
+                  <p className="text-sm uppercase tracking-[0.32em] text-[#5f7f72]">Hospitality asset</p>
+                  <p className="mt-4 text-base text-[#42574d] leading-7">A fully managed luxury villa portfolio with guest-ready operations from launch.</p>
+                </div>
+                <div className="rounded-[2rem] border border-[#d8e6dd] bg-[#f7faf8] p-6">
+                  <p className="text-sm uppercase tracking-[0.32em] text-[#5f7f72]">Market access</p>
+                  <p className="mt-4 text-base text-[#42574d] leading-7">Investor capital combines with Zanzibar tourism demand and premium travel distribution channels.</p>
+                </div>
+              </div>
             </div>
 
-            <div className="rounded-[2rem] border border-white/10 bg-white/10 p-8 backdrop-blur-xl">
-              <div className="space-y-4">
-                <p className="text-sm uppercase tracking-[0.35em] text-blue-200">Community first</p>
-                <h3 className="text-3xl font-semibold">Join the launch community</h3>
-                <p className="text-gray-200 leading-7">
-                  Stay in the loop about ownership opportunities, earnings potential, and how the Hill Lot Airbnb will shape future island hospitality.
-                </p>
+            <div className="rounded-[2rem] border border-[#d8e6dd] bg-[#eff7f0] p-10 shadow-sm">
+              <p className="text-sm uppercase tracking-[0.32em] text-[#428475] font-semibold">Registered company</p>
+              <h3 className="mt-4 text-3xl font-semibold text-[#10201a]">Dosnine Limited</h3>
+              <p className="mt-4 text-[#42574d] leading-7">
+                Naya Zanzibar is presented through a registered partnership with Dosnine Limited and The Nuraya Collection, giving investors a local operating partner and credible market presence.
+              </p>
+              <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+                <a href="https://invest.nurayacollection.com/" className="inline-flex w-full justify-center rounded-full border border-[#428475] bg-white px-5 py-3 text-sm font-semibold text-[#428475] transition hover:bg-[#4284750d] sm:w-auto">
+                  Nuraya Investor Site
+                </a>
+                <a href="mailto:hello@nurayacollection.com" className="inline-flex w-full justify-center rounded-full bg-[#428475] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#346a5a] sm:w-auto">
+                  Contact Us
+                </a>
               </div>
             </div>
           </div>
         </section>
 
-        <section className="py-16">
+        <section className="bg-[#f0f6f1] py-16 sm:py-20">
           <div className="container mx-auto px-4">
-            <div className="mb-12 text-center">
-              <p className="text-sm uppercase tracking-[0.35em] text-gray-500 font-semibold">Stories from the hill lot</p>
-              <h2 className="mt-3 text-4xl font-bold text-gray-900">Design, hospitality, and local inspiration</h2>
-              <p className="mt-4 text-gray-600 leading-7">
-                Explore our curated stories and early insights into the Hill Lot Airbnb journey.
+            <div className="rounded-[2rem] border border-[#d8e6dd] bg-white p-10 shadow-sm text-center">
+              <p className="text-sm uppercase tracking-[0.32em] text-[#428475] font-semibold">Legal note</p>
+              <p className="mt-4 text-[#42574d] leading-8 max-w-3xl mx-auto">
+                Naya Zanzibar is a hospitality interest registration managed through Dosnine Limited. This page is for informational purposes only and does not constitute investment advice.
               </p>
-            </div>
-
-            <div className="grid gap-6 lg:grid-cols-3">
-              {[
-                {
-                  title: 'The Art of Island Hospitality',
-                  description: 'A story about thoughtful service, local craft, and how every guest experience is designed to feel personal.',
-                  author: 'Ariel Grant',
-                },
-                {
-                  title: 'Dining with a View',
-                  description: 'Discover the culinary vision behind our rooftop menus and how the island’s flavors shape every plate.',
-                  author: 'Nia Clarke',
-                },
-                {
-                  title: 'A New Era of Boutique Stays',
-                  description: 'How the Hill Lot Airbnb is redefining modern leisure with calm design and unforgettable moments.',
-                  author: 'Miles Bennett',
-                },
-              ].map((item) => (
-                <article key={item.title} className="rounded-[2rem] border border-gray-200 bg-white p-8 shadow-sm hover:shadow-lg transition">
-                  <p className="mb-3 text-xs uppercase tracking-[0.35em] text-gray-500">Marrakesh Guide</p>
-                  <h3 className="text-2xl font-semibold text-gray-900">{item.title}</h3>
-                  <p className="mt-4 text-gray-600 leading-7">{item.description}</p>
-                  <p className="mt-6 text-sm font-semibold text-gray-900">{item.author}</p>
-                </article>
-              ))}
             </div>
           </div>
         </section>
       </main>
+
+      <style jsx>{`
+        :global(body) {
+          background: #eff5f2;
+        }
+        .naya-input {
+          width: 100%;
+          min-height: 3rem;
+          border-radius: 1rem;
+          border: 1px solid #c9dbd3;
+          padding: 1rem 1rem;
+          font-size: 1rem;
+          color: #10201a;
+          background: #ffffff;
+        }
+        .naya-input:focus {
+          outline: none;
+          border-color: #428475;
+          box-shadow: 0 0 0 4px rgba(66, 132, 117, 0.12);
+        }
+      `}</style>
     </>
   );
 }
