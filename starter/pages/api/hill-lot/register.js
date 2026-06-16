@@ -21,7 +21,6 @@ export default async function handler(req, res) {
     email,
     phone,
     stayType,
-    message,
   } = req.body || {};
 
   if (!email || typeof email !== 'string' || !email.includes('@')) {
@@ -35,8 +34,7 @@ export default async function handler(req, res) {
   const sanitizedFullName = sanitizeText(fullName).slice(0, 200);
   const sanitizedEmail = sanitizeEmail(email);
   const sanitizedPhone = sanitizePhoneInput(phone || '');
-  const sanitizedStayType = sanitizeText(stayType || 'couples').slice(0, 50);
-  const sanitizedMessage = sanitizeText(message || '').slice(0, 1200);
+  const sanitizedStayType = sanitizeText(stayType || 'pre-registration (end 2030)').slice(0, 50);
   const page = '/hill-lot';
   const source = 'hill-lot-airbnb-registration-form';
 
@@ -52,7 +50,6 @@ export default async function handler(req, res) {
         email: sanitizedEmail,
         phone: sanitizedPhone || null,
         stay_type: sanitizedStayType,
-        message: sanitizedMessage || null,
         page,
         source,
         ip_address: ipAddress || null,
@@ -92,7 +89,6 @@ export default async function handler(req, res) {
                     <p style="margin: 0 0 24px;">Hi ${sanitizedFullName},</p>
                     <p style="margin: 0 0 24px; line-height: 1.75;">Thank you for registering your interest in The Hill Lot Airbnb. We have received your request and will contact you soon with booking details and availability.</p>
                     <p style="margin: 0 0 16px;"><strong>Stay type:</strong> ${sanitizedStayType}</p>
-                    ${sanitizedMessage ? `<p style="margin: 0 0 24px;"><strong>Your message:</strong> ${sanitizedMessage}</p>` : ''}
                     <p style="margin: 0 0 24px; line-height: 1.75;">If you have questions, reply to this email or contact us at <a href="mailto:hello@dosnine.com">hello@dosnine.com</a>.</p>
                     <p style="margin: 0; color: #425f53;">Best regards,<br/>The Hill Lot Airbnb team</p>
                   </td>

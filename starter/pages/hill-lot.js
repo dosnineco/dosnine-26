@@ -6,7 +6,7 @@ export default function HillLotLandingPage() {
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [stayType, setStayType] = useState('couples');
-  const [message, setMessage] = useState('');
+  
   const [status, setStatus] = useState(null);
   const [loading, setLoading] = useState(false);
 
@@ -32,23 +32,10 @@ export default function HillLotLandingPage() {
           email,
           phone,
           stayType,
-          message,
         }),
       });
 
-      const text = await response.text();
-      let payload = null;
-
-      try {
-        payload = JSON.parse(text);
-      } catch (err) {
-        console.error('Server returned HTML instead of JSON:', text);
-        setStatus({
-          type: 'error',
-          message: 'Unexpected server response. Please try again or contact hello@dosnine.com.',
-        });
-        return;
-      }
+      const payload = await response.json();
 
       if (!response.ok || !payload?.success) {
         throw new Error(payload?.error || 'Unable to submit your booking request.');
@@ -58,8 +45,7 @@ export default function HillLotLandingPage() {
       setFullName('');
       setEmail('');
       setPhone('');
-      setStayType('couples');
-      setMessage('');
+      setStayType('pre-registration (end 2030)');
     } catch (error) {
       setStatus({ type: 'error', message: error.message || 'Something went wrong. Please try again.' });
     } finally {
@@ -234,16 +220,6 @@ export default function HillLotLandingPage() {
                     <option value="small-family">Small family getaway</option>
                     <option value="friends">Friends escape</option>
                   </select>
-                </label>
-
-                <label className="block">
-                  <span className="text-sm font-semibold text-[#10201a]">Message</span>
-                  <textarea
-                    value={message}
-                    onChange={(event) => setMessage(event.target.value)}
-                    className="naya-input mt-3 min-h-[140px] resize-none"
-                    placeholder="Tell us your ideal dates or any special requests"
-                  />
                 </label>
 
                 <button
