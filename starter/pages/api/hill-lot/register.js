@@ -1,14 +1,14 @@
 import { getDbClient } from '@/lib/apiAuth';
 import { enforceMethods, sanitizeEmail, sanitizePhoneInput, sanitizeText } from '@/lib/apiSecurity';
-import { enforceRateLimit } from '@/lib/rateLimit';
+import { enforceRateLimitDistributed } from '@/lib/rateLimit';
 import * as SibApiV3Sdk from '@getbrevo/brevo';
 
 export default async function handler(req, res) {
   if (!enforceMethods(req, res, ['POST'])) return;
 
-  const rate = enforceRateLimit(req, res, {
+  const rate = await enforceRateLimitDistributed(req, res, {
     keyPrefix: 'hill-lot-register',
-    maxRequests: 8,
+    maxRequests: 60,
     windowMs: 60_000,
   });
 
@@ -20,7 +20,6 @@ export default async function handler(req, res) {
     fullName,
     email,
     phone,
-    stayType,
   } = req.body || {};
 
   if (!email || typeof email !== 'string' || !email.includes('@')) {
@@ -34,9 +33,9 @@ export default async function handler(req, res) {
   const sanitizedFullName = sanitizeText(fullName).slice(0, 200);
   const sanitizedEmail = sanitizeEmail(email);
   const sanitizedPhone = sanitizePhoneInput(phone || '');
-  const sanitizedStayType = sanitizeText(stayType || 'pre-registration (end 2030)').slice(0, 50);
+  const sanitizedStayType = sanitizeText('pre-registration (end 2030)').slice(0, 50);
   const page = '/hill-lot';
-  const source = 'hill-lot-airbnb-registration-form';
+  const source = 'hill-lot-airbnb-pre-registration-form';
 
   try {
     const db = getDbClient();

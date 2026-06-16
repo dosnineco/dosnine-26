@@ -5,7 +5,7 @@ export default function HillLotLandingPage() {
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
-  const [stayType, setStayType] = useState('couples');
+  const stayType = 'pre-registration (end 2030)';
   
   const [status, setStatus] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -41,11 +41,10 @@ export default function HillLotLandingPage() {
         throw new Error(payload?.error || 'Unable to submit your booking request.');
       }
 
-      setStatus({ type: 'success', message: payload.message || 'Your request has been sent. We will reach out soon.' });
+      setStatus({ type: 'success', message: payload.message || 'Your pre-registration request has been received. We will be in touch shortly.' });
       setFullName('');
       setEmail('');
       setPhone('');
-      setStayType('pre-registration (end 2030)');
     } catch (error) {
       setStatus({ type: 'error', message: error.message || 'Something went wrong. Please try again.' });
     } finally {
@@ -168,7 +167,7 @@ export default function HillLotLandingPage() {
               <p className="text-sm uppercase tracking-[0.32em] text-[#428475] font-semibold">Booking request</p>
               <h2 className="text-4xl font-semibold text-[#10201a]">Request your Hill Lot Airbnb stay today</h2>
               <p className="text-[#42574d] leading-8">
-                Send us your details and preferred dates, and we will respond with availability, check-in guidance, and confirmation for your Sligoville mountain escape.
+                Send us your details and we will confirm your pre-registration for The Hill Lot Airbnb through 2030.
               </p>
             </div>
 
@@ -211,15 +210,12 @@ export default function HillLotLandingPage() {
 
                 <label className="block">
                   <span className="text-sm font-semibold text-[#10201a]">Stay type</span>
-                  <select
+                  <input
+                    type="text"
+                    readOnly
                     value={stayType}
-                    onChange={(event) => setStayType(event.target.value)}
-                    className="naya-input mt-3"
-                  >
-                    <option value="couples">Couples retreat</option>
-                    <option value="small-family">Small family getaway</option>
-                    <option value="friends">Friends escape</option>
-                  </select>
+                    className="naya-input mt-3 bg-[#f0f6f1]"
+                  />
                 </label>
 
                 <button
@@ -227,7 +223,7 @@ export default function HillLotLandingPage() {
                   disabled={loading}
                   className="inline-flex w-full justify-center rounded-full bg-[#428475] px-6 py-4 text-sm font-semibold text-white shadow-lg shadow-[#42847540] transition hover:bg-[#346a5a] disabled:opacity-70"
                 >
-                  {loading ? 'Sending request...' : 'Send booking request'}
+                  {loading ? 'Sending request...' : 'Pre-register now'}
                 </button>
 
                 {status ? (
