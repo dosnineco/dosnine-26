@@ -11,38 +11,11 @@ export default function Footer() {
           {/* Company */}
           <div>
             <h3 className="font-bold text-gray-900 mb-3">Company</h3>
-            <ul className="space-y-2 text-sm">
-              <li>
-                <a href="/listing" className="text-gray-600 hover:text-blue-600 transition">
-                  View Properties
-                </a>
-              </li>
-              <li>
-                <a href="/contact" className="text-gray-600 hover:text-blue-600 transition">
-                  Contact
-                </a>
-              </li>
-              <li>
-                <a href="https://www.expensegoose.com" rel="dofollow" className="text-gray-600 hover:text-blue-600 transition">
-                  Expensegoose.com
-                </a>
-              </li>
-              <li>
-                <a href="/fin" rel="dofollow" className="text-gray-600 hover:text-blue-600 transition">
-                  Fin
-                </a>
-              </li>
-              <li>
-                <a href="/chargeback" rel="dofollow" className="text-gray-600 hover:text-blue-600 transition">
-                  New Cback
-                </a>
-              </li>
-            </ul>
+          <img src="/logos/dosnine_co_logo.png" alt="Dosnine Logo" className="w-24 h-24 " />
           </div>
-
           {/* For Landlords */}
           <div>
-            <h3 className="font-bold text-gray-900 mb-3">For Property Owners</h3>
+            <h3 className="font-bold text-gray-900 mb-3">Useful Links</h3>
             <ul className="space-y-2 text-sm">
               <li>
                 <a href="/landlord/dashboard" className="text-gray-600 hover:text-blue-600 transition">
@@ -81,17 +54,12 @@ export default function Footer() {
                   Refund Policy
                 </a>
               </li>
-                <li>
-                <a href="/chargeback" className="text-gray-600 hover:text-blue-600 transition">
-                  Chargeback 
+              <li>
+                <a href="/about" className="text-gray-600 hover:text-blue-600 transition">
+                  About Us
                 </a>
               </li>
-                <li>
-                <a href="/fin" className="text-gray-600 hover:text-blue-600 transition">
-                  Fin
-                </a>
-              </li>
-              
+          
             </ul>
           </div>
 
@@ -126,7 +94,7 @@ export default function Footer() {
         {/* Bottom Bar */}
         <div className="border-t border-gray-300 pt-4 text-center text-sm">
           <p className="text-gray-600">
-            &copy; {new Date().getFullYear()} Dosnine Ltd. All rights reserved.
+            &copy; {new Date().getFullYear()} Dosnine Limited. All rights reserved.
           </p>
         </div>
       
