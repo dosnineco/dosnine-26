@@ -649,8 +649,8 @@ export default function ParishRequestAnalytics() {
       {/* Header with SEO */}
      
 
-      {/* Graphs Grid - 3 columns */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Graphs Grid - responsive: 2 columns on small+ screens, stacked on mobile */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-6">
         <BarGraph
           data={visitorData}
           percentages={visitorPercentages}
@@ -667,11 +667,11 @@ export default function ParishRequestAnalytics() {
           color="text-green-600"
         />
 
-        <TrendingParishesCard />
+              <div>
+                <DemandPricePointGraph />
+              </div>
 
-        <div className="lg:col-span-3">
-          <DemandPricePointGraph />
-        </div>
+              <TrendingParishesCard />
 
         <UnderservedDemandCard />
 
@@ -679,7 +679,7 @@ export default function ParishRequestAnalytics() {
 
         {/* <BudgetByParishGraph /> */}
 
-        <div className="lg:col-span-3">
+        <div className="sm:col-span-2">
           <RequestTypeDistributionCard />
         </div>
       </div>
