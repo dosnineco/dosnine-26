@@ -56,7 +56,8 @@ export default async function handler(req, res) {
 
   const db = getDbClient();
   const recipients = [];
-  const parishFilter = payload.parish ? normalizeParish(payload.parish) : '';
+  // Remove parish-specific filtering — send to all matching recipients
+  const parishFilter = '';
 
   try {
     if (payload.target === 'submittedVisitors' || payload.target === 'both') {
@@ -70,9 +71,7 @@ export default async function handler(req, res) {
       if (requestError) throw requestError;
       (serviceRequests || []).forEach((item) => {
         const email = item?.client_email?.trim().toLowerCase();
-        const parish = normalizeParish(item?.parish || '');
         if (!email) return;
-        if (parishFilter && parish !== parishFilter) return;
         const rawName = String(item?.client_name || '').trim();
         const name = normalizeRecipientName(rawName);
         const { firstName, lastName } = extractNameParts(name);
@@ -97,9 +96,7 @@ export default async function handler(req, res) {
       if (userError) throw userError;
       (users || []).forEach((item) => {
         const email = item?.email?.trim().toLowerCase();
-        const parish = normalizeParish(item?.parish || '');
         if (!email) return;
-        if (parishFilter && parish !== parishFilter) return;
         const rawName = String(item?.full_name || '').trim();
         const name = normalizeRecipientName(rawName);
         const { firstName, lastName } = extractNameParts(name);

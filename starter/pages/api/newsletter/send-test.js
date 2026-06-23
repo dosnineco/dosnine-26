@@ -26,9 +26,11 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'Invalid request payload' });
   }
 
-  const recipientEmail = resolved.user.email;
+  // Allow specifying a test email in the request body, fallback to admin email
+  const body = req.body || {};
+  const recipientEmail = String(body.email || resolved.user.email || '').trim().toLowerCase();
   if (!recipientEmail) {
-    return res.status(400).json({ error: 'Admin email is not available' });
+    return res.status(400).json({ error: 'Recipient email is required for test send' });
   }
 
   const apiKey = process.env.BREVO_API_KEY;

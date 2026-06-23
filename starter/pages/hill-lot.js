@@ -1,5 +1,6 @@
 import Head from 'next/head';
 import { useState } from 'react';
+import AutoPlayYouTube from '../components/AutoPlayYouTube';
 
 export default function HillLotLandingPage() {
   const [fullName, setFullName] = useState('');
@@ -83,6 +84,7 @@ export default function HillLotLandingPage() {
       </Head>
 
       <main className="bg-[#eff5f2] text-[#10201a]">
+      
         <section className="relative overflow-hidden bg-white py-16 sm:py-20">
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(66,132,117,0.14),transparent_30%)]" />
           <div className="relative container mx-auto px-4">
@@ -97,8 +99,10 @@ export default function HillLotLandingPage() {
                 <p className="max-w-2xl text-lg leading-8 text-[#42574d]">
                   Experience mountain air, sweeping views, and peaceful nights in a cozy hilltop home made for couples and small families. Stay at The Hill Lot Airbnb for JMD 11,300 per night and reconnect with nature.
                 </p>
+                  
 
                 <div className="grid gap-4 sm:grid-cols-2 sm:max-w-md">
+
                   <div className="rounded-[2rem] border border-[#d8e6dd] bg-[#f8fbf8] p-6">
                     <p className="text-sm uppercase tracking-[0.32em] text-[#5f7f72]">Nightly rate</p>
                     <p className="mt-3 text-3xl font-semibold text-[#10201a]">JMD 11,300</p>
@@ -133,6 +137,7 @@ export default function HillLotLandingPage() {
                   alt="The Hill Lot Airbnb hillside property in Sligoville"
                   className="h-full w-full object-cover"
                 />
+                
                 <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-[#10201a]/85 via-transparent p-6 text-white">
                   <p className="text-xs uppercase tracking-[0.32em] text-[#d2efe4]">Sligoville mountains, Jamaica</p>
                   <p className="mt-2 text-xl font-semibold">Quiet hilltop views and clean mountain air</p>
@@ -141,6 +146,10 @@ export default function HillLotLandingPage() {
             </div>
           </div>
         </section>
+
+        <div className="container mx-auto px-4 mb-8">
+                    <AutoPlayYouTube videoId="https://www.youtube.com/watch?v=iXhODfHN34U" />
+                  </div>
 
         <section className="py-16 sm:py-20">
           <div className="container mx-auto px-4">
