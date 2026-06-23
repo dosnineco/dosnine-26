@@ -34,6 +34,9 @@ export default function AdminNewsletterPage() {
   const [campaignStats, setCampaignStats] = useState([]);
   const [recipientSource, setRecipientSource] = useState('submittedVisitors');
   const [targetParish, setTargetParish] = useState('');
+  const [subscribers, setSubscribers] = useState([]);
+  const [selectedSubscriber, setSelectedSubscriber] = useState('');
+  const [testEmail, setTestEmail] = useState('');
   const [drafts, setDrafts] = useState([]);
   const [draftId, setDraftId] = useState(null);
   const [sendResult, setSendResult] = useState(null);
@@ -85,8 +88,40 @@ export default function AdminNewsletterPage() {
     if (!accessAllowed) return;
     fetchSummary();
     fetchBrevoStats();
+    fetchSubscribers();
     loadLocalDrafts();
   }, [accessAllowed]);
+
+  const fetchSubscribers = async () => {
+    try {
+      const res = await fetch('/api/newsletter/subscribers');
+      const payload = await res.json();
+      if (!res.ok || !payload?.success) throw new Error(payload?.error || 'Failed to load subscribers');
+      setSubscribers(payload.subscribers || []);
+    } catch (err) {
+      console.error('Fetch subscribers error:', err);
+    }
+  };
+
+  const handleRemoveSubscriber = async (email) => {
+    if (!email) return;
+    if (!confirm(`Remove ${email} from the newsletter subscribers?`)) return;
+    try {
+      const res = await fetch('/api/newsletter/remove-subscriber', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+      const payload = await res.json();
+      if (!res.ok || !payload?.success) throw new Error(payload?.error || 'Failed to remove subscriber');
+      toast.success('Subscriber removed');
+      fetchSubscribers();
+      fetchSummary();
+    } catch (err) {
+      console.error('Remove subscriber error:', err);
+      toast.error(err.message || 'Failed to remove subscriber');
+    }
+  };
 
   const verifyAdmin = async () => {
     if (!user) return;
@@ -391,6 +426,7 @@ export default function AdminNewsletterPage() {
           subject: newsletter.subject,
           previewText: newsletter.previewText,
           htmlContent: sanitizedHtml,
+          email: testEmail || undefined,
         }),
       });
       const payload = await response.json();
@@ -624,21 +660,7 @@ export default function AdminNewsletterPage() {
                       />
                     </label>
 
-                    <div className="flex flex-wrap gap-3 mt-4">
-                      <label className="min-w-[220px] flex-1">
-                        <span className="text-sm font-semibold text-gray-700">Target parish</span>
-                        <select
-                          value={targetParish}
-                          onChange={(event) => setTargetParish(event.target.value)}
-                          className="mt-2 w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-base text-gray-900 focus:border-accent focus:outline-none"
-                        >
-                          <option value="">All parishes</option>
-                          {PARISHES.map((parish) => (
-                            <option key={parish} value={parish}>{parish}</option>
-                          ))}
-                        </select>
-                      </label>
-                    </div>
+                    {/* Target parish removed — newsletter sends to all recipients */}
 
                     <div className="flex flex-wrap items-center gap-3 mt-4">
                       <button
@@ -769,6 +791,48 @@ export default function AdminNewsletterPage() {
                 </div>
 
                 <div className="rounded-3xl bg-white border border-gray-200 p-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <h2 className="text-xl font-semibold text-gray-900">Subscribers</h2>
+                    <button
+                      type="button"
+                      onClick={fetchSubscribers}
+                      className="rounded-full bg-gray-100 px-3 py-1 text-sm font-semibold text-gray-700 hover:bg-gray-200"
+                    >
+                      Refresh
+                    </button>
+                  </div>
+                  <div className="space-y-3 text-sm text-gray-700">
+                    {subscribers.length === 0 ? (
+                      <p className="text-gray-500">No subscribers found.</p>
+                    ) : (
+                      <div>
+                        <select
+                          value={selectedSubscriber}
+                          onChange={(e) => setSelectedSubscriber(e.target.value)}
+                          className="w-full rounded-2xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900"
+                        >
+                          <option value="">Select subscriber</option>
+                          {subscribers.map((s) => (
+                            <option key={s.email} value={s.email}>{s.email} {s.full_name ? ` — ${s.full_name}` : ''}</option>
+                          ))}
+                        </select>
+                        <div className="mt-3 flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveSubscriber(selectedSubscriber)}
+                            disabled={!selectedSubscriber}
+                            className="rounded-2xl bg-red-100 px-4 py-2 text-xs font-semibold text-red-700 hover:bg-red-200 disabled:opacity-60"
+                          >
+                            Remove subscriber
+                          </button>
+                          <span className="text-xs text-gray-500">You can remove a subscriber from the newsletter list for future sends.</span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="rounded-3xl bg-white border border-gray-200 p-6">
                   <h2 className="text-xl font-semibold text-gray-900 mb-4">Recent visitor samples</h2>
                   <div className="space-y-2 text-sm text-gray-700">
                     {summary.visitorSample.length === 0 ? (
@@ -841,14 +905,22 @@ export default function AdminNewsletterPage() {
                 >
                   {loadingSend ? 'Sending…' : 'Send newsletter now'}
                 </button>
-                <button
-                  disabled={loadingSend}
-                  onClick={handleSendTestNewsletter}
-                  className="inline-flex items-center justify-center rounded-3xl bg-green-600 px-6 py-3 text-sm font-semibold text-white hover:bg-green-700 disabled:opacity-60"
-                >
-                  <FiMail className="mr-2" />
-                  {loadingSend ? 'Sending test…' : 'Send test email to admin'}
-                </button>
+                <div className="flex items-center gap-3">
+                  <input
+                    value={testEmail}
+                    onChange={(e) => setTestEmail(e.target.value)}
+                    placeholder="test@example.com"
+                    className="rounded-2xl border border-gray-200 bg-white px-4 py-2 text-sm text-gray-900 focus:border-accent focus:outline-none"
+                  />
+                  <button
+                    disabled={loadingSend}
+                    onClick={handleSendTestNewsletter}
+                    className="inline-flex items-center justify-center rounded-3xl bg-green-600 px-6 py-3 text-sm font-semibold text-white hover:bg-green-700 disabled:opacity-60"
+                  >
+                    <FiMail className="mr-2" />
+                    {loadingSend ? 'Sending test…' : 'Send test email'}
+                  </button>
+                </div>
               </div>
 
               <div className="rounded-3xl bg-white border border-gray-200 p-4 space-y-3">
