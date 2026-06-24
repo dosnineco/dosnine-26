@@ -21,7 +21,7 @@ const YouTubeVideo = ({ url, videoId: propVideoId }) => {
     height: '200',
     width: '320',
     playerVars: {
-      autoplay: 3,
+      autoplay: 1,
     },
   };
 
@@ -29,20 +29,20 @@ const YouTubeVideo = ({ url, videoId: propVideoId }) => {
     height: '320',
     width: '550',
     playerVars: {
-      autoplay: 3,
+      autoplay: 1,
     },
   };
 
   return (
-    <div className=" mb-3 sm:mt-10 flex justify-center">
+    <div className="mb-3 sm:mt-10 flex justify-center items-center">
       {/* Responsive container */}
-      <div className="w-full max-w-xs sm:max-w-md md:max-w-lg lg:max-w-xl">
+      <div className="w-full max-w-xs sm:max-w-md md:max-w-lg lg:max-w-xl flex justify-center items-center">
         {/* Mobile view */}
-        <div className="block  mt-4  sm:hidden">
+        <div className="block mt-4 sm:hidden flex justify-center">
           <YouTube videoId={videoId} opts={mobileOpts} />
         </div>
         {/* Desktop view */}
-        <div className="hidden sm:block">
+        <div className="hidden sm:block flex justify-center">
           <YouTube videoId={videoId} opts={desktopOpts} />
         </div>
       </div>

@@ -6,6 +6,7 @@ import ParishRequestAnalytics from './ParishRequestAnalytics';
 import { Search, MapPin, DollarSign, Clock, FileText, CheckCircle, Lock, Users, Home, Smartphone, Star, Circle, Building2, Building, Filter, X, ArrowRight } from 'lucide-react';
 const PropertyCard = lazy(() => import('./PropertyCard'));
 import Link from 'next/link';
+import AutoPlayYouTube from './AutoPlayYouTube';
 
 export default function PropertyRequestsMarketplace() {
   const router = useRouter();
@@ -262,9 +263,11 @@ export default function PropertyRequestsMarketplace() {
      
 
           {/* Live Typing Indicator - Reserved Space */}
-          <div className="h-12 flex items-center justify-center">
+          {/* <div className="h-12 flex items-center justify-center">
             <div className="text-sm text-gray-500">Live request data refreshes every minute for stability.</div>
-          </div>
+          </div> */}
+
+          <AutoPlayYouTube url="https://youtu.be/9GL8tJnH5Y8" />
         </div>
 
 

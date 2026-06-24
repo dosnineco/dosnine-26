@@ -1,5 +1,6 @@
 import { getDbClient } from '@/lib/apiAuth';
-import { enforceMethods, sanitizeEmail, sanitizePhoneInput, sanitizeText } from '@/lib/apiSecurity';
+import { enforceMethods, sanitizeEmail, sanitizePhoneInput } from '@/lib/apiSecurity';
+import { sanitizeText } from '@/lib/sanitize';
 import { enforceRateLimitDistributed } from '@/lib/rateLimit';
 import * as SibApiV3Sdk from '@getbrevo/brevo';
 
