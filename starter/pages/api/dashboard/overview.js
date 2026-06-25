@@ -116,6 +116,19 @@ export default async function handler(req, res) {
     const totalClicks = ads.reduce((sum, ad) => sum + Number(ad?.clicks || 0), 0);
     const activeAds = ads.filter((ad) => ad?.is_active).length;
 
+    const approvedSubmissionKeys = new Set(
+      submissions
+        .filter((entry) => String(entry?.status || '').toLowerCase() === 'approved')
+        .map((entry) => `${String(entry?.company_name || '').trim().toLowerCase()}|${String(entry?.email || '').trim().toLowerCase()}`)
+    );
+
+    const verifiedAdvertisements = ads
+      .filter((ad) => ad?.is_active)
+      .filter((ad) => {
+        const key = `${String(ad?.company_name || '').trim().toLowerCase()}|${String(ad?.email || '').trim().toLowerCase()}`;
+        return approvedSubmissionKeys.has(key);
+      });
+
     const isApprovedAgent =
       agentData?.verification_status === 'approved' &&
       ['paid', 'free', '7-day', '30-day', '90-day'].includes(agentData?.payment_status);
@@ -144,6 +157,7 @@ export default async function handler(req, res) {
         pendingAds: pendingAdSubmission ? 1 : 0,
       },
       advertisements: ads,
+      verifiedAdvertisements,
       pendingAdVerificationAt: pendingAdSubmission?.submitted_at || null,
     });
   } catch (error) {

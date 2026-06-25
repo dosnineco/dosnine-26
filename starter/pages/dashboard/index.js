@@ -15,6 +15,7 @@ export default function Dashboard() {
   const [recentProperties, setRecentProperties] = useState([]);
   const [serviceRequests, setServiceRequests] = useState([]);
   const [advertisements, setAdvertisements] = useState([]);
+  const [verifiedAdvertisements, setVerifiedAdvertisements] = useState([]);
   const [adStats, setAdStats] = useState({
     totalAds: 0,
     activeAds: 0,
@@ -214,6 +215,7 @@ export default function Dashboard() {
       setRecentProperties(Array.isArray(payload?.recentProperties) ? payload.recentProperties : []);
       setServiceRequests(Array.isArray(payload?.serviceRequests) ? payload.serviceRequests : []);
       setAdvertisements(Array.isArray(payload?.advertisements) ? payload.advertisements : []);
+      setVerifiedAdvertisements(Array.isArray(payload?.verifiedAdvertisements) ? payload.verifiedAdvertisements : []);
       setAdStats(payload?.adStats || {
         totalAds: 0,
         activeAds: 0,
@@ -228,6 +230,7 @@ export default function Dashboard() {
       setRecentProperties([]);
       setServiceRequests([]);
       setAdvertisements([]);
+      setVerifiedAdvertisements([]);
       setAdStats({
         totalAds: 0,
         activeAds: 0,
@@ -512,7 +515,27 @@ export default function Dashboard() {
             </div>
           )}
 
-          {advertisements.length === 0 ? (
+          {verifiedAdvertisements.length > 0 && (
+            <div className="mb-5 rounded-xl border border-green-200 bg-green-50 p-5">
+              <h3 className="text-lg font-semibold text-green-900 mb-3">Verified Ads</h3>
+              <div className="space-y-3">
+                {verifiedAdvertisements.map((ad) => (
+                  <div key={ad.id} className="rounded-lg bg-white px-4 py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                    <div>
+                      <p className="font-semibold text-gray-900">{ad.title || ad.company_name || 'Verified ad'}</p>
+                      <p className="text-sm text-gray-600">{ad.company_name}</p>
+                    </div>
+                    <div className="text-sm text-gray-600 sm:text-right">
+                      <p>Expires: {formatDate(ad.expires_at)}</p>
+                      <p className="text-green-700 font-medium">Live and verified</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {advertisements.length === 0 && verifiedAdvertisements.length === 0 ? (
             <div className="rounded-xl bg-gray-50 p-6 text-center text-gray-600">
               You don't have any ads yet. Create one now to start promoting your business.
             </div>

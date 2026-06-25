@@ -4,14 +4,13 @@ import Link from 'next/link';
 import { useUser } from '@clerk/nextjs';
 import { Check, Copy } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { supabase } from '@/lib/supabase';
 
 const plans = [
   {
     id: '3-day',
     name: '3 Day Ad',
     duration: '3 days',
-    price: 1499,
+    basePrice: 3499,
     badge: 'Starter Boost',
     highlight: 'Quick, budget-friendly exposure',
   },
@@ -19,19 +18,36 @@ const plans = [
     id: '7-day',
     name: '1 Week Ad',
     duration: '7 days',
-    price: 4999,
+    basePrice: 7999,
     badge: 'Quick Boost',
     highlight: 'Reach active buyers and renters fast',
+  },
+  {
+    id: '14-day',
+    name: '2 Week Ad',
+    duration: '14 days',
+    basePrice: 11999,
+    badge: 'Growth Pick',
+    highlight: 'Balanced reach for campaigns that need more runway',
   },
   {
     id: '30-day',
     name: '1 Month Ad',
     duration: '30 days',
-    price: 14999,
+    basePrice: 34999,
     badge: 'Best Reach',
     highlight: 'Sent directly to 500+ active homeowners via email',
   },
 ];
+
+const PROCESSING_FEE_RATE = 0.5;
+
+const applyProcessingFee = (basePrice) => Math.round(Number(basePrice || 0) * (1 + PROCESSING_FEE_RATE));
+
+const plansWithFinalPrices = plans.map((plan) => ({
+  ...plan,
+  price: applyProcessingFee(plan.basePrice),
+}));
 
 const bankDetails = [
   {
@@ -124,7 +140,7 @@ export default function AdvertisePage() {
   });
 
   const selectedPlan = useMemo(
-    () => plans.find((plan) => plan.id === form.plan_id) || plans[0],
+    () => plansWithFinalPrices.find((plan) => plan.id === form.plan_id) || plansWithFinalPrices[0],
     [form.plan_id]
   );
 
@@ -166,27 +182,24 @@ export default function AdvertisePage() {
 
       for (const file of imageFiles) {
         const compressedImage = await compressImageToWebP(file);
-        const filePath = `ads/${Date.now()}-${Math.random().toString(36).slice(2, 9)}.webp`;
+        const uploadResponse = await fetch('/api/sponsors/upload-images', {
+          method: 'POST',
+          headers: {
+            'Content-Type': compressedImage.type || 'image/webp',
+          },
+          body: compressedImage,
+        });
 
-        const { error: uploadError } = await supabase.storage
-          .from('property-images')
-          .upload(filePath, compressedImage, {
-            cacheControl: '3600',
-            upsert: true,
-            contentType: 'image/webp',
-          });
-
-        if (uploadError) {
-          throw new Error(`Image upload failed: ${uploadError.message}`);
+        const uploadPayload = await uploadResponse.json();
+        if (!uploadResponse.ok || !uploadPayload?.success) {
+          throw new Error(uploadPayload?.error || 'Image upload failed.');
         }
 
-        const publicData = supabase.storage.from('property-images').getPublicUrl(filePath);
-        const publicUrl = publicData?.data?.publicUrl || publicData?.data?.publicURL || '';
-        if (publicUrl) uploadedImageUrls.push(publicUrl);
-      }
+        if (!uploadPayload?.image_url) {
+          throw new Error('Image upload failed.');
+        }
 
-      if (uploadedImageUrls.length === 0) {
-        throw new Error('Image upload failed.');
+        uploadedImageUrls.push(uploadPayload.image_url);
       }
 
       const response = await fetch('/api/sponsors/submit', {
@@ -352,7 +365,7 @@ export default function AdvertisePage() {
                 </div>
 
                 <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {plans.map((plan) => {
+                  {plansWithFinalPrices.map((plan) => {
                     const selected = form.plan_id === plan.id;
                     return (
                       <button
@@ -397,6 +410,7 @@ export default function AdvertisePage() {
                     </div>
                     <p className="text-xl font-bold text-accent">{formatMoney(selectedPlan.price)}</p>
                   </div>
+                  <p className="mt-2 text-xs text-gray-500">Prices include a 50% processing fee.</p>
                 </div>
 
                 <form onSubmit={onSubmit} className="space-y-4">

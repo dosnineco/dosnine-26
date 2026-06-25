@@ -1,11 +1,14 @@
-import { getDbClient } from '@/lib/apiAuth';
 import { enforceRateLimit } from '@/lib/rateLimit';
 import { getClerkUserContext } from '@/lib/apiAuth';
+import { supabase } from '@/lib/supabase';
+import { getDbClient } from '@/lib/apiAuth';
 import * as SibApiV3Sdk from '@getbrevo/brevo';
 
 const AD_PLANS = {
-  '7-day': { id: '7-day', name: '7-Day Ad', amount: 5000, durationDays: 7 },
-  '30-day': { id: '30-day', name: '30-Day Ad', amount: 20000, durationDays: 30 },
+  '3-day': { id: '3-day', name: '3-Day Ad', amount: 5249, durationDays: 3 },
+  '7-day': { id: '7-day', name: '7-Day Ad', amount: 11999, durationDays: 7 },
+  '14-day': { id: '14-day', name: '14-Day Ad', amount: 17999, durationDays: 14 },
+  '30-day': { id: '30-day', name: '30-Day Ad', amount: 52499, durationDays: 30 },
 };
 
 async function sendAdminAdSubmissionEmail({
@@ -124,8 +127,21 @@ export default async function handler(req, res) {
 
   const primaryImageUrl = normalizedImageUrls[0] || image_url || null;
 
+  const tryInsert = async (client, tableName, rows) => client
+    .from(tableName)
+    .insert(rows);
+
+  const isPolicyOrPermissionError = (error) => {
+    const message = String(error?.message || '').toLowerCase();
+    const code = String(error?.code || '');
+    return (
+      message.includes('row-level security') ||
+      message.includes('permission denied') ||
+      code === '42501'
+    );
+  };
+
   try {
-    const db = getDbClient();
     const clerkContext = getClerkUserContext(req);
     const selectedPlan = AD_PLANS[plan_id] || AD_PLANS['7-day'];
     const submittedAt = new Date().toISOString();
@@ -152,9 +168,17 @@ export default async function handler(req, res) {
 
     const syntheticId = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 10)}`;
 
-    let { error } = await db
-      .from('sponsor_submissions')
-      .insert([payload]);
+    let { error } = await tryInsert(supabase, 'sponsor_submissions', [payload]);
+
+    if (error && isPolicyOrPermissionError(error)) {
+      try {
+        const db = getDbClient();
+        const retry = await tryInsert(db, 'sponsor_submissions', [payload]);
+        error = retry.error;
+      } catch (fallbackError) {
+        error = fallbackError;
+      }
+    }
 
     if (error && String(error?.message || '').toLowerCase().includes('column')) {
       const fallbackPayload = {
@@ -170,12 +194,24 @@ export default async function handler(req, res) {
         submitted_at: submittedAt,
       };
 
-      const retry = await db.from('sponsor_submissions').insert([fallbackPayload]);
+      let retry = await tryInsert(supabase, 'sponsor_submissions', [fallbackPayload]);
+
+      if (retry.error && isPolicyOrPermissionError(retry.error)) {
+        try {
+          const db = getDbClient();
+          retry = await tryInsert(db, 'sponsor_submissions', [fallbackPayload]);
+        } catch (fallbackError) {
+          retry = { error: fallbackError };
+        }
+      }
+
       error = retry.error;
     }
 
     if (error) {
-      return res.status(500).json({ error: 'Failed to submit sponsor application' });
+      return res.status(500).json({
+        error: error?.message || 'Failed to submit sponsor application',
+      });
     }
 
     const adDraft = {
@@ -196,7 +232,16 @@ export default async function handler(req, res) {
       is_featured: Boolean(is_featured),
     };
 
-    const adInsert = await db.from('advertisements').insert([adDraft]);
+    let adInsert = await tryInsert(supabase, 'advertisements', [adDraft]);
+
+    if (adInsert.error && isPolicyOrPermissionError(adInsert.error)) {
+      try {
+        const db = getDbClient();
+        adInsert = await tryInsert(db, 'advertisements', [adDraft]);
+      } catch (fallbackError) {
+        adInsert = { error: fallbackError };
+      }
+    }
 
     if (adInsert.error && !String(adInsert.error?.code || '').includes('23505')) {
       console.error('Failed to create advertisement draft:', adInsert.error);
@@ -233,6 +278,6 @@ export default async function handler(req, res) {
       },
     });
   } catch (error) {
-    return res.status(500).json({ error: 'Internal server error' });
+    return res.status(500).json({ error: error?.message || 'Internal server error' });
   }
 }
