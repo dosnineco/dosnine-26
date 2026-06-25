@@ -4,6 +4,7 @@ import { useUser } from '@clerk/nextjs'
 import toast from 'react-hot-toast'
 import AdminLayout from '../../components/AdminLayout'
 import ImageEditModal from '../../components/ImageEditModal'
+import { ChevronDown, ChevronUp } from 'lucide-react'
 
 const COMBO_DEALS = [
   { key: 'combo_10_small_10_large', label: '10 Small + 10 Large', price: 11500, quantity: 20, badge: 'MOST POPULAR' },
@@ -103,6 +104,8 @@ export default function AdminDashboard() {
   const [isAdmin, setIsAdmin] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [isImageEditOpen, setIsImageEditOpen] = useState(false)
+  const [isOrderFormOpen, setIsOrderFormOpen] = useState(false)
+  const [expandedOrderId, setExpandedOrderId] = useState(null)
   const [newOrder, setNewOrder] = useState({
     business_name: '',
     phone: '',
@@ -349,10 +352,10 @@ export default function AdminDashboard() {
         <div className="mx-auto w-full max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
           <div className="mb-10 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <p className="text-sm uppercase tracking-[0.3em] text-accent">HTV orders</p>
-              <h1 className="mt-3 text-3xl font-black text-black sm:text-4xl">Weekly revenue, expenses & profit</h1>
+              <p className="text-sm uppercase tracking-[0.3em] text-accent">Dosnine HTV Business</p>
+              <h1 className="mt-3 text-3xl font-black text-black sm:text-4xl">HTV Orders - Revenue, Expenses & Profit</h1>
               <p className="mt-3 max-w-2xl text-sm leading-6 text-gray-600 sm:text-base">
-                Track and create HTV orders from the admin dashboard. Use the form below to enter orders manually.
+                Manage and create Dosnine HTV business orders. Track revenue, expenses, and profitability for each custom logo cutting order.
               </p>
             </div>
 
@@ -375,13 +378,28 @@ export default function AdminDashboard() {
                 <h2 className="text-xl font-black text-black">Add manual HTV order</h2>
                 <p className="mt-2 text-sm text-gray-600">Enter order details, raw material costs, and create a new order in the database.</p>
               </div>
+              <button
+                type="button"
+                onClick={() => setIsOrderFormOpen(!isOrderFormOpen)}
+                className="inline-flex items-center gap-2 rounded-2xl bg-gray-100 hover:bg-gray-200 px-4 py-2 text-sm font-semibold text-black transition"
+              >
+                {isOrderFormOpen ? (
+                  <>
+                    <ChevronUp size={18} />
+                    Collapse form
+                  </>
+                ) : (
+                  <>
+                    <ChevronDown size={18} />
+                    Expand form
+                  </>
+                )}
+              </button>
             </div>
 
-            <div className="mt-8 grid gap-6 sm:grid-cols-2">
-              <div className="rounded-3xl bg-gray-50 p-6">
-                <p className="text-sm font-semibold uppercase tracking-[0.3em] text-accent">COMBO DEALS (BEST VALUE)</p>
-                <p className="mt-2 text-sm text-gray-600">Best for businesses & bulk orders</p>
-                <div className="mt-4 space-y-3">
+            {isOrderFormOpen && (
+              <>
+                <div className="mt-8 grid gap-6 sm:grid-cols-2">
                   {COMBO_DEALS.map((combo) => (
                     <button
                       key={combo.key}
@@ -404,41 +422,39 @@ export default function AdminDashboard() {
                     </button>
                   ))}
                 </div>
-              </div>
 
-              <div className="rounded-3xl bg-gray-50 p-6">
-                <p className="text-sm font-semibold uppercase tracking-[0.3em] text-accent">SINGLE SIZE PRICING</p>
-                <div className="mt-4 space-y-4 text-sm text-black">
-                  {Object.entries(PRICING).map(([key, data]) => (
-                    <div key={key} className="rounded-2xl bg-white p-4 shadow-sm">
-                      <div className="font-semibold">{data.label}</div>
-                      <div className="mt-2 space-y-2">
-                        {Object.entries(data.quantities).map(([qty, price]) => (
-                          <button
-                            key={qty}
-                            type="button"
-                            onClick={() => setNewOrder({
-                              ...newOrder,
-                              deal: '',
-                              size: key,
-                              quantity: Number(qty),
-                            })}
-                            className={`w-full rounded-xl border px-3 py-2 text-left text-sm transition ${newOrder.deal === '' && newOrder.size === key && newOrder.quantity === Number(qty) ? 'border-accent bg-accent/10 text-black' : 'border-gray-200 bg-gray-50 text-gray-700 hover:border-accent/70 hover:bg-gray-50'}`}
-                          >
-                            <div className="flex items-center justify-between">
-                              <span>{qty} — JMD {price.toLocaleString()}</span>
-                              {newOrder.deal === '' && newOrder.size === key && newOrder.quantity === Number(qty) ? <span className="text-accent">Selected</span> : null}
-                            </div>
-                          </button>
-                        ))}
+                <div className="rounded-3xl bg-gray-50 p-6">
+                  <p className="text-sm font-semibold uppercase tracking-[0.3em] text-accent">SINGLE SIZE PRICING</p>
+                  <div className="mt-4 space-y-4 text-sm text-black">
+                    {Object.entries(PRICING).map(([key, data]) => (
+                      <div key={key} className="rounded-2xl bg-white p-4 shadow-sm">
+                        <div className="font-semibold">{data.label}</div>
+                        <div className="mt-2 space-y-2">
+                          {Object.entries(data.quantities).map(([qty, price]) => (
+                            <button
+                              key={qty}
+                              type="button"
+                              onClick={() => setNewOrder({
+                                ...newOrder,
+                                deal: '',
+                                size: key,
+                                quantity: Number(qty),
+                              })}
+                              className={`w-full rounded-xl border px-3 py-2 text-left text-sm transition ${newOrder.deal === '' && newOrder.size === key && newOrder.quantity === Number(qty) ? 'border-accent bg-accent/10 text-black' : 'border-gray-200 bg-gray-50 text-gray-700 hover:border-accent/70 hover:bg-gray-50'}`}
+                            >
+                              <div className="flex items-center justify-between">
+                                <span>{qty} — JMD {price.toLocaleString()}</span>
+                                {newOrder.deal === '' && newOrder.size === key && newOrder.quantity === Number(qty) ? <span className="text-accent">Selected</span> : null}
+                              </div>
+                            </button>
+                          ))}
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
-              </div>
-            </div>
 
-            <form onSubmit={handleCreateOrder} className="mt-8 grid gap-6">
+                <form onSubmit={handleCreateOrder} className="mt-8 grid gap-6">
               <div className="grid gap-6 lg:grid-cols-3">
                 <div>
                   <label className="block text-sm font-semibold text-gray-900">Business name</label>
@@ -662,7 +678,9 @@ export default function AdminDashboard() {
               >
                 {submitting ? 'Saving order...' : 'Create order'}
               </button>
-            </form>
+                </form>
+              </>
+            )}
           </section>
 
           {loading ? (
@@ -763,53 +781,130 @@ export default function AdminDashboard() {
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div>
                     <h2 className="text-xl font-black text-black">Orders</h2>
-                    <p className="mt-2 text-sm text-gray-600">View each order with raw material usage, cost, and margin details.</p>
+                    <p className="mt-2 text-sm text-gray-600">View each order with raw material usage, cost, and margin details. Click to expand.</p>
                   </div>
                 </div>
 
-                <div className="mt-6 overflow-x-auto">
-                  <table className="min-w-full divide-y divide-gray-200 text-left text-sm">
-                    <thead className="bg-gray-100 text-xs uppercase tracking-[0.2em] text-gray-600">
-                      <tr>
-                        <th className="px-4 py-3">Date</th>
-                        <th className="px-4 py-3">Customer</th>
-                        <th className="px-4 py-3">Qty</th>
-                        <th className="px-4 py-3">Total</th>
-                        <th className="px-4 py-3">Materials</th>
-                        <th className="px-4 py-3">Costs</th>
-                        <th className="px-4 py-3">Revenue</th>
-                        <th className="px-4 py-3">Profit</th>
-                        <th className="px-4 py-3">Status</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-200">
-                      {filteredOrders.map((order) => {
-                        const { revenue, expenses, profit, rawMaterial, labor, other } = computeOrderFinancials(order)
-                        const materialLabel = Array.isArray(order.raw_materials) && order.raw_materials.length > 0
-                          ? order.raw_materials.map((item) => `${item.name || item.material} (${formatCurrency(item.cost || item.price || 0)})`).join(', ')
-                          : 'Not set'
+                <div className="mt-6 space-y-3">
+                  {filteredOrders.length === 0 ? (
+                    <div className="rounded-2xl bg-gray-50 p-6 text-center text-gray-600">No orders found.</div>
+                  ) : (
+                    filteredOrders.map((order) => {
+                      const { revenue, expenses, profit, rawMaterial, labor, other } = computeOrderFinancials(order)
+                      const isExpanded = expandedOrderId === order.id
+                      const materialLabel = Array.isArray(order.raw_materials) && order.raw_materials.length > 0
+                        ? order.raw_materials.map((item) => `${item.name || item.material} (${formatCurrency(item.cost || item.price || 0)})`).join(', ')
+                        : 'Not set'
 
-                        return (
-                          <tr key={order.id} className="bg-white">
-                            <td className="px-4 py-4 align-top text-xs text-gray-600">{new Date(order.created_at).toLocaleDateString('en-US')}</td>
-                            <td className="px-4 py-4 align-top text-sm font-semibold text-black">{order.business_name}</td>
-                            <td className="px-4 py-4 align-top text-sm text-gray-600">{order.quantity}</td>
-                            <td className="px-4 py-4 align-top text-sm text-black">{formatCurrency(order.total)}</td>
-                            <td className="px-4 py-4 align-top text-sm text-gray-600 max-w-xs break-words">{materialLabel}</td>
-                            <td className="px-4 py-4 align-top text-sm text-gray-600">
-                              <div>Material: {formatCurrency(rawMaterial)}</div>
-                              <div>Labor: {formatCurrency(labor)}</div>
-                              <div>Other: {formatCurrency(other)}</div>
-                              <div className="mt-1 font-semibold text-black">Total: {formatCurrency(expenses)}</div>
-                            </td>
-                            <td className="px-4 py-4 align-top text-sm text-black">{formatCurrency(revenue)}</td>
-                            <td className="px-4 py-4 align-top text-sm text-black">{formatCurrency(profit)}</td>
-                            <td className="px-4 py-4 align-top text-sm text-gray-600">{order.status || 'pending'}</td>
-                          </tr>
-                        )
-                      })}
-                    </tbody>
-                  </table>
+                      return (
+                        <div key={order.id} className="rounded-2xl border border-gray-200 bg-white overflow-hidden">
+                          <button
+                            type="button"
+                            onClick={() => setExpandedOrderId(isExpanded ? null : order.id)}
+                            className="w-full px-6 py-4 hover:bg-gray-50 transition flex items-center justify-between"
+                          >
+                            <div className="flex-1 text-left grid gap-4 lg:grid-cols-8 items-center">
+                              <div className="text-xs text-gray-600">{new Date(order.created_at).toLocaleDateString('en-US')}</div>
+                              <div className="text-sm font-semibold text-black truncate">{order.business_name}</div>
+                              <div className="text-sm text-gray-600">{order.quantity}</div>
+                              <div className="text-sm text-black font-semibold">{formatCurrency(order.total)}</div>
+                              <div className="text-sm text-gray-600 truncate">{materialLabel}</div>
+                              <div className="text-sm text-black">{formatCurrency(revenue)}</div>
+                              <div className="text-sm font-semibold text-black">{formatCurrency(profit)}</div>
+                              <div className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded text-center">{order.status || 'pending'}</div>
+                            </div>
+                            {isExpanded ? (
+                              <ChevronUp size={20} className="ml-2 text-gray-400 flex-shrink-0" />
+                            ) : (
+                              <ChevronDown size={20} className="ml-2 text-gray-400 flex-shrink-0" />
+                            )}
+                          </button>
+
+                          {isExpanded && (
+                            <div className="border-t border-gray-200 bg-gray-50 px-6 py-4">
+                              <div className="grid gap-6 lg:grid-cols-3">
+                                <div className="rounded-2xl bg-white p-4 border border-gray-200">
+                                  <p className="text-xs font-semibold uppercase text-gray-600 mb-2">Cost Breakdown</p>
+                                  <div className="space-y-2 text-sm">
+                                    <div className="flex justify-between">
+                                      <span className="text-gray-600">Material:</span>
+                                      <span className="font-semibold text-black">{formatCurrency(rawMaterial)}</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                      <span className="text-gray-600">Labor:</span>
+                                      <span className="font-semibold text-black">{formatCurrency(labor)}</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                      <span className="text-gray-600">Other:</span>
+                                      <span className="font-semibold text-black">{formatCurrency(other)}</span>
+                                    </div>
+                                    <div className="border-t border-gray-200 pt-2 flex justify-between">
+                                      <span className="font-semibold text-gray-900">Total:</span>
+                                      <span className="font-bold text-black text-base">{formatCurrency(expenses)}</span>
+                                    </div>
+                                  </div>
+                                </div>
+
+                                <div className="rounded-2xl bg-white p-4 border border-gray-200">
+                                  <p className="text-xs font-semibold uppercase text-gray-600 mb-2">Revenue & Profit</p>
+                                  <div className="space-y-2 text-sm">
+                                    <div className="flex justify-between">
+                                      <span className="text-gray-600">Total Revenue:</span>
+                                      <span className="font-semibold text-black">{formatCurrency(revenue)}</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                      <span className="text-gray-600">Total Expenses:</span>
+                                      <span className="font-semibold text-black">{formatCurrency(expenses)}</span>
+                                    </div>
+                                    <div className="border-t border-gray-200 pt-2 flex justify-between">
+                                      <span className="font-semibold text-gray-900">Profit:</span>
+                                      <span className={`font-bold text-base ${profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>{formatCurrency(profit)}</span>
+                                    </div>
+                                  </div>
+                                </div>
+
+                                <div className="rounded-2xl bg-white p-4 border border-gray-200">
+                                  <p className="text-xs font-semibold uppercase text-gray-600 mb-2">Margin</p>
+                                  <div className="space-y-2 text-sm">
+                                    <div className="flex justify-between">
+                                      <span className="text-gray-600">Margin %:</span>
+                                      <span className={`font-bold text-base ${(profit / revenue * 100) >= 50 ? 'text-green-600' : 'text-orange-600'}`}>
+                                        {revenue > 0 ? ((profit / revenue) * 100).toFixed(1) : 0}%
+                                      </span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                      <span className="text-gray-600">Status:</span>
+                                      <span className="font-semibold text-black">{order.status || 'pending'}</span>
+                                    </div>
+                                    {order.notes && (
+                                      <div className="border-t border-gray-200 pt-2">
+                                        <p className="text-xs font-semibold text-gray-600 mb-1">Notes:</p>
+                                        <p className="text-gray-700 text-xs">{order.notes}</p>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+
+                              {Array.isArray(order.raw_materials) && order.raw_materials.length > 0 && (
+                                <div className="mt-4 rounded-2xl bg-white p-4 border border-gray-200">
+                                  <p className="text-xs font-semibold uppercase text-gray-600 mb-3">Raw Materials Used</p>
+                                  <div className="space-y-2">
+                                    {order.raw_materials.map((material, idx) => (
+                                      <div key={idx} className="flex justify-between items-center text-sm px-2 py-2 bg-gray-50 rounded">
+                                        <span className="text-gray-700">{material.name || material.material}</span>
+                                        <span className="font-semibold text-black">{formatCurrency(material.cost || material.price || 0)}</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })
+                  )}
                 </div>
               </section>
             </>
