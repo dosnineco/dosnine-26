@@ -3,6 +3,7 @@ import Head from 'next/head'
 import { useUser } from '@clerk/nextjs'
 import toast from 'react-hot-toast'
 import AdminLayout from '../../components/AdminLayout'
+import ImageEditModal from '../../components/ImageEditModal'
 
 const COMBO_DEALS = [
   { key: 'combo_10_small_10_large', label: '10 Small + 10 Large', price: 11500, quantity: 20, badge: 'MOST POPULAR' },
@@ -101,6 +102,7 @@ export default function AdminDashboard() {
   const [error, setError] = useState(null)
   const [isAdmin, setIsAdmin] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+  const [isImageEditOpen, setIsImageEditOpen] = useState(false)
   const [newOrder, setNewOrder] = useState({
     business_name: '',
     phone: '',
@@ -354,8 +356,16 @@ export default function AdminDashboard() {
               </p>
             </div>
 
-            <div className="rounded-3xl bg-gray-100 p-4 text-sm text-gray-700">
-              Orders displayed: <span className="font-bold text-black">{filteredOrders.length}</span>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+              <div className="rounded-3xl bg-gray-100 p-4 text-sm text-gray-700">
+                Orders displayed: <span className="font-bold text-black">{filteredOrders.length}</span>
+              </div>
+              <button
+                onClick={() => setIsImageEditOpen(true)}
+                className="rounded-2xl bg-accent px-4 py-3 text-sm font-semibold text-white hover:bg-accent/90"
+              >
+                ✨ Edit Image with AI
+              </button>
             </div>
           </div>
 
@@ -806,6 +816,8 @@ export default function AdminDashboard() {
           )}
         </div>
       </div>
+
+      <ImageEditModal isOpen={isImageEditOpen} onClose={() => setIsImageEditOpen(false)} />
     </>
   )
 }
