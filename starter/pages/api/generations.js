@@ -11,7 +11,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const limit = parseInt(req.query.limit as string) || 12;
+    const limit = parseInt(req.query.limit || '12', 10) || 12;
 
     console.log("[HISTORY] Fetching generations...");
 

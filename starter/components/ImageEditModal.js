@@ -1,6 +1,6 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import toast from 'react-hot-toast'
-import { Upload, CheckCircle, Download, Copy, RotateCcw, X, Loader2, FileImage, Sparkles } from 'lucide-react'
+import { Upload, CheckCircle, Download, Copy, RotateCcw, X, Loader2, FileImage, Sparkles, History } from 'lucide-react'
 
 export default function ImageEditModal({ isOpen, onClose }) {
   const [originalImage, setOriginalImage] = useState(null)
@@ -10,7 +10,31 @@ export default function ImageEditModal({ isOpen, onClose }) {
   const [editingComplete, setEditingComplete] = useState(false)
   const [tokenUsage, setTokenUsage] = useState(null)
   const [processingStep, setProcessingStep] = useState(0)
+  const [history, setHistory] = useState([])
+  const [loadingHistory, setLoadingHistory] = useState(false)
   const fileInputRef = useRef(null)
+
+  // Fetch history when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      fetchHistory()
+    }
+  }, [isOpen])
+
+  const fetchHistory = async () => {
+    try {
+      setLoadingHistory(true)
+      const response = await fetch('/api/generations?limit=8')
+      const data = await response.json()
+      if (data.success) {
+        setHistory(data.data || [])
+      }
+    } catch (error) {
+      console.error('Error fetching history:', error)
+    } finally {
+      setLoadingHistory(false)
+    }
+  }
 
   const processingSteps = [
     'Preparing image...',
@@ -201,6 +225,21 @@ export default function ImageEditModal({ isOpen, onClose }) {
     }
   }
 
+  const handleReusePrompt = (historyPrompt) => {
+    setPrompt(historyPrompt)
+    toast.success('Prompt loaded!')
+  }
+
+  const handleHistoryDownload = (imageUrl) => {
+    const link = document.createElement('a')
+    link.href = imageUrl
+    link.download = `edited-image-${Date.now()}.png`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    toast.success('Image downloading...')
+  }
+
   const handleReset = () => {
     setOriginalImage(null)
     setEditedImage(null)
@@ -212,6 +251,11 @@ export default function ImageEditModal({ isOpen, onClose }) {
       fileInputRef.current.value = ''
     }
   }
+
+  // Get unique recent prompts
+  const recentPrompts = [...new Map(history.map(item => [item.prompt, item])).values()]
+    .slice(0, 5)
+    .map(item => item.prompt)
 
   if (!isOpen) return null
 
@@ -298,13 +342,23 @@ export default function ImageEditModal({ isOpen, onClose }) {
                   </div>
                   <div className="bg-blue-50 rounded-2xl p-4 border border-blue-200">
                     <p className="text-xs font-semibold text-blue-900 mb-2 flex items-center gap-1">
-                      💡 Examples:
+                      � Recently Used Prompts:
                     </p>
-                    <ul className="text-xs text-blue-800 space-y-1">
-                      <li>• "Make background white"</li>
-                      <li>• "Add more contrast"</li>
-                      <li>• "Change to black and white"</li>
-                    </ul>
+                    {recentPrompts.length > 0 ? (
+                      <div className="space-y-2">
+                        {recentPrompts.map((p, idx) => (
+                          <button
+                            key={idx}
+                            onClick={() => handleReusePrompt(p)}
+                            className="w-full text-left text-xs bg-white hover:bg-blue-100 text-blue-900 p-2 rounded transition border border-blue-200"
+                          >
+                            {p.substring(0, 60)}...
+                          </button>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-xs text-blue-700">No recent prompts yet. Create your first edit!</p>
+                    )}
                   </div>
                 </div>
               </div>
@@ -368,6 +422,55 @@ export default function ImageEditModal({ isOpen, onClose }) {
                   Close
                 </button>
               </div>
+
+              {/* Gallery of Previous Generated Images */}
+              {history.length > 0 && (
+                <div className="mt-8 pt-8 border-t border-gray-200">
+                  <h3 className="text-lg font-bold text-black mb-4 flex items-center gap-2">
+                    <History size={20} />
+                    Previous Generations ({history.length})
+                  </h3>
+                  {loadingHistory ? (
+                    <div className="flex items-center justify-center py-8">
+                      <Loader2 size={32} className="animate-spin text-gray-400" />
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+                      {history.map((item) => (
+                        <div
+                          key={item.id}
+                          className="group relative rounded-lg overflow-hidden bg-gray-200 aspect-square cursor-pointer hover:shadow-lg transition"
+                        >
+                          <img
+                            src={item.generated_image_url}
+                            alt={item.prompt}
+                            className="w-full h-full object-cover group-hover:scale-110 transition"
+                          />
+                          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/70 transition flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100">
+                            <button
+                              onClick={() => handleHistoryDownload(item.generated_image_url)}
+                              className="bg-blue-600 hover:bg-blue-700 text-white p-2.5 rounded-lg transition"
+                              title="Download"
+                            >
+                              <Download size={18} />
+                            </button>
+                            <button
+                              onClick={() => handleReusePrompt(item.prompt)}
+                              className="bg-green-600 hover:bg-green-700 text-white p-2.5 rounded-lg transition"
+                              title="Reuse prompt"
+                            >
+                              <Sparkles size={18} />
+                            </button>
+                          </div>
+                          <div className="absolute bottom-0 left-0 right-0 bg-black/80 p-2 translate-y-full group-hover:translate-y-0 transition max-h-20 overflow-hidden">
+                            <p className="text-white text-xs line-clamp-2">{item.prompt}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           ) : (
             // DOWNLOAD VIEW (after successful edit)
