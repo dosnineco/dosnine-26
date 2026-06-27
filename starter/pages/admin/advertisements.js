@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useAuth, useUser } from '@clerk/nextjs'
 import { supabase } from '@/lib/supabase'
 import toast from 'react-hot-toast'
+import Link from 'next/link'
 import AdminLayout from '../../components/AdminLayout';
 
 const compressImageToWebP = (file, maxWidth = 1600, quality = 0.82) =>
@@ -833,6 +834,12 @@ export default function AdminAdvertisements() {
                   </div>
 
                   <div className="flex flex-wrap gap-2 lg:ml-4">
+                    <Link
+                      href={`/ads/${ad.id}`}
+                      className="px-4 py-2 bg-green-100 text-green-700 rounded-lg font-semibold text-sm hover:bg-green-200"
+                    >
+                      View
+                    </Link>
                     <button
                       onClick={() => toggleActive(ad)}
                       className={`px-4 py-2 rounded-lg font-semibold text-sm ${
