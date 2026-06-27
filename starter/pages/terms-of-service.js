@@ -40,7 +40,7 @@ export default function TermsOfService() {
                   <li>Analytics and tracking for property listings</li>
                 </ul>
                 <p className="text-gray-700">
-                  Dosnine Properties acts as a platform facilitator only. We are not a party to any rental agreements between landlords and renters.
+                  Dosnine Limited acts as a platform facilitator only. We are not a party to any rental agreements between landlords and renters.
                 </p>
               </section>
 
@@ -91,7 +91,7 @@ export default function TermsOfService() {
 
                 <h3 className="text-xl font-semibold text-gray-900 mb-3">4.3 Content License</h3>
                 <p className="text-gray-700 mb-4">
-                  By posting property content, you grant Dosnine Properties a non-exclusive, worldwide, royalty-free license to use, display, and promote your listings on our platform and marketing materials.
+                  By posting property content, you grant Dosnine Limited a non-exclusive, worldwide, royalty-free license to use, display, and promote your listings on our platform and marketing materials.
                 </p>
               </section>
 
@@ -156,7 +156,7 @@ export default function TermsOfService() {
                 
                 <h3 className="text-xl font-semibold text-gray-900 mb-3">8.1 Our Property</h3>
                 <p className="text-gray-700 mb-4">
-                  All content on Dosnine Properties, including text, graphics, logos, code, and design, is owned by us or our licensors and protected by intellectual property laws.
+                  All content on Dosnine Limited, including text, graphics, logos, code, and design, is owned by us or our licensors and protected by intellectual property laws.
                 </p>
 
                 <h3 className="text-xl font-semibold text-gray-900 mb-3">8.2 User Content</h3>
@@ -170,7 +170,7 @@ export default function TermsOfService() {
                 
                 <h3 className="text-xl font-semibold text-gray-900 mb-3">9.1 Platform Facilitator Only</h3>
                 <p className="text-gray-700 mb-4">
-                  Dosnine Properties is a platform that connects landlords and renters. We are NOT:
+                  Dosnine Limited is a platform that connects landlords and renters. We are NOT:
                 </p>
                 <ul className="list-disc pl-6 mb-4 text-gray-700 space-y-2">
                   <li>A real estate agent or broker</li>
@@ -194,14 +194,14 @@ export default function TermsOfService() {
 
                 <h3 className="text-xl font-semibold text-gray-900 mb-3">9.3 Limitation of Liability</h3>
                 <p className="text-gray-700 mb-4">
-                  To the maximum extent permitted by law, Dosnine Properties shall not be liable for any indirect, incidental, special, consequential, or punitive damages arising from your use of our services. Our total liability shall not exceed the amount you paid for boost services in the past 12 months.
+                  To the maximum extent permitted by law, Dosnine Limited shall not be liable for any indirect, incidental, special, consequential, or punitive damages arising from your use of our services. Our total liability shall not exceed the amount you paid for boost services in the past 12 months.
                 </p>
               </section>
 
               <section className="mb-8">
                 <h2 className="text-2xl font-bold text-gray-900 mb-4">10. Indemnification</h2>
                 <p className="text-gray-700">
-                  You agree to indemnify and hold harmless Dosnine Properties from any claims, damages, losses, or expenses (including legal fees) arising from your use of our services, violation of these Terms, or infringement of any rights of another person or entity.
+                  You agree to indemnify and hold harmless Dosnine Limited from any claims, damages, losses, or expenses (including legal fees) arising from your use of our services, violation of these Terms, or infringement of any rights of another person or entity.
                 </p>
               </section>
 
@@ -210,7 +210,7 @@ export default function TermsOfService() {
                 
                 <h3 className="text-xl font-semibold text-gray-900 mb-3">11.1 User Disputes</h3>
                 <p className="text-gray-700 mb-4">
-                  Disputes between users (landlords and renters) must be resolved directly between the parties. Dosnine Properties is not responsible for mediating or resolving such disputes.
+                  Disputes between users (landlords and renters) must be resolved directly between the parties. Dosnine Limited is not responsible for mediating or resolving such disputes.
                 </p>
 
                 <h3 className="text-xl font-semibold text-gray-900 mb-3">11.2 Governing Law</h3>
@@ -260,7 +260,7 @@ export default function TermsOfService() {
               <section className="mb-8">
                 <h2 className="text-2xl font-bold text-gray-900 mb-4">16. Entire Agreement</h2>
                 <p className="text-gray-700">
-                  These Terms, along with our Privacy Policy and Refund Policy, constitute the entire agreement between you and Dosnine Properties regarding our services.
+                  These Terms, along with our Privacy Policy and Refund Policy, constitute the entire agreement between you and Dosnine Limited regarding our services.
                 </p>
               </section>
 
@@ -270,7 +270,7 @@ export default function TermsOfService() {
                   For questions about these Terms of Service, please contact us:
                 </p>
                 <div className="bg-gray-50 p-6 rounded-lg">
-                  <p className="text-gray-700 mb-2"><strong>Dosnine Properties</strong></p>
+                  <p className="text-gray-700 mb-2"><strong>Dosnine Limited</strong></p>
                   <p className="text-gray-700 mb-2">Email: <a href="mailto:info@dosnine.com" className="text-blue-600 hover:underline">info@dosnine.com</a></p>
                   <p className="text-gray-700 mb-2">Phone: <a href="tel:+18765551234" className="text-blue-600 hover:underline">+1 (876) 555-1234</a></p>
                   <p className="text-gray-700">Location: Kingston, Jamaica</p>
@@ -279,7 +279,7 @@ export default function TermsOfService() {
 
               <div className="bg-yellow-50 border-l-4 border-yellow-600 p-6 mt-8">
                 <p className="text-gray-700 mb-2">
-                  <strong>Important:</strong> By using Dosnine Properties, you acknowledge that you have read, understood, and agree to be bound by these Terms of Service.
+                  <strong>Important:</strong> By using Dosnine Limited, you acknowledge that you have read, understood, and agree to be bound by these Terms of Service.
                 </p>
                 <p className="text-gray-700">
                   If you do not agree to these Terms, you must not use our services.

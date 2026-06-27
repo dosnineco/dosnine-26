@@ -9,7 +9,7 @@ export default function AgentSignupPage() {
   return (
     <>
       <Seo
-        title="Become a Real Estate Agent | Dosnine Properties"
+        title="Become a Real Estate Agent | Dosnine Limited"
         description="Join Dosnine as a verified real estate agent. Connect with property seekers, manage listings, and grow your business in Jamaica's leading property platform."
         image={ogImage}
         url={pageUrl}

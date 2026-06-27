@@ -259,7 +259,7 @@ export default function PrivacyPolicy() {
                   If you have questions, concerns, or requests regarding this Privacy Policy or our data practices, please contact us:
                 </p>
                 <div className="bg-gray-50 p-6 rounded-lg">
-                  <p className="text-gray-700 mb-2"><strong>Dosnine Properties</strong></p>
+                  <p className="text-gray-700 mb-2"><strong>Dosnine Limited</strong></p>
                   <p className="text-gray-700 mb-2">Email: <a href="mailto:info@dosnine.com" className="text-blue-600 hover:underline">info@dosnine.com</a></p>
                   <p className="text-gray-700 mb-2">Phone: <a href="tel:+18765551234" className="text-blue-600 hover:underline">+1 (876) 555-1234</a></p>
                   <p className="text-gray-700">Location: Kingston, Jamaica</p>
@@ -268,7 +268,7 @@ export default function PrivacyPolicy() {
 
               <div className="bg-blue-50 border-l-4 border-blue-600 p-6 mt-8">
                 <p className="text-gray-700">
-                  <strong>Note:</strong> This Privacy Policy applies to Dosnine Properties services only. By using our platform, you acknowledge that you have read and understood this policy.
+                  <strong>Note:</strong> This Privacy Policy applies to Dosnine Limited services only. By using our platform, you acknowledge that you have read and understood this policy.
                 </p>
               </div>
             </div>

@@ -25,7 +25,7 @@ export default function AdDetailPage() {
     [
       `Hello ${ad?.company_name || ''},`,
       '',
-      `I found your service on Dosnine Properties and I want a quote.`,
+      `I found your service on Dosnine Limited and I want a quote.`,
       '',
       'Service Details:',
       `- Company: ${ad?.company_name || 'N/A'}`,
@@ -99,7 +99,7 @@ export default function AdDetailPage() {
   return (
     <>
       <Head>
-        <title>{ad.company_name} — Dosnine Properties Partner</title>
+        <title>{ad.company_name} — Dosnine Limited Partner</title>
         <meta name="description" content={ad.description} />
       </Head>
 

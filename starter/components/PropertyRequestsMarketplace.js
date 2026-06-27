@@ -3,7 +3,7 @@ import { useRouter } from 'next/router';
 import toast from 'react-hot-toast';
 import RequestAgentPopup from './RequestAgentPopup';
 import ParishRequestAnalytics from './ParishRequestAnalytics';
-import { Search, MapPin, DollarSign, Clock, FileText, CheckCircle, Lock, Users, Home, Smartphone, Star, Circle, Building2, Building, Filter, X, ArrowRight } from 'lucide-react';
+import { Search, MapPin, DollarSign, Clock, FileText, CheckCircle, Lock, Users, Home, Smartphone, Star, Circle, Building2, Building, Filter, X, ArrowRight, Briefcase } from 'lucide-react';
 const PropertyCard = lazy(() => import('./PropertyCard'));
 import Link from 'next/link';
 import AutoPlayYouTube from './AutoPlayYouTube';
@@ -15,6 +15,8 @@ export default function PropertyRequestsMarketplace() {
   const [showPopup, setShowPopup] = useState(false);
   const [featuredProperties, setFeaturedProperties] = useState([]);
   const [loadingFeatured, setLoadingFeatured] = useState(true);
+  const [advertisements, setAdvertisements] = useState([]);
+  const [loadingAds, setLoadingAds] = useState(true);
   const MAX_CAROUSEL_ITEMS = 15;
 
   useEffect(() => {
@@ -61,6 +63,26 @@ export default function PropertyRequestsMarketplace() {
     return () => {
       clearInterval(refreshInterval);
     };
+  }, []);
+
+  // Fetch advertisements
+  useEffect(() => {
+    const fetchAdvertisements = async () => {
+      try {
+        setLoadingAds(true);
+        const response = await fetch(`/api/advertisements/list?limit=${MAX_CAROUSEL_ITEMS}&page=1`);
+        const payload = await response.json();
+        if (!response.ok || !payload?.success) {
+          throw new Error(payload?.error || 'Failed to load advertisements');
+        }
+        setAdvertisements((payload.advertisements || []).slice(0, 6));
+      } catch (err) {
+        console.error('Error fetching advertisements:', err);
+      } finally {
+        setLoadingAds(false);
+      }
+    };
+    fetchAdvertisements();
   }, []);
 
   // Extract budget from description text using regex
@@ -267,7 +289,7 @@ export default function PropertyRequestsMarketplace() {
             <div className="text-sm text-gray-500">Live request data refreshes every minute for stability.</div>
           </div> */}
 
-          <AutoPlayYouTube url="https://youtu.be/9GL8tJnH5Y8" />
+          {/* <AutoPlayYouTube url="https://youtu.be/9GL8tJnH5Y8" /> */}
         </div>
 
 
@@ -403,6 +425,62 @@ export default function PropertyRequestsMarketplace() {
               </div>
             </div>
           </section>
+
+          {!loadingAds && advertisements.length > 0 && (
+            <section className="bg-white rounded-xl py-12 px-4 mt-8">
+              <div className="container mx-auto">
+                <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-8">
+                  <div>
+                    <p className="text-sm uppercase tracking-[0.18em] text-accent font-semibold">Partner Services</p>
+                    <h2 className="text-3xl font-bold text-gray-900 mt-2">Trusted Business Partners</h2>
+                    <p className="text-gray-600 mt-3 max-w-2xl">Connect with certified professionals for your property needs.</p>
+                  </div>
+                  <Link href="/advertise" className="inline-flex items-center gap-2 rounded-full bg-gray-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-gray-800">
+                    View All Services
+                    <ArrowRight size={18} />
+                  </Link>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {advertisements.map((ad) => (
+                    <div key={ad.id} className="bg-gray-50 rounded-xl p-5 hover:bg-gray-100 transition">
+                      <div className="flex items-start justify-between mb-3">
+                        <div className="flex-1">
+                          <h3 className="font-bold text-gray-900 text-base mb-1">{ad.company_name}</h3>
+                          <p className="text-xs text-gray-500 font-medium">{ad.title || ad.category}</p>
+                        </div>
+                      </div>
+                      {ad.description && (
+                        <p className="text-sm text-gray-600 mb-4 line-clamp-2">{ad.description}</p>
+                      )}
+                      <div className="flex gap-2">
+                        {ad.phone && (
+                          <a
+                            href={`https://wa.me/${ad.phone.replace(/[^0-9]/g, '')}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex-1 inline-flex items-center justify-center bg-accent hover:bg-accent/90 text-white rounded-lg px-3 py-2 text-xs font-semibold transition"
+                          >
+                            Contact
+                          </a>
+                        )}
+                        {ad.website && (
+                          <a
+                            href={ad.website}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex-1 inline-flex items-center justify-center border border-gray-300 hover:bg-gray-100 text-gray-900 rounded-lg px-3 py-2 text-xs font-semibold transition"
+                          >
+                            Website
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </section>
+          )}
           </>
         )}
       </div>

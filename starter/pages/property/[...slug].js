@@ -227,7 +227,7 @@ export default function PropertyPage({ property, similarProperties, isVerifiedAg
     },
     isPartOf: {
       '@type': 'WebSite',
-      name: 'Dosnine Properties',
+      name: 'Dosnine Limited',
       url: 'https://dosnine.com',
       description: 'Jamaica\'s premier property marketplace'
     }
@@ -285,7 +285,7 @@ export default function PropertyPage({ property, similarProperties, isVerifiedAg
     },
     isPartOf: {
       '@type': 'WebSite',
-      name: 'Dosnine Properties',
+      name: 'Dosnine Limited',
       url: 'https://dosnine.com',
       description: 'Jamaica\'s premier property marketplace'
     }
@@ -413,7 +413,7 @@ export default function PropertyPage({ property, similarProperties, isVerifiedAg
   if (archived) {
     return (
       <>
-        <Seo title={`${property.title || 'Property'} — Removed | Dosnine Properties`} description={`This property is no longer available.`} />
+        <Seo title={`${property.title || 'Property'} — Removed | Dosnine Limited`} description={`This property is no longer available.`} />
         <div className="max-w-3xl mx-auto py-16 px-4 text-center">
           <h1 className="text-2xl font-semibold mb-4">This property is no longer available</h1>
           <p className="mb-6">The listing you requested has been removed or expired. Browse similar available properties below or explore search pages for the area.</p>
@@ -445,8 +445,8 @@ export default function PropertyPage({ property, similarProperties, isVerifiedAg
     <>
       <Seo
         title={isLand 
-          ? `Land For Sale in ${property.parish} ${property.town ? `- ${property.town}` : ''} | ${formatMoney(property.price)} | Dosnine Properties Jamaica`
-          : `${property.bedrooms} Bedroom ${property.type === 'house' ? 'House' : 'Apartment'} for Rent in ${property.parish} ${property.town ? `- ${property.town}` : ''} | ${formatMoney(property.price)}/month | Dosnine Properties Jamaica`
+          ? `Land For Sale in ${property.parish} ${property.town ? `- ${property.town}` : ''} | ${formatMoney(property.price)} | Dosnine Limited Jamaica`
+          : `${property.bedrooms} Bedroom ${property.type === 'house' ? 'House' : 'Apartment'} for Rent in ${property.parish} ${property.town ? `- ${property.town}` : ''} | ${formatMoney(property.price)}/month | Dosnine Limited Jamaica`
         }
         description={isLand 
           ? `${property.town ? property.town + ', ' : ''}${property.parish} land for sale. ${property.description?.substring(0, 120)}... Contact owner directly.`
@@ -671,7 +671,7 @@ export default function PropertyPage({ property, similarProperties, isVerifiedAg
                 <p className="mb-3">
                   {property.parish} is a popular area for land investments in Jamaica, offering various development opportunities. 
                   Whether you&apos;re searching for <strong>residential land in {property.parish}</strong>, 
-                  commercial properties, or investment opportunities, Dosnine Properties connects you directly with property owners and developers.
+                  commercial properties, or investment opportunities, Dosnine Limited connects you directly with property owners and developers.
                 </p>
                 <div className="mt-4">
                   <h3 className="text-lg font-semibold mb-2">Popular Searches in {property.parish}:</h3>
@@ -695,7 +695,7 @@ export default function PropertyPage({ property, similarProperties, isVerifiedAg
                 <p className="mb-3">
                   {property.parish} is a popular area for rentals in Jamaica, with properties ranging from apartments to houses. 
                   Whether you&apos;re searching for <strong>houses for rent in {property.parish} Jamaica</strong> or apartments, 
-                  Dosnine Properties connects you directly with landlords for the best rental deals.
+                  Dosnine Limited connects you directly with landlords for the best rental deals.
                 </p>
                 <div className="mt-4">
                   <h3 className="text-lg font-semibold mb-2">Popular Searches in {property.parish}:</h3>

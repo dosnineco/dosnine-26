@@ -78,7 +78,7 @@ export default function MarketAnalyticsPage() {
             "url": `${process.env.NEXT_PUBLIC_SITE_URL}/market`,
             "publisher": {
               "@type": "Organization",
-              "name": "Dosnine Properties",
+              "name": "Dosnine Limited",
               "logo": {
                 "@type": "ImageObject",
                 "url": `${process.env.NEXT_PUBLIC_SITE_URL}/logo.png`

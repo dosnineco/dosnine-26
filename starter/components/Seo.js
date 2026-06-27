@@ -1,7 +1,7 @@
 import Head from 'next/head';
 
 export default function Seo({
-  title = 'Dosnine Properties — Find Rentals in Jamaica',
+  title = 'Dosnine Limited — Find Rentals in Jamaica',
   description = 'Browse and post rental properties across Jamaica. Search by location, price, bedrooms and more.',
   image = '/dosnine_preview.png',
   url = process.env.NEXT_PUBLIC_SITE_URL || 'https://dosnine.co',
@@ -26,7 +26,7 @@ export default function Seo({
       <meta property="og:image:width" content="1200" />
       <meta property="og:image:height" content="630" />
       <meta property="og:image:alt" content={title} />
-      <meta property="og:site_name" content="Dosnine Properties" />
+      <meta property="og:site_name" content="Dosnine Limited" />
       <meta property="og:locale" content="en_US" />
 
       {/* Twitter */}

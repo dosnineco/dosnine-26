@@ -121,7 +121,7 @@ export default function SearchLandingPage({ slug, properties: initialProperties,
               },
               isPartOf: {
                 '@type': 'WebSite',
-                name: 'Dosnine Properties',
+                name: 'Dosnine Limited',
                 description: 'Jamaica\'s premier property rental marketplace - Houses and Apartments for Rent',
                 url: 'https://dosnine.com',
               },
@@ -400,8 +400,8 @@ export async function getServerSideProps(context) {
   const parishName = filters.parish || 'Jamaica';
   
   const pageTitle = bedroomCount 
-    ? `${bedroomCount} Bedroom ${propertyType} for Rent in ${parishName} | Dosnine Properties Jamaica`
-    : `${parts.join(' ')} | Houses & Apartments for Rent in Jamaica | Dosnine Properties`;
+    ? `${bedroomCount} Bedroom ${propertyType} for Rent in ${parishName} | Dosnine Limited Jamaica`
+    : `${parts.join(' ')} | Houses & Apartments for Rent in Jamaica | Dosnine Limited`;
   
   const pageDescription = `Find ${bedroomCount ? bedroomCount + ' bedroom ' : ''}${filters.type || 'properties'} for rent in ${parishName}, Jamaica. Browse ${count || 'available'} listings with photos, prices, and landlord contact info. No agent fees. Connect directly with property owners.`;
   

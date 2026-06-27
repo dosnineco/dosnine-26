@@ -223,7 +223,7 @@ export default function Home() {
   return (
     <div>
       <Seo
-        title="Browse Rentals — Dosnine Properties"
+        title="Browse Rentals — Dosnine Limited"
         description="Find rental properties in Jamaica. Search by location, price, bedrooms, and more."
         url={process.env.NEXT_PUBLIC_SITE_URL + '/'}
       />

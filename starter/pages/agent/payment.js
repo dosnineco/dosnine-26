@@ -198,7 +198,7 @@ export default function AgentPayment() {
   return (
     <>
       <Head>
-        <title>Agent Access Plans — Dosnine Properties</title>
+        <title>Agent Access Plans — Dosnine Limited</title>
       </Head>
 
       <div className="min-h-screen bg-white py-8 px-4 sm:py-12">

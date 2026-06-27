@@ -20,7 +20,7 @@ export default function RefundPolicy() {
               <section className="mb-8">
                 <h2 className="text-2xl font-bold text-gray-900 mb-4">1. Overview</h2>
                 <p className="text-gray-700 mb-4">
-                  This Refund Policy applies to paid services on Dosnine Properties, specifically our Property Boost Advertising service. We are committed to providing fair and transparent refund procedures.
+                  This Refund Policy applies to paid services on Dosnine Limited, specifically our Property Boost Advertising service. We are committed to providing fair and transparent refund procedures.
                 </p>
                 <p className="text-gray-700">
                   Please read this policy carefully before purchasing any paid services. By making a purchase, you acknowledge that you have read and agree to this Refund Policy.
@@ -30,7 +30,7 @@ export default function RefundPolicy() {
               <section className="mb-8">
                 <h2 className="text-2xl font-bold text-gray-900 mb-4">2. Free Services</h2>
                 <p className="text-gray-700 mb-4">
-                  Basic property listings on Dosnine Properties are completely free and do not require payment. This refund policy does not apply to free services.
+                  Basic property listings on Dosnine Limited are completely free and do not require payment. This refund policy does not apply to free services.
                 </p>
                 <p className="text-gray-700">
                   Free services include:
