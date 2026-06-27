@@ -254,31 +254,31 @@ export default function PropertyRequestsMarketplace() {
           <div className="flex flex-wrap justify-center gap-8 mb-12">
             <Link
               href="/listing"
-              className="flex items-center gap-2 text-sm text-gray-900 font-semibold hover:text-gray-700 transition-colors border-b-2 border-gray-900 hover:border-gray-700 pb-2"
+              className="flex items-center gap-2 text-sm text-gray-900 font-semibold hover:text-gray-700 transition-colors delay-50 border-b-2 border-accent hover:border-gray-700 pb-2"
             >
               View Properties
-              <ArrowRight size={20} />
+              <ArrowRight className="text-accent" size={20} />
             </Link>
             <Link
               href="/request"
-              className="flex items-center gap-2 text-sm text-gray-900 font-semibold hover:text-gray-700 transition-colors border-b-2 border-gray-900 hover:border-gray-700 pb-2"
+              className="flex items-center gap-2 text-sm text-gray-900 font-semibold hover:text-gray-700 transition-colors delay-50 border-b-2 border-accent hover:border-gray-700 pb-2"
             >
               Submit a Request
-              <ArrowRight size={20} />
+              <ArrowRight className="text-accent" size={20} />
             </Link>
             <Link
               href="/agent/signup"
-              className="flex items-center gap-2 text-sm text-gray-900 font-semibold hover:text-gray-700 transition-colors border-b-2 border-gray-900 hover:border-gray-700 pb-2"
+              className="flex items-center gap-2 text-sm text-gray-900 font-semibold hover:text-gray-700 transition-colors delay-50 border-b-2 border-accent hover:border-gray-700 pb-2"
             >
               Create a free agent account
-              <ArrowRight size={16} />
+              <ArrowRight className="text-accent" size={16} />
             </Link>
             <Link
               href="/advertise"
-              className="flex items-center gap-2 text-sm text-gray-900 font-semibold hover:text-gray-700 transition-colors border-b-2 border-gray-900 hover:border-gray-700 pb-2"
+              className="flex items-center gap-2 text-sm text-gray-900 font-semibold hover:text-gray-700 transition-colors delay-50 border-b-2 border-accent hover:border-gray-700 pb-2"
             >
               Advertise
-              <ArrowRight size={16} />
+              <ArrowRight className="text-accent" size={16} />
             </Link>  
           </div>
 
