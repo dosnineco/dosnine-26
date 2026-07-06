@@ -34,7 +34,7 @@ export default function HtvOrderPage() {
   const [step, setStep] = useState(1)
   const [selectedSize, setSelectedSize] = useState(null)
   const [selectedPack, setSelectedPack] = useState(null)
-  const [selectedColor, setSelectedColor] = useState('black')
+  const [selectedColor, setSelectedColor] = useState('white')
   const [submitting, setSubmitting] = useState(false)
   const fileInputRef = useRef(null)
 
