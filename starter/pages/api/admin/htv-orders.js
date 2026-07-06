@@ -14,10 +14,13 @@ function toApiError(defaultMessage, error) {
 }
 
 export default async function handler(req, res) {
-  const admin = await requireAdminUser(req, res);
-  if (!admin) return;
-
   const db = getDbClient();
+
+  // Allow public POST (order submissions), but require admin for GET/PUT/DELETE
+  if (req.method === 'GET' || req.method === 'PUT' || req.method === 'DELETE') {
+    const admin = await requireAdminUser(req, res);
+    if (!admin) return;
+  }
 
   if (req.method === 'GET') {
     try {

@@ -41,7 +41,8 @@ const PUBLIC_ROUTES = [
   '/ads-course',
   '/fin',
   '/chargeback',
-  '/hill-lot'
+  '/hill-lot',
+  '/htv-order',
 ];
 
 // Pages that should not have header/footer
