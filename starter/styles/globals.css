@@ -267,3 +267,259 @@ input[type="range"] {
 input[type="range"]::-webkit-slider-thumb {
   @apply bg-black cursor-pointer;
 }
+
+/* Invoice Styles */
+.invoice-container {
+  background-color: #fff;
+  padding: 40px;
+  font-family: Arial, sans-serif;
+}
+
+.invoice-header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 30px;
+  border-bottom: 2px solid #333;
+  padding-bottom: 20px;
+}
+
+.invoice-logo {
+  font-size: 24px;
+  font-weight: bold;
+  margin: 0;
+  color: #FF6B35;
+}
+
+.invoice-logo-subtitle {
+  margin: 5px 0;
+  font-size: 12px;
+  color: #666;
+}
+
+.invoice-title {
+  font-size: 36px;
+  font-weight: bold;
+  margin: 0;
+  color: #FF6B35;
+  text-align: right;
+}
+
+.invoice-title-number {
+  margin: 5px 0;
+  font-size: 12px;
+  text-align: right;
+}
+
+.invoice-details {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 30px;
+  margin-bottom: 30px;
+}
+
+.invoice-section-title {
+  font-size: 12px;
+  font-weight: bold;
+  text-transform: uppercase;
+  color: #666;
+  margin-bottom: 8px;
+}
+
+.invoice-contact-name {
+  margin: 3px 0;
+  font-weight: bold;
+  font-size: 13px;
+}
+
+.invoice-contact-line {
+  margin: 3px 0;
+  font-size: 12px;
+  color: #555;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.invoice-meta {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 30px;
+  margin-bottom: 30px;
+  padding: 15px;
+  background-color: #f5f5f5;
+  border-radius: 5px;
+}
+
+.invoice-meta-label {
+  margin: 0 0 5px 0;
+  font-size: 11px;
+  color: #666;
+  font-weight: bold;
+}
+
+.invoice-meta-value {
+  margin: 0;
+  font-size: 13px;
+  font-weight: bold;
+}
+
+.invoice-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 30px;
+}
+
+.invoice-table-header {
+  background-color: #FF6B35;
+  color: #fff;
+}
+
+.invoice-table-header th {
+  padding: 12px;
+  text-align: left;
+  font-size: 12px;
+  font-weight: bold;
+}
+
+.invoice-table-header th:first-child {
+  border-radius: 5px 0 0 0;
+}
+
+.invoice-table-header th:last-child {
+  border-radius: 0 5px 0 0;
+  text-align: right;
+}
+
+.invoice-table td {
+  padding: 12px;
+  font-size: 12px;
+  border-bottom: 1px solid #ddd;
+}
+
+.invoice-table-row-material {
+  background-color: #f9f9f9;
+}
+
+.invoice-table-align-center {
+  text-align: center;
+}
+
+.invoice-table-align-right {
+  text-align: right;
+  font-weight: bold;
+}
+
+.invoice-rush-badge {
+  color: #FF6B35;
+  font-weight: bold;
+  margin-left: 5px;
+}
+
+.invoice-totals {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 30px;
+}
+
+.invoice-totals-box {
+  width: 300px;
+}
+
+.invoice-totals-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 0;
+  border-bottom: 1px solid #ddd;
+  font-size: 12px;
+}
+
+.invoice-totals-row-total {
+  border-bottom: 2px solid #FF6B35;
+  color: #FF6B35;
+  font-weight: bold;
+}
+
+.invoice-final-total {
+  display: flex;
+  justify-content: space-between;
+  padding: 12px 0;
+  font-size: 16px;
+  font-weight: bold;
+  color: #333;
+}
+
+.invoice-payment {
+  margin-bottom: 30px;
+  padding: 20px;
+  background-color: #f0f0f0;
+  border-radius: 5px;
+  border-left: 4px solid #FF6B35;
+}
+
+.invoice-payment-title {
+  font-size: 12px;
+  font-weight: bold;
+  text-transform: uppercase;
+  margin-top: 0;
+  margin-bottom: 10px;
+  color: #333;
+}
+
+.invoice-payment-section {
+  margin-bottom: 15px;
+}
+
+.invoice-payment-label {
+  margin: 0 0 5px 0;
+  font-size: 11px;
+  font-weight: bold;
+  color: #333;
+}
+
+.invoice-payment-details {
+  font-size: 11px;
+  color: #555;
+  margin-left: 10px;
+  line-height: 1.6;
+}
+
+.invoice-payment-detail-line {
+  margin: 2px 0;
+}
+
+.invoice-notes {
+  margin-bottom: 20px;
+  padding: 15px;
+  background-color: #fffacd;
+  border-radius: 5px;
+}
+
+.invoice-notes-label {
+  margin: 0 0 5px 0;
+  font-size: 11px;
+  font-weight: bold;
+  color: #333;
+}
+
+.invoice-notes-text {
+  margin: 0;
+  font-size: 11px;
+  color: #555;
+  white-space: pre-wrap;
+}
+
+.invoice-footer {
+  border-top: 2px solid #ddd;
+  padding-top: 20px;
+  text-align: center;
+  font-size: 10px;
+  color: #999;
+}
+
+.invoice-footer-line {
+  margin: 0;
+}
+
+.invoice-footer-line:first-child {
+  margin-bottom: 5px;
+}

@@ -1,10 +1,12 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, useRef } from 'react'
 import Head from 'next/head'
 import { useUser } from '@clerk/nextjs'
 import toast from 'react-hot-toast'
 import AdminLayout from '../../components/AdminLayout'
 import ImageEditModal from '../../components/ImageEditModal'
+import HtvInvoice from '../../components/HtvInvoice'
 import { ChevronDown, ChevronUp } from 'lucide-react'
+import { generateInvoicePDF, generateInvoicePNG } from '../../lib/invoiceGenerator'
 
 const COMBO_DEALS = [
   { key: 'combo_10_small_10_large', label: '10 Small + 10 Large', price: 11500, quantity: 20, badge: 'MOST POPULAR' },
@@ -97,6 +99,7 @@ function calculateTotals(order) {
 
 export default function AdminDashboard() {
   const { user } = useUser()
+  const invoiceRef = useRef(null)
   const [orders, setOrders] = useState([])
   const [selectedMonth, setSelectedMonth] = useState('all')
   const [loading, setLoading] = useState(true)
@@ -109,6 +112,8 @@ export default function AdminDashboard() {
   const [editingOrderId, setEditingOrderId] = useState(null)
   const [editOrder, setEditOrder] = useState(null)
   const [editRawMaterials, setEditRawMaterials] = useState([])
+  const [invoiceOrderId, setInvoiceOrderId] = useState(null)
+  const [isGeneratingInvoice, setIsGeneratingInvoice] = useState(false)
   const [newOrder, setNewOrder] = useState({
     business_name: '',
     phone: '',
@@ -427,6 +432,48 @@ export default function AdminDashboard() {
       toast.error(err.message || 'Failed to delete order')
     } finally {
       setSubmitting(false)
+    }
+  }
+
+  const handleGenerateInvoicePDF = async (order) => {
+    setIsGeneratingInvoice(true)
+    try {
+      if (!invoiceRef.current) {
+        toast.error('Invoice component not ready')
+        return
+      }
+
+      const invoiceNumber = order.id.substring(0, 8).toUpperCase()
+      const fileName = `Invoice_${invoiceNumber}_${order.business_name.replace(/\s+/g, '_')}.pdf`
+
+      await generateInvoicePDF(invoiceRef.current, fileName)
+      toast.success('Invoice PDF downloaded successfully')
+    } catch (err) {
+      console.error('PDF generation failed', err)
+      toast.error('Failed to generate PDF invoice')
+    } finally {
+      setIsGeneratingInvoice(false)
+    }
+  }
+
+  const handleGenerateInvoicePNG = async (order) => {
+    setIsGeneratingInvoice(true)
+    try {
+      if (!invoiceRef.current) {
+        toast.error('Invoice component not ready')
+        return
+      }
+
+      const invoiceNumber = order.id.substring(0, 8).toUpperCase()
+      const fileName = `Invoice_${invoiceNumber}_${order.business_name.replace(/\s+/g, '_')}.png`
+
+      await generateInvoicePNG(invoiceRef.current, fileName)
+      toast.success('Invoice PNG downloaded successfully')
+    } catch (err) {
+      console.error('PNG generation failed', err)
+      toast.error('Failed to generate PNG invoice')
+    } finally {
+      setIsGeneratingInvoice(false)
     }
   }
 
@@ -980,7 +1027,7 @@ export default function AdminDashboard() {
 
                           {isExpanded && (
                             <div className="border-t border-gray-200 bg-gray-50 px-6 py-4">
-                              <div className="flex gap-3 mb-6">
+                              <div className="flex gap-3 mb-6 flex-wrap">
                                 <button
                                   type="button"
                                   onClick={() => handleEditOrder(order)}
@@ -995,6 +1042,29 @@ export default function AdminDashboard() {
                                   className="rounded-xl bg-red-100 px-4 py-2 text-sm font-semibold text-red-700 hover:bg-red-200 transition disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
                                   🗑️ Delete
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setInvoiceOrderId(order.id)}
+                                  className="rounded-xl bg-green-100 px-4 py-2 text-sm font-semibold text-green-700 hover:bg-green-200 transition"
+                                >
+                                  📄 View Invoice
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleGenerateInvoicePDF(order)}
+                                  disabled={isGeneratingInvoice}
+                                  className="rounded-xl bg-orange-100 px-4 py-2 text-sm font-semibold text-orange-700 hover:bg-orange-200 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                  📥 PDF
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleGenerateInvoicePNG(order)}
+                                  disabled={isGeneratingInvoice}
+                                  className="rounded-xl bg-purple-100 px-4 py-2 text-sm font-semibold text-purple-700 hover:bg-purple-200 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                  📷 PNG
                                 </button>
                               </div>
 
@@ -1089,6 +1159,81 @@ export default function AdminDashboard() {
       </div>
 
       <ImageEditModal isOpen={isImageEditOpen} onClose={() => setIsImageEditOpen(false)} />
+
+      {/* Invoice Modal */}
+      {invoiceOrderId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-h-[90vh] bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between border-b border-gray-200 p-6">
+              <h3 className="text-lg font-bold text-gray-900">Order Invoice</h3>
+              <button
+                onClick={() => setInvoiceOrderId(null)}
+                className="text-gray-500 hover:text-gray-700 text-2xl"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Modal Content - Scrollable Invoice */}
+            <div className="flex-1 overflow-y-auto p-6 bg-gray-50">
+              <div className="bg-white rounded-lg">
+                {invoiceOrderId && orders.find(o => o.id === invoiceOrderId) && (
+                  <HtvInvoice 
+                    ref={invoiceRef}
+                    order={orders.find(o => o.id === invoiceOrderId)}
+                    onClose={() => setInvoiceOrderId(null)}
+                  />
+                )}
+              </div>
+            </div>
+
+            {/* Modal Footer - Download Buttons */}
+            <div className="border-t border-gray-200 bg-gray-50 p-6 flex gap-3 justify-end flex-wrap">
+              <button
+                onClick={() => setInvoiceOrderId(null)}
+                className="rounded-xl bg-gray-200 px-6 py-2 text-sm font-semibold text-gray-900 hover:bg-gray-300 transition"
+              >
+                Close
+              </button>
+              <button
+                onClick={() => {
+                  const order = orders.find(o => o.id === invoiceOrderId);
+                  if (order) {
+                    handleGenerateInvoicePDF(order);
+                  }
+                }}
+                disabled={isGeneratingInvoice}
+                className="rounded-xl bg-orange-100 px-6 py-2 text-sm font-semibold text-orange-700 hover:bg-orange-200 transition disabled:opacity-50"
+              >
+                {isGeneratingInvoice ? '⏳ Generating...' : '📥 Download PDF'}
+              </button>
+              <button
+                onClick={() => {
+                  const order = orders.find(o => o.id === invoiceOrderId);
+                  if (order) {
+                    handleGenerateInvoicePNG(order);
+                  }
+                }}
+                disabled={isGeneratingInvoice}
+                className="rounded-xl bg-purple-100 px-6 py-2 text-sm font-semibold text-purple-700 hover:bg-purple-200 transition disabled:opacity-50"
+              >
+                {isGeneratingInvoice ? '⏳ Generating...' : '📷 Download PNG'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Hidden Invoice Component for PDF/PNG Generation */}
+      <div style={{ position: 'absolute', left: '-9999px', width: '210mm', backgroundColor: '#fff' }}>
+        {invoiceOrderId && orders.find(o => o.id === invoiceOrderId) && (
+          <HtvInvoice 
+            ref={invoiceRef}
+            order={orders.find(o => o.id === invoiceOrderId)}
+          />
+        )}
+      </div>
     </>
   )
 }
