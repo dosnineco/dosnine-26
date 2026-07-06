@@ -20,8 +20,6 @@ const PRICING = {
   },
 }
 
-
-
 const CONVERSION_CHARGE = 500
 const SAMPLE_LOGOS = [
   '/logos/c5b4106c-f2ba-4cf0-8bdb-940fb44068a4.png',
@@ -29,6 +27,33 @@ const SAMPLE_LOGOS = [
   '/logos/291a49f3-a6d9-4540-9752-ef8e8b380e9b.png',
   '/logos/203c52af-39c0-46e4-8c30-2d378e24525c.png',
 ]
+
+// Sanitization utilities
+const sanitizeInput = (input) => {
+  if (typeof input !== 'string') return ''
+  return input.trim().replace(/[<>]/g, '')
+}
+
+const validateEmail = (email) => {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+  return emailRegex.test(email)
+}
+
+const validatePhone = (phone) => {
+  const phoneRegex = /^[\d\s\-\+\(\)]+$/
+  return phoneRegex.test(phone) && phone.length >= 7
+}
+
+const escapeHtml = (text) => {
+  const map = {
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#039;',
+  }
+  return text.replace(/[&<>"']/g, (char) => map[char])
+}
 
 export default function HtvOrderPage() {
   const [step, setStep] = useState(1)
@@ -49,7 +74,7 @@ export default function HtvOrderPage() {
 
   const handleInputChange = (e) => {
     const { name, value } = e.target
-    setFormData((prev) => ({ ...prev, [name]: value }))
+    setFormData((prev) => ({ ...prev, [name]: sanitizeInput(value) }))
   }
 
   const fileToDataUrl = (file) => new Promise((resolve, reject) => {
@@ -110,6 +135,38 @@ export default function HtvOrderPage() {
       toast.error('Please complete all fields')
       return
     }
+
+    // Validate all inputs
+    if (!formData.business_name || formData.business_name.length < 2) {
+      toast.error('Business name must be at least 2 characters')
+      return
+    }
+
+    if (formData.business_name.length > 100) {
+      toast.error('Business name is too long (max 100 characters)')
+      return
+    }
+
+    if (!validateEmail(formData.email)) {
+      toast.error('Please enter a valid email address')
+      return
+    }
+
+    if (!validatePhone(formData.phone)) {
+      toast.error('Please enter a valid phone number')
+      return
+    }
+
+    if (formData.phone.length > 30) {
+      toast.error('Phone number is too long')
+      return
+    }
+
+    if (formData.location && formData.location.length > 100) {
+      toast.error('Location is too long (max 100 characters)')
+      return
+    }
+
     setSubmitting(true)
     try {
       let logoUrl = 'manual-entry'
@@ -151,14 +208,14 @@ export default function HtvOrderPage() {
 
       const price = PRICING[selectedSize].packs[selectedPack]
       const payload = {
-        business_name: formData.business_name,
-        location: formData.location,
-        email: formData.email,
-        phone: formData.phone,
+        business_name: escapeHtml(formData.business_name),
+        location: escapeHtml(formData.location),
+        email: escapeHtml(formData.email),
+        phone: sanitizeInput(formData.phone),
         color: selectedColor,
         size: selectedSize,
         quantity: selectedPack,
-        delivery_area: formData.location || 'Not provided',
+        delivery_area: escapeHtml(formData.location || 'Not provided'),
         subtotal: price.toFixed(2),
         delivery_fee: '0.00',
         total: (price + CONVERSION_CHARGE).toFixed(2),
