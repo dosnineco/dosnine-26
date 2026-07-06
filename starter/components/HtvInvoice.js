@@ -1,5 +1,5 @@
 import React, { forwardRef } from 'react';
-import { Mail, Phone, MessageCircle, Zap, Building2 } from 'lucide-react';
+import { Mail, Phone, MessageCircle, Zap, Building2, Image as ImageIcon } from 'lucide-react';
 
 const HtvInvoice = forwardRef(({ order, onClose }, ref) => {
   if (!order) return null;
@@ -38,9 +38,12 @@ const HtvInvoice = forwardRef(({ order, onClose }, ref) => {
     <div ref={ref} className="invoice-container">
       {/* Header */}
       <div className="invoice-header">
-        <div>
-          <h1 className="invoice-logo">DOSNINE</h1>
-          <p className="invoice-logo-subtitle">Dosnine Ltd</p>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <img src="/logos/dosnine_co_logo.png" alt="Dosnine Logo" style={{ height: '50px', width: 'auto' }} />
+          <div>
+            <h1 className="invoice-logo">DOSNINE</h1>
+            <p className="invoice-logo-subtitle">Dosnine Ltd</p>
+          </div>
         </div>
         <div>
           <h2 className="invoice-title">INVOICE</h2>
@@ -113,12 +116,20 @@ const HtvInvoice = forwardRef(({ order, onClose }, ref) => {
           {/* Main Order Item */}
           <tr>
             <td>
-              Custom Logo Cutting
+              Custom Logo Cutting - {order.quantity} Pack{order.quantity > 1 ? 's' : ''} ({order.size ? order.size.charAt(0).toUpperCase() + order.size.slice(1) : 'Custom'})
               {order.rush_order && <span className="invoice-rush-badge"><Zap size={12} style={{ display: 'inline' }} /> RUSH</span>}
             </td>
             <td className="invoice-table-align-center">{order.quantity}</td>
             <td className="invoice-table-align-right" style={{ textAlign: 'right' }}>JMD {(order.subtotal / order.quantity).toLocaleString()}</td>
             <td className="invoice-table-align-right" style={{ textAlign: 'right' }}>JMD {order.subtotal.toLocaleString()}</td>
+          </tr>
+
+          {/* Logo Conversion Charge */}
+          <tr className="invoice-table-row-material">
+            <td>Logo Conversion Charge (Professional Processing)</td>
+            <td className="invoice-table-align-center">1</td>
+            <td className="invoice-table-align-right" style={{ textAlign: 'right' }}>JMD 500.00</td>
+            <td className="invoice-table-align-right" style={{ textAlign: 'right' }}>JMD 500.00</td>
           </tr>
 
           {/* Raw Materials */}

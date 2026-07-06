@@ -39,7 +39,6 @@
 }
 .btn-primary:focus,
 .btn-accent:focus { 
-  box-shadow: 0 0 0 3px var(--accent-ring);
   outline: none;
 }
 .btn-primary:disabled,
@@ -86,7 +85,6 @@
 }
 .btn-outline:focus,
 .btn-accent-outline:focus { 
-  box-shadow: 0 0 0 3px var(--accent-ring);
   outline: none;
 }
 

@@ -5,7 +5,7 @@ import toast from 'react-hot-toast'
 import AdminLayout from '../../components/AdminLayout'
 import ImageEditModal from '../../components/ImageEditModal'
 import HtvInvoice from '../../components/HtvInvoice'
-import { ChevronDown, ChevronUp } from 'lucide-react'
+import { ChevronDown, ChevronUp, Sparkles, Edit, Trash2, FileText, Download, Camera, Loader, X } from 'lucide-react'
 import { generateInvoicePDF, generateInvoicePNG } from '../../lib/invoiceGenerator'
 
 const COMBO_DEALS = [
@@ -522,9 +522,10 @@ export default function AdminDashboard() {
               </div>
               <button
                 onClick={() => setIsImageEditOpen(true)}
-                className="rounded-2xl bg-accent px-4 py-3 text-sm font-semibold text-white hover:bg-accent/90"
+                className="rounded-2xl bg-accent px-4 py-3 text-sm font-semibold text-white hover:bg-accent/90 flex items-center gap-2"
               >
-                ✨ Edit Image with AI
+                <Sparkles size={18} />
+                Edit Image with AI
               </button>
             </div>
           </div>
@@ -1031,41 +1032,29 @@ export default function AdminDashboard() {
                                 <button
                                   type="button"
                                   onClick={() => handleEditOrder(order)}
-                                  className="rounded-xl bg-blue-100 px-4 py-2 text-sm font-semibold text-blue-700 hover:bg-blue-200 transition"
+                                  className="rounded-xl bg-blue-100 px-4 py-2 text-sm font-semibold text-blue-700 hover:bg-blue-200 transition flex items-center gap-2"
                                 >
-                                  ✏️ Edit
+                                  <Edit size={16} />
+                                  Edit
                                 </button>
                                 <button
                                   type="button"
                                   onClick={() => handleDeleteOrder(order.id)}
                                   disabled={submitting}
-                                  className="rounded-xl bg-red-100 px-4 py-2 text-sm font-semibold text-red-700 hover:bg-red-200 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                                  className="rounded-xl bg-red-100 px-4 py-2 text-sm font-semibold text-red-700 hover:bg-red-200 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                                 >
-                                  🗑️ Delete
+                                  <Trash2 size={16} />
+                                  Delete
                                 </button>
                                 <button
                                   type="button"
                                   onClick={() => setInvoiceOrderId(order.id)}
-                                  className="rounded-xl bg-green-100 px-4 py-2 text-sm font-semibold text-green-700 hover:bg-green-200 transition"
+                                  className="rounded-xl bg-green-100 px-4 py-2 text-sm font-semibold text-green-700 hover:bg-green-200 transition flex items-center gap-2"
                                 >
-                                  📄 View Invoice
+                                  <FileText size={16} />
+                                  View Invoice
                                 </button>
-                                <button
-                                  type="button"
-                                  onClick={() => handleGenerateInvoicePDF(order)}
-                                  disabled={isGeneratingInvoice}
-                                  className="rounded-xl bg-orange-100 px-4 py-2 text-sm font-semibold text-orange-700 hover:bg-orange-200 transition disabled:opacity-50 disabled:cursor-not-allowed"
-                                >
-                                  📥 PDF
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => handleGenerateInvoicePNG(order)}
-                                  disabled={isGeneratingInvoice}
-                                  className="rounded-xl bg-purple-100 px-4 py-2 text-sm font-semibold text-purple-700 hover:bg-purple-200 transition disabled:opacity-50 disabled:cursor-not-allowed"
-                                >
-                                  📷 PNG
-                                </button>
+                               
                               </div>
 
                               <div className="grid gap-6 lg:grid-cols-3">
@@ -1084,9 +1073,15 @@ export default function AdminDashboard() {
                                       <span className="text-gray-600">Other:</span>
                                       <span className="font-semibold text-black">{formatCurrency(other)}</span>
                                     </div>
+                                    {(order.logo_work_charge || 0) > 0 && (
+                                      <div className="flex justify-between text-accent">
+                                        <span>Additional Logo Work:</span>
+                                        <span className="font-semibold">{formatCurrency(order.logo_work_charge)}</span>
+                                      </div>
+                                    )}
                                     <div className="border-t border-gray-200 pt-2 flex justify-between">
-                                      <span className="font-semibold text-gray-900">Total:</span>
-                                      <span className="font-bold text-black text-base">{formatCurrency(expenses)}</span>
+                                      <span className="font-semibold text-gray-900">Total Costs:</span>
+                                      <span className="font-bold text-black text-base">{formatCurrency(rawMaterial + labor + other + (order.logo_work_charge || 0))}</span>
                                     </div>
                                   </div>
                                 </div>
@@ -1094,18 +1089,30 @@ export default function AdminDashboard() {
                                 <div className="rounded-2xl bg-white p-4 border border-gray-200">
                                   <p className="text-xs font-semibold uppercase text-gray-600 mb-2">Revenue & Profit</p>
                                   <div className="space-y-2 text-sm">
-                                    <div className="flex justify-between">
-                                      <span className="text-gray-600">Total Revenue:</span>
-                                      <span className="font-semibold text-black">{formatCurrency(revenue)}</span>
-                                    </div>
-                                    <div className="flex justify-between">
-                                      <span className="text-gray-600">Total Expenses:</span>
-                                      <span className="font-semibold text-black">{formatCurrency(expenses)}</span>
-                                    </div>
-                                    <div className="border-t border-gray-200 pt-2 flex justify-between">
-                                      <span className="font-semibold text-gray-900">Profit:</span>
-                                      <span className={`font-bold text-base ${profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>{formatCurrency(profit)}</span>
-                                    </div>
+                                    {(() => {
+                                      const totalCosts = rawMaterial + labor + other + (order.logo_work_charge || 0)
+                                      const actualProfit = revenue - totalCosts
+                                      return (
+                                        <>
+                                          <div className="flex justify-between">
+                                            <span className="text-gray-600">Base Revenue:</span>
+                                            <span className="font-semibold text-black">{formatCurrency(revenue)}</span>
+                                          </div>
+                                          <div className="border-t border-gray-200 pt-2 flex justify-between">
+                                            <span className="font-semibold text-gray-900">Total Revenue:</span>
+                                            <span className="font-semibold text-black">{formatCurrency(revenue)}</span>
+                                          </div>
+                                          <div className="flex justify-between">
+                                            <span className="text-gray-600">Total Costs:</span>
+                                            <span className="font-semibold text-black">{formatCurrency(totalCosts)}</span>
+                                          </div>
+                                          <div className="border-t border-gray-200 pt-2 flex justify-between">
+                                            <span className="font-semibold text-gray-900">Profit:</span>
+                                            <span className={`font-bold text-base ${actualProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>{formatCurrency(actualProfit)}</span>
+                                          </div>
+                                        </>
+                                      )
+                                    })()}
                                   </div>
                                 </div>
 
@@ -1169,9 +1176,9 @@ export default function AdminDashboard() {
               <h3 className="text-lg font-bold text-gray-900">Order Invoice</h3>
               <button
                 onClick={() => setInvoiceOrderId(null)}
-                className="text-gray-500 hover:text-gray-700 text-2xl"
+                className="text-gray-500 hover:text-gray-700"
               >
-                ✕
+                <X size={24} />
               </button>
             </div>
 
@@ -1204,9 +1211,9 @@ export default function AdminDashboard() {
                   }
                 }}
                 disabled={isGeneratingInvoice}
-                className="rounded-xl bg-orange-100 px-6 py-2 text-sm font-semibold text-orange-700 hover:bg-orange-200 transition disabled:opacity-50"
+                className="rounded-xl bg-orange-100 px-6 py-2 text-sm font-semibold text-orange-700 hover:bg-orange-200 transition disabled:opacity-50 flex items-center gap-2"
               >
-                {isGeneratingInvoice ? '⏳ Generating...' : '📥 Download PDF'}
+                {isGeneratingInvoice ? <><Loader size={16} className="animate-spin" /> Generating...</> : <><Download size={16} /> Download PDF</>}
               </button>
               <button
                 onClick={() => {
@@ -1216,9 +1223,9 @@ export default function AdminDashboard() {
                   }
                 }}
                 disabled={isGeneratingInvoice}
-                className="rounded-xl bg-purple-100 px-6 py-2 text-sm font-semibold text-purple-700 hover:bg-purple-200 transition disabled:opacity-50"
+                className="rounded-xl bg-purple-100 px-6 py-2 text-sm font-semibold text-purple-700 hover:bg-purple-200 transition disabled:opacity-50 flex items-center gap-2"
               >
-                {isGeneratingInvoice ? '⏳ Generating...' : '📷 Download PNG'}
+                {isGeneratingInvoice ? <><Loader size={16} className="animate-spin" /> Generating...</> : <><Camera size={16} /> Download PNG</>}
               </button>
             </div>
           </div>

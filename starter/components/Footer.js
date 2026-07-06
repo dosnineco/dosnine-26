@@ -32,6 +32,11 @@ export default function Footer() {
                   Market Analytics
                 </a>
               </li>
+                 <li>
+                <a href="/htv-order" className="text-gray-600 hover:text-blue-600 transition">
+                Dosnine Htv
+                </a>
+              </li>
             </ul>
           </div>
 
