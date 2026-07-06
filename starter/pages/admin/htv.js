@@ -106,6 +106,9 @@ export default function AdminDashboard() {
   const [isImageEditOpen, setIsImageEditOpen] = useState(false)
   const [isOrderFormOpen, setIsOrderFormOpen] = useState(false)
   const [expandedOrderId, setExpandedOrderId] = useState(null)
+  const [editingOrderId, setEditingOrderId] = useState(null)
+  const [editOrder, setEditOrder] = useState(null)
+  const [editRawMaterials, setEditRawMaterials] = useState([])
   const [newOrder, setNewOrder] = useState({
     business_name: '',
     phone: '',
@@ -183,7 +186,9 @@ export default function AdminDashboard() {
       }
     })
 
-    return ['All months', ...Array.from(months).sort((a, b) => {
+    return ['all', ...Array.from(months).sort((a, b) => {
+      if (a === 'all') return -1
+      if (b === 'all') return 1
       const aDate = new Date(a)
       const bDate = new Date(b)
       return bDate - aDate
@@ -192,7 +197,7 @@ export default function AdminDashboard() {
 
   const filteredOrders = useMemo(() => {
     if (selectedMonth === 'all') return orders
-    return orders.filter(order => getMonthLabel(order.order_month) === selectedMonth)
+    return orders.filter(order => order.order_month && getMonthLabel(order.order_month) === selectedMonth)
   }, [orders, selectedMonth])
 
   const summary = useMemo(() => {
@@ -315,6 +320,111 @@ export default function AdminDashboard() {
     } catch (err) {
       console.error('Create order failed', err)
       toast.error(err.message || 'Failed to create order')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const handleEditOrder = (order) => {
+    setEditingOrderId(order.id)
+    setEditOrder({
+      ...order,
+      rush_order: Boolean(order.rush_order),
+    })
+    setEditRawMaterials(Array.isArray(order.raw_materials) ? order.raw_materials : [])
+  }
+
+  const handleCancelEdit = () => {
+    setEditingOrderId(null)
+    setEditOrder(null)
+    setEditRawMaterials([])
+  }
+
+  const handleUpdateOrder = async (event) => {
+    event.preventDefault()
+
+    if (!editOrder || !editingOrderId) return
+    if (!editOrder.business_name || !editOrder.phone) {
+      toast.error('Business name and phone are required')
+      return
+    }
+
+    setSubmitting(true)
+
+    try {
+      const rawMaterialCost = editRawMaterials.reduce((sum, item) => sum + Number(item.cost || 0), 0)
+      const expenseTotal = rawMaterialCost
+
+      const response = await fetch(`/api/admin/htv-orders?id=${editingOrderId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          business_name: editOrder.business_name,
+          phone: editOrder.phone,
+          email: editOrder.email || null,
+          size: editOrder.size,
+          color: editOrder.color,
+          quantity: Number(editOrder.quantity || 1),
+          delivery_area: editOrder.delivery_area,
+          rush_order: Boolean(editOrder.rush_order),
+          subtotal: editOrder.subtotal,
+          delivery_fee: editOrder.delivery_fee,
+          total: editOrder.total,
+          raw_materials: editRawMaterials.filter((item) => item.material && item.material.trim()),
+          raw_material_cost: rawMaterialCost,
+          labor_cost: Number(editOrder.labor_cost || 0),
+          other_expenses: Number(editOrder.other_expenses || 0),
+          revenue: editOrder.revenue,
+          expenses: editOrder.expenses,
+          profit: editOrder.profit,
+          status: editOrder.status,
+          notes: editOrder.notes || null,
+        }),
+      })
+
+      const payload = await response.json()
+
+      if (!response.ok || !payload?.success) {
+        throw new Error(payload?.error || 'Failed to update order')
+      }
+
+      setOrders((prev) =>
+        prev.map((order) => (order.id === editingOrderId ? payload.order : order))
+      )
+      handleCancelEdit()
+      toast.success('Order updated successfully')
+    } catch (err) {
+      console.error('Update order failed', err)
+      toast.error(err.message || 'Failed to update order')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const handleDeleteOrder = async (orderId) => {
+    if (!window.confirm('Are you sure you want to delete this order? This action cannot be undone.')) {
+      return
+    }
+
+    setSubmitting(true)
+
+    try {
+      const response = await fetch(`/api/admin/htv-orders?id=${orderId}`, {
+        method: 'DELETE',
+      })
+
+      const payload = await response.json()
+
+      if (!response.ok || !payload?.success) {
+        throw new Error(payload?.error || 'Failed to delete order')
+      }
+
+      setOrders((prev) => prev.filter((order) => order.id !== orderId))
+      setExpandedOrderId(null)
+      toast.success('Order deleted successfully')
+    } catch (err) {
+      console.error('Delete order failed', err)
+      toast.error(err.message || 'Failed to delete order')
     } finally {
       setSubmitting(false)
     }
@@ -709,73 +819,7 @@ export default function AdminDashboard() {
                 </div>
               </div>
 
-              {/* <div className="mt-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <h2 className="text-sm font-semibold text-black">Filter orders by month</h2>
-                  <p className="text-sm text-gray-600">Select a month to view weekly revenue, expenses and profit.</p>
-                </div>
-                <div className="w-full max-w-sm">
-                  <label className="sr-only" htmlFor="monthFilter">Month</label>
-                  <select
-                    id="monthFilter"
-                    value={selectedMonth}
-                    onChange={(e) => setSelectedMonth(e.target.value)}
-                    className="mt-2 w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-black focus:border-accent focus:outline-none"
-                  >
-                    {monthOptions.map((month) => (
-                      <option key={month} value={month}>{month}</option>
-                    ))}
-                  </select>
-                </div>
-              </div> */}
-
-              {/* <section className="mt-10 rounded-3xl bg-gray-50 
-              p-6">
-                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <h2 className="text-xl font-black text-black">Weekly performance</h2>
-                    <p className="mt-2 text-sm text-gray-600">Revenue and profit for each week in the selected month.</p>
-                  </div>
-                </div>
-
-                <div className="mt-8 space-y-4">
-                  {weeklyData.length === 0 ? (
-                    <div className="rounded-3xl bg-white p-6 text-center text-gray-600">No weekly data available.</div>
-                  ) : (
-                    weeklyData.map((item) => (
-                      <div key={item.week} className="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-black/5">
-                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                          <div>
-                            <div className="text-sm uppercase tracking-[0.3em] text-gray-500">{getWeekLabel(item.week)}</div>
-                            <div className="mt-2 text-lg font-bold text-black">{item.orders} orders</div>
-                          </div>
-                          <div className="grid gap-3 sm:grid-cols-3">
-                            <div className="rounded-2xl bg-gray-100 p-4">
-                              <div className="text-xs uppercase text-gray-500">Revenue</div>
-                              <div className="mt-2 text-lg font-bold text-black">{formatCurrency(item.revenue)}</div>
-                            </div>
-                            <div className="rounded-2xl bg-gray-100 p-4">
-                              <div className="text-xs uppercase text-gray-500">Expenses</div>
-                              <div className="mt-2 text-lg font-bold text-black">{formatCurrency(item.expenses)}</div>
-                            </div>
-                            <div className="rounded-2xl bg-gray-100 p-4">
-                              <div className="text-xs uppercase text-gray-500">Profit</div>
-                              <div className="mt-2 text-lg font-bold text-black">{formatCurrency(item.profit)}</div>
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="mt-6 h-4 overflow-hidden rounded-full bg-gray-200">
-                          <div
-                            className="h-full rounded-full bg-accent"
-                            style={{ width: `${Math.min(100, (item.revenue / maxRevenue) * 100)}%` }}
-                          />
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </section> */}
+          
 
               <section className="mt-10 rounded-3xl bg-white p-6 shadow-sm ring-1 ring-black/5">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -784,6 +828,120 @@ export default function AdminDashboard() {
                     <p className="mt-2 text-sm text-gray-600">View each order with raw material usage, cost, and margin details. Click to expand.</p>
                   </div>
                 </div>
+
+                {editingOrderId && editOrder && (
+                  <div className="mt-6 rounded-3xl bg-blue-50 border-2 border-blue-200 p-6">
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-lg font-bold text-blue-900">Edit Order - {editOrder.business_name}</h3>
+                      <button
+                        type="button"
+                        onClick={handleCancelEdit}
+                        className="rounded-lg bg-blue-100 px-4 py-2 text-sm font-semibold text-blue-700 hover:bg-blue-200"
+                      >
+                        Close
+                      </button>
+                    </div>
+
+                    <form onSubmit={handleUpdateOrder} className="grid gap-6">
+                      <div className="grid gap-6 lg:grid-cols-3">
+                        <div>
+                          <label className="block text-sm font-semibold text-gray-900">Business name</label>
+                          <input
+                            value={editOrder.business_name || ''}
+                            onChange={(e) => setEditOrder({ ...editOrder, business_name: e.target.value })}
+                            className="mt-2 w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-black focus:border-blue-500 focus:outline-none"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-semibold text-gray-900">Phone</label>
+                          <input
+                            value={editOrder.phone || ''}
+                            onChange={(e) => setEditOrder({ ...editOrder, phone: e.target.value })}
+                            className="mt-2 w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-black focus:border-blue-500 focus:outline-none"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-semibold text-gray-900">Email</label>
+                          <input
+                            type="email"
+                            value={editOrder.email || ''}
+                            onChange={(e) => setEditOrder({ ...editOrder, email: e.target.value })}
+                            className="mt-2 w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-black focus:border-blue-500 focus:outline-none"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid gap-6 lg:grid-cols-4">
+                        <div>
+                          <label className="block text-sm font-semibold text-gray-900">Status</label>
+                          <select
+                            value={editOrder.status || 'pending'}
+                            onChange={(e) => setEditOrder({ ...editOrder, status: e.target.value })}
+                            className="mt-2 w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-black focus:border-blue-500 focus:outline-none"
+                          >
+                            <option value="pending">Pending</option>
+                            <option value="verified">Verified</option>
+                            <option value="processing">Processing</option>
+                            <option value="completed">Completed</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-semibold text-gray-900">Color</label>
+                          <select
+                            value={editOrder.color || 'black'}
+                            onChange={(e) => setEditOrder({ ...editOrder, color: e.target.value })}
+                            className="mt-2 w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-black focus:border-blue-500 focus:outline-none"
+                          >
+                            <option value="black">Black</option>
+                            <option value="white">White</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-semibold text-gray-900">Quantity</label>
+                          <input
+                            type="number"
+                            min="1"
+                            value={editOrder.quantity || 1}
+                            onChange={(e) => setEditOrder({ ...editOrder, quantity: Number(e.target.value) })}
+                            className="mt-2 w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-black focus:border-blue-500 focus:outline-none"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-semibold text-gray-900">Delivery area</label>
+                          <select
+                            value={editOrder.delivery_area || 'halfWayTree'}
+                            onChange={(e) => setEditOrder({ ...editOrder, delivery_area: e.target.value })}
+                            className="mt-2 w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-black focus:border-blue-500 focus:outline-none"
+                          >
+                            {Object.entries(DELIVERY).map(([key, data]) => (
+                              <option key={key} value={key}>
+                                {data.label}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-900">Notes</label>
+                        <textarea
+                          value={editOrder.notes || ''}
+                          onChange={(e) => setEditOrder({ ...editOrder, notes: e.target.value })}
+                          className="mt-2 w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-black focus:border-blue-500 focus:outline-none h-24"
+                          placeholder="Order notes"
+                        />
+                      </div>
+
+                      <button
+                        type="submit"
+                        disabled={submitting}
+                        className="rounded-2xl bg-blue-600 px-6 py-3 text-sm font-bold text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {submitting ? 'Saving...' : 'Save Changes'}
+                      </button>
+                    </form>
+                  </div>
+                )}
 
                 <div className="mt-6 space-y-3">
                   {filteredOrders.length === 0 ? (
@@ -822,6 +980,24 @@ export default function AdminDashboard() {
 
                           {isExpanded && (
                             <div className="border-t border-gray-200 bg-gray-50 px-6 py-4">
+                              <div className="flex gap-3 mb-6">
+                                <button
+                                  type="button"
+                                  onClick={() => handleEditOrder(order)}
+                                  className="rounded-xl bg-blue-100 px-4 py-2 text-sm font-semibold text-blue-700 hover:bg-blue-200 transition"
+                                >
+                                  ✏️ Edit
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteOrder(order.id)}
+                                  disabled={submitting}
+                                  className="rounded-xl bg-red-100 px-4 py-2 text-sm font-semibold text-red-700 hover:bg-red-200 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                  🗑️ Delete
+                                </button>
+                              </div>
+
                               <div className="grid gap-6 lg:grid-cols-3">
                                 <div className="rounded-2xl bg-white p-4 border border-gray-200">
                                   <p className="text-xs font-semibold uppercase text-gray-600 mb-2">Cost Breakdown</p>
