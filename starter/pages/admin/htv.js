@@ -5,7 +5,7 @@ import toast from 'react-hot-toast'
 import AdminLayout from '../../components/AdminLayout'
 import ImageEditModal from '../../components/ImageEditModal'
 import HtvInvoice from '../../components/HtvInvoice'
-import { ChevronDown, ChevronUp, Sparkles, Edit, Trash2, FileText, Download, Camera, Loader, X } from 'lucide-react'
+import { ChevronDown, ChevronUp, Sparkles, Edit, Trash2, FileText, Download, Camera, Loader, X, Eye } from 'lucide-react'
 import { generateInvoicePDF, generateInvoicePNG } from '../../lib/invoiceGenerator'
 
 const COMBO_DEALS = [
@@ -113,6 +113,7 @@ export default function AdminDashboard() {
   const [editOrder, setEditOrder] = useState(null)
   const [editRawMaterials, setEditRawMaterials] = useState([])
   const [invoiceOrderId, setInvoiceOrderId] = useState(null)
+  const [viewingLogoOrderId, setViewingLogoOrderId] = useState(null)
   const [isGeneratingInvoice, setIsGeneratingInvoice] = useState(false)
   const [newOrder, setNewOrder] = useState({
     business_name: '',
@@ -433,6 +434,61 @@ export default function AdminDashboard() {
     } finally {
       setSubmitting(false)
     }
+  }
+
+  const handleDownloadLogo = async (order) => {
+    try {
+      if (!order.logo_url) {
+        toast.error('No logo URL available')
+        return
+      }
+
+      if (order.logo_url === 'manual-entry') {
+        toast.error('This order was created manually without a logo')
+        return
+      }
+
+      if (order.logo_url === 'pending-upload') {
+        toast.error('Logo upload is pending - it may not be available yet')
+        return
+      }
+
+      const response = await fetch(order.logo_url)
+      if (!response.ok) throw new Error('Failed to fetch logo')
+
+      const blob = await response.blob()
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = order.logo_filename || `logo_${order.id}.png`
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      URL.revokeObjectURL(url)
+      toast.success('Logo downloaded successfully')
+    } catch (err) {
+      console.error('Download failed', err)
+      toast.error('Failed to download logo')
+    }
+  }
+
+  const handleViewLogo = (order) => {
+    if (!order.logo_url) {
+      toast.error('No logo URL available')
+      return
+    }
+
+    if (order.logo_url === 'manual-entry') {
+      toast.error('This order was created manually without a logo')
+      return
+    }
+
+    if (order.logo_url === 'pending-upload') {
+      toast.error('Logo upload is pending - it may not be available yet')
+      return
+    }
+
+    setViewingLogoOrderId(order.id)
   }
 
   const handleGenerateInvoicePDF = async (order) => {
@@ -1054,6 +1110,40 @@ export default function AdminDashboard() {
                                   <FileText size={16} />
                                   View Invoice
                                 </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleViewLogo(order)}
+                                  className="rounded-xl bg-indigo-100 px-4 py-2 text-sm font-semibold text-indigo-700 hover:bg-indigo-200 transition flex items-center gap-2"
+                                >
+                                  <Eye size={16} />
+                                  View Logo
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleDownloadLogo(order)}
+                                  className="rounded-xl bg-cyan-100 px-4 py-2 text-sm font-semibold text-cyan-700 hover:bg-cyan-200 transition flex items-center gap-2"
+                                >
+                                  <Download size={16} />
+                                  Logo
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleGenerateInvoicePDF(order)}
+                                  disabled={isGeneratingInvoice}
+                                  className="rounded-xl bg-orange-100 px-4 py-2 text-sm font-semibold text-orange-700 hover:bg-orange-200 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                                >
+                                  <Download size={16} />
+                                  PDF
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleGenerateInvoicePNG(order)}
+                                  disabled={isGeneratingInvoice}
+                                  className="rounded-xl bg-purple-100 px-4 py-2 text-sm font-semibold text-purple-700 hover:bg-purple-200 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                                >
+                                  <Camera size={16} />
+                                  PNG
+                                </button>
                                
                               </div>
 
@@ -1226,6 +1316,63 @@ export default function AdminDashboard() {
                 className="rounded-xl bg-purple-100 px-6 py-2 text-sm font-semibold text-purple-700 hover:bg-purple-200 transition disabled:opacity-50 flex items-center gap-2"
               >
                 {isGeneratingInvoice ? <><Loader size={16} className="animate-spin" /> Generating...</> : <><Camera size={16} /> Download PNG</>}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Logo Viewing Modal */}
+      {viewingLogoOrderId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-2xl bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between border-b border-gray-200 p-6">
+              <h3 className="text-lg font-bold text-gray-900">Logo Preview</h3>
+              <button
+                onClick={() => setViewingLogoOrderId(null)}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                <X size={24} />
+              </button>
+            </div>
+
+            {/* Modal Content */}
+            <div className="flex-1 p-6 bg-gray-50 flex items-center justify-center min-h-96">
+              {(() => {
+                const order = orders.find(o => o.id === viewingLogoOrderId)
+                if (!order || !order.logo_url || order.logo_url === 'manual-entry' || order.logo_url === 'pending-upload') {
+                  return (
+                    <div className="text-center">
+                      <p className="text-gray-500">Logo not available</p>
+                    </div>
+                  )
+                }
+                return (
+                  <img src={order.logo_url} alt="Logo" className="max-h-96 max-w-full object-contain" />
+                )
+              })()}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="border-t border-gray-200 bg-gray-50 p-6 flex gap-3 justify-end">
+              <button
+                onClick={() => setViewingLogoOrderId(null)}
+                className="rounded-xl bg-gray-200 px-6 py-2 text-sm font-semibold text-gray-900 hover:bg-gray-300 transition"
+              >
+                Close
+              </button>
+              <button
+                onClick={() => {
+                  const order = orders.find(o => o.id === viewingLogoOrderId)
+                  if (order) {
+                    handleDownloadLogo(order)
+                  }
+                }}
+                className="rounded-xl bg-cyan-100 px-6 py-2 text-sm font-semibold text-cyan-700 hover:bg-cyan-200 transition flex items-center gap-2"
+              >
+                <Download size={16} />
+                Download Logo
               </button>
             </div>
           </div>

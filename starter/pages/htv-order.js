@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react'
-import { ChevronRight, ChevronLeft, Upload, CheckCircle, Package, Box, Ruler, Sparkles, Lightbulb, Loader, Check } from 'lucide-react'
+import { ChevronRight, ChevronLeft, Upload, CheckCircle, Package, Box, Ruler, Sparkles, Lightbulb, Loader, Check, Download } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 const PRICING = {
@@ -52,6 +52,13 @@ export default function HtvOrderPage() {
     setFormData((prev) => ({ ...prev, [name]: value }))
   }
 
+  const fileToDataUrl = (file) => new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(reader.result)
+    reader.onerror = reject
+    reader.readAsDataURL(file)
+  })
+
   const handleLogoUpload = (e) => {
     const file = e.target.files?.[0]
     if (!file) return
@@ -68,6 +75,19 @@ export default function HtvOrderPage() {
       }))
     }
     reader.readAsDataURL(file)
+  }
+
+  const handleDownloadLogo = () => {
+    if (!formData.logo_file) return
+    const url = URL.createObjectURL(formData.logo_file)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = formData.logo_file.name || 'logo.png'
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+    toast.success('Logo downloaded successfully')
   }
 
   const calculateTotal = () => {
@@ -92,6 +112,43 @@ export default function HtvOrderPage() {
     }
     setSubmitting(true)
     try {
+      let logoUrl = 'manual-entry'
+      let logoFilename = 'manual-entry'
+
+      // Upload logo to Supabase Storage if provided
+      if (formData.logo_file && formData.logo_preview) {
+        try {
+          console.log('Starting logo upload for:', formData.logo_file.name)
+          const logoDataUrl = await fileToDataUrl(formData.logo_file)
+          
+          const uploadResponse = await fetch('/api/admin/upload-logo', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              file: logoDataUrl,
+              filename: formData.logo_file.name,
+            }),
+          })
+
+          const uploadData = await uploadResponse.json()
+
+          if (uploadResponse.ok && uploadData.logoUrl) {
+            logoUrl = uploadData.logoUrl
+            logoFilename = uploadData.filename
+            console.log('Logo uploaded successfully:', logoUrl)
+            toast.success('Logo uploaded successfully')
+          } else {
+            console.error('Logo upload failed:', uploadData)
+            throw new Error(uploadData.error || 'Logo upload failed')
+          }
+        } catch (uploadErr) {
+          console.error('Logo upload error:', uploadErr)
+          toast.error('Logo upload failed. Please try again.')
+          setSubmitting(false)
+          return
+        }
+      }
+
       const price = PRICING[selectedSize].packs[selectedPack]
       const payload = {
         business_name: formData.business_name,
@@ -102,16 +159,22 @@ export default function HtvOrderPage() {
         size: selectedSize,
         quantity: selectedPack,
         delivery_area: formData.location || 'Not provided',
-        subtotal: price,
-        delivery_fee: 0,
-        total: price + CONVERSION_CHARGE,
-        expenses: CONVERSION_CHARGE,
+        subtotal: price.toFixed(2),
+        delivery_fee: '0.00',
+        total: (price + CONVERSION_CHARGE).toFixed(2),
+        expenses: CONVERSION_CHARGE.toFixed(2),
+        revenue: price.toFixed(2),
         status: 'pending',
         rush_order: false,
-        logo_url: 'pending-upload',
-        logo_filename: formData.logo_file?.name || 'logo.png',
+        logo_url: logoUrl,
+        logo_filename: logoFilename,
+        raw_material_cost: '0.00',
+        labor_cost: '0.00',
+        other_expenses: '0.00',
+        profit: '0.00',
       }
 
+      console.log('Submitting order with logo_url:', logoUrl)
       const response = await fetch('/api/admin/htv-orders', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -154,7 +217,18 @@ export default function HtvOrderPage() {
                 {formData.logo_preview ? (
                   <div>
                     <img src={formData.logo_preview} alt="Logo preview" style={{ maxHeight: '120px', marginBottom: '12px' }} />
-                    <p style={{ fontSize: '13px', color: '#666', margin: '0' }}>Click to change logo</p>
+                    <p style={{ fontSize: '13px', color: '#666', margin: '0 0 12px 0' }}>Click to change logo</p>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handleDownloadLogo()
+                      }}
+                      style={{ padding: '8px 16px', backgroundColor: '#2563EB', color: '#fff', border: 'none', borderRadius: '6px', fontSize: '13px', fontWeight: '600', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                    >
+                      <Download size={14} />
+                      Download
+                    </button>
                   </div>
                 ) : (
                   <div>
@@ -315,7 +389,7 @@ export default function HtvOrderPage() {
             <div style={{ marginBottom: '30px' }}>
               <label style={{ display: 'block', fontSize: '16px', fontWeight: '700', marginBottom: '16px', color: '#333' }}>Select Vinyl Color</label>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                {['black', 'white'].map((color) => (
+                {['white','black'].map((color) => (
                   <div key={color} onClick={() => setSelectedColor(color)} style={{ padding: '20px', border: selectedColor === color ? '2px solid #2563EB' : '1px solid #e5e7eb', borderRadius: '8px', cursor: 'pointer', backgroundColor: selectedColor === color ? '#fff9f7' : '#fff', textAlign: 'center' }}>
                     <div style={{ width: '60px', height: '60px', backgroundColor: color === 'black' ? '#000' : '#fff', border: color === 'white' ? '2px solid #e5e7eb' : 'none', borderRadius: '8px', margin: '0 auto 12px' }} />
                     <p style={{ fontSize: '16px', fontWeight: '600', color: '#333', margin: '0', textTransform: 'capitalize' }}>{color}</p>

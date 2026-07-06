@@ -1,5 +1,13 @@
 import { getDbClient, requireAdminUser } from '@/lib/apiAuth';
 
+export const config = {
+  api: {
+    bodyParser: {
+      sizeLimit: '20mb',
+    },
+  },
+};
+
 function toApiError(defaultMessage, error) {
   if (!error) return defaultMessage;
   return error.message || error.details || error.hint || defaultMessage;
