@@ -702,7 +702,7 @@ export default function AdminDashboard() {
                 <div>
                   <label className="block text-sm font-semibold text-gray-900">Email</label>
                   <input
-                    type="email"
+                    type="text"
                     value={newOrder.email}
                     onChange={(e) => setNewOrder({ ...newOrder, email: e.target.value })}
                     className="mt-2 w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-black focus:border-accent focus:outline-none"
@@ -976,7 +976,7 @@ export default function AdminDashboard() {
                         <div>
                           <label className="block text-sm font-semibold text-gray-900">Email</label>
                           <input
-                            type="email"
+                            type="text"
                             value={editOrder.email || ''}
                             onChange={(e) => setEditOrder({ ...editOrder, email: e.target.value })}
                             className="mt-2 w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-black focus:border-blue-500 focus:outline-none"
