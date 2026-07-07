@@ -1153,7 +1153,24 @@ export default function AdminDashboard() {
                                   <Camera size={16} />
                                   PNG
                                 </button>
-                               
+                              </div>
+
+                              <div className="rounded-2xl bg-white p-4 border border-gray-200 mb-6">
+                                <p className="text-xs font-semibold uppercase text-gray-600 mb-3">Customer Info</p>
+                                <div className="space-y-2 text-sm">
+                                  <div className="flex justify-between">
+                                    <span className="text-gray-600">Business:</span>
+                                    <span className="font-semibold text-black">{order.business_name}</span>
+                                  </div>
+                                  <div className="flex justify-between">
+                                    <span className="text-gray-600">Phone:</span>
+                                    <span className="font-semibold text-black">{order.phone}</span>
+                                  </div>
+                                  <div className="flex justify-between">
+                                    <span className="text-gray-600">Email:</span>
+                                    <span className="font-semibold text-black">{order.email || 'N/A'}</span>
+                                  </div>
+                                </div>
                               </div>
 
                               <div className="grid gap-6 lg:grid-cols-3">

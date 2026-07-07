@@ -16,7 +16,7 @@ function sanitizeString(input, maxLength = 255) {
 
 function validateEmail(email) {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  return typeof email === 'string' && emailRegex.test(email.trim());
+  return typeof email === 'string';
 }
 
 function validatePhone(phone) {
