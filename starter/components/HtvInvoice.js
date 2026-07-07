@@ -124,13 +124,15 @@ const HtvInvoice = forwardRef(({ order, onClose }, ref) => {
             <td className="invoice-table-align-right" style={{ textAlign: 'right' }}>JMD {order.subtotal.toLocaleString()}</td>
           </tr>
 
-          {/* Logo Conversion Charge */}
-          <tr className="invoice-table-row-material">
-            <td>Logo Conversion Charge (Professional Processing)</td>
-            <td className="invoice-table-align-center">1</td>
-            <td className="invoice-table-align-right" style={{ textAlign: 'right' }}>JMD 500.00</td>
-            <td className="invoice-table-align-right" style={{ textAlign: 'right' }}>JMD 500.00</td>
-          </tr>
+          {/* Additional Logo Work Charge */}
+          {(order.logo_work_charge || 0) > 0 && (
+            <tr className="invoice-table-row-material">
+              <td>Additional Logo Work Charge (Professional Processing)</td>
+              <td className="invoice-table-align-center">1</td>
+              <td className="invoice-table-align-right" style={{ textAlign: 'right' }}>JMD {Number(order.logo_work_charge).toLocaleString()}</td>
+              <td className="invoice-table-align-right" style={{ textAlign: 'right' }}>JMD {Number(order.logo_work_charge).toLocaleString()}</td>
+            </tr>
+          )}
 
           {/* Raw Materials */}
           {rawMaterials.length > 0 && rawMaterials.map((material, idx) => (
