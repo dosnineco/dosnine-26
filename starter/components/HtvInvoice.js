@@ -124,15 +124,21 @@ const HtvInvoice = forwardRef(({ order, onClose }, ref) => {
             <td className="invoice-table-align-right" style={{ textAlign: 'right' }}>JMD {order.subtotal.toLocaleString()}</td>
           </tr>
 
+          {/* Delivery Fee */}
+          <tr className="invoice-table-row-material">
+            <td>Delivery Fee</td>
+            <td className="invoice-table-align-center">1</td>
+            <td className="invoice-table-align-right" style={{ textAlign: 'right' }}>JMD {Number(order.delivery_fee || 0).toLocaleString()}</td>
+            <td className="invoice-table-align-right" style={{ textAlign: 'right' }}>JMD {Number(order.delivery_fee || 0).toLocaleString()}</td>
+          </tr>
+
           {/* Additional Logo Work Charge */}
-          {(order.logo_work_charge || 0) > 0 && (
-            <tr className="invoice-table-row-material">
-              <td>Additional Logo Work Charge (Professional Processing)</td>
-              <td className="invoice-table-align-center">1</td>
-              <td className="invoice-table-align-right" style={{ textAlign: 'right' }}>JMD {Number(order.logo_work_charge).toLocaleString()}</td>
-              <td className="invoice-table-align-right" style={{ textAlign: 'right' }}>JMD {Number(order.logo_work_charge).toLocaleString()}</td>
-            </tr>
-          )}
+          <tr className="invoice-table-row-material">
+            <td>Additional Logo Work Charge (Professional Processing)</td>
+            <td className="invoice-table-align-center">1</td>
+            <td className="invoice-table-align-right" style={{ textAlign: 'right' }}>JMD {Number(order.labor_cost || 0).toLocaleString()}</td>
+            <td className="invoice-table-align-right" style={{ textAlign: 'right' }}>JMD {Number(order.labor_cost || 0).toLocaleString()}</td>
+          </tr>
 
           {/* Raw Materials */}
           {rawMaterials.length > 0 && rawMaterials.map((material, idx) => (
@@ -150,9 +156,23 @@ const HtvInvoice = forwardRef(({ order, onClose }, ref) => {
       <div className="invoice-totals">
         <div className="invoice-totals-box">
           <div className="invoice-totals-row">
-            <span>Subtotal:</span>
+            <span>Subtotal (Order):</span>
             <span>JMD {order.subtotal.toLocaleString()}</span>
           </div>
+          <div className="invoice-totals-row">
+            <span>Delivery Fee:</span>
+            <span>JMD {Number(order.delivery_fee || 0).toLocaleString()}</span>
+          </div>
+          <div className="invoice-totals-row">
+            <span>Additional Logo Work Charge:</span>
+            <span>JMD {Number(order.labor_cost || 0).toLocaleString()}</span>
+          </div>
+          {rawMaterials.length > 0 && (
+            <div className="invoice-totals-row">
+              <span>Raw Materials Total:</span>
+              <span>JMD {rawMaterials.reduce((sum, m) => sum + Number(m.cost || m.price || 0), 0).toLocaleString()}</span>
+            </div>
+          )}
           <div className="invoice-totals-row invoice-totals-row-total">
             <span>TOTAL:</span>
             <span>JMD {order.total.toLocaleString()}</span>

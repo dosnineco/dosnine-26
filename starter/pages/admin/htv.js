@@ -45,9 +45,9 @@ const DELIVERY = {
   halfWayTree: { label: 'Half Way Tree Area', fee: 0 },
   crossRoads: { label: 'Cross Roads Area', fee: 0 },
   newKingston: { label: 'New Kingston Area', fee: 0 },
-  constantSpring: { label: 'Constant Spring Area', fee: 700 },
-  portmore: { label: 'Portmore', fee: 1000 },
-  knutsford: { label: 'Knutsford Express Pickup', fee: 300 },
+  constantSpring: { label: 'Constant Spring Area', fee: 0 },
+  portmore: { label: 'Portmore', fee: 0 },
+  knutsford: { label: 'Knutsford Express Pickup', fee: 0 },
 }
 
 function formatCurrency(value) {
@@ -300,7 +300,7 @@ export default function AdminDashboard() {
           total: totalRevenue,
           raw_materials: rawMaterials.filter((item) => item.material.trim()),
           raw_material_cost: rawMaterialCost,
-          labor_cost: 0,
+          labor_cost: logoWorkCharge,
           other_expenses: 0,
           revenue: totalRevenue,
           expenses: expenseTotal,
@@ -1172,15 +1172,15 @@ export default function AdminDashboard() {
                                       <span className="text-gray-600">Other:</span>
                                       <span className="font-semibold text-black">{formatCurrency(other)}</span>
                                     </div>
-                                    {(order.logo_work_charge || 0) > 0 && (
+                                    {(order.labor_cost || 0) > 0 && (
                                       <div className="flex justify-between text-accent">
                                         <span>Additional Logo Work:</span>
-                                        <span className="font-semibold">{formatCurrency(order.logo_work_charge)}</span>
+                                        <span className="font-semibold">{formatCurrency(order.labor_cost)}</span>
                                       </div>
                                     )}
                                     <div className="border-t border-gray-200 pt-2 flex justify-between">
                                       <span className="font-semibold text-gray-900">Total Costs:</span>
-                                      <span className="font-bold text-black text-base">{formatCurrency(rawMaterial + labor + other + (order.logo_work_charge || 0))}</span>
+                                      <span className="font-bold text-black text-base">{formatCurrency(rawMaterial + labor + other)}</span>
                                     </div>
                                   </div>
                                 </div>
@@ -1189,7 +1189,7 @@ export default function AdminDashboard() {
                                   <p className="text-xs font-semibold uppercase text-gray-600 mb-2">Revenue & Profit</p>
                                   <div className="space-y-2 text-sm">
                                     {(() => {
-                                      const totalCosts = rawMaterial + labor + other + (order.logo_work_charge || 0)
+                                      const totalCosts = rawMaterial + labor + other
                                       const actualProfit = revenue - totalCosts
                                       return (
                                         <>
