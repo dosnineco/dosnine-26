@@ -9,25 +9,34 @@ import { ChevronDown, ChevronUp, Sparkles, Edit, Trash2, FileText, Download, Cam
 import { generateInvoicePDF, generateInvoicePNG } from '../../lib/invoiceGenerator'
 
 const COMBO_DEALS = [
-  { key: 'combo_10_small_10_large', label: '10 Small + 10 Large', price: 11500, quantity: 20, badge: 'MOST POPULAR' },
-  { key: 'combo_5_small_5_large', label: '5 Small + 5 Large', price: 6500, quantity: 10 },
+  { key: 'combo_10_small_10_large', label: '10 Small + 10 Large', price: 12650, quantity: 20, badge: 'MOST POPULAR' },
+  { key: 'combo_5_small_5_large', label: '5 Small + 5 Large', price: 7150, quantity: 10 },
+  { key: 'combo_10_small_10_large_5_xtra_large', label: '10 Small + 10 Large + 5 Xtra Large', price: 19800, quantity: 25, badge: 'BEST FOR MIXED ORDERS' },
 ]
 
 const PRICING = {
   small: {
     label: 'Small (3 inch)',
     quantities: {
-      5: 2500,
-      10: 4000,
-      20: 7000,
+      5: 2750,
+      10: 4400,
+      20: 7700,
     },
   },
   large: {
     label: 'Large (6 inch)',
     quantities: {
-      5: 4000,
-      10: 7500,
-      20: 13000,
+      5: 4400,
+      10: 8250,
+      20: 14300,
+    },
+  },
+  xtraLarge: {
+    label: 'Xtra Large (10 inch)',
+    quantities: {
+      5: 7150,
+      10: 13750,
+      20: 25300,
     },
   },
 }
