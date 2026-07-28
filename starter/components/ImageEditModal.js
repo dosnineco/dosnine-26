@@ -24,7 +24,7 @@ export default function ImageEditModal({ isOpen, onClose }) {
   const fetchHistory = async () => {
     try {
       setLoadingHistory(true)
-      const response = await fetch('/api/generations?limit=8')
+      const response = await fetch('/api/generations?limit=50')
       const data = await response.json()
       if (data.success) {
         setHistory(data.data || [])
