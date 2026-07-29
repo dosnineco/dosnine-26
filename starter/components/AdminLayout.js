@@ -159,6 +159,10 @@ export default function AdminLayout() {
             <FiMail size={14} />
             Newsletter
           </Link>
+          <Link href="/admin/market-intelligence" className={`px-3 py-2 rounded-md text-sm font-medium flex items-center gap-1.5 whitespace-nowrap ${isActive('/admin/market-intelligence') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-100'}`}>
+            <FiTrendingUp size={14} />
+            Market Intelligence
+          </Link>
           <Link href="/admin/allocation" className={`px-3 py-2 rounded-md text-sm font-medium flex items-center gap-1.5 whitespace-nowrap ${isActive('/admin/allocation') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-100'}`}>
             <FiTrendingUp size={14} />
             Allocation
