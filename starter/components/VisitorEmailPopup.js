@@ -12,13 +12,14 @@ const BUDGET_RANGES = {
   default: { min: 70000, max: 100000000, step: 10000 }
 };
 
-const formatJmd = (value) => `J$${Number(value || 0).toLocaleString()}`;
+const URGENCY_OPTIONS = [
+  { value: 'low', label: 'Low', classes: 'bg-emerald-100 text-emerald-800 border-emerald-200 hover:bg-emerald-200' },
+  { value: 'normal', label: 'Normal', classes: 'bg-sky-100 text-sky-800 border-sky-200 hover:bg-sky-200' },
+  { value: 'high', label: 'High', classes: 'bg-orange-100 text-orange-800 border-orange-200 hover:bg-orange-200' },
+  { value: 'urgent', label: 'Urgent', classes: 'bg-red-100 text-red-800 border-red-200 hover:bg-red-200' }
+];
 
-const formatBudgetInput = (value) => {
-  if (value === '' || value === null || value === undefined) return '';
-  const numeric = Number(String(value).replace(/,/g, ''));
-  return Number.isFinite(numeric) ? numeric.toLocaleString() : '';
-};
+const formatJmd = (value) => `J$${Number(value || 0).toLocaleString()}`;
 
 export default function RequestAgentPopup() {
   const { isSignedIn, user } = useUser();
@@ -197,20 +198,30 @@ export default function RequestAgentPopup() {
       return;
     }
 
-    if (name === 'budgetMin' && numericValue < range.min) {
-      numericValue = range.min;
+    if (name === 'budgetMin') {
+      numericValue = Math.max(numericValue, range.min);
+      numericValue = Math.min(numericValue, range.max - range.step);
     }
 
     setFormData((prev) => {
       const next = { ...prev, [name]: String(numericValue) };
+      const currentMin = Number(prev.budgetMin || range.min);
+      const currentMax = Number(prev.budgetMax || range.max);
 
-      if (name === 'budgetMin' && Number(next.budgetMax || 0) < numericValue) {
-        next.budgetMax = String(numericValue);
+      if (name === 'budgetMin') {
+        if (currentMax <= numericValue) {
+          next.budgetMax = String(Math.min(numericValue + range.step, range.max));
+        }
       }
 
-      if (name === 'budgetMax' && Number(next.budgetMin || 0) > numericValue) {
-        numericValue = Number(next.budgetMin || range.min);
-        next.budgetMax = String(numericValue);
+      if (name === 'budgetMax') {
+        const minAllowed = Math.min(Math.max(currentMin + range.step, range.min + range.step), range.max);
+        if (numericValue <= currentMin) {
+          numericValue = minAllowed;
+          next.budgetMax = String(numericValue);
+        } else {
+          next.budgetMax = String(Math.min(numericValue, range.max));
+        }
       }
 
       return next;
@@ -229,6 +240,45 @@ export default function RequestAgentPopup() {
     if (step === 2 && (!formData.propertyType || !formData.location)) {
       toast.error('Please fill property type and location');
       return;
+    }
+
+    if (step === 2) {
+      setFormData(prev => {
+        const range = getBudgetRange(prev.requestType);
+        const safeMin = prev.budgetMin
+          ? Math.min(Math.max(Number(prev.budgetMin), range.min), Math.max(range.min, range.max - range.step))
+          : range.min;
+        const safeMax = prev.budgetMax
+          ? Math.min(Math.max(Number(prev.budgetMax), safeMin + range.step), range.max)
+          : Math.min(safeMin + range.step, range.max);
+
+        return {
+          ...prev,
+          budgetMin: String(safeMin),
+          budgetMax: String(Math.max(safeMax, safeMin + range.step))
+        };
+      });
+    }
+
+    if (step === 3) {
+      const range = getBudgetRange(formData.requestType);
+      const budgetMin = Number(formData.budgetMin);
+      const budgetMax = Number(formData.budgetMax);
+
+      if (!budgetMin || budgetMin < range.min) {
+        toast.error(`Please set a minimum budget of at least ${formatJmd(range.min)}.`);
+        return;
+      }
+
+      if (!budgetMax) {
+        toast.error('Please set a maximum budget.');
+        return;
+      }
+
+      if (budgetMax <= budgetMin) {
+        toast.error('Maximum budget must be greater than minimum budget.');
+        return;
+      }
     }
 
     setStep(prev => prev + 1);
@@ -268,8 +318,8 @@ if (!formData.name || !formData.email || !formData.phone ||
       return;
     }
 
-    if (budgetMax < budgetMin) {
-      toast.error('Budget max must be greater than or equal to budget min.');
+    if (budgetMax <= budgetMin) {
+      toast.error('Budget max must be greater than minimum budget.');
       return;
     }
 
@@ -396,14 +446,16 @@ return (
                 What do you need help with? <span className="text-red-500">*</span>
               </label>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                 {["buy","rent","sell","lease","valuation"].map(type => (
                   <button
                     key={type}
                     type="button"
                     onClick={() => setFormData(prev => ({ ...prev, requestType: type }))}
-                    className={`p-3 border rounded-lg font-semibold ${
-                      formData.requestType === type ? "bg-accent text-white" : ""
+                    className={`py-2 px-3 rounded-full text-sm font-semibold border transition-colors ${
+                      formData.requestType === type
+                        ? 'bg-accent text-white border-transparent'
+                        : 'bg-gray-100 text-gray-700 border-gray-200 hover:bg-gray-200'
                     }`}
                   >
                     {type}
@@ -534,40 +586,27 @@ return (
         {/* STEP 3 */}
         {step === 3 && (
           <>
-            <label className="block font-bold mb-1">
-              Urgency Level
-            </label>
-            <select
-              name="urgency"
-              value={formData.urgency}
-              onChange={handleInputChange}
-              className="input"
-            >
-              <option value="low">Low</option>
-              <option value="normal">Normal</option>
-              <option value="high">High</option>
-              <option value="urgent">Urgent</option>
-            </select>
+            <label className="block font-bold mb-1">Urgency Level</label>
+            <div className="grid grid-cols-2 gap-2 mb-4 sm:grid-cols-4">
+              {URGENCY_OPTIONS.map((option) => (
+                <button
+                  key={option.value}
+                  type="button"
+                  onClick={() => setFormData(prev => ({ ...prev, urgency: option.value }))}
+                  className={`py-2 px-3 rounded-full text-sm font-semibold border ${
+                    formData.urgency === option.value
+                      ? 'bg-accent text-white border-transparent'
+                      : option.classes
+                  }`}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
 
-            <input
-              placeholder='Minimum Budget (JMD)'
-              type="text"
-              inputMode="numeric"
-              name="budgetMin"
-              value={formatBudgetInput(formData.budgetMin)}
-              onChange={handleInputChange}
-              className="input"
-            />
-
-            <input
-              placeholder='Maximum Budget (JMD)'
-              type="text"
-              inputMode="numeric"
-              name="budgetMax"
-              value={formatBudgetInput(formData.budgetMax)}
-              onChange={handleInputChange}
-              className="input"
-            />
+            <div className="text-sm text-gray-600 mb-4">
+              Budget sliders are required. Maximum budget must be larger than minimum budget.
+            </div>
 
             <div className="bg-gray-50 rounded-lg p-5 space-y-5">
               <div className="flex flex-wrap justify-between gap-2 text-sm text-gray-700">
@@ -608,12 +647,29 @@ return (
               </div>
             </div>
 
+            <div className="flex gap-4">
+              <button type="button" onClick={prevStep} className="flex-1 border py-3 rounded-lg">
+                Back
+              </button>
+              <button type="button" onClick={nextStep} className="flex-1 bg-accent text-white py-3 rounded-lg">
+                Continue
+              </button>
+            </div>
+          </>
+        )}
+
+        {/* STEP 4 */}
+        {step === 4 && (
+          <>
+            <label className="block font-bold mb-1">
+              Additional details (optional)
+            </label>
             <textarea
               name="description"
               value={formData.description}
               onChange={handleInputChange}
-              placeholder="Additional details eg. Monthly income, Occupation"
-              className="input"
+              placeholder="Additional details eg. Monthly income, Occupation(Job), family size, etc. (optional)"
+              className="input h-40"
             />
 
             <div className="flex gap-4">
