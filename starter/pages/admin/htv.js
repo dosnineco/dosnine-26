@@ -66,6 +66,26 @@ function getWeekLabel(value) {
   return `Week of ${date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`
 }
 
+async function parseApiResponse(response) {
+  const text = await response.text()
+
+  if (!text) {
+    return {}
+  }
+
+  try {
+    return JSON.parse(text)
+  } catch (error) {
+    console.error('Failed to parse API response', {
+      status: response?.status,
+      contentType: response?.headers?.get?.('content-type'),
+      snippet: text.slice(0, 500),
+    })
+
+    return { error: text.slice(0, 500) || 'Unexpected server response' }
+  }
+}
+
 function computeOrderFinancials(order) {
   const revenue = Number(order.revenue || order.total || 0)
   const rawMaterial = Number(order.raw_material_cost || 0)
@@ -153,7 +173,7 @@ export default function AdminDashboard() {
 
     try {
       const response = await fetch('/api/admin/verify-admin')
-      const payload = await response.json()
+      const payload = await parseApiResponse(response)
 
       if (!response.ok || !payload?.isAdmin) {
         toast.error('Access denied: Admin only')
@@ -178,7 +198,7 @@ export default function AdminDashboard() {
 
     try {
       const response = await fetch('/api/admin/htv-orders')
-      const payload = await response.json()
+      const payload = await parseApiResponse(response)
 
       if (!response.ok || !payload?.success) {
         throw new Error(payload?.error || 'Failed to load orders')
@@ -310,7 +330,7 @@ export default function AdminDashboard() {
         }),
       })
 
-      const payload = await response.json()
+      const payload = await parseApiResponse(response)
 
       if (!response.ok || !payload?.success) {
         throw new Error(payload?.error || 'Failed to create order')
@@ -397,7 +417,7 @@ export default function AdminDashboard() {
         }),
       })
 
-      const payload = await response.json()
+      const payload = await parseApiResponse(response)
 
       if (!response.ok || !payload?.success) {
         throw new Error(payload?.error || 'Failed to update order')
@@ -428,7 +448,7 @@ export default function AdminDashboard() {
         method: 'DELETE',
       })
 
-      const payload = await response.json()
+      const payload = await parseApiResponse(response)
 
       if (!response.ok || !payload?.success) {
         throw new Error(payload?.error || 'Failed to delete order')

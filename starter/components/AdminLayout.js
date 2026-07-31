@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { useEffect, useMemo, useState } from 'react';
-import { FiGrid, FiUsers, FiZap, FiTrendingUp, FiPackage, FiMail } from 'react-icons/fi';
+import { FiGrid, FiUsers, FiZap, FiTrendingUp, FiPackage, FiMail, FiDollarSign } from 'react-icons/fi';
 
 export default function AdminLayout() {
   const router = useRouter();
@@ -162,6 +162,10 @@ export default function AdminLayout() {
           <Link href="/admin/market-intelligence" className={`px-3 py-2 rounded-md text-sm font-medium flex items-center gap-1.5 whitespace-nowrap ${isActive('/admin/market-intelligence') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-100'}`}>
             <FiTrendingUp size={14} />
             Market Intelligence
+          </Link>
+          <Link href="/admin/hill-lot-investors" className={`px-3 py-2 rounded-md text-sm font-medium flex items-center gap-1.5 whitespace-nowrap ${isActive('/admin/hill-lot-investors') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-100'}`}>
+            <FiDollarSign size={14} />
+            Hill Lot Investors
           </Link>
           <Link href="/admin/allocation" className={`px-3 py-2 rounded-md text-sm font-medium flex items-center gap-1.5 whitespace-nowrap ${isActive('/admin/allocation') ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-100'}`}>
             <FiTrendingUp size={14} />

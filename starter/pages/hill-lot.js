@@ -7,9 +7,10 @@ export default function HillLotInvestmentPage() {
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [investmentAmount, setInvestmentAmount] = useState('');
-  
+
   const [status, setStatus] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -32,6 +33,8 @@ export default function HillLotInvestmentPage() {
           fullName,
           email,
           phone,
+          investmentAmount,
+          message: investmentAmount ? `Investment interest: ${investmentAmount}` : '',
         }),
       });
 
@@ -50,6 +53,7 @@ export default function HillLotInvestmentPage() {
       }
 
       setStatus({ type: 'success', message: 'Your investment inquiry has been received. Our legal team will contact you within 48 hours.' });
+      setShowSuccessModal(true);
       setFullName('');
       setEmail('');
       setPhone('');
@@ -64,63 +68,46 @@ export default function HillLotInvestmentPage() {
   return (
     <>
       <Head>
-        <title>Short-Term Rental Investment | JMD 20M Project | Dosnine</title>
+        <title>Short-Term Rental Investment | USD 200K Project | Dosnine</title>
         <meta
           name="description"
-          content="Invest in a luxury short-term rental development in Sligoville. JMD 20M project managed by Dosnine. 6.69% annual returns based on profits. Investment tiers from JMD 1M-5M. Completion 2029."
+          content="Invest in a short-term rental development in Sligoville. USD 200K project managed by Dosnine. 3% annual payback. Investment tiers from USD 50K-250K. Completion 2029."
         />
-        <meta property="og:title" content="The Hill Lot: Short-Term Rental Investment | Dosnine" />
+        <meta property="og:title" content="The Hill Lot: Secured Property Investment | Dosnine" />
         <meta
           property="og:description"
-          content="Premium short-term rental investment opportunity. 6.69% annual profit-based returns. Dosnine-managed acquisition and renovations. 2029 completion."
+          content="Secured property investment focused on short-term rentals. 3% annual payback. Dosnine-managed acquisition and renovations. 2029 completion."
         />
         <meta property="og:type" content="website" />
         <link rel="canonical" href="https://dosnine.com/hill-lot" />
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="true" />
-        <link
-          href="https://fonts.googleapis.com/css2?family=Tai+Heritage+Pro:wght@400;600;700&display=swap"
-          rel="stylesheet"
-        />
       </Head>
 
-
-      <main className="bg-[#0a0e27] text-white">
-        
-        {/* Hero Section */}
-        <section className="relative overflow-hidden py-24 sm:py-32">
-          <div className="absolute inset-0">
-            <div className="absolute inset-0 bg-gradient-to-b from-[#F55353]/20 via-transparent to-[#0a0e27]" />
-            <div className="absolute top-0 right-0 w-96 h-96 bg-[#F55353]/10 rounded-full blur-3xl" />
-            <div className="absolute bottom-0 left-0 w-96 h-96 bg-[#d14a4a]/10 rounded-full blur-3xl" />
-          </div>
-          
-          <div className="relative container mx-auto px-4">
+      <main className="min-h-screen bg-[#f5f8fd] text-slate-900">
+        <section className="bg-[#0b2343] py-24 text-white sm:py-32">
+          <div className="container mx-auto px-4">
             <div className="max-w-4xl">
-              <p className="inline-flex rounded-full border border-[#F55353]/50 bg-[#F55353]/10 px-4 py-1 text-xs font-semibold uppercase tracking-[0.32em] text-[#F55353] mb-6">
-                Exclusive Short-Term Rental Investment
+              <p className="mb-6 text-xs font-semibold uppercase tracking-[0.32em] text-[#8ec5ff]">
+                Secured Property Investment
               </p>
-              <h1 className="text-6xl sm:text-7xl font-bold tracking-[-0.03em] mb-6" style={{ fontFamily: 'Tai Heritage Pro, serif' }}>
+              <h1 className="mb-6 text-5xl font-bold tracking-[-0.03em] sm:text-7xl" style={{ fontFamily: 'Tai Heritage Pro, serif' }}>
                 The Hill Lot:
                 <br />
-                <span className="bg-gradient-to-r from-[#F55353] to-[#ff8080] bg-clip-text text-transparent">
-                  Premium Rental Investment
-                </span>
+                <span className="text-[#9fd8ff]">Short-Term Rental Focus</span>
               </h1>
-              <p className="text-xl text-[#c8d8f0] leading-8 max-w-2xl mb-8">
-                Join a select group of strategic investors in a premier Sligoville short-term rental development. Annual 6.69% profit-based returns. Managed acquisition and full renovations by Dosnine. Excavations complete. Completion in 2029.
+              <p className="mb-8 max-w-2xl text-xl leading-8 text-slate-300">
+                This investment is focused on short-term rentals and is presented as a secured property investment with a 3% annual payback.
               </p>
 
-              <div className="flex flex-col sm:flex-row gap-4">
+              <div className="flex flex-col gap-4 sm:flex-row">
                 <a
                   href="#investment-inquiry"
-                  className="inline-flex justify-center rounded-full bg-gradient-to-r from-[#F55353] to-[#d14a4a] px-8 py-4 text-sm font-semibold text-white shadow-xl shadow-[#F55353]/30 transition hover:shadow-[#F55353]/50"
+                  className="inline-flex justify-center rounded-[4px] bg-[#2563eb] px-8 py-4 text-sm font-semibold text-white transition hover:bg-[#1d4ed8]"
                 >
                   Begin Investment Inquiry
                 </a>
                 <a
                   href="#investment-details"
-                  className="inline-flex justify-center rounded-full border border-[#F55353]/50 bg-transparent px-8 py-4 text-sm font-semibold text-[#F55353] transition hover:bg-[#F55353]/10"
+                  className="inline-flex justify-center rounded-[4px] border border-[#4f7ecf] bg-transparent px-8 py-4 text-sm font-semibold text-[#bfdbfe] transition hover:bg-[#13294d]"
                 >
                   Learn More
                 </a>
@@ -129,141 +116,137 @@ export default function HillLotInvestmentPage() {
           </div>
         </section>
 
-        {/* Key Metrics */}
-        <section className="py-16 sm:py-20 border-y border-[#F55353]/30">
+        <section className="border-y border-[#dfe8f7] bg-[#f7faff] py-16 sm:py-20">
           <div className="container mx-auto px-4">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
+            <div className="grid grid-cols-2 gap-8 md:grid-cols-4">
               <div className="text-center">
-                <p className="text-4xl sm:text-5xl font-bold text-[#F55353] mb-2">JMD 20M</p>
-                <p className="text-sm uppercase tracking-[0.2em] text-[#999]">Total Investment</p>
+                <p className="mb-2 text-4xl font-bold text-[#2563eb] sm:text-5xl">USD 200K</p>
+                <p className="text-sm uppercase tracking-[0.2em] text-slate-500">Total Investment</p>
               </div>
               <div className="text-center">
-                <p className="text-4xl sm:text-5xl font-bold text-[#F55353] mb-2">1M-5M</p>
-                <p className="text-sm uppercase tracking-[0.2em] text-[#999]">Investment Tiers</p>
+                <p className="mb-2 text-4xl font-bold text-[#2563eb] sm:text-5xl">50K-250K</p>
+                <p className="text-sm uppercase tracking-[0.2em] text-slate-500">Investment Tiers</p>
               </div>
               <div className="text-center">
-                <p className="text-4xl sm:text-5xl font-bold text-[#F55353] mb-2">2029</p>
-                <p className="text-sm uppercase tracking-[0.2em] text-[#999]">Completion Date</p>
+                <p className="mb-2 text-4xl font-bold text-[#2563eb] sm:text-5xl">2029</p>
+                <p className="text-sm uppercase tracking-[0.2em] text-slate-500">Completion Date</p>
               </div>
               <div className="text-center">
-                <p className="text-4xl sm:text-5xl font-bold text-[#F55353] mb-2">6.69%</p>
-                <p className="text-sm uppercase tracking-[0.2em] text-[#999]">Annual Returns</p>
+                <p className="mb-2 text-4xl font-bold text-[#2563eb] sm:text-5xl">3%</p>
+                <p className="text-sm uppercase tracking-[0.2em] text-slate-500">Annual Payback</p>
               </div>
             </div>
           </div>
         </section>
 
-        {/* Video Section */}
         <section className="py-16 sm:py-20">
           <div className="container mx-auto px-4">
             <AutoPlayYouTube pageId="hill-lot-investment" />
           </div>
         </section>
 
-        {/* Investment Structure */}
-        <section id="investment-details" className="py-16 sm:py-20 bg-[#0a0e27]\">
+        <section id="investment-details" className="bg-white py-16 sm:py-20">
           <div className="container mx-auto px-4">
-            <div className="max-w-3xl mx-auto text-center mb-16">
-              <h2 className="text-4xl sm:text-5xl font-bold mb-6" style={{ fontFamily: 'Tai Heritage Pro, serif' }}>
+            <div className="mx-auto mb-16 max-w-3xl text-center">
+              <h2 className="mb-6 text-4xl font-bold sm:text-5xl" style={{ fontFamily: 'Tai Heritage Pro, serif' }}>
                 How It Works
               </h2>
-              <p className="text-lg text-[#F55353]">
-                Short-term rental investment with predictable annual returns of 6.69% of profits. Contract ends at ROI threshold.
+              <p className="text-lg text-[#2563eb]">
+                A secured short-term rental investment with annual returns of 3% to 4% paid after the property begins operating.
               </p>
             </div>
 
-            <div className="grid md:grid-cols-3 gap-8 mb-12">
-              <div className="rounded-2xl border border-[#F55353]/30 bg-[#111] p-8 hover:border-[#F55353]/60 transition">
-                <div className="text-4xl mb-4">🏘️</div>
-                <h3 className="text-xl font-bold mb-3">Short-Term Rentals</h3>
-                <p className="text-[#ccc]">
-                  Luxury hilltop property managed for premium short-term vacation rentals. Dosnine handles all operations and maintenance.
+            <div className="mb-12 grid gap-8 md:grid-cols-3">
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-8">
+                <div className="mb-4 text-4xl">🏘️</div>
+                <h3 className="mb-3 text-xl font-bold">Short-Term Rentals</h3>
+                <p className="text-slate-600">
+                  The property is positioned for premium short-term rental activity in a high-demand location.
                 </p>
               </div>
 
-              <div className="rounded-2xl border border-[#F55353]/30 bg-[#111] p-8 hover:border-[#F55353]/60 transition">
-                <div className="text-4xl mb-4">💰</div>
-                <h3 className="text-xl font-bold mb-3">6.69% Annual Profits</h3>
-                <p className="text-[#ccc]">
-                  Receive 6.69% of annual property profits paid directly to you. Payments calculated and distributed annually based on verified rental revenues.
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-8">
+                <div className="mb-4 text-4xl">💰</div>
+                <h3 className="mb-3 text-xl font-bold">3% to 4% Annual Returns</h3>
+                <p className="text-slate-600">
+                  Investors receive annual returns of 3% to 4% based on the agreed structure and documented project performance.
                 </p>
               </div>
 
-              <div className="rounded-2xl border border-[#F55353]/30 bg-[#111] p-8 hover:border-[#F55353]/60 transition">
-                <div className="text-4xl mb-4">✓</div>
-                <h3 className="text-xl font-bold mb-3">Contract Completion</h3>
-                <p className="text-[#ccc]">
-                  Your investment contract terminates once you reach 6.69% return on your initial investment. Full liquidity upon completion.
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-8">
+                <div className="mb-4 text-4xl">✓</div>
+                <h3 className="mb-3 text-xl font-bold">Secured Structure</h3>
+                <p className="text-slate-600">
+                  This is presented as a secured property investment with a clear and documented investor structure.
                 </p>
               </div>
             </div>
           </div>
         </section>
 
-        {/* Investment Tiers */}
         <section className="py-16 sm:py-20">
           <div className="container mx-auto px-4">
-            <div className="text-center mb-16">
-              <h2 className="text-4xl sm:text-5xl font-bold mb-4" style={{ fontFamily: 'Tai Heritage Pro, serif' }}>
+            <div className="mb-16 text-center">
+              <h2 className="mb-4 text-4xl font-bold sm:text-5xl" style={{ fontFamily: 'Tai Heritage Pro, serif' }}>
                 Investment Tiers
               </h2>
-              <p className="text-lg text-[#ccc]">
-                Choose your investment level and earn 6.69% annual profit returns
+              <p className="text-lg text-slate-600">
+                Choose your investment level and receive annual returns paid after the property starts operating.
               </p>
             </div>
 
-            <div className="grid md:grid-cols-3 gap-8">
+            <div className="grid gap-8 md:grid-cols-2 xl:grid-cols-3">
               {[
                 {
-                  tier: 'Founder',
-                  amount: 'JMD 5M',
-                  months: 'Contract ends in ~90-120 months',
-                  benefits: ['6.69% annual returns', 'Short-term rental income', 'Priority access', 'Annual audited reports', 'Direct investor updates'],
+                  tier: 'Tier 4',
+                  amount: 'USD 30K',
+                  months: 'Contract terms reviewed with legal counsel',
+                  benefits: ['4% annual interest', 'Secured by property title', 'Priority access', 'Annual reporting', 'Direct investor updates'],
                 },
                 {
-                  tier: 'Premium',
-                  amount: 'JMD 3M',
-                  months: 'Contract ends in ~90-120 months',
-                  benefits: ['6.69% annual returns', 'Short-term rental income', 'Quarterly updates', 'Legal oversight', 'Performance tracking'],
+                  tier: 'Tier 3',
+                  amount: 'USD 20K',
+                  months: 'Contract terms reviewed with legal counsel',
+                  benefits: ['3.25% annual interest', 'Secured by property title', 'Quarterly updates', 'Legal oversight', 'Performance tracking'],
                   featured: true,
                 },
                 {
-                  tier: 'Investor',
-                  amount: 'JMD 1M',
-                  months: 'Contract ends in ~90-120 months',
-                  benefits: ['6.69% annual returns', 'Short-term rental income', 'Annual statements', 'Legal contracts', 'Investment dashboard'],
+                  tier: 'Tier 2',
+                  amount: 'USD 10K',
+                  months: 'Contract terms reviewed with legal counsel',
+                  benefits: ['3% annual interest', 'Secured by property title', 'Annual statements', 'Legal contracts', 'Investment dashboard'],
                 },
               ].map((item) => (
                 <div
                   key={item.tier}
-                  className={`rounded-2xl border p-8 transition ${
+                  className={`rounded-[8px] border p-8 transition ${
                     item.featured
-                      ? 'border-[#F55353] bg-gradient-to-br from-[#F55353]/20 to-[#111] shadow-xl shadow-[#F55353]/20 scale-105'
-                      : 'border-[#F55353]/30 bg-[#111] hover:border-[#F55353]/60'
+                      ? 'border-[#2563eb] bg-[#f2f7ff]'
+                      : 'border-[#dfe8f7] bg-white hover:border-[#2563eb]'
                   }`}
                 >
                   {item.featured && (
-                    <p className="inline-block rounded-full bg-gradient-to-r from-[#F55353] to-[#d14a4a] px-3 py-1 text-xs font-bold text-white mb-4">
-                      MOST POPULAR
+                    <p className="mb-4 inline-block bg-[#2563eb] px-3 py-1 text-xs font-bold uppercase tracking-[0.2em] text-white">
+                      Most Popular
                     </p>
                   )}
-                  <p className="text-sm uppercase tracking-[0.2em] text-[#999] mb-2">{item.tier}</p>
-                  <p className="text-4xl font-bold mb-1 text-white">{item.amount}</p>
-                  <p className="text-[#F55353] mb-6 font-semibold text-sm">{item.months}</p>
+                  <p className="mb-2 text-sm uppercase tracking-[0.2em] text-slate-500">{item.tier}</p>
+                  <p className="mb-1 text-4xl font-bold text-slate-900">{item.amount}</p>
+                  <p className="mb-6 text-sm font-semibold text-[#2563eb]">{item.months}</p>
                   <ul className="space-y-3">
                     {item.benefits.map((benefit) => (
-                      <li key={benefit} className="flex items-start gap-3 text-[#ccc]">
-                        <span className="text-[#F55353] mt-1">✓</span>
+                      <li key={benefit} className="flex items-start gap-3 text-slate-600">
+                        <span className="mt-1 text-[#2563eb]">✓</span>
                         <span>{benefit}</span>
                       </li>
                     ))}
                   </ul>
                   <a
                     href="#investment-inquiry"
-                    className={`mt-8 block w-full rounded-full py-3 font-semibold text-center transition ${
+                    className={`mt-8 block w-full py-3 text-center font-semibold transition ${
                       item.featured
-                        ? 'bg-gradient-to-r from-[#F55353] to-[#d14a4a] text-white hover:shadow-lg hover:shadow-[#F55353]/30'
-                        : 'border border-[#F55353]/50 text-[#F55353] hover:bg-[#F55353]/10'
+                        ? 'bg-[#2563eb] text-white hover:bg-[#1d4ed8]'
+                        : 'border border-[#2563eb] text-[#2563eb] hover:bg-[#eff6ff]'
                     }`}
                   >
                     Start Inquiry
@@ -274,40 +257,39 @@ export default function HillLotInvestmentPage() {
           </div>
         </section>
 
-        {/* What Investors Receive */}
-        <section className="py-16 sm:py-20 bg-[#0a0e27]">
+        <section className="bg-white py-16 sm:py-20">
           <div className="container mx-auto px-4">
             <div className="max-w-3xl">
-              <h2 className="text-4xl sm:text-5xl font-bold mb-12" style={{ fontFamily: 'Tai Heritage Pro, serif' }}>
+              <h2 className="mb-12 text-4xl font-bold sm:text-5xl" style={{ fontFamily: 'Tai Heritage Pro, serif' }}>
                 What You Receive
               </h2>
 
               <div className="space-y-8">
-                <div className="border-l-4 border-[#F55353] pl-8">
-                  <h3 className="text-2xl font-bold mb-3 text-white">6.69% Annual Profit Returns</h3>
-                  <p className="text-[#a8d4ff] leading-7">
-                    Every year, receive 6.69% of the property's net rental profits. Payments calculated from actual short-term rental operations and distributed annually with full financial documentation.
+                <div className="border-l-4 border-[#2563eb] pl-8">
+                  <h3 className="mb-3 text-2xl font-bold text-slate-900">Annual Interest Returns</h3>
+                  <p className="leading-7 text-slate-600">
+                    Investors receive annual interest of 4% for USD 30K, 3.25% for USD 20K, and 3% for USD 10K, according to the agreed project structure and documentation.
                   </p>
                 </div>
 
-                <div className="border-l-4 border-[#F55353] pl-8">
-                  <h3 className="text-2xl font-bold mb-3 text-white">Contract Completion at ROI Threshold</h3>
-                  <p className="text-[#a8d4ff] leading-7">
-                    Once your cumulative returns reach 6.69% of your initial investment (approximately 90-120 months depending on profitability), your contract automatically completes. You receive full liquidity and exit.
+                <div className="border-l-4 border-[#2563eb] pl-8">
+                  <h3 className="mb-3 text-2xl font-bold text-slate-900">Secured by Property Title</h3>
+                  <p className="leading-7 text-slate-600">
+                    This opportunity is presented as a secured property investment backed by the property title and a clear structure for each investor.
                   </p>
                 </div>
 
-                <div className="border-l-4 border-[#F55353] pl-8">
-                  <h3 className="text-2xl font-bold mb-3 text-white">Transparent Financial Reporting</h3>
-                  <p className="text-[#a8d4ff] leading-7">
-                    Annual audited statements show property revenues, operating expenses, and your exact profit allocation. Full transparency on how returns are calculated. All reports verified by independent accountants.
+                <div className="border-l-4 border-[#2563eb] pl-8">
+                  <h3 className="mb-3 text-2xl font-bold text-slate-900">Transparent Reporting</h3>
+                  <p className="leading-7 text-slate-600">
+                    Investors receive regular updates and documented reporting on the project and payback process.
                   </p>
                 </div>
 
-                <div className="border-l-4 border-[#F55353] pl-8">
-                  <h3 className="text-2xl font-bold mb-3 text-white">Legal Contracts & Protection</h3>
-                  <p className="text-[#a8d4ff] leading-7">
-                    All investment agreements drafted and reviewed by independent legal counsel. Clear contract terms, regulatory compliance verification, and professional dispute resolution processes.
+                <div className="border-l-4 border-[#2563eb] pl-8">
+                  <h3 className="mb-3 text-2xl font-bold text-slate-900">Legal Review</h3>
+                  <p className="leading-7 text-slate-600">
+                    All terms are reviewed with legal counsel so investors can evaluate the structure before proceeding.
                   </p>
                 </div>
               </div>
@@ -315,28 +297,27 @@ export default function HillLotInvestmentPage() {
           </div>
         </section>
 
-        {/* Project Status */}
         <section className="py-16 sm:py-20">
           <div className="container mx-auto px-4">
-            <h2 className="text-4xl font-bold mb-12 text-center" style={{ fontFamily: 'Tai Heritage Pro, serif' }}>
+            <h2 className="mb-12 text-center text-4xl font-bold" style={{ fontFamily: 'Tai Heritage Pro, serif' }}>
               Investment Payout Timeline
             </h2>
 
-            <div className="max-w-4xl mx-auto">
+            <div className="mx-auto max-w-4xl">
               <div className="space-y-6">
                 {[
-                  { year: '2025', status: 'Excavations Complete - Operations Begin', color: 'from-[#F55353] to-[#d14a4a]' },
-                  { year: '2025-2029', status: 'Annual 6.69% Profit Returns Distributed', color: 'from-[#F55353] to-[#d14a4a]' },
-                  { year: '2029', status: 'Project Completion - Property Fully Operational', color: 'from-[#F55353] to-[#d14a4a]' },
-                  { year: 'Contract Ends', status: 'Once You Reach 6.69% ROI (90-120 months)', color: 'from-[#d14a4a] to-[#c23a3a]' },
+                  { year: '2025', status: 'Excavations Complete - Operations Begin' },
+                  { year: '2025-2029', status: 'Annual Interest Payments Distributed' },
+                  { year: '2029', status: 'Project Completion - Property Fully Operational' },
+                  { year: 'Contract Ends', status: 'Once the agreed terms are reached' },
                 ].map((item, idx) => (
-                  <div key={idx} className="flex gap-6 items-start">
-                    <div className={`bg-gradient-to-r ${item.color} rounded-full w-16 h-16 flex items-center justify-center flex-shrink-0`}>
-                      <span className="font-bold text-lg">{'✓'}</span>
+                  <div key={idx} className="flex items-start gap-6">
+                    <div className="flex h-16 w-16 flex-shrink-0 items-center justify-center rounded-[4px] bg-[#2563eb] text-lg font-bold text-white">
+                      <span>{'✓'}</span>
                     </div>
                     <div>
-                      <p className="text-sm uppercase tracking-[0.2em] text-[#999] font-semibold">{item.year}</p>
-                      <p className="text-2xl font-bold mt-2 text-white">{item.status}</p>
+                      <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">{item.year}</p>
+                      <p className="mt-2 text-2xl font-bold text-slate-900">{item.status}</p>
                     </div>
                   </div>
                 ))}
@@ -345,68 +326,67 @@ export default function HillLotInvestmentPage() {
           </div>
         </section>
 
-        {/* Investment Inquiry Form */}
-        <section id="investment-inquiry" className="py-16 sm:py-20 bg-[#0a0e27]">
+        <section id="investment-inquiry" className="bg-[#0b2343] py-16 text-white sm:py-20">
           <div className="container mx-auto px-4">
-            <div className="max-w-2xl mx-auto">
-              <div className="text-center mb-12">
-                <h2 className="text-4xl font-bold mb-4 text-white" style={{ fontFamily: 'Tai Heritage Pro, serif' }}>
+            <div className="mx-auto max-w-2xl">
+              <div className="mb-12 text-center">
+                <h2 className="mb-4 text-4xl font-bold" style={{ fontFamily: 'Tai Heritage Pro, serif' }}>
                   Begin Your Investment Journey
                 </h2>
-                <p className="text-[#F55353]">
+                <p className="text-[#bfdbfe]">
                   Submit your information and our legal team will contact you within 48 hours with full investment details and contract options.
                 </p>
               </div>
 
-              <div className="rounded-2xl border border-[#F55353]/30 bg-[#111] p-10">
+              <div className="rounded-[8px] border border-[#254c77] bg-[#0f2d4d] p-10">
                 <form onSubmit={handleSubmit} className="space-y-6">
                   <label className="block">
-                    <span className="text-sm font-semibold uppercase tracking-[0.1em] text-[#F55353]">Full Name *</span>
+                    <span className="text-sm font-semibold uppercase tracking-[0.1em] text-[#7dd3fc]">Full Name *</span>
                     <input
                       type="text"
                       required
                       value={fullName}
                       onChange={(e) => setFullName(e.target.value)}
-                      className="mt-3 w-full rounded-lg border border-[#F55353]/30 bg-[#111] px-4 py-3 text-white placeholder-[#666] focus:outline-none focus:border-[#F55353] focus:ring-2 focus:ring-[#F55353]/20"
+                      className="mt-3 w-full rounded-lg border border-slate-700 bg-slate-900 px-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:border-[#2563eb]"
                       placeholder="Your full name"
                     />
                   </label>
 
                   <label className="block">
-                    <span className="text-sm font-semibold uppercase tracking-[0.1em] text-[#F55353]">Email Address *</span>
+                    <span className="text-sm font-semibold uppercase tracking-[0.1em] text-[#7dd3fc]">Email Address *</span>
                     <input
                       type="email"
                       required
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      className="mt-3 w-full rounded-lg border border-[#F55353]/30 bg-[#111] px-4 py-3 text-white placeholder-[#666] focus:outline-none focus:border-[#F55353] focus:ring-2 focus:ring-[#F55353]/20"
+                      className="mt-3 w-full rounded-lg border border-slate-700 bg-slate-900 px-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:border-[#2563eb]"
                       placeholder="your@email.com"
                     />
                   </label>
 
                   <label className="block">
-                    <span className="text-sm font-semibold uppercase tracking-[0.1em] text-[#F55353]">Phone Number</span>
+                    <span className="text-sm font-semibold uppercase tracking-[0.1em] text-[#7dd3fc]">Phone Number</span>
                     <input
                       type="tel"
                       value={phone}
                       onChange={(e) => setPhone(e.target.value)}
-                      className="mt-3 w-full rounded-lg border border-[#F55353]/30 bg-[#111] px-4 py-3 text-white placeholder-[#666] focus:outline-none focus:border-[#F55353] focus:ring-2 focus:ring-[#F55353]/20"
+                      className="mt-3 w-full rounded-lg border border-slate-700 bg-slate-900 px-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:border-[#2563eb]"
                       placeholder="+1 876 555 0123"
                     />
                   </label>
 
                   <label className="block">
-                    <span className="text-sm font-semibold uppercase tracking-[0.1em] text-[#F55353]">Investment Interest *</span>
+                    <span className="text-sm font-semibold uppercase tracking-[0.1em] text-[#7dd3fc]">Investment Interest *</span>
                     <select
                       required
                       value={investmentAmount}
                       onChange={(e) => setInvestmentAmount(e.target.value)}
-                      className="mt-3 w-full rounded-lg border border-[#F55353]/30 bg-[#111] px-4 py-3 text-white focus:outline-none focus:border-[#F55353] focus:ring-2 focus:ring-[#F55353]/20"
+                      className="mt-3 w-full rounded-lg border border-slate-700 bg-slate-900 px-4 py-3 text-white focus:outline-none focus:border-[#2563eb]"
                     >
                       <option value="">Select an investment tier</option>
-                      <option value="1M">Investor - JMD 1M</option>
-                      <option value="3M">Premium - JMD 3M</option>
-                      <option value="5M">Founder - JMD 5M</option>
+                      <option value="10K">Tier 2 - USD 10K</option>
+                      <option value="20K">Tier 3 - USD 20K</option>
+                      <option value="30K">Tier 4 - USD 30K</option>
                       <option value="other">Other Amount</option>
                     </select>
                   </label>
@@ -414,18 +394,18 @@ export default function HillLotInvestmentPage() {
                   <button
                     type="submit"
                     disabled={loading}
-                    className="w-full rounded-full bg-gradient-to-r from-[#F55353] to-[#d14a4a] px-6 py-4 text-sm font-semibold text-white shadow-xl shadow-[#F55353]/30 transition hover:shadow-[#F55353]/50 disabled:opacity-70"
+                    className="w-full bg-[#2563eb] px-6 py-4 text-sm font-semibold text-white transition hover:bg-[#1d4ed8] disabled:opacity-70"
                   >
                     {loading ? 'Submitting...' : 'Submit Investment Inquiry'}
                   </button>
 
                   {status && (
-                    <p className={`text-sm ${status.type === 'success' ? 'text-[#F55353]' : 'text-[#ff6b6b]'}`}>
+                    <p className={`text-sm ${status.type === 'success' ? 'text-[#7dd3fc]' : 'text-[#fda4af]'}`}>
                       {status.message}
                     </p>
                   )}
 
-                  <p className="text-xs text-[#666] text-center mt-4">
+                  <p className="mt-4 text-center text-xs text-slate-400">
                     By submitting, you agree to be contacted by Dosnine and our legal partners regarding this investment opportunity. All information will be handled with complete confidentiality.
                   </p>
                 </form>
@@ -434,23 +414,22 @@ export default function HillLotInvestmentPage() {
           </div>
         </section>
 
-        {/* Legal Notice */}
-        <section className="py-16 border-t border-[#F55353]/30">
+        <section className="border-t border-[#dfe8f7] bg-white py-16">
           <div className="container mx-auto px-4">
-            <div className="max-w-3xl rounded-2xl border border-[#F55353]/30 bg-[#111] p-8">
-              <h3 className="text-xl font-bold mb-4 text-white">⚖️ Legal & Professional Oversight</h3>
-              <p className="text-[#ccc] mb-4">
+            <div className="mx-auto max-w-3xl rounded-[8px] border border-[#dfe8f7] bg-[#f8fbff] p-8">
+              <h3 className="mb-4 text-xl font-bold text-slate-900">⚖️ Legal & Professional Oversight</h3>
+              <p className="mb-4 text-slate-600">
                 All investment agreements are prepared, reviewed, and processed by independent legal counsel. Each investor receives:
               </p>
-              <ul className="space-y-3 text-[#ccc]">
-                <li>✓ Professionally drafted investment contract with ROI termination clause</li>
+              <ul className="space-y-3 text-slate-600">
+                <li>✓ Professionally drafted investment contract with clear terms</li>
                 <li>✓ Independent legal review and counsel</li>
-                <li>✓ Complete financial transparency and audited statements</li>
-                <li>✓ Annual profit calculations and 6.69% return documentation</li>
-                <li>✓ Regulatory compliance verification</li>
-                <li>✓ Automatic contract completion upon ROI threshold</li>
+                <li>✓ Complete financial transparency and reporting</li>
+                <li>✓ Annual payback calculations and documentation</li>
+                <li>✓ Regulatory compliance review</li>
+                <li>✓ Clear investor security disclosures</li>
               </ul>
-              <p className="text-sm text-[#666] mt-6 italic">
+              <p className="mt-6 text-sm italic text-slate-500">
                 This is a professional short-term rental investment opportunity. All contracts require legal processing. We recommend consulting with your personal legal and financial advisors before investing.
               </p>
             </div>
@@ -458,9 +437,28 @@ export default function HillLotInvestmentPage() {
         </section>
       </main>
 
+      {showSuccessModal && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/70 px-4">
+          <div className="w-full max-w-md rounded-[8px] border border-slate-200 bg-white p-8 text-center shadow-2xl">
+            <div className="mb-4 text-4xl text-[#2563eb]">✓</div>
+            <h3 className="text-2xl font-bold text-slate-900">Investment inquiry received</h3>
+            <p className="mt-3 text-base leading-7 text-slate-600">
+              Your investment inquiry has been received. Our legal team will contact you within 48 hours.
+            </p>
+            <button
+              type="button"
+              onClick={() => setShowSuccessModal(false)}
+              className="mt-6 w-full bg-[#2563eb] px-6 py-3 text-sm font-semibold text-white transition hover:bg-[#1d4ed8]"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
+
       <style jsx>{`
         :global(body) {
-          background: #0a0e27;
+          background: #f5f8fd;
         }
       `}</style>
     </>

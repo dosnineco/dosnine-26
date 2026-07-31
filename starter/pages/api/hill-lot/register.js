@@ -21,6 +21,8 @@ export default async function handler(req, res) {
     fullName,
     email,
     phone,
+    investmentAmount,
+    message,
   } = req.body || {};
 
   if (!email || typeof email !== 'string' || !email.includes('@')) {
@@ -34,7 +36,10 @@ export default async function handler(req, res) {
   const sanitizedFullName = sanitizeText(fullName).slice(0, 200);
   const sanitizedEmail = sanitizeEmail(email);
   const sanitizedPhone = sanitizePhoneInput(phone || '');
-  const sanitizedStayType = sanitizeText('pre-registration (end 2030)').slice(0, 50);
+  const sanitizedInvestmentAmount = sanitizeText(investmentAmount || '').slice(0, 50);
+  const sanitizedMessage = sanitizeText(message || '').slice(0, 500);
+  const normalizedInvestmentAmount = sanitizedInvestmentAmount === '30K' ? 30000 : sanitizedInvestmentAmount === '20K' ? 20000 : sanitizedInvestmentAmount === '10K' ? 10000 : null;
+  const sanitizedStayType = sanitizedInvestmentAmount || 'pre-registration (end 2030)';
   const page = '/hill-lot';
   const source = 'hill-lot-airbnb-pre-registration-form';
 
@@ -50,6 +55,8 @@ export default async function handler(req, res) {
         email: sanitizedEmail,
         phone: sanitizedPhone || null,
         stay_type: sanitizedStayType,
+        investment_amount: normalizedInvestmentAmount,
+        message: sanitizedMessage || null,
         page,
         source,
         ip_address: ipAddress || null,

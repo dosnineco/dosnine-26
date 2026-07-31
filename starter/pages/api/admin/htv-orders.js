@@ -30,7 +30,17 @@ function toApiError(defaultMessage, error) {
 }
 
 export default async function handler(req, res) {
-  const db = getDbClient();
+  let db;
+
+  try {
+    db = getDbClient();
+  } catch (error) {
+    console.error('HTV orders handler init failed', error);
+    return res.status(500).json({
+      success: false,
+      error: error?.message || 'HTV order service unavailable',
+    });
+  }
 
   // Allow public POST (order submissions), but require admin for GET/PUT/DELETE
   if (req.method === 'GET' || req.method === 'PUT' || req.method === 'DELETE') {
