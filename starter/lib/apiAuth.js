@@ -36,17 +36,33 @@ export function getClerkUserId(req) {
   return auth?.userId || null;
 }
 
+function getHeaderValue(req, name) {
+  const value = req?.headers?.[name];
+  if (Array.isArray(value)) return value[0] || null;
+  return typeof value === 'string' ? value : null;
+}
+
 export function getClerkUserContext(req) {
   const auth = getAuth(req);
   const sessionClaims = auth?.sessionClaims || {};
 
-  const email = typeof sessionClaims.email === 'string' ? sessionClaims.email : null;
-  const firstName = typeof sessionClaims.first_name === 'string' ? sessionClaims.first_name : '';
-  const lastName = typeof sessionClaims.last_name === 'string' ? sessionClaims.last_name : '';
-  const fullName = `${firstName} ${lastName}`.trim() || null;
+  const headerClerkId = getHeaderValue(req, 'x-clerk-user-id');
+  const headerEmail = getHeaderValue(req, 'x-clerk-user-email');
+  const headerName = getHeaderValue(req, 'x-clerk-user-name');
+
+  const email = typeof sessionClaims.email === 'string'
+    ? sessionClaims.email
+    : headerEmail || null;
+  const firstName = typeof sessionClaims.first_name === 'string'
+    ? sessionClaims.first_name
+    : '';
+  const lastName = typeof sessionClaims.last_name === 'string'
+    ? sessionClaims.last_name
+    : '';
+  const fullName = `${firstName} ${lastName}`.trim() || headerName || null;
 
   return {
-    clerkId: auth?.userId || null,
+    clerkId: auth?.userId || headerClerkId || null,
     email,
     fullName,
   };

@@ -8,7 +8,7 @@ const payloadSchema = z.object({
   subject: z.string().trim().min(1).max(200),
   previewText: z.string().trim().max(300).optional(),
   htmlContent: z.string().trim().min(1).max(200_000),
-  target: z.enum(['submittedVisitors', 'subscribedUsers', 'both']),
+  target: z.enum(['submittedVisitors', 'subscribedUsers', 'advertisements', 'both', 'buyers', 'sellers', 'renters']),
   parish: z.string().trim().max(120).optional(),
 });
 
@@ -60,13 +60,27 @@ export default async function handler(req, res) {
   const parishFilter = '';
 
   try {
-    if (payload.target === 'submittedVisitors' || payload.target === 'both') {
-      const { data: serviceRequests, error: requestError } = await db
+    const serviceRequestTypeFilter = payload.target === 'buyers'
+      ? ['buy']
+      : payload.target === 'sellers'
+      ? ['sell']
+      : payload.target === 'renters'
+      ? ['rent']
+      : null;
+
+    if (payload.target === 'submittedVisitors' || payload.target === 'both' || serviceRequestTypeFilter) {
+      let requestQuery = db
         .from('service_requests')
-        .select('client_email, client_name, parish')
+        .select('client_email, client_name, parish, request_type')
         .neq('client_email', '')
         .order('created_at', { ascending: false })
         .limit(250);
+
+      if (serviceRequestTypeFilter) {
+        requestQuery = requestQuery.in('request_type', serviceRequestTypeFilter);
+      }
+
+      const { data: serviceRequests, error: requestError } = await requestQuery;
 
       if (requestError) throw requestError;
       (serviceRequests || []).forEach((item) => {
@@ -106,6 +120,30 @@ export default async function handler(req, res) {
           firstName,
           lastName,
           parish: item?.parish || '',
+        });
+      });
+    }
+
+    if (payload.target === 'advertisements' || payload.target === 'both') {
+      const { data: ads, error: adsError } = await db
+        .from('advertisements')
+        .select('email, company_name, contact_name')
+        .neq('email', '')
+        .order('created_at', { ascending: false })
+        .limit(250);
+
+      if (adsError) throw adsError;
+      (ads || []).forEach((item) => {
+        const email = item?.email?.trim().toLowerCase();
+        if (!email) return;
+        const name = String(item?.contact_name || item?.company_name || '').trim();
+        const { firstName, lastName } = extractNameParts(name);
+        recipients.push({
+          email,
+          name: name || undefined,
+          firstName,
+          lastName,
+          parish: '',
         });
       });
     }

@@ -11,6 +11,40 @@ const AD_PLANS = {
   '30-day': { id: '30-day', name: '30-Day Ad', amount: 52499, durationDays: 30 },
 };
 
+const ALLOWED_AD_CATEGORIES = new Set([
+  'home_inspection',
+  'legal',
+  'architect',
+  'mortgage',
+  'insurance',
+  'valuation',
+  'contractor',
+  'other',
+]);
+
+const CATEGORY_ALIASES = {
+  electrician: 'contractor',
+  plumber: 'contractor',
+  mover: 'contractor',
+  pest_control: 'contractor',
+  realtor: 'other',
+  attorney: 'legal',
+  surveyor: 'other',
+  property_manager: 'other',
+  developer: 'other',
+  furniture_store: 'other',
+  hardware_store: 'other',
+  solar: 'other',
+  ac: 'other',
+};
+
+function normalizeCategory(value) {
+  const normalized = String(value || '').trim().toLowerCase();
+  if (!normalized) return 'contractor';
+  if (ALLOWED_AD_CATEGORIES.has(normalized)) return normalized;
+  return CATEGORY_ALIASES[normalized] || 'other';
+}
+
 async function sendAdminAdSubmissionEmail({
   company_name,
   title,
@@ -146,13 +180,15 @@ export default async function handler(req, res) {
     const selectedPlan = AD_PLANS[plan_id] || AD_PLANS['7-day'];
     const submittedAt = new Date().toISOString();
     const createdByClerkId = clerkContext?.clerkId || 'public_submission';
+    const normalizedEmail = String(email || clerkContext?.email || '').trim() || 'no-email@dosnine.local';
+    const normalizedCategory = normalizeCategory(category);
 
     const payload = {
       company_name,
-      category: category || 'contractor',
+      category: normalizedCategory,
       description,
       phone,
-      email: email || null,
+      email: normalizedEmail,
       website: website || null,
       image_url: primaryImageUrl,
       image_urls: normalizedImageUrls,
@@ -183,10 +219,10 @@ export default async function handler(req, res) {
     if (error && String(error?.message || '').toLowerCase().includes('column')) {
       const fallbackPayload = {
         company_name,
-        category: category || 'contractor',
+        category: normalizedCategory,
         description,
         phone,
-        email: email || null,
+        email: normalizedEmail,
         website: website || null,
         image_url: primaryImageUrl,
         is_featured: Boolean(is_featured),
@@ -216,11 +252,11 @@ export default async function handler(req, res) {
 
     const adDraft = {
       title: title || company_name,
-      category: category || 'contractor',
+      category: normalizedCategory,
       company_name,
       description,
       contact_name: contact_name || null,
-      email: email || null,
+      email: normalizedEmail,
       phone,
       website: website || null,
       image_url: primaryImageUrl,
@@ -251,7 +287,7 @@ export default async function handler(req, res) {
       await sendAdminAdSubmissionEmail({
         company_name,
         title,
-        category,
+        category: normalizedCategory,
         description,
         phone,
         email,

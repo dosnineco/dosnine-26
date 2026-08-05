@@ -6,17 +6,11 @@ import toast from 'react-hot-toast';
 import AdminLayout from '../../components/AdminLayout';
 import { FiMail } from 'react-icons/fi';
 import { supabase } from '@/lib/supabase';
-import { PARISHES } from '@/lib/normalizeParish';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Link from '@tiptap/extension-link';
 import ImageExtension from '@tiptap/extension-image';
 import DOMPurify from 'dompurify';
-
-const formatRate = (numerator, denominator) => {
-  if (!denominator || denominator === 0) return '0%';
-  return `${((numerator / denominator) * 100).toFixed(1)}%`;
-};
 
 export default function AdminNewsletterPage() {
   const router = useRouter();
@@ -30,12 +24,9 @@ export default function AdminNewsletterPage() {
     previewText: '',
     htmlContent: '',
   });
-  const [summary, setSummary] = useState({ visitorCount: 0, optedInCount: 0, visitorSample: [] });
-  const [campaignStats, setCampaignStats] = useState([]);
+  const [summary, setSummary] = useState({ visitorCount: 0, optedInCount: 0, advertisementCount: 0, buyCount: 0, sellCount: 0, rentCount: 0, visitorSample: [] });
   const [recipientSource, setRecipientSource] = useState('submittedVisitors');
   const [targetParish, setTargetParish] = useState('');
-  const [subscribers, setSubscribers] = useState([]);
-  const [selectedSubscriber, setSelectedSubscriber] = useState('');
   const [testEmail, setTestEmail] = useState('');
   const [drafts, setDrafts] = useState([]);
   const [draftId, setDraftId] = useState(null);
@@ -87,46 +78,16 @@ export default function AdminNewsletterPage() {
   useEffect(() => {
     if (!accessAllowed) return;
     fetchSummary();
-    fetchBrevoStats();
-    fetchSubscribers();
     loadLocalDrafts();
   }, [accessAllowed]);
-
-  const fetchSubscribers = async () => {
-    try {
-      const res = await fetch('/api/newsletter/subscribers');
-      const payload = await res.json();
-      if (!res.ok || !payload?.success) throw new Error(payload?.error || 'Failed to load subscribers');
-      setSubscribers(payload.subscribers || []);
-    } catch (err) {
-      console.error('Fetch subscribers error:', err);
-    }
-  };
-
-  const handleRemoveSubscriber = async (email) => {
-    if (!email) return;
-    if (!confirm(`Remove ${email} from the newsletter subscribers?`)) return;
-    try {
-      const res = await fetch('/api/newsletter/remove-subscriber', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email }),
-      });
-      const payload = await res.json();
-      if (!res.ok || !payload?.success) throw new Error(payload?.error || 'Failed to remove subscriber');
-      toast.success('Subscriber removed');
-      fetchSubscribers();
-      fetchSummary();
-    } catch (err) {
-      console.error('Remove subscriber error:', err);
-      toast.error(err.message || 'Failed to remove subscriber');
-    }
-  };
 
   const verifyAdmin = async () => {
     if (!user) return;
     try {
-      const response = await fetch('/api/admin/verify-admin');
+      const response = await fetch('/api/admin/verify-admin', {
+        headers: buildAuthHeaders(),
+        credentials: 'include',
+      });
       const payload = await response.json();
       if (!response.ok || !payload?.isAdmin) {
         router.push('/');
@@ -158,9 +119,22 @@ export default function AdminNewsletterPage() {
     window.localStorage.setItem('admin-newsletter-drafts', JSON.stringify(draftsToSave));
   };
 
+  const buildAuthHeaders = () => {
+    const headers = {};
+    if (user?.id) headers['x-clerk-user-id'] = user.id;
+    const primaryEmail = user?.emailAddresses?.[0]?.emailAddress || user?.primaryEmailAddress?.emailAddress || '';
+    if (primaryEmail) headers['x-clerk-user-email'] = primaryEmail;
+    const fullName = [user?.firstName, user?.lastName].filter(Boolean).join(' ').trim();
+    if (fullName) headers['x-clerk-user-name'] = fullName;
+    return headers;
+  };
+
   const fetchSummary = async () => {
     try {
-      const response = await fetch('/api/newsletter/summary');
+      const response = await fetch('/api/newsletter/summary', {
+        headers: buildAuthHeaders(),
+        credentials: 'include',
+      });
       const payload = await response.json();
       if (!response.ok || !payload?.success) {
         throw new Error(payload?.error || 'Failed to load newsletter summary');
@@ -168,19 +142,6 @@ export default function AdminNewsletterPage() {
       setSummary(payload);
     } catch (err) {
       console.error('Newsletter summary error:', err);
-    }
-  };
-
-  const fetchBrevoStats = async () => {
-    try {
-      const response = await fetch('/api/newsletter/brevo-stats');
-      const payload = await response.json();
-      if (!response.ok || !payload?.success) {
-        throw new Error(payload?.error || 'Failed to load Brevo stats');
-      }
-      setCampaignStats(payload.campaigns || []);
-    } catch (err) {
-      console.error('Brevo stats error:', err);
     }
   };
 
@@ -371,7 +332,11 @@ export default function AdminNewsletterPage() {
       const sanitizedHtml = DOMPurify.sanitize(newsletter.htmlContent);
       const response = await fetch('/api/newsletter/send', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...buildAuthHeaders(),
+        },
+        credentials: 'include',
         body: JSON.stringify({
           subject: newsletter.subject,
           previewText: newsletter.previewText,
@@ -400,7 +365,6 @@ export default function AdminNewsletterPage() {
     } finally {
       setLoadingSend(false);
       fetchSummary();
-      fetchBrevoStats();
     }
   };
 
@@ -421,7 +385,11 @@ export default function AdminNewsletterPage() {
       const sanitizedHtml = DOMPurify.sanitize(newsletter.htmlContent);
       const response = await fetch('/api/newsletter/send-test', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...buildAuthHeaders(),
+        },
+        credentials: 'include',
         body: JSON.stringify({
           subject: newsletter.subject,
           previewText: newsletter.previewText,
@@ -463,11 +431,19 @@ export default function AdminNewsletterPage() {
   }
 
   const recipientCount =
-    recipientSource === 'submittedVisitors'
-      ? summary.visitorCount
-      : recipientSource === 'subscribedUsers'
-      ? summary.optedInCount
-      : summary.visitorCount + summary.optedInCount;
+    recipientSource === 'subscribedUsers'
+      ? summary.optedInCount || 0
+      : recipientSource === 'advertisements'
+      ? summary.advertisementCount || 0
+      : recipientSource === 'buyers'
+      ? summary.buyCount || 0
+      : recipientSource === 'sellers'
+      ? summary.sellCount || 0
+      : recipientSource === 'renters'
+      ? summary.rentCount || 0
+      : recipientSource === 'both'
+      ? (summary.visitorCount || 0) + (summary.optedInCount || 0) + (summary.advertisementCount || 0)
+      : summary.visitorCount || 0;
 
   return (
     <>
@@ -483,25 +459,15 @@ export default function AdminNewsletterPage() {
               <div className="mb-8">
                 <h1 className="text-3xl font-bold text-gray-900">Newsletter Manager</h1>
                 <p className="text-gray-600 mt-2 max-w-2xl">
-                  Create a clean newsletter and send it to verified leads and opted-in users. Deliverability tips are shown below to help reduce spam placement.
-              </p>
+                  Create a message and send it to buyers, sellers, renters, opted-in users, or advertisers whose ads were just created.
+                </p>
             </div>
 
-            <div className="grid gap-4 lg:grid-cols-3 mb-8">
+            <div className="grid gap-4 lg:grid-cols-1 mb-8">
               <div className="bg-gray-50 rounded-3xl p-5 border border-gray-200">
                 <p className="text-sm text-gray-500 uppercase tracking-[0.2em] mb-2">Service Request Leads</p>
                 <p className="text-4xl font-semibold text-gray-900">{summary.visitorCount}</p>
                 <p className="text-sm text-gray-500 mt-2">Emails collected from service request submissions.</p>
-              </div>
-              <div className="bg-gray-50 rounded-3xl p-5 border border-gray-200">
-                <p className="text-sm text-gray-500 uppercase tracking-[0.2em] mb-2">Opted-in Users</p>
-                <p className="text-4xl font-semibold text-gray-900">{summary.optedInCount}</p>
-                <p className="text-sm text-gray-500 mt-2">Users with newsletter_opted_in set in users table.</p>
-              </div>
-              <div className="bg-gray-50 rounded-3xl p-5 border border-gray-200">
-                <p className="text-sm text-gray-500 uppercase tracking-[0.2em] mb-2">Brevo Campaigns</p>
-                <p className="text-4xl font-semibold text-gray-900">{campaignStats.length}</p>
-                <p className="text-sm text-gray-500 mt-2">Recent sent campaigns loaded from Brevo.</p>
               </div>
             </div>
 
@@ -694,48 +660,110 @@ export default function AdminNewsletterPage() {
                   <h2 className="text-xl font-semibold text-gray-900 mb-4">Send options</h2>
 
                   <div className="grid gap-3">
-                    <label className="flex items-center gap-3 rounded-2xl border border-gray-200 bg-gray-50 p-4 cursor-pointer">
-                      <input
-                        type="radio"
-                        name="recipientSource"
-                        value="submittedVisitors"
-                        checked={recipientSource === 'submittedVisitors'}
-                        onChange={() => setRecipientSource('submittedVisitors')}
-                        className="h-4 w-4 text-accent"
-                      />
-                      <div>
-                        <div className="font-semibold text-gray-900">Service Request Leads</div>
-                        <div className="text-sm text-gray-500">Send to client emails collected from service_requests.</div>
+                    <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4">
+                      <div className="font-semibold text-gray-900">Recipient list</div>
+                      <div className="mt-3 grid gap-2">
+                        <label className="flex items-center gap-3 rounded-2xl border border-gray-200 bg-white p-3 cursor-pointer">
+                          <input
+                            type="radio"
+                            name="recipientSource"
+                            value="buyers"
+                            checked={recipientSource === 'buyers'}
+                            onChange={() => setRecipientSource('buyers')}
+                            className="h-4 w-4 text-accent"
+                          />
+                          <div>
+                            <div className="font-semibold text-gray-900">Buyers</div>
+                            <div className="text-sm text-gray-500">Send to buyers from service requests with request type buy.</div>
+                          </div>
+                        </label>
+                        <label className="flex items-center gap-3 rounded-2xl border border-gray-200 bg-white p-3 cursor-pointer">
+                          <input
+                            type="radio"
+                            name="recipientSource"
+                            value="sellers"
+                            checked={recipientSource === 'sellers'}
+                            onChange={() => setRecipientSource('sellers')}
+                            className="h-4 w-4 text-accent"
+                          />
+                          <div>
+                            <div className="font-semibold text-gray-900">Sellers</div>
+                            <div className="text-sm text-gray-500">Send to sellers from service requests with request type sell.</div>
+                          </div>
+                        </label>
+                        <label className="flex items-center gap-3 rounded-2xl border border-gray-200 bg-white p-3 cursor-pointer">
+                          <input
+                            type="radio"
+                            name="recipientSource"
+                            value="renters"
+                            checked={recipientSource === 'renters'}
+                            onChange={() => setRecipientSource('renters')}
+                            className="h-4 w-4 text-accent"
+                          />
+                          <div>
+                            <div className="font-semibold text-gray-900">Renters</div>
+                            <div className="text-sm text-gray-500">Send to renters from service requests with request type rent.</div>
+                          </div>
+                        </label>
+                        <label className="flex items-center gap-3 rounded-2xl border border-gray-200 bg-white p-3 cursor-pointer">
+                          <input
+                            type="radio"
+                            name="recipientSource"
+                            value="submittedVisitors"
+                            checked={recipientSource === 'submittedVisitors'}
+                            onChange={() => setRecipientSource('submittedVisitors')}
+                            className="h-4 w-4 text-accent"
+                          />
+                          <div>
+                            <div className="font-semibold text-gray-900">All service request leads</div>
+                            <div className="text-sm text-gray-500">Send to all client emails collected from service requests.</div>
+                          </div>
+                        </label>
+                        <label className="flex items-center gap-3 rounded-2xl border border-gray-200 bg-white p-3 cursor-pointer">
+                          <input
+                            type="radio"
+                            name="recipientSource"
+                            value="subscribedUsers"
+                            checked={recipientSource === 'subscribedUsers'}
+                            onChange={() => setRecipientSource('subscribedUsers')}
+                            className="h-4 w-4 text-accent"
+                          />
+                          <div>
+                            <div className="font-semibold text-gray-900">Opted-in users</div>
+                            <div className="text-sm text-gray-500">Send to users with newsletter_opted_in enabled.</div>
+                          </div>
+                        </label>
+                        <label className="flex items-center gap-3 rounded-2xl border border-gray-200 bg-white p-3 cursor-pointer">
+                          <input
+                            type="radio"
+                            name="recipientSource"
+                            value="advertisements"
+                            checked={recipientSource === 'advertisements'}
+                            onChange={() => setRecipientSource('advertisements')}
+                            className="h-4 w-4 text-accent"
+                          />
+                          <div>
+                            <div className="font-semibold text-gray-900">Created ad contacts</div>
+                            <div className="text-sm text-gray-500">Send to advertisers whose ad records were created and include an email address.</div>
+                          </div>
+                        </label>
+                        <label className="flex items-center gap-3 rounded-2xl border border-gray-200 bg-white p-3 cursor-pointer">
+                          <input
+                            type="radio"
+                            name="recipientSource"
+                            value="both"
+                            checked={recipientSource === 'both'}
+                            onChange={() => setRecipientSource('both')}
+                            className="h-4 w-4 text-accent"
+                          />
+                          <div>
+                            <div className="font-semibold text-gray-900">All lists</div>
+                            <div className="text-sm text-gray-500">Send to buyers, sellers, renters, opted-in users, and created ad contacts together.</div>
+                          </div>
+                        </label>
                       </div>
-                    </label>
-                    <label className="flex items-center gap-3 rounded-2xl border border-gray-200 bg-gray-50 p-4 cursor-pointer">
-                      <input
-                        type="radio"
-                        name="recipientSource"
-                        value="subscribedUsers"
-                        checked={recipientSource === 'subscribedUsers'}
-                        onChange={() => setRecipientSource('subscribedUsers')}
-                        className="h-4 w-4 text-accent"
-                      />
-                      <div>
-                        <div className="font-semibold text-gray-900">Opted-in Users</div>
-                        <div className="text-sm text-gray-500">Send to users with newsletter_opted_in enabled.</div>
-                      </div>
-                    </label>
-                    <label className="flex items-center gap-3 rounded-2xl border border-gray-200 bg-gray-50 p-4 cursor-pointer">
-                      <input
-                        type="radio"
-                        name="recipientSource"
-                        value="both"
-                        checked={recipientSource === 'both'}
-                        onChange={() => setRecipientSource('both')}
-                        className="h-4 w-4 text-accent"
-                      />
-                      <div>
-                        <div className="font-semibold text-gray-900">Both lists</div>
-                        <div className="text-sm text-gray-500">Send to all service request clients and opted-in users together.</div>
-                      </div>
-                    </label>
+                    </div>
+
                   </div>
 
                   <div className="mt-4 rounded-3xl bg-gray-50 border border-gray-200 p-4">
@@ -744,109 +772,13 @@ export default function AdminNewsletterPage() {
                     {targetParish ? (
                       <p className="text-sm text-gray-500">Only recipients in {targetParish} will be targeted when sending.</p>
                     ) : (
-                      <p className="text-sm text-gray-500">This page uses the service_requests and users tables for newsletter targeting.</p>
+                      <p className="text-sm text-gray-500">This send uses {recipientSource === 'subscribedUsers' ? 'the opted-in users list' : recipientSource === 'advertisements' ? 'the created ad contacts list' : recipientSource === 'buyers' ? 'the buyer request list' : recipientSource === 'sellers' ? 'the seller request list' : recipientSource === 'renters' ? 'the renter request list' : recipientSource === 'both' ? 'all recipient lists' : 'the selected service request leads list'}.</p>
                     )}
                   </div>
                 </div>
               </section>
 
               <aside className="space-y-6">
-                <div className="rounded-3xl bg-white border border-gray-200 p-6">
-                  <h2 className="text-xl font-semibold text-gray-900 mb-4">Brevo open-rate dashboard</h2>
-                  {campaignStats.length === 0 ? (
-                    <p className="text-sm text-gray-500">No sent campaigns found yet or Brevo stats are not available.</p>
-                  ) : (
-                    <div className="space-y-4">
-                      {campaignStats.map((campaign) => (
-                        <div key={campaign.id} className="rounded-3xl bg-gray-50 p-4 border border-gray-200">
-                          <div className="flex items-center justify-between gap-4">
-                            <div>
-                              <p className="font-semibold text-gray-900">{campaign.name || campaign.subject || 'Campaign'}</p>
-                              <p className="text-sm text-gray-500">Sent {campaign.sentDate ? new Date(campaign.sentDate).toLocaleDateString() : 'unknown'}</p>
-                            </div>
-                            <span className="inline-flex items-center rounded-full bg-blue-100 px-3 py-1 text-sm font-semibold text-blue-700">{formatRate(campaign.statistics.uniqueViews, campaign.statistics.delivered)} open rate</span>
-                          </div>
-                          <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                            <div className="rounded-2xl bg-white border border-gray-200 p-3">
-                              <p className="text-xs uppercase tracking-[0.2em] text-gray-500">Delivered</p>
-                              <p className="text-lg font-semibold text-gray-900">{campaign.statistics.delivered ?? 0}</p>
-                            </div>
-                            <div className="rounded-2xl bg-white border border-gray-200 p-3">
-                              <p className="text-xs uppercase tracking-[0.2em] text-gray-500">Clicks</p>
-                              <p className="text-lg font-semibold text-gray-900">{campaign.statistics.uniqueClicks ?? 0}</p>
-                            </div>
-                            <div className="rounded-2xl bg-white border border-gray-200 p-3">
-                              <p className="text-xs uppercase tracking-[0.2em] text-gray-500">Unsubscribes</p>
-                              <p className="text-lg font-semibold text-gray-900">{campaign.statistics.unsubscriptions ?? 0}</p>
-                            </div>
-                            <div className="rounded-2xl bg-white border border-gray-200 p-3">
-                              <p className="text-xs uppercase tracking-[0.2em] text-gray-500">Clicks Rates</p>
-                              <p className="text-lg font-semibold text-gray-900">{formatRate(campaign.statistics.uniqueClicks, campaign.statistics.delivered)}</p>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                <div className="rounded-3xl bg-white border border-gray-200 p-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <h2 className="text-xl font-semibold text-gray-900">Subscribers</h2>
-                    <button
-                      type="button"
-                      onClick={fetchSubscribers}
-                      className="rounded-full bg-gray-100 px-3 py-1 text-sm font-semibold text-gray-700 hover:bg-gray-200"
-                    >
-                      Refresh
-                    </button>
-                  </div>
-                  <div className="space-y-3 text-sm text-gray-700">
-                    {subscribers.length === 0 ? (
-                      <p className="text-gray-500">No subscribers found.</p>
-                    ) : (
-                      <div>
-                        <select
-                          value={selectedSubscriber}
-                          onChange={(e) => setSelectedSubscriber(e.target.value)}
-                          className="w-full rounded-2xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900"
-                        >
-                          <option value="">Select subscriber</option>
-                          {subscribers.map((s) => (
-                            <option key={s.email} value={s.email}>{s.email} {s.full_name ? ` — ${s.full_name}` : ''}</option>
-                          ))}
-                        </select>
-                        <div className="mt-3 flex items-center gap-2">
-                          <button
-                            type="button"
-                            onClick={() => handleRemoveSubscriber(selectedSubscriber)}
-                            disabled={!selectedSubscriber}
-                            className="rounded-2xl bg-red-100 px-4 py-2 text-xs font-semibold text-red-700 hover:bg-red-200 disabled:opacity-60"
-                          >
-                            Remove subscriber
-                          </button>
-                          <span className="text-xs text-gray-500">You can remove a subscriber from the newsletter list for future sends.</span>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                <div className="rounded-3xl bg-white border border-gray-200 p-6">
-                  <h2 className="text-xl font-semibold text-gray-900 mb-4">Recent visitor samples</h2>
-                  <div className="space-y-2 text-sm text-gray-700">
-                    {summary.visitorSample.length === 0 ? (
-                      <p className="text-gray-500">No submitted visitor emails available.</p>
-                    ) : (
-                      summary.visitorSample.map((item, index) => (
-                        <div key={index} className="rounded-2xl bg-gray-50 border border-gray-200 p-3">
-                          <p className="font-medium text-gray-900">{item.email}</p>
-                        </div>
-                      ))
-                    )}
-                  </div>
-                </div>
-
                 <div className="rounded-3xl bg-white border border-gray-200 p-6 shadow-sm">
                   <div className="flex items-center justify-between mb-4">
                     <h2 className="text-xl font-semibold text-gray-900">Saved drafts</h2>
@@ -921,17 +853,6 @@ export default function AdminNewsletterPage() {
                     {loadingSend ? 'Sending test…' : 'Send test email'}
                   </button>
                 </div>
-              </div>
-
-              <div className="rounded-3xl bg-white border border-gray-200 p-4 space-y-3">
-                <h3 className="text-sm font-semibold text-gray-900">Email deliverability tips</h3>
-                <ul className="list-disc pl-5 text-sm text-gray-700 space-y-2">
-                  <li>Keep subject lines clear and avoid spammy words like free or urgent.</li>
-                  <li>Send only to opted-in recipients and avoid purchased or stale mailing lists.</li>
-                  <li>Include a visible unsubscribe link and a plain-text fallback when possible.</li>
-                  <li>Use a consistent sending address and authenticate with SPF/DKIM/DMARC.</li>
-                  <li>Test with a small list first and review Brevo engagement data before broad sends.</li>
-                </ul>
               </div>
 
               {sendResult && (

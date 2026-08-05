@@ -10,8 +10,7 @@ export default async function handler(req, res) {
 
   const apiKey = process.env.BREVO_API_KEY;
   if (!apiKey) {
-    console.error('BREVO_API_KEY not configured');
-    return res.status(500).json({ error: 'Brevo API key is not configured' });
+    return res.status(200).json({ success: true, campaigns: [] });
   }
 
   try {
@@ -48,6 +47,10 @@ export default async function handler(req, res) {
 
     return res.status(200).json({ success: true, campaigns: body.campaigns || [] });
   } catch (error) {
+    if (error?.statusCode === 401 || error?.response?.statusCode === 401) {
+      return res.status(200).json({ success: true, campaigns: [] });
+    }
+
     console.error('Brevo stats fetch error:', error);
     const message = error?.message || 'Failed to load Brevo campaign statistics';
     return res.status(500).json({ error: message });
