@@ -34,6 +34,7 @@ const PUBLIC_ROUTES = [
   '/refund-policy',
   '/about',
   '/agent/signup',
+  '/verify',
   '/requests-marketplace',
   '/listing',
   '/course',
@@ -110,7 +111,13 @@ function MyApp({ Component, pageProps }) {
   return (
     <ClerkProvider
       publishableKey={process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}
-      navigate={(to) => router.push(to)}
+      navigate={(to) => {
+        // Avoid Next.js "hard navigate to the same URL" invariant when Clerk redirects to the current page
+        if (typeof window !== 'undefined' && to === window.location.pathname + window.location.search) {
+          return;
+        }
+        router.push(to);
+      }}
     >
       <AppContent Component={Component} pageProps={pageProps} />
     </ClerkProvider>
@@ -123,6 +130,7 @@ function AppContent({ Component, pageProps }) {
   const [isSynced, setIsSynced] = useState(false);
   const [syncError, setSyncError] = useState(null);
   const [showLoadingState, setShowLoadingState] = useState(false);
+  const [profileData, setProfileData] = useState(null);
   
   const hideLayout = NO_LAYOUT_PAGES.includes(router.pathname);
   const isCurrentPagePublic = isPublicRoute(router.pathname);
@@ -184,6 +192,7 @@ function AppContent({ Component, pageProps }) {
         lastSyncedUserIdRef.current = userId;
         setIsSynced(true);
         setSyncError(null);
+        setProfileData(profile);
 
         // Removed: No longer redirecting verified agents to agent dashboard from all pages
         // The redirect should only happen on the /dashboard route
@@ -203,6 +212,19 @@ function AppContent({ Component, pageProps }) {
 
     syncUser();
   }, [isSignedIn, user?.id, isClerkLoaded, isSynced]);
+
+  // Security gate: block every private page (admin, agent, dashboard, etc.) until ID verification is approved
+  useEffect(() => {
+    if (!isSignedIn || !isSynced || !profileData) return;
+    if (isCurrentPagePublic || router.pathname === '/verify') return;
+
+    const isAdmin = profileData.role === 'admin';
+    const isVerified = Boolean(profileData.identity_verified) || profileData.id_verification_status === 'approved';
+
+    if (!isAdmin && !isVerified) {
+      router.replace('/verify');
+    }
+  }, [isSignedIn, isSynced, profileData, isCurrentPagePublic, router]);
 
   // If page has custom layout (like ads pages), use it without Header/Footer
   if (Component.getLayout) {
@@ -265,12 +287,31 @@ function AppContent({ Component, pageProps }) {
                 </div>
               )}
 
-              {/* Show content once synced */}
+              {/* Show content once synced, and only once verified (or admin) for private pages */}
               {isSynced && !showLoadingState && (
                 <SignedIn>
-                  <main className="min-h-screen">
-                    <Component {...pageProps} />
-                  </main>
+                  {(() => {
+                    const isAdmin = profileData?.role === 'admin';
+                    const isVerified = Boolean(profileData?.identity_verified) || profileData?.id_verification_status === 'approved';
+                    const isAllowed = router.pathname === '/verify' || isAdmin || isVerified;
+
+                    if (!isAllowed) {
+                      return (
+                        <div className="flex items-center justify-center min-h-screen">
+                          <div className="text-center">
+                            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-accent mx-auto mb-4"></div>
+                            <p className="text-gray-600">Redirecting to identity verification…</p>
+                          </div>
+                        </div>
+                      );
+                    }
+
+                    return (
+                      <main className="min-h-screen">
+                        <Component {...pageProps} />
+                      </main>
+                    );
+                  })()}
                 </SignedIn>
               )}
             </>

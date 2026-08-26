@@ -34,9 +34,12 @@ export default function AgentDashboard() {
   );
   // Protect route - only verified agents can access
   const { loading: authLoading, userData: initialUserData } = useRoleProtection({
-    checkAccess: isVerifiedAgent,
-    redirectTo: '/dashboard',
-    message: 'Agent verification required'
+    checkAccess: (userData) => {
+      const verified = userData?.identity_verified === true || userData?.id_verification_status === 'approved' || userData?.account_status === 'active';
+      return verified && (isVerifiedAgent(userData) || userData?.user_type !== 'admin');
+    },
+    redirectTo: '/verify',
+    message: 'Identity verification required to use the platform'
   });
 
   const { user } = useUser();
@@ -45,6 +48,7 @@ export default function AgentDashboard() {
   const [loading, setLoading] = useState(true);
   const [userRole, setUserRole] = useState(null);
   const [agentData, setAgentData] = useState(initialUserData?.agent || null);
+  const isOwner = initialUserData?.user_type === 'owner';
   const [requests, setRequests] = useState([]);
   const [filterStatus, setFilterStatus] = useState('assigned');
   const [filterUrgency, setFilterUrgency] = useState('all');
@@ -363,16 +367,18 @@ export default function AgentDashboard() {
                   <p className="text-sm text-gray-600">Add a listing</p>
                 </div>
               </Link>
-              <Link
-                href="/properties/bulk-create"
-                className="flex items-center gap-3 p-4 bg-accent/5 border border-accent/20 rounded-lg hover:bg-accent/10 transition group"
-              >
-                <Plus className="w-6 h-6 text-accent group-hover:scale-110 transition" />
-                <div>
-                  <h3 className="font-semibold text-gray-900">Bulk Create</h3>
-                  <p className="text-sm text-gray-600">Upload multiple</p>
-                </div>
-              </Link>
+              {!isOwner && (
+                <Link
+                  href="/properties/bulk-create"
+                  className="flex items-center gap-3 p-4 bg-accent/5 border border-accent/20 rounded-lg hover:bg-accent/10 transition group"
+                >
+                  <Plus className="w-6 h-6 text-accent group-hover:scale-110 transition" />
+                  <div>
+                    <h3 className="font-semibold text-gray-900">Bulk Create</h3>
+                    <p className="text-sm text-gray-600">Upload multiple</p>
+                  </div>
+                </Link>
+              )}
               <Link
                 href="/advertise"
                 className="flex items-center gap-3 p-4 bg-accent/5 border border-accent/20 rounded-lg hover:bg-accent/10 transition group"
@@ -419,30 +425,32 @@ export default function AgentDashboard() {
             </Link>
             
             
-            <Link 
-              href="/agent/payment"
-              onClick={(e) => {
-                if (isAccessExpired()) {
-                  toast.error('Your access has expired. Please upgrade to continue receiving leads.', { duration: 4000 });
-                } else if (isFreePlan()) {
-                  toast('Upgrade to unlock higher-value leads!', {  duration: 4000 });
-                }
-              }}
-              className={`px-4 py-2 rounded-lg transition font-medium flex items-center justify-center gap-1.5 border col-span-2 sm:col-span-1 ${
-                shouldShowUpgrade() 
-                  ? 'bg-green-500 text-white border-green-600 hover:bg-green-600 animate-pulse' 
-                  : 'bg-white text-black border-gray-300 hover:bg-gray-100'
-              }`}
-            >
-              <CreditCard className="w-5 h-5" />
-              <span className="hidden sm:inline">{shouldShowUpgrade() ? 'Upgrade Now' : 'Access Plan'}</span>
-              <span className="sm:hidden">{shouldShowUpgrade() ? 'Upgrade' : 'Plan'}</span>
-            </Link>
+            {!isOwner && (
+              <Link 
+                href="/agent/payment"
+                onClick={(e) => {
+                  if (isAccessExpired()) {
+                    toast.error('Your access has expired. Please upgrade to continue receiving leads.', { duration: 4000 });
+                  } else if (isFreePlan()) {
+                    toast('Upgrade to unlock higher-value leads!', {  duration: 4000 });
+                  }
+                }}
+                className={`px-4 py-2 rounded-lg transition font-medium flex items-center justify-center gap-1.5 border col-span-2 sm:col-span-1 ${
+                  shouldShowUpgrade() 
+                    ? 'bg-green-500 text-white border-green-600 hover:bg-green-600 animate-pulse' 
+                    : 'bg-white text-black border-gray-300 hover:bg-gray-100'
+                }`}
+              >
+                <CreditCard className="w-5 h-5" />
+                <span className="hidden sm:inline">{shouldShowUpgrade() ? 'Upgrade Now' : 'Access Plan'}</span>
+                <span className="sm:hidden">{shouldShowUpgrade() ? 'Upgrade' : 'Plan'}</span>
+              </Link>
+            )}
           </div>
           </div>
 
           {/* Free Plan Alert */}
-          {isFreePlan() && (
+          {!isOwner && isFreePlan() && (
             <div className=" border-l-4 border-blue-500 rounded-lg p-4 mb-6">
               <div className="flex items-start gap-3">
                 <AlertCircle className="text-blue-600 flex-shrink-0 mt-0.5" size={24} />
@@ -464,7 +472,7 @@ export default function AgentDashboard() {
           )}
 
           {/* Expiry Alert */}
-          {isAccessExpired() && (
+          {!isOwner && isAccessExpired() && (
             <div className="bg-gradient-to-r from-orange-50 to-red-50 border-l-4 border-orange-500 rounded-lg p-4 mb-6">
               <div className="flex items-start gap-3">
                 <AlertCircle className="text-orange-600 flex-shrink-0 mt-0.5" size={24} />

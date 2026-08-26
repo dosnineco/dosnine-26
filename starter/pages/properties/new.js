@@ -4,6 +4,7 @@ import { useAuth, useUser } from '@clerk/nextjs';
 import { useRouter } from 'next/router';
 import axios from 'axios';
 import toast from 'react-hot-toast';
+import { PayPalScriptProvider, PayPalButtons } from '@paypal/react-paypal-js';
 import { PARISHES } from '../../lib/normalizeParish';
 
 export default function NewProperty() {
@@ -14,6 +15,7 @@ export default function NewProperty() {
   const [checkingAccess, setCheckingAccess] = useState(true);
   const [images, setImages] = useState([]);
   const [uploadingImages, setUploadingImages] = useState(false);
+  const [extraListingFee, setExtraListingFee] = useState(null);
 
   // Check payment status for agents before loading page
   useEffect(() => {
@@ -148,6 +150,12 @@ const handleSubmit = async (e) => {
       return true;
     }
 
+    if (limitCheck.reason === 'payment_required_extra_listing') {
+      setExtraListingFee(limitCheck.extraListingFee || 1500);
+      toast.error(`Free listing limit reached. Pay J$${(limitCheck.extraListingFee || 1500).toLocaleString()} to post another property.`);
+      return true;
+    }
+
     if (limitCheck.reason === 'limit_reached') {
       toast.error('Property limit reached. Regular users can post 2 properties. Become a verified agent for unlimited postings!');
       return true;
@@ -165,6 +173,7 @@ const handleSubmit = async (e) => {
       headers: token ? { Authorization: `Bearer ${token}` } : undefined,
     });
 
+    if (!limitCheck.canPost) setExtraListingFee(null);
     if (handleLimitDenied(limitCheck)) {
       return;
     }
@@ -286,6 +295,48 @@ const handleSubmit = async (e) => {
           </div>
           
           <h1 className="text-3xl font-bold mb-8 text-center">Post New Property</h1>
+
+          {extraListingFee && (
+            <div className="mb-6 bg-white rounded-xl border border-accent/30 p-6 text-center">
+              <p className="text-gray-800 font-semibold mb-1">Free listing limit reached</p>
+              <p className="text-gray-600 text-sm mb-4">
+                Pay a one-time fee of <strong>J${extraListingFee.toLocaleString()}</strong> to post this additional property.
+              </p>
+              <PayPalScriptProvider options={{ 'client-id': process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID, currency: 'USD' }}>
+                <PayPalButtons
+                  style={{ layout: 'vertical', color: 'gold', shape: 'rect', label: 'pay' }}
+                  createOrder={(data, actions) => actions.order.create({
+                    purchase_units: [
+                      {
+                        description: 'Additional property listing fee',
+                        amount: { value: (extraListingFee / 155).toFixed(2) },
+                      },
+                    ],
+                  })}
+                  onApprove={async (data, actions) => {
+                    try {
+                      await actions.order.capture();
+                      const token = await getToken();
+                      const res = await axios.post('/api/user/pay-extra-listing', {}, {
+                        withCredentials: true,
+                        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+                      });
+                      if (res.data?.success) {
+                        toast.success('Payment received! You can now post this property.');
+                        setExtraListingFee(null);
+                      } else {
+                        toast.error(res.data?.error || 'Failed to confirm payment');
+                      }
+                    } catch (err) {
+                      console.error('PayPal capture error', err);
+                      toast.error('Payment failed. Please try again.');
+                    }
+                  }}
+                  onError={() => toast.error('Payment failed. Please try again.')}
+                />
+              </PayPalScriptProvider>
+            </div>
+          )}
 
           <form onSubmit={handleSubmit} className="w-full bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
         {/* Basic Info */}

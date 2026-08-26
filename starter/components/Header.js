@@ -11,6 +11,7 @@ export default function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isVerifiedAgent, setIsVerifiedAgent] = useState(false);
+  const [isIdentityVerified, setIsIdentityVerified] = useState(false);
 
   const [isAgent, setIsAgent] = useState(false);
 
@@ -29,6 +30,7 @@ export default function Header() {
 
         setIsAdmin(data?.role === 'admin');
         setIsAgent(Boolean(agent));
+        setIsIdentityVerified(Boolean(data?.identity_verified || data?.id_verification_status === 'approved' || data?.account_status === 'active'));
         setIsVerifiedAgent(
           agent?.verification_status === 'approved' &&
           ['free', '7-day', '30-day', '90-day'].includes(agent?.payment_status)
@@ -61,20 +63,18 @@ export default function Header() {
                 Browse Properties
               </Link>
               {isVerifiedAgent ? (
-                <>
-                  <Link 
-                    href="/agent/dashboard" 
-                    className={`px-3 py-2 rounded-lg transition text-sm ${router.pathname === '/agent/dashboard' ? 'bg-gray-50 text-gray-900 font-medium' : 'text-gray-600 hover:bg-gray-100'}`}
-                  >
-                    Dashboard
-                  </Link>
-                </>
-              ) : (
                 <Link 
-                  href="/dashboard" 
-                  className={`px-3 py-2 rounded-lg transition text-sm ${router.pathname === '/dashboard' ? 'bg-accent text-white' : 'text-gray-600 hover:bg-gray-100'}`}
+                  href="/agent/dashboard" 
+                  className={`px-3 py-2 rounded-lg transition text-sm ${router.pathname === '/agent/dashboard' ? 'bg-gray-50 text-gray-900 font-medium' : 'text-gray-600 hover:bg-gray-100'}`}
                 >
                   Dashboard
+                </Link>
+              ) : (
+                <Link 
+                  href={isIdentityVerified ? '/agent/dashboard' : '/verify'} 
+                  className={`px-3 py-2 rounded-lg transition text-sm ${router.pathname === '/dashboard' || router.pathname === '/verify' ? 'bg-accent text-white' : 'text-gray-600 hover:bg-gray-100'}`}
+                >
+                  {isIdentityVerified ? 'Dashboard' : 'Verify ID'}
                 </Link>
               )}
               {isAdmin && (
@@ -214,11 +214,11 @@ export default function Header() {
                       </Link>
                     ) : (
                       <Link 
-                        href="/dashboard" 
+                        href={isIdentityVerified ? '/agent/dashboard' : '/verify'} 
                         onClick={() => setMobileMenuOpen(false)}
-                        className={`px-4 py-3 rounded-lg font-medium ${router.pathname === '/dashboard' ? 'bg-accent text-white' : 'text-gray-700 hover:bg-gray-50'}`}
+                        className={`px-4 py-3 rounded-lg font-medium ${router.pathname === '/dashboard' || router.pathname === '/verify' ? 'bg-accent text-white' : 'text-gray-700 hover:bg-gray-50'}`}
                       >
-                        Dashboard
+                        {isIdentityVerified ? 'Dashboard' : 'Verify ID'}
                       </Link>
                     )}
                     
@@ -245,7 +245,7 @@ export default function Header() {
               ) : (
                 <div className="border-t border-gray-200 p-4">
                   <Link 
-                    href="/dashboard" 
+                    href="/" 
                     onClick={() => setMobileMenuOpen(false)}
                     className="w-full px-4 py-3 bg-accent text-white rounded-lg text-center font-medium hover:bg-accent/90 transition block"
                   >

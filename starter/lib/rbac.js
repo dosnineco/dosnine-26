@@ -32,13 +32,18 @@ export function isAdmin(userData) {
 export function isVerifiedAgent(userData) {
   const verificationStatus = String(userData?.agent?.verification_status || '').trim().toLowerCase();
   const isVerified = verificationStatus === AGENT_STATUS.APPROVED;
-  console.log('isVerifiedAgent check:', {
-    hasAgent: !!userData?.agent,
-    verificationStatus,
-    expectedStatus: AGENT_STATUS.APPROVED,
-    result: isVerified
-  });
   return isVerified;
+}
+
+export function isPlatformVerified(userData) {
+  const userStatus = String(userData?.account_status || userData?.id_verification_status || 'active').trim().toLowerCase();
+  const verified = userData?.identity_verified === true || userData?.id_verification_status === 'approved' || userStatus === 'approved';
+  return verified && userStatus !== 'deactivated' && userStatus !== 'flagged';
+}
+
+export function isAccountActive(userData) {
+  const status = String(userData?.account_status || 'active').trim().toLowerCase();
+  return status === 'active' || status === 'approved';
 }
 
 /**
@@ -133,9 +138,10 @@ export function getUserFeatures(userData) {
  */
 export function getDefaultRedirect(userData) {
   if (isAdmin(userData)) return '/admin/dashboard';
+  if (!isPlatformVerified(userData) || !isAccountActive(userData)) return '/verify';
   if (needsAgentPayment(userData)) return '/agent/payment';
-  if (isPaidAgent(userData)) return '/agent/dashboard';
-  return '/dashboard';
+  if (isPaidAgent(userData) || isVerifiedAgent(userData) || userData?.user_type === 'agent') return '/agent/dashboard';
+  return '/agent/dashboard';
 }
 
 /**

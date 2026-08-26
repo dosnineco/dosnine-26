@@ -51,14 +51,21 @@ export default async function handler(req, res) {
       });
     }
 
-    // Regular users - check property limit (max 2)
-    if (propertyCount >= 2) {
-      return res.status(200).json({ 
+    // Regular users - 2 free listings, then J$1,500 per additional listing
+    const FREE_LIMIT = 2;
+    const EXTRA_LISTING_FEE = 1500;
+    const extraPaid = Number(userData.extra_listings_paid || 0);
+    const allowedListings = FREE_LIMIT + extraPaid;
+
+    if (propertyCount >= allowedListings) {
+      return res.status(200).json({
         error: 'Property limit reached',
         canPost: false,
-        reason: 'limit_reached',
+        reason: 'payment_required_extra_listing',
         propertyCount,
-        maxProperties: 2
+        maxProperties: allowedListings,
+        freeLimit: FREE_LIMIT,
+        extraListingFee: EXTRA_LISTING_FEE,
       });
     }
 
@@ -66,7 +73,7 @@ export default async function handler(req, res) {
       canPost: true,
       isAgent: false,
       propertyCount,
-      maxProperties: 2
+      maxProperties: allowedListings
     });
 
   } catch (error) {

@@ -22,20 +22,31 @@ export default async function handler(req, res) {
     }
 
     if (req.method === 'PATCH') {
-      const { id, full_name, email, phone, role } = req.body || {};
+      const { id, full_name, email, phone, role, account_status, id_verification_status } = req.body || {};
 
-      if (!id || !full_name || !email || !role) {
-        return res.status(400).json({ error: 'Missing required fields' });
+      if (!id) {
+        return res.status(400).json({ error: 'Missing user id' });
+      }
+
+      const updatePayload = {
+        ...(full_name ? { full_name } : {}),
+        ...(email ? { email } : {}),
+        ...(phone !== undefined ? { phone: phone || null } : {}),
+        ...(role ? { role } : {}),
+        ...(account_status ? { account_status } : {}),
+        ...(id_verification_status ? {
+          id_verification_status,
+          identity_verified: id_verification_status === 'approved',
+        } : {}),
+      };
+
+      if (Object.keys(updatePayload).length === 0) {
+        return res.status(400).json({ error: 'No update fields provided' });
       }
 
       const { data, error } = await db
         .from('users')
-        .update({
-          full_name,
-          email,
-          phone: phone || null,
-          role,
-        })
+        .update(updatePayload)
         .eq('id', id)
         .select('*')
         .single();

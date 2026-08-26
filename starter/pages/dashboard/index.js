@@ -158,27 +158,21 @@ export default function Dashboard() {
         ? (userData.agent[0] || null)
         : (userData?.agent || null);
 
-      if (agent) {
-        
-        // Redirect verified agents to agent dashboard
-        const isApproved = isApprovedAgent(agent);
-        
-        if (isApproved) {
-          // Verified agents should not stay on the regular user dashboard
-          router.replace('/agent/dashboard');
-          return;
-        }
-        
-        // Non-approved or plan-less agent can use regular dashboard
-        setAgentData(agent);
-        setShowAgentPrompt(false);
-      } else {
-        // Show prompt to become agent
-        setAgentData(null);
-        setShowAgentPrompt(true);
+      const identityVerified = Boolean(userData?.identity_verified || userData?.id_verification_status === 'approved' || userData?.account_status === 'active');
+
+      if (!identityVerified || userData?.account_status === 'flagged' || userData?.account_status === 'deactivated') {
+        router.replace('/verify');
+        return;
       }
 
-      // User should see this dashboard - allow data loading
+      if (agent || userData?.user_type === 'agent' || userData?.role === 'agent') {
+        router.replace('/agent/dashboard');
+        return;
+      }
+
+      setAgentData(agent);
+      setShowAgentPrompt(false);
+
       setRedirecting(false);
       setShouldLoadData(true);
       fetchDashboardData();

@@ -19,7 +19,7 @@ const verificationCache = new Map();
  */
 export function useRoleProtection({ 
   checkAccess, 
-  redirectTo = '/dashboard', 
+  redirectTo = '/verify', 
   message = 'Access denied',
   requireAuth = true 
 }) {

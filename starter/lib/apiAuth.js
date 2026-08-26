@@ -215,6 +215,12 @@ export async function requireDbUser(req, res, { createIfMissing = false } = {}) 
     return null;
   }
 
+  const accountStatus = String(user.account_status || 'active').trim().toLowerCase();
+  if (accountStatus === 'deactivated' || accountStatus === 'flagged') {
+    res.status(403).json({ error: 'This account has been flagged or deactivated and cannot access the platform.' });
+    return null;
+  }
+
   return { clerkId: auth.clerkId, user };
 }
 
