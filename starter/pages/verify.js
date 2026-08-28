@@ -105,7 +105,11 @@ export default function VerifyIdentityPage() {
 
     if (!user?.id) {
       toast.error('Please sign in before continuing');
-      return;
+       if (typeof window !== 'undefined' && user?.id) {
+            window.localStorage.removeItem(`verification_pending_${user.id}`);
+          }
+          router.replace('/agent/dashboard');
+          return;
     }
     if (!form.fullName?.trim()) {
       toast.error('Full name is required');
