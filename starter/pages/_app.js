@@ -33,7 +33,7 @@ const PUBLIC_ROUTES = [
   '/terms-of-service',
   '/refund-policy',
   '/about',
-  
+  '/agent/signup',
   '/verify',
   '/requests-marketplace',
   '/listing',
@@ -320,16 +320,16 @@ function AppContent({ Component, pageProps }) {
               <div 
                 className="flex items-center justify-center min-h-screen bg-cover bg-center bg-no-repeat relative"
                 style={{
-                  backgroundImage: "url('https://etikxypnxjsonefwnzkr.supabase.co/storage/v1/object/public/property-images/newsletter-images/clay-leconey--cE_WYFod6g-unsplash.jpg')"
+                  backgroundImage: "url('https://etikxypnxjsonefwnzkr.supabase.co/storage/v1/object/public/property-images/avi-waxman-f9qZuKoZYoY-unsplash.jpg')"
                 }}
               >
                 {/* Dark overlay */}
                 <div className="absolute inset-0 bg-black bg-opacity-50"></div>
                 
                 {/* Login card */}
-                <div className="relative z-10 bg-black/95 backdrop-blur-md rounded-2xl shadow-2xl p-8 max-w-lg w-full mx-4 text-center border border-white/20">
-                  <h1 className="text-4xl font-bold text-gray-200 mb-2">Dosnine Limited</h1>
-                  <p className="text-lg text-gray-200 mb-8">Sign in to access your properties.</p>
+                <div className="relative z-10 bg-white/95 backdrop-blur-md rounded-2xl shadow-2xl p-8 max-w-lg w-full mx-4 text-center border border-white/20">
+                  <h1 className="text-4xl font-bold text-gray-900 mb-2">Dosnine Properties</h1>
+                  <p className="text-lg text-gray-600 mb-8">Sign in to access your dashboard and manage properties.</p>
                   <div className="flex flex-row gap-4">
                     <SignInButton>
                       <button className="flex-1 px-6 py-4 font-bold text-lg rounded-lg shadow-lg hover:shadow-xl transition duration-200 transform hover:scale-105 btn-accent">
