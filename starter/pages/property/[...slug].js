@@ -511,7 +511,7 @@ export default function PropertyPage({ property, similarProperties, isVerifiedAg
               </div>
             )}
 
-               <div className="bg-yellow-50 border-l-4 border-yellow-600 p-4 mt-4">
+               <div className="bg-yellow-50 border-l-4 font-medium border-yellow-600 p-2 m-2">
                 <p className="text-gray-700 mb-2">
                   <strong>Important:</strong> Never pay a deposit in order to view or &quot;hold&quot; a property
                 </p>
@@ -519,12 +519,12 @@ export default function PropertyPage({ property, similarProperties, isVerifiedAg
               </div> 
 
             {/* Property Details */}
-            <div className="bg-white rounded-xl  p-6 mb-6">
+            <div className="   p-6 mb-6">
               <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between mb-2 gap-3">
                 <div>
                   <h1 className="text-3xl font-bold">{property.title}</h1>
                   {statusLabel && (
-                    <div className="mt-3 inline-flex items-center rounded-full bg-yellow-100 text-yellow-800 px-3 py-1 text-sm font-semibold uppercase tracking-wide">
+                    <div className="mt-3  inline-flex items-center rounded-full bg-yellow-100 text-yellow-800 px-3 py-1 text-sm font-semibold uppercase tracking-wide">
                       {statusLabel}
                     </div>
                   )}

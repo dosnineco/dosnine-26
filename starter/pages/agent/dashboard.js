@@ -389,6 +389,7 @@ export default function AgentDashboard() {
                   <p className="text-sm text-gray-600">Promote your business</p>
                 </div>
               </Link>
+              {!isOwner && (
               <Link
                 href="/agent/parish-requests"
                 className="flex items-center gap-3 p-4 bg-accent/5 border border-accent/20 rounded-lg hover:bg-accent/10 transition group relative"
@@ -400,6 +401,8 @@ export default function AgentDashboard() {
                   <p className="text-sm text-gray-600">Find opportunities</p>
                 </div>
               </Link>
+              )}
+             
             </div>
 
              <div className="mb-5 mt-5 grid grid-cols-2 sm:flex sm:flex-nowrap gap-3">
@@ -413,16 +416,21 @@ export default function AgentDashboard() {
               <span className="sm:hidden">Properties</span>
             </Link>
 
-
+          {!isOwner && (
             <Link 
-              href="/agent/my-applications"
-              className="px-4 py-2 bg-white text-black rounded-lg hover:bg-gray-100 transition font-medium flex items-center justify-center gap-1.5 border border-gray-300 col-span-2 sm:col-span-1"
-            >
-              
-              <Mail className="w-5 h-5" />
-              <span className="hidden sm:inline">My Applications</span>
-              <span className="sm:hidden">Applications</span>
-            </Link>
+                href="/agent/my-applications"
+                className="px-4 py-2 bg-white text-black rounded-lg hover:bg-gray-100 transition font-medium flex items-center justify-center gap-1.5 border border-gray-300 col-span-2 sm:col-span-1"
+              >
+                
+                <Mail className="w-5 h-5" />
+                <span className="hidden sm:inline">My Applications</span>
+                <span className="sm:hidden">Applications</span>
+              </Link>
+                    
+              )}
+
+             
+           
             
             
             {!isOwner && (

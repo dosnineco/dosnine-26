@@ -500,7 +500,7 @@ const handleSubmit = async (e) => {
               <option value="sale">Sale</option>
             </select>
           </div>
-          <div>
+          {/* <div>
             <label className="block text-sm font-medium mb-1">Status</label>
             <select
               className="w-full border rounded px-3 py-2"
@@ -511,10 +511,10 @@ const handleSubmit = async (e) => {
               <option value="coming_soon">Coming Soon</option>
               <option value="rented">Rented</option>
             </select>
-          </div>
+          </div> */}
         </div>
 
-        <div className="mb-6">
+        {/* <div className="mb-6">
           <label className="block text-sm font-medium mb-1">Available Date</label>
           <input
             type="date"
@@ -522,7 +522,7 @@ const handleSubmit = async (e) => {
             value={form.available_date}
             onChange={(e) => setForm({ ...form, available_date: e.target.value })}
           />
-        </div>
+        </div> */}
 
         {/* Image Upload */}
         <div className="mb-6 p-4 bg-blue-50 rounded">
