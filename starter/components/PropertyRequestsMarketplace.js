@@ -270,14 +270,14 @@ export default function PropertyRequestsMarketplace() {
               href="/agent/signup"
               className="flex items-center gap-2 text-sm text-gray-900 font-semibold hover:text-gray-700 transition-colors delay-50 border-b-2 border-accent hover:border-gray-700 pb-2"
             >
-              Create a free agent account
+              Create agent account
               <ArrowRight className="text-accent" size={16} />
             </Link>
             <Link
               href="/advertise"
               className="flex items-center gap-2 text-sm text-gray-900 font-semibold hover:text-gray-700 transition-colors delay-50 border-b-2 border-accent hover:border-gray-700 pb-2"
             >
-              Advertise
+              Advertise with Us
               <ArrowRight className="text-accent" size={16} />
             </Link>  
           </div>
@@ -308,11 +308,11 @@ export default function PropertyRequestsMarketplace() {
               </Link>
             </div>
             <div className="relative overflow-hidden">
-              <div className="-mx-4 overflow-x-auto pb-4 px-4 flex gap-4 snap-x snap-mandatory scrollbar-hide">
+              <div className="mx-4 overflow-x-auto pb-4 px-4 flex gap-4 snap-x snap-mandatory scrollbar-hide">
                 {featuredProperties.map((prop, idx) => (
-                  <div key={prop.id} className="min-w-[300px] flex-shrink-0 snap-start">
+                  <div key={prop.id} className=" min-w-[300px] flex-shrink-0 snap-start">
                     <div className="h-80">
-                      <Suspense fallback={<div className="bg-white rounded-xl border p-4 h-full" />}>
+                      <Suspense fallback={<div className="bg-white   p-4 h-full" />}>
                         <PropertyCard property={prop} index={idx} />
                       </Suspense>
                     </div>
@@ -328,7 +328,8 @@ export default function PropertyRequestsMarketplace() {
         {loading ? (
           <div className="text-center py-12">
             <p className="text-gray-600 mt-2">Loading requests...</p>
-          </div>
+            
+            </div>
         ) : requests.length === 0 ? (
           <div className="text-center py-12">
             <p className="text-gray-600 text-lg">No requests available</p>
@@ -348,7 +349,7 @@ export default function PropertyRequestsMarketplace() {
                 </Link>
               </div>
 
-              <div className="-mx-4 overflow-x-auto pb-4 px-4 flex gap-4 snap-x snap-mandatory scrollbar-hide">
+              <div className="-mx-4 overflow-x-auto pb-4  px-4 flex gap-4 snap-x snap-mandatory scrollbar-hide">
                 {requests.map((request) => {
                 const tier = getBudgetTier(request.budget_min, request.budget_max);
                 const urgencyBadge = getUrgencyBadge(request.created_at);
@@ -356,7 +357,7 @@ export default function PropertyRequestsMarketplace() {
 
                 return (
                   <div key={`${request.type}-${request.id}`} className="min-w-[300px] flex-shrink-0 snap-start scrollbar-hide">
-                    <div className="h-auto  rounded-xl border border-gray-200 p-6 transition-all relative flex flex-col shadow-sm">
+                    <div className="h-60  rounded-xl border border-gray-200 p-6 transition-all relative flex flex-col shadow-sm">
             
 
 
@@ -407,7 +408,7 @@ export default function PropertyRequestsMarketplace() {
             </div>
           </section>
 
-          <section className="bg-white rounded-xl py-12 px-4 mt-8">
+          {/* <section className="bg-white rounded-xl py-12 px-4 mt-8">
             <div className="container mx-auto">
               <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between mb-8">
                 <div>
@@ -424,63 +425,9 @@ export default function PropertyRequestsMarketplace() {
                 <ParishRequestAnalytics />
               </div>
             </div>
-          </section>
+          </section> */}
 
-          {!loadingAds && advertisements.length > 0 && (
-            <section className="bg-white rounded-xl py-12 px-4 mt-8">
-              <div className="container mx-auto">
-                <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-8">
-                  <div>
-                    <p className="text-sm uppercase tracking-[0.18em] text-accent font-semibold">Partner Services</p>
-                    <h2 className="text-3xl font-bold text-gray-900 mt-2">Trusted Business Partners</h2>
-                    <p className="text-gray-600 mt-3 max-w-2xl">Connect with certified professionals for your property needs.</p>
-                  </div>
-                  <Link href="/advertise" className="inline-flex items-center gap-2 rounded-full bg-gray-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-gray-800">
-                    View All Services
-                    <ArrowRight size={18} />
-                  </Link>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {advertisements.map((ad) => (
-                    <div key={ad.id} className="bg-gray-50 rounded-xl p-5 hover:bg-gray-100 transition">
-                      <div className="flex items-start justify-between mb-3">
-                        <div className="flex-1">
-                          <h3 className="font-bold text-gray-900 text-base mb-1">{ad.company_name}</h3>
-                          <p className="text-xs text-gray-500 font-medium">{ad.title || ad.category}</p>
-                        </div>
-                      </div>
-                      {ad.description && (
-                        <p className="text-sm text-gray-600 mb-4 line-clamp-2">{ad.description}</p>
-                      )}
-                      <div className="flex gap-2">
-                        {ad.phone && (
-                          <a
-                            href={`https://wa.me/${ad.phone.replace(/[^0-9]/g, '')}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex-1 inline-flex items-center justify-center bg-accent hover:bg-accent/90 text-white rounded-lg px-3 py-2 text-xs font-semibold transition"
-                          >
-                            Contact
-                          </a>
-                        )}
-                        {ad.website && (
-                          <a
-                            href={ad.website}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex-1 inline-flex items-center justify-center border border-gray-300 hover:bg-gray-100 text-gray-900 rounded-lg px-3 py-2 text-xs font-semibold transition"
-                          >
-                            Website
-                          </a>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </section>
-          )}
+       
           </>
         )}
       </div>

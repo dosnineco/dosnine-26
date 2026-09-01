@@ -13,7 +13,7 @@ export default function PropertyCard({ property, isOwner = false, index = 0 }) {
   return (
     <Link 
       data-list-index={index} 
-      className={clsx('bg-white rounded-xl border flex flex-col h-80 overflow-hidden')} 
+      className={clsx('bg-white border border-gray-200 rounded-xl flex flex-col h-80 overflow-hidden')} 
       href={`/property/${property.slug || property.id}`}
     >
       <div className="relative h-48 w-full flex-shrink-0 overflow-hidden">
@@ -25,7 +25,7 @@ export default function PropertyCard({ property, isOwner = false, index = 0 }) {
         )}
       </div>
 
-      <div className="flex-1 p-3 flex flex-col overflow-hidden">
+      <div className="flex-1  p-3 flex flex-col overflow-hidden">
         <div className="flex-1">
           <div className="text-lg font-semibold line-clamp-2">{property.title}</div>
           <div className="text-sm text-gray-500 line-clamp-1">{property.town}, {property.parish}</div>
