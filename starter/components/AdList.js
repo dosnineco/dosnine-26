@@ -187,32 +187,31 @@ export default function AdvertisementGrid({ compact = false }) {
     : activeAd.image_url
 
   return (
-    <div className={`sticky top-[60px] z-40 w-full bg-gray-100 overflow-hidden ${compact ? 'mb-3 py-1' : 'mb-4 py-1'}`}>
+    <div className={`sticky top-[60px] z-40 w-full  overflow-hidden ${compact ? 'mb-3 py-1' : 'mb-4 py-1'}`}>
       <div className="px-3 sm:px-4">
-        <div className="mx-auto w-full max-w-2xl">
+        <div className="mx-auto w-full  max-w-2xl">
           <p className="mb-0.5 text-[10px] font-bold uppercase tracking-wide text-black">Ads</p>
           <Link
             href={`/ads/${activeAd.id}`}
             data-ad-id={activeAd.id}
-            className={`ad-light-sweep relative flex h-[52px] items-center gap-2.5 overflow-hidden rounded-lg bg-white px-2 transition hover:bg-gray-50 sm:h-[60px] sm:gap-3 sm:px-3 ${activeAd.is_featured ? 'ring-1 ring-accent/30' : ''}`}
+            className={`ad-light-sweep relative flex h-[84px] items-center gap-3 overflow-hidden rounded-lg bg-gray-100 px-3 transition hover:bg-gray-50 sm:h-[72px] sm:gap-4 sm:px-4 ${activeAd.is_featured ? 'ring-1 ring-accent/30' : ''}`}
           >
             {imageUrl ? (
-              <div className="h-9 w-9 shrink-0 overflow-hidden rounded-md bg-gray-100 sm:h-11 sm:w-11">
+              <div className="h-11 w-11 shrink-0 overflow-hidden rounded-md bg-gray-100 sm:h-14 sm:w-14">
                 <img src={imageUrl} alt={activeAd.company_name} className="h-full w-full object-cover" />
               </div>
             ) : (
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-accent/10 text-xs font-bold text-accent sm:h-11 sm:w-11">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md bg-accent/10 text-sm font-bold text-accent sm:h-14 sm:w-14">
                 {activeAd.company_name?.slice(0, 1)?.toUpperCase() || 'A'}
               </div>
             )}
-            <div className="min-w-0 flex-1">
+            <div className="min-w-0 flex-1 ">
               <div className="flex items-center gap-2">
                 <h3 className="truncate text-sm font-bold text-gray-900 sm:text-base">{activeAd.company_name}</h3>
                 {activeAd.is_featured && <span className="hidden rounded bg-accent/10 px-1.5 py-0.5 text-[10px] font-semibold text-accent sm:inline">Featured</span>}
               </div>
               <p className="truncate text-xs text-gray-600">{activeAd.description || activeAd.category?.replace('_', ' ')}</p>
             </div>
-            <Eye className="h-4 w-4 shrink-0 text-gray-400" aria-label={`${activeAd.impressions || 0} views`} />
           </Link>
         </div>
       </div>

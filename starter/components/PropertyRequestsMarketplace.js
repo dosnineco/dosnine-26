@@ -235,7 +235,7 @@ export default function PropertyRequestsMarketplace() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen ">
   
       {/* Bottom spacing from hero */}
       <div className="h-20"></div>

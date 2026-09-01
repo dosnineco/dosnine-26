@@ -78,18 +78,18 @@ export default async function handler(req, res) {
       return res.status(404).json({ error: 'Property not found' });
     }
 
-    await db
-      .from('properties')
-      .update({ views: (property.views || 0) + 1 })
-      .eq('id', property.id);
+    const { data: updatedViews, error: viewError } = await db.rpc('increment_property_views', {
+      property_id: property.id,
+    });
 
-    const { data: refreshedProperty } = await db
-      .from('properties')
-      .select(PUBLIC_PROPERTY_DETAIL_FIELDS)
-      .eq('id', property.id)
-      .single();
+    if (viewError) {
+      console.error('Failed to increment property views:', viewError);
+    }
 
-    const propertyData = refreshedProperty || property;
+    const propertyData = {
+      ...property,
+      views: viewError ? property.views : Number(updatedViews || property.views || 0),
+    };
 
     const { data: ownerData } = await db
       .from('users')
