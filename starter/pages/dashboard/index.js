@@ -14,6 +14,7 @@ export default function Dashboard() {
   const [stats, setStats] = useState({ properties: 0, applications: 0, activeListings: 0 });
   const [recentProperties, setRecentProperties] = useState([]);
   const [serviceRequests, setServiceRequests] = useState([]);
+  const [adInquiries, setAdInquiries] = useState([]);
   const [advertisements, setAdvertisements] = useState([]);
   const [verifiedAdvertisements, setVerifiedAdvertisements] = useState([]);
   const [adStats, setAdStats] = useState({
@@ -208,6 +209,7 @@ export default function Dashboard() {
 
       setRecentProperties(Array.isArray(payload?.recentProperties) ? payload.recentProperties : []);
       setServiceRequests(Array.isArray(payload?.serviceRequests) ? payload.serviceRequests : []);
+      setAdInquiries(Array.isArray(payload?.adInquiries) ? payload.adInquiries : []);
       setAdvertisements(Array.isArray(payload?.advertisements) ? payload.advertisements : []);
       setVerifiedAdvertisements(Array.isArray(payload?.verifiedAdvertisements) ? payload.verifiedAdvertisements : []);
       setAdStats(payload?.adStats || {
@@ -223,6 +225,7 @@ export default function Dashboard() {
       setStats({ properties: 0, applications: 0, activeListings: 0 });
       setRecentProperties([]);
       setServiceRequests([]);
+      setAdInquiries([]);
       setAdvertisements([]);
       setVerifiedAdvertisements([]);
       setAdStats({
@@ -320,6 +323,38 @@ export default function Dashboard() {
 
       <div className="container mx-auto px-4 py-8">
         <h1 className="text-3xl font-bold mb-8">Hi, {user?.username || 'User'}!</h1>
+
+        {!agentData && (
+          <div className="bg-gradient-to-r from-blue-50 to-gray-50 border border-blue-100 rounded-2xl p-6 mb-8">
+            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-accent mb-2">Free property inquiry service</p>
+                <h2 className="text-2xl font-bold text-gray-900 mb-2">Get direct tenant enquiries after you upload your property</h2>
+                <p className="text-gray-700 max-w-2xl">
+                  Once your property is live, clients can message you directly through the listing. You get the enquiry for free, and we only help when you want extra support to fill the vacancy faster.
+                </p>
+              </div>
+
+              <div className="bg-white border border-gray-200 rounded-xl p-4 min-w-[280px]">
+                <p className="text-xs uppercase tracking-[0.18em] text-gray-500 mb-2">Vacancy fill service</p>
+                <p className="text-3xl font-bold text-gray-900">J$9,900</p>
+                <p className="text-sm text-gray-600 mt-1">We help find someone to fill your vacancy.</p>
+                <a
+                  href="https://wa.me/18763369045?text=Hi%20Dosnine%2C%20I%20want%20to%20fill%20a%20vacancy%20for%20my%20property.%20Please%20help%20me%20with%20the%20service."
+                  target="_blank"
+                  rel="noreferrer"
+                  className="mt-3 inline-flex items-center justify-center w-full rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-white hover:bg-accent/90"
+                >
+                  WhatsApp us
+                </a>
+              </div>
+            </div>
+
+            <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+              <strong>Important:</strong> If your property is not up to standard or may not attract tenants, we can review it with you and advise what to improve. Results may vary and no guarantee is given. For a consultation, WhatsApp <a href="https://wa.me/18763369045" target="_blank" rel="noreferrer" className="font-semibold underline">876-336-9045</a>.
+            </div>
+          </div>
+        )}
 
         {/* Quick Actions */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
@@ -721,6 +756,25 @@ export default function Dashboard() {
             ) : (
               <p className="text-gray-500">No active verified ads yet.</p>
             )}
+          </div>
+        )}
+
+        {!redirecting && adInquiries.length > 0 && (
+          <div className="bg-white rounded-lg p-6 mb-8">
+            <h2 className="text-2xl font-bold mb-4">Advertisement Leads</h2>
+            <div className="space-y-3">
+              {adInquiries.slice(0, 10).map((inquiry) => (
+                <div key={inquiry.id} className="bg-gray-50 rounded-lg p-4">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="font-semibold text-gray-900">{inquiry.advertisements?.title || inquiry.advertisements?.company_name || 'Advertisement enquiry'}</p>
+                    <span className="text-xs font-medium capitalize text-accent">{inquiry.status}</span>
+                  </div>
+                  <p className="mt-2 text-sm text-gray-800">{inquiry.message}</p>
+                  <p className="mt-3 text-sm text-gray-600">{inquiry.client_name} | {inquiry.client_email}{inquiry.client_phone ? ` | ${inquiry.client_phone}` : ''}</p>
+                  <p className="mt-1 text-xs text-gray-500">{formatDate(inquiry.created_at)}</p>
+                </div>
+              ))}
+            </div>
           </div>
         )}
 

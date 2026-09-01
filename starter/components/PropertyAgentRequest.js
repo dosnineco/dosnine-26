@@ -10,6 +10,8 @@ export default function PropertyAgentRequest({ property, isOpen, onClose }) {
     name: user?.fullName || '',
     email: user?.primaryEmailAddress?.emailAddress || '',
     phone: '',
+    income: '',
+    job: '',
     message: '',
     agreeToContact: false,
   });
@@ -45,6 +47,8 @@ export default function PropertyAgentRequest({ property, isOpen, onClose }) {
         clientName: formData.name,
         clientEmail: formData.email,
         clientPhone: formData.phone,
+        clientIncome: formData.income,
+        clientJob: formData.job,
         requestType,
         propertyType,
         parish: property.parish || null,
@@ -56,6 +60,7 @@ export default function PropertyAgentRequest({ property, isOpen, onClose }) {
         description: formData.message || `Interested in: ${property.title}`,
         urgency: 'normal',
         propertyOwnerId: property.owner_id,
+        propertyTitle: property.title,
       };
 
       const response = await fetch('/api/service-requests/create', {
@@ -69,7 +74,7 @@ export default function PropertyAgentRequest({ property, isOpen, onClose }) {
         throw new Error(payload?.error || 'Failed to submit request');
       }
 
-      toast.success('Request sent successfully! The agent will contact you soon.');
+      toast.success('Request sent successfully! The owner will contact you soon.');
       onClose();
     } catch (error) {
       console.error('Request submission error:', error);
@@ -146,6 +151,34 @@ export default function PropertyAgentRequest({ property, isOpen, onClose }) {
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
               placeholder="+1 876 555-1234"
             />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Monthly Income
+              </label>
+              <input
+                type="text"
+                value={formData.income}
+                onChange={(e) => setFormData({ ...formData, income: e.target.value })}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                placeholder="J$ 80,000"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Job / Occupation
+              </label>
+              <input
+                type="text"
+                value={formData.job}
+                onChange={(e) => setFormData({ ...formData, job: e.target.value })}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                placeholder="Teacher, Nurse, Driver"
+              />
+            </div>
           </div>
 
           <div>

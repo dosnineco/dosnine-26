@@ -1,7 +1,6 @@
 import { enforceRateLimit } from '@/lib/rateLimit';
-import { getClerkUserContext } from '@/lib/apiAuth';
 import { supabase } from '@/lib/supabase';
-import { getDbClient } from '@/lib/apiAuth';
+import { getDbClient, requireDbUser } from '@/lib/apiAuth';
 import * as SibApiV3Sdk from '@getbrevo/brevo';
 
 const AD_PLANS = {
@@ -176,11 +175,22 @@ export default async function handler(req, res) {
   };
 
   try {
-    const clerkContext = getClerkUserContext(req);
+    const resolved = await requireDbUser(req, res);
+    if (!resolved) return;
+
+    const accountVerified =
+      resolved.user.identity_verified === true ||
+      resolved.user.id_verification_status === 'approved' ||
+      resolved.user.account_status === 'active';
+
+    if (!accountVerified) {
+      return res.status(403).json({ error: 'A verified Dosnine account is required to submit an advertisement.' });
+    }
+
     const selectedPlan = AD_PLANS[plan_id] || AD_PLANS['7-day'];
     const submittedAt = new Date().toISOString();
-    const createdByClerkId = clerkContext?.clerkId || 'public_submission';
-    const normalizedEmail = String(email || clerkContext?.email || '').trim() || 'no-email@dosnine.local';
+    const createdByClerkId = resolved.clerkId;
+    const normalizedEmail = String(email || resolved.user.email || '').trim() || 'no-email@dosnine.local';
     const normalizedCategory = normalizeCategory(category);
 
     const payload = {
@@ -199,7 +209,7 @@ export default async function handler(req, res) {
       plan_name: selectedPlan.name,
       amount: selectedPlan.amount,
       duration_days: selectedPlan.durationDays,
-      created_by_clerk_id: clerkContext?.clerkId || null,
+      created_by_clerk_id: resolved.clerkId,
     };
 
     const syntheticId = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 10)}`;
@@ -264,6 +274,7 @@ export default async function handler(req, res) {
       is_active: false,
       display_order: 0,
       created_by_clerk_id: createdByClerkId,
+      advertiser_id: resolved.user.id,
       expires_at: null,
       is_featured: Boolean(is_featured),
     };

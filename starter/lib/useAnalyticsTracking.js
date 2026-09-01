@@ -16,6 +16,13 @@ export function useAnalyticsTracking() {
           event_type: 'page_view',
           page_url: router.asPath || router.pathname,
           created_at: now,
+          session_id: typeof window !== 'undefined'
+            ? (sessionStorage.getItem('dosnineAnalyticsSessionId') || (() => {
+                const sessionId = crypto.randomUUID();
+                sessionStorage.setItem('dosnineAnalyticsSessionId', sessionId);
+                return sessionId;
+              })())
+            : null,
         };
 
         // POST to server-side tracking endpoint

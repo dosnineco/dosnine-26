@@ -63,9 +63,17 @@ export default async function handler(req, res) {
       serviceRequests = requests;
     }
 
+    const { data: adInquiriesRaw, error: adInquiriesError } = await db
+      .from('advertisement_inquiries')
+      .select('id, client_name, client_email, client_phone, message, status, created_at, advertisements(title, company_name)')
+      .eq('advertiser_id', userData.id)
+      .order('created_at', { ascending: false });
+
+    const adInquiries = !adInquiriesError && Array.isArray(adInquiriesRaw) ? adInquiriesRaw : [];
+
     const { data: adsByClerkRaw } = await db
       .from('advertisements')
-      .select('id, title, company_name, is_active, impressions, clicks, expires_at, created_at, updated_at, created_by_clerk_id, email')
+      .select('id, title, company_name, category, is_active, is_featured, impressions, clicks, expires_at, created_at, updated_at, created_by_clerk_id, email')
       .eq('created_by_clerk_id', resolved.clerkId)
       .order('created_at', { ascending: false });
 
@@ -74,7 +82,7 @@ export default async function handler(req, res) {
     if (userData?.email) {
       const { data: adsByEmailRaw } = await db
         .from('advertisements')
-        .select('id, title, company_name, is_active, impressions, clicks, expires_at, created_at, updated_at, created_by_clerk_id, email')
+        .select('id, title, company_name, category, is_active, is_featured, impressions, clicks, expires_at, created_at, updated_at, created_by_clerk_id, email')
         .eq('email', userData.email)
         .order('created_at', { ascending: false });
 
@@ -87,7 +95,7 @@ export default async function handler(req, res) {
 
     const { data: submissionsByClerkRaw } = await db
       .from('sponsor_submissions')
-      .select('id, status, submitted_at, verified_at, plan_id, plan_name, amount, duration_days, created_by_clerk_id, email')
+      .select('id, company_name, status, submitted_at, verified_at, plan_id, plan_name, amount, duration_days, created_by_clerk_id, email')
       .eq('created_by_clerk_id', resolved.clerkId)
       .order('submitted_at', { ascending: false });
 
@@ -95,7 +103,7 @@ export default async function handler(req, res) {
     if (userData?.email) {
       const { data: submissionsByEmailRaw } = await db
         .from('sponsor_submissions')
-        .select('id, status, submitted_at, verified_at, plan_id, plan_name, amount, duration_days, created_by_clerk_id, email')
+        .select('id, company_name, status, submitted_at, verified_at, plan_id, plan_name, amount, duration_days, created_by_clerk_id, email')
         .eq('email', userData.email)
         .order('submitted_at', { ascending: false });
 
@@ -110,6 +118,25 @@ export default async function handler(req, res) {
       const status = String(entry?.status || '').toLowerCase();
       return pendingStatuses.has(status);
     }) || null;
+
+    const submissionsByCompanyAndEmail = new Map(
+      submissions.map((submission) => [
+        `${String(submission.company_name || '').trim().toLowerCase()}|${String(submission.email || '').trim().toLowerCase()}`,
+        submission,
+      ])
+    );
+
+    ads = ads.map((ad) => {
+      const key = `${String(ad.company_name || '').trim().toLowerCase()}|${String(ad.email || '').trim().toLowerCase()}`;
+      const submission = submissionsByCompanyAndEmail.get(key);
+      return {
+        ...ad,
+        plan_name: submission?.plan_name || null,
+        plan_amount: submission?.amount || null,
+        plan_duration_days: submission?.duration_days || null,
+        verified_at: submission?.verified_at || null,
+      };
+    });
 
     const approvedSubmissions = submissions.filter((entry) => String(entry?.status || '').toLowerCase() === 'approved').length;
     const totalViews = ads.reduce((sum, ad) => sum + Number(ad?.impressions || 0), 0);
@@ -148,6 +175,7 @@ export default async function handler(req, res) {
       },
       recentProperties: properties,
       serviceRequests,
+      adInquiries,
       adStats: {
         totalAds: ads.length,
         activeAds,

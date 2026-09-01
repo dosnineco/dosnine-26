@@ -1,3 +1,28 @@
+@keyframes ad-light-sweep {
+  0% {
+    offset-distance: 0%;
+  }
+  100% {
+    offset-distance: 100%;
+  }
+}
+
+.ad-light-sweep::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 7px;
+  height: 7px;
+  pointer-events: none;
+  z-index: 10;
+  border-radius: 999px;
+  background: #ef4444;
+  box-shadow: 0 0 7px 2px rgba(239, 68, 68, 0.8);
+  offset-path: inset(3px round 7px);
+  offset-rotate: 0deg;
+  animation: ad-light-sweep 9s linear infinite;
+}
 @tailwind base;
 @tailwind components;
 @tailwind utilities;

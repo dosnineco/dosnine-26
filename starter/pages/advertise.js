@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
-import { useUser } from '@clerk/nextjs';
+import { useAuth, useUser } from '@clerk/nextjs';
 import {
   ArrowRight,
   BadgeCheck,
@@ -141,6 +141,7 @@ const upgrades = [
   { key: 'urgent_badge', label: 'Urgent Badge', price: 1800, description: 'Signal immediate availability to buyers.' },
   { key: 'featured_business_badge', label: 'Featured Business Badge', price: 2200, description: 'Showcase your business as a verified advertiser.' },
   { key: 'htv_logo_pack', label: 'HTV Logo Pack', price: 2750, description: 'Physical HTV-ready-to-press logos for shirts and other branded gear.' },
+  { key: 'brand_partnership', label: 'Custom Brand Partnership', price: 0, description: 'Custom campaigns for banks, trucking companies, electrical services, pest control, and other property-focused brands. Our team will prepare a quote.' },
 ];
 
 const faqs = [
@@ -240,6 +241,7 @@ function TrustPill({ icon: Icon, title }) {
 
 export default function AdvertisePage() {
   const { user } = useUser();
+  const { getToken } = useAuth();
   const [step, setStep] = useState(1);
   const [submitting, setSubmitting] = useState(false);
   const [copied, setCopied] = useState('');
@@ -354,9 +356,13 @@ export default function AdvertisePage() {
         upgrades: Object.keys(selectedUpgrades).filter((key) => selectedUpgrades[key]),
       };
 
+      const token = await getToken();
       const response = await fetch('/api/sponsors/submit', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify(submissionPayload),
       });
 

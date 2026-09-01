@@ -10,7 +10,6 @@ import { PARISHES, normalizeParish } from '../lib/normalizeParish';
 import VisitorEmailPopup from '@/components/VisitorEmailPopup';
 import BecomeAgentBanner from '../components/BecomeAgentBanner';
 const PROPERTIES_PER_PAGE = 30;
-import AdList from '../components/AdList';
 
 // Role Card Component - same size as PropertyCard
 function RoleCard({ title, subtitle, icon: Icon, bgColor, textColor, link, user, bgImage }) {
@@ -331,8 +330,6 @@ export default function Home() {
             Update Results
           </button>
         </form>
-
-         {/* <AdList/> */}
 
 
 

@@ -61,6 +61,7 @@ export default function AgentDashboard() {
   const [paidAgentCount, setPaidAgentCount] = useState(null);
   const [paidAgentLoading, setPaidAgentLoading] = useState(true);
   const [advertisements, setAdvertisements] = useState([]);
+  const [adInquiries, setAdInquiries] = useState([]);
   const [adStats, setAdStats] = useState({
     totalAds: 0,
     activeAds: 0,
@@ -141,6 +142,7 @@ export default function AgentDashboard() {
 
         const payload = response.data || {};
         setAdvertisements(Array.isArray(payload.advertisements) ? payload.advertisements : []);
+        setAdInquiries(Array.isArray(payload.adInquiries) ? payload.adInquiries : []);
         setAdStats(payload.adStats || {
           totalAds: 0,
           activeAds: 0,
@@ -152,6 +154,7 @@ export default function AgentDashboard() {
       } catch (error) {
         console.error('Error fetching ad stats:', error);
         setAdvertisements([]);
+        setAdInquiries([]);
         setAdStats({
           totalAds: 0,
           activeAds: 0,
@@ -343,15 +346,8 @@ export default function AgentDashboard() {
 
       <div className="min-h-screen bg-gray-50">
         <div className="max-w-7xl mx-auto px-6 sm:px-6 lg:px-8 py-8">
-        
-
-         
-         
-
-        
-
           {/* Quick Actions Section */}
-          <div className="bg-white rounded-xl border border-gray-200 p-6 mb-4 ">
+          <div className="bg-white rounded-xl border border-gray-200 p-6 mb-4">
             <div className="flex items-center gap-3 mb-4">
               <CheckCircle className="w-8 h-8 text-accent" />
               <h2 className="text-xl font-bold text-gray-900">Quick Actions</h2>
@@ -454,8 +450,91 @@ export default function AgentDashboard() {
                 <span className="sm:hidden">{shouldShowUpgrade() ? 'Upgrade' : 'Plan'}</span>
               </Link>
             )}
+            {isOwner && (
+              <Link
+                href="/agent/payment"
+                className="px-4 py-2 bg-accent text-white rounded-lg hover:bg-accent/90 transition font-medium flex items-center justify-center gap-1.5 border border-accent col-span-2 sm:col-span-1"
+              >
+                <CreditCard className="w-5 h-5" />
+                <span>Vacancy Service</span>
+              </Link>
+            )}
           </div>
           </div>
+
+          {isOwner && (
+            <div className="bg-blue-50 border-l-4 border-accent rounded-lg p-5 mb-6">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div className="flex items-start gap-3">
+                  <DollarSign className="text-accent flex-shrink-0 mt-0.5" size={24} />
+                  <div>
+                    <h3 className="font-bold text-gray-900 mb-1">Fill Your Vacancy for J$9,900</h3>
+                    <p className="text-gray-700 text-sm">
+                      Direct enquiries from clients are free once your property is live. Pay only when you want Dosnine to help find a tenant for your vacancy.
+                    </p>
+                  </div>
+                </div>
+                <Link
+                  href="/agent/payment"
+                  className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-accent text-white font-semibold rounded-lg hover:bg-accent/90 transition text-sm whitespace-nowrap"
+                >
+                  <CreditCard className="w-5 h-5" />
+                  View Payment
+                </Link>
+              </div>
+            </div>
+          )}
+
+          {isOwner && (
+            <div className="bg-white rounded-lg border border-gray-200 p-6 mb-6">
+              <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+                <div>
+                  <h2 className="text-xl font-bold text-gray-900">Your Advertisements</h2>
+                  <p className="text-sm text-gray-600">Approved advertisements are live for Dosnine visitors to view.</p>
+                </div>
+                <Link href="/advertise" className="inline-flex items-center justify-center rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white hover:bg-accent/90">
+                  Create Ad
+                </Link>
+              </div>
+
+              {advertisements.filter((ad) => ad.is_active).length > 0 ? (
+                <div className="space-y-3">
+                  {advertisements.filter((ad) => ad.is_active).map((ad) => (
+                    <div key={ad.id} className="bg-green-50 rounded-lg p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                      <div>
+                        <p className="font-semibold text-gray-900">{ad.title || ad.company_name || 'Advertisement'}</p>
+                        <p className="text-sm text-green-700">Live and approved</p>
+                        <p className="text-xs text-gray-500 mt-1">Expires: {ad.expires_at ? new Date(ad.expires_at).toLocaleDateString() : 'No expiry date'}</p>
+                      </div>
+                      <Link href={`/ads/${ad.id}`} className="inline-flex items-center justify-center rounded-lg bg-white px-4 py-2 text-sm font-semibold text-gray-900 hover:bg-gray-100">
+                        View Ad
+                      </Link>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="rounded-lg bg-gray-50 p-4 text-sm text-gray-600">No approved advertisements yet. Ads appear here once payment and approval are confirmed.</p>
+              )}
+            </div>
+          )}
+
+          {adInquiries.length > 0 && (
+            <div className="bg-white rounded-lg border border-gray-200 p-6 mb-6">
+              <div className="flex items-center justify-between gap-3 mb-4"><div><p className="text-xs font-semibold uppercase tracking-wide text-accent">Client enquiries</p><h2 className="mt-1 text-xl font-bold text-gray-900">Advertisement Leads</h2></div><span className="rounded-full bg-gray-100 px-3 py-1 text-sm font-semibold text-gray-700">{adInquiries.length}</span></div>
+              <div className="space-y-3">
+                {adInquiries.slice(0, 10).map((inquiry) => (
+                  <div key={inquiry.id} className="bg-gray-50 rounded-lg p-4">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <p className="font-semibold text-gray-900">{inquiry.advertisements?.title || inquiry.advertisements?.company_name || 'Advertisement enquiry'}</p>
+                      <span className="rounded-full bg-blue-100 px-2.5 py-1 text-xs font-semibold capitalize text-blue-700">{inquiry.status}</span>
+                    </div>
+                    <p className="mt-2 text-sm text-gray-800">{inquiry.message}</p>
+                    <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-gray-600"><span className="font-medium text-gray-800">{inquiry.client_name}</span><a href={`mailto:${inquiry.client_email}`} className="hover:text-accent">{inquiry.client_email}</a>{inquiry.client_phone && <a href={`tel:${inquiry.client_phone}`} className="hover:text-accent">{inquiry.client_phone}</a>}<span className="text-xs text-gray-500">{new Date(inquiry.created_at).toLocaleDateString()}</span></div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Free Plan Alert */}
           {!isOwner && isFreePlan() && (
@@ -501,7 +580,8 @@ export default function AgentDashboard() {
             </div>
           )}
         
-          {/* Stats */}
+          {/* Agent request pipeline */}
+          {!isOwner && (
           <>
           <div className="mb-3 flex items-center gap-2">
             <h2 className="text-lg font-semibold text-gray-900">Request Stats</h2>
@@ -822,6 +902,7 @@ export default function AgentDashboard() {
             )}
           </div>
             </>
+          )}
         </div>
       </div>
 

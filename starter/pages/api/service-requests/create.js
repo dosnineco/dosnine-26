@@ -34,6 +34,75 @@ const shouldSendServiceFeeEmail = (requestType) => {
   return normalized === 'rent' || normalized === 'buy';
 };
 
+const sendPropertyOwnerNotificationEmail = async ({
+  ownerEmail,
+  ownerName,
+  clientName,
+  clientEmail,
+  clientPhone,
+  clientIncome,
+  clientJob,
+  propertyTitle,
+  propertyType,
+  requestType,
+  location,
+  description,
+}) => {
+  const apiKey = process.env.BREVO_API_KEY;
+  if (!apiKey || !ownerEmail) {
+    return;
+  }
+
+  const apiInstance = new SibApiV3Sdk.TransactionalEmailsApi();
+  apiInstance.setApiKey(SibApiV3Sdk.TransactionalEmailsApiApiKeys.apiKey, apiKey);
+
+  const htmlContent = `
+    <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #111827;">
+      <h2 style="margin: 0 0 12px;">New Property Inquiry</h2>
+      <p>Hi ${ownerName || 'there'},</p>
+      <p>A client is interested in your property listing: <strong>${propertyTitle || 'Property Listing'}</strong>.</p>
+      <ul style="padding-left: 18px; margin: 8px 0;">
+        <li><strong>Customer Name:</strong> ${clientName}</li>
+        <li><strong>Phone:</strong> ${clientPhone}</li>
+        <li><strong>Email:</strong> ${clientEmail}</li>
+        <li><strong>Monthly Income:</strong> ${clientIncome || 'Not provided'}</li>
+        <li><strong>Job / Occupation:</strong> ${clientJob || 'Not provided'}</li>
+        <li><strong>Request Type:</strong> ${String(requestType || '').toUpperCase()}</li>
+        <li><strong>Property Type:</strong> ${propertyType || 'Not provided'}</li>
+        <li><strong>Location:</strong> ${location || 'Not provided'}</li>
+      </ul>
+      <p><strong>Message:</strong> ${description || 'No message provided'}</p>
+      <p>Please reply directly to the client using the phone number or email above.</p>
+    </div>
+  `;
+
+  const emailPayload = new SibApiV3Sdk.SendSmtpEmail();
+  emailPayload.subject = `New inquiry for ${propertyTitle || 'your property'}`;
+  emailPayload.htmlContent = htmlContent;
+  emailPayload.textContent = [
+    `New property inquiry for ${propertyTitle || 'your property'}`,
+    '',
+    `Hi ${ownerName || 'there'},`,
+    '',
+    `A client is interested in your property listing.`,
+    `Customer Name: ${clientName}`,
+    `Phone: ${clientPhone}`,
+    `Email: ${clientEmail}`,
+    `Monthly Income: ${clientIncome || 'Not provided'}`,
+    `Job / Occupation: ${clientJob || 'Not provided'}`,
+    `Request Type: ${String(requestType || '').toUpperCase()}`,
+    `Property Type: ${propertyType || 'Not provided'}`,
+    `Location: ${location || 'Not provided'}`,
+    `Message: ${description || 'No message provided'}`,
+    '',
+    'Please reply directly to the client using the phone number or email above.',
+  ].join('\n');
+  emailPayload.sender = { name: 'Dosnine', email: 'dosnineco@gmail.com' };
+  emailPayload.to = [{ email: ownerEmail, name: ownerName || 'Property Owner' }];
+
+  await apiInstance.sendTransacEmail(emailPayload);
+};
+
 const sendServiceFeeConfirmationEmail = async ({
   clientName,
   clientEmail,
@@ -157,6 +226,15 @@ export default async function handler(req, res) {
 
   const db = getDbClient();
 
+  const normalizeOwnerId = (value) => {
+    if (value === null || value === undefined) return null;
+    const text = String(value).trim();
+    if (!text || text === 'null' || text === 'undefined') return null;
+    return /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$/.test(text)
+      ? text
+      : null;
+  };
+
   const schema = z.object({
     clientName: z.string().trim().min(1).max(120).optional(),
     client_name: z.string().trim().min(1).max(120).optional(),
@@ -164,10 +242,16 @@ export default async function handler(req, res) {
     client_email: z.string().trim().email().max(254).optional(),
     clientPhone: z.string().trim().min(7).max(40).optional(),
     client_phone: z.string().trim().min(7).max(40).optional(),
+    clientIncome: z.string().trim().max(80).nullable().optional(),
+    client_income: z.string().trim().max(80).nullable().optional(),
+    clientJob: z.string().trim().max(120).nullable().optional(),
+    client_job: z.string().trim().max(120).nullable().optional(),
     requestType: z.string().trim().min(1).max(100).optional(),
     request_type: z.string().trim().min(1).max(100).optional(),
     propertyType: z.string().trim().min(1).max(100).optional(),
     property_type: z.string().trim().min(1).max(100).optional(),
+    propertyTitle: z.string().trim().max(255).nullable().optional(),
+    property_title: z.string().trim().max(255).nullable().optional(),
     location: z.string().trim().min(1).max(255).optional(),
     parish: z.string().trim().max(120).nullable().optional(),
     budgetMin: z.union([z.number(), z.string()]).nullable().optional(),
@@ -180,8 +264,8 @@ export default async function handler(req, res) {
     urgency: z.enum(['low', 'normal', 'high', 'urgent']).optional(),
     fromAds: z.boolean().optional(),
     from_ads: z.boolean().optional(),
-    propertyOwnerId: z.string().uuid().nullable().optional(),
-    property_owner_id: z.string().uuid().nullable().optional(),
+    propertyOwnerId: z.any().optional().transform(normalizeOwnerId),
+    property_owner_id: z.any().optional().transform(normalizeOwnerId),
     website: z.string().optional(),
     company: z.string().optional(),
     url: z.string().optional(),
@@ -201,8 +285,11 @@ export default async function handler(req, res) {
   const parsedClientName = sanitizeString(parsed.clientName || parsed.client_name, 120);
   const parsedClientEmail = sanitizeEmail(parsed.clientEmail || parsed.client_email);
   const parsedClientPhone = sanitizePhoneInput(parsed.clientPhone || parsed.client_phone);
+  const parsedClientIncome = sanitizeString(parsed.clientIncome || parsed.client_income, 80);
+  const parsedClientJob = sanitizeString(parsed.clientJob || parsed.client_job, 120);
   const parsedRequestType = sanitizeString(parsed.requestType || parsed.request_type, 100);
   const parsedPropertyType = sanitizeString(parsed.propertyType || parsed.property_type, 100);
+  const parsedPropertyTitle = sanitizeString(parsed.propertyTitle || parsed.property_title, 255);
   const parsedLocation = sanitizeLocation(parsed.location);
   const parsedParish = parsed.parish ? sanitizeLocation(parsed.parish) : null;
   const parsedBudgetMin = sanitizeMoney(parsed.budgetMin ?? parsed.budget_min ?? 0);
@@ -239,6 +326,12 @@ export default async function handler(req, res) {
     }
 
     // Create service request
+    const enrichedDescription = [
+      parsedDescription || `Interested in: ${parsedPropertyTitle || 'this property'}`,
+      parsedClientIncome ? `Income: ${parsedClientIncome}` : null,
+      parsedClientJob ? `Job: ${parsedClientJob}` : null,
+    ].filter(Boolean).join('\n');
+
     const { data, error } = await db
       .from('service_requests')
       .insert([{
@@ -254,7 +347,7 @@ export default async function handler(req, res) {
         budget_max: parsedBudgetMax,
         bedrooms: parsedBedrooms,
         bathrooms: parsedBathrooms,
-        description: parsedDescription,
+        description: enrichedDescription,
         urgency: parsedUrgency,
         status: assignedAgentId ? 'assigned' : 'open',
         assigned_agent_id: assignedAgentId,
@@ -278,9 +371,40 @@ export default async function handler(req, res) {
         }]);
     }
 
+    // If this request is tied to a specific property owner, send the lead to the owner directly.
+    // Do not round-robin it to another agent.
+    if (parsedPropertyOwnerId) {
+      const { data: ownerRecord, error: ownerError } = await db
+        .from('users')
+        .select('id, email, full_name')
+        .eq('id', parsedPropertyOwnerId)
+        .maybeSingle();
+
+      if (!ownerError && ownerRecord?.email) {
+        try {
+          await sendPropertyOwnerNotificationEmail({
+            ownerEmail: ownerRecord.email,
+            ownerName: ownerRecord.full_name || 'Property Owner',
+            clientName: parsedClientName,
+            clientEmail: parsedClientEmail,
+            clientPhone: parsedClientPhone,
+            clientIncome: parsedClientIncome,
+            clientJob: parsedClientJob,
+            propertyTitle: parsedPropertyTitle || parsedLocation,
+            propertyType: parsedPropertyType,
+            requestType: parsedRequestType,
+            location: parsedLocation,
+            description: enrichedDescription,
+          });
+        } catch (emailError) {
+          console.error('Failed to email property owner:', emailError);
+        }
+      }
+    }
+
     // Automatically assign to a paid agent using fair distribution
-    // Skip auto-assignment for leads from ads pages
-    if (!parsedFromAds && !assignedAgentId && data?.id) {
+    // Skip auto-assignment for leads from ads pages or explicit property-owner inquiries
+    if (!parsedFromAds && !assignedAgentId && !parsedPropertyOwnerId && data?.id) {
       try {
         await assignRequestRoundRobin(data.id);
       } catch {

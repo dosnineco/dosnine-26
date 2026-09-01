@@ -9,7 +9,6 @@ import { Zap, Phone } from 'lucide-react';
 import { formatMoney } from '../../lib/formatMoney';
 import { normalizeParish } from '../../lib/normalizeParish';
 import PropertyAgentRequest from '../../components/PropertyAgentRequest';
-import AdList from '../../components/AdList';
 
 export async function getServerSideProps(context) {
   const slug = context.params?.slug;
@@ -584,43 +583,40 @@ export default function PropertyPage({ property, similarProperties, isVerifiedAg
 
           {/* Sidebar: Contact Info */}
           <div>
-              <AdList compact />
             <div className="bg-white rounded-xl  p-6 relative top-4">
               
               <h3 className="text-xl font-bold mb-4">{isVerifiedAgent ? 'Contact Agent' : 'Contact Landlord'}</h3>
-              
+
+              <button
+                onClick={() => setShowRequestForm(true)}
+                className="w-full btn-primary mb-4 flex items-center justify-center gap-2 text-lg py-3"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                </svg>
+                {isVerifiedAgent ? 'I Want This Property' : 'Request Property Information'}
+              </button>
+
               {isVerifiedAgent && (
-                <>
-                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
-                    <div className="flex items-center gap-2 text-blue-700 font-semibold text-sm">
-                      <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                      </svg>
-                      Verified Agent
-                    </div>
-                    <p className="text-xs text-gray-600 mt-1">This property is listed by a verified real estate agent</p>
-                  </div>
-
-                  <button
-                    onClick={() => setShowRequestForm(true)}
-                    className="w-full btn-primary mb-4 flex items-center justify-center gap-2 text-lg py-3"
-                  >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+                  <div className="flex items-center gap-2 text-blue-700 font-semibold text-sm">
+                    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                     </svg>
-                    I Want This Property
-                  </button>
-
-                  <div className="relative my-4">
-                    <div className="absolute inset-0 flex items-center">
-                      <div className="w-full border-t border-gray-300"></div>
-                    </div>
-                    <div className="relative flex justify-center text-sm">
-                      <span className="px-2 bg-white text-gray-500">Or contact directly</span>
-                    </div>
+                    Verified Agent
                   </div>
-                </>
+                  <p className="text-xs text-gray-600 mt-1">This property is listed by a verified real estate agent</p>
+                </div>
               )}
+
+              <div className="relative my-4">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-gray-300"></div>
+                </div>
+                <div className="relative flex justify-center text-sm">
+                  <span className="px-2 bg-white text-gray-500">Or contact directly</span>
+                </div>
+              </div>
               
               
               <div className="space-y-4">

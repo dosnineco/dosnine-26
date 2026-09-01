@@ -99,9 +99,10 @@ const formatCurrency = (amount) => `J$${amount.toLocaleString()}`;
 
 export default function AgentPayment() {
   const { loading: authLoading, userData } = useRoleProtection({
-    checkAccess: isVerifiedAgent,
+    checkAccess: (data) => isVerifiedAgent(data) || data?.user_type === 'owner' || data?.role === 'owner',
     redirectTo: '/agent/signup',
   });
+  const isOwnerUser = userData?.user_type === 'owner' || userData?.role === 'owner';
 
   const { user } = useUser();
   const router = useRouter();
@@ -206,8 +207,14 @@ export default function AgentPayment() {
           <div className="bg-white rounded-lg  overflow-hidden">
             {/* Header */}
             <div className="bg-gray-500 text-white px-6 py-8 sm:px-8 sm:py-10 rounded-lg">
-              <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Agent Access Plans</h1>
-              <p className="mt-2 text-gray-300 text-sm sm:text-base">Based on deal value. Choose your plan and get verified in 24 hours.</p>
+              <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
+                {isOwnerUser ? 'Owner Vacancy Service' : 'Agent Access Plans'}
+              </h1>
+              <p className="mt-2 text-gray-300 text-sm sm:text-base">
+                {isOwnerUser
+                  ? 'Once your property is live, clients can contact you directly for free. If you want extra help finding a tenant, choose the vacancy-fill service.'
+                  : 'Based on deal value. Choose your plan and get verified in 24 hours.'}
+              </p>
 
           
               
@@ -245,7 +252,86 @@ export default function AgentPayment() {
 
          
 
-            {/* Content */}
+            {isOwnerUser ? (
+              <div className="px-8 py-6 space-y-6">
+                <div className="bg-blue-50 border border-blue-200 rounded-xl p-5">
+                  <h2 className="text-xl font-bold text-gray-900 mb-2">Free direct enquiries</h2>
+                  <p className="text-gray-700 mb-3">
+                    Once your property is uploaded, clients can message you directly. This is free and lets them ask for your property, income, job, and contact details before arranging a viewing.
+                  </p>
+                  <p className="text-gray-700 mb-3">
+                    If your property is not up to standard, or if it is not attracting tenants, we can advise what to improve before you advertise again. Results may vary and there is no guarantee of outcome.
+                  </p>
+                  <div className="flex flex-wrap items-center gap-3">
+                    <span className="inline-flex items-center rounded-full bg-white px-3 py-1 text-sm font-semibold text-gray-900 border border-gray-200">Free direct contact</span>
+                    <span className="inline-flex items-center rounded-full bg-white px-3 py-1 text-sm font-semibold text-gray-900 border border-gray-200">Vacancy fill: J$9,900</span>
+                  </div>
+                </div>
+
+                <div className="bg-gray-100 border-l-4 border-accent p-4 rounded-lg">
+                  <p className="font-semibold text-gray-900">Need help filling your vacancy?</p>
+                  <p className="text-sm text-gray-700 mt-1">We can help find a suitable tenant for your property. Book a consultation or request the vacancy-fill service on WhatsApp.</p>
+                </div>
+
+                <div className="bg-gray-100 rounded-lg p-5">
+                  <div className="flex flex-wrap items-baseline justify-between gap-2 mb-4">
+                    <h2 className="text-xl font-bold text-gray-900">Pay for vacancy-fill service</h2>
+                    <p className="text-2xl font-bold text-accent">J$9,900</p>
+                  </div>
+                  <ol className="list-decimal list-inside space-y-2 text-sm text-gray-700 mb-4">
+                    <li>Transfer J$9,900 to the account below.</li>
+                    <li>Use the transfer note shown below.</li>
+                    <li>Take a screenshot of the transfer receipt.</li>
+                    <li>Send the proof immediately using the WhatsApp button below.</li>
+                  </ol>
+                  {bankDetails.map((bank) => (
+                    <div key={bank.accountNumber} className="bg-white rounded-lg p-4 text-sm text-gray-700 space-y-2">
+                      {[
+                        ['Amount', 'J$9,900'],
+                        ['Bank', bank.bank],
+                        ['Account name', bank.accountName],
+                        ['Account number', bank.accountNumber],
+                        ['Branch', bank.branch],
+                        ['Transfer note', `Vacancy Service - ${emailHandle}`],
+                      ].map(([label, value]) => {
+                        const field = `vacancy-${label.toLowerCase().replace(/\\s+/g, '-')}`;
+                        return (
+                          <div key={label} className="flex items-center justify-between gap-3">
+                            <span><strong>{label}:</strong> {value}</span>
+                            <button
+                              type="button"
+                              onClick={() => copyToClipboard(value, field)}
+                              className="shrink-0 p-1 text-gray-400 hover:text-accent transition"
+                              title={`Copy ${label.toLowerCase()}`}
+                              aria-label={`Copy ${label.toLowerCase()}`}
+                            >
+                              {copied === field ? <Check size={16} /> : <Copy size={16} />}
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ))}
+                </div>
+
+                <a
+                  href={`https://wa.me/18763369045?text=${encodeURIComponent(`Hi Dosnine, I have paid J$9,900 for the Vacancy Fill Service. Email: ${userEmail}. I am sending my payment proof now.`)}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center justify-center rounded-lg bg-accent px-5 py-3 text-sm font-semibold text-white hover:bg-accent/90"
+                >
+                  Send Payment Proof on WhatsApp
+                </a>
+                <a
+                  href="https://wa.me/18763369045?text=Hi%20Dosnine%2C%20I%20need%20a%20consultation%20before%20using%20the%20Vacancy%20Fill%20Service."
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-sm font-semibold text-accent hover:underline"
+                >
+                  Need a consultation? WhatsApp 876-336-9045
+                </a>
+              </div>
+            ) : (
             <div className="px-8 py-6 space-y-8">
               <div className="bg-gray-100 border-l-4 border-accent p-4 rounded">
                 <div className="flex items-start gap-3">
@@ -454,6 +540,7 @@ export default function AgentPayment() {
                 </a>
               </div>
             </div>
+            )}
           </div>
 
           {/* FAQ */}

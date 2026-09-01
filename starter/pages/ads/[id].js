@@ -1,9 +1,11 @@
 import { useRouter } from 'next/router'
 import { useEffect, useState } from 'react'
+import { useAuth, useUser } from '@clerk/nextjs'
 import { supabase } from '@/lib/supabase'
 import Head from 'next/head'
 import Link from 'next/link'
-import { Star, Eye, MousePointerClick, Tag, Phone, Mail, Globe, MessageCircle } from 'lucide-react'
+import { Star, Eye, MousePointerClick, Tag, MessageCircle } from 'lucide-react'
+import toast from 'react-hot-toast'
 
 
 export default function AdDetailPage() {
@@ -13,6 +15,11 @@ export default function AdDetailPage() {
   const [loading, setLoading] = useState(true)
   const [currentImageIndex, setCurrentImageIndex] = useState(0)
   const [isFullscreen, setIsFullscreen] = useState(false)
+  const [message, setMessage] = useState('')
+  const [phone, setPhone] = useState('')
+  const [sending, setSending] = useState(false)
+  const { isSignedIn, user } = useUser()
+  const { getToken } = useAuth()
 
   const adImages = Array.isArray(ad?.image_urls) && ad.image_urls.length > 0
     ? ad.image_urls.slice(0, 3)
@@ -21,21 +28,6 @@ export default function AdDetailPage() {
   const adUrl = typeof window !== 'undefined'
     ? window.location.href
     : `https://dosnine.com/ads/${id || ''}`
-
-  const whatsappText = encodeURIComponent(
-    [
-      `Hello ${ad?.company_name || ''},`,
-      '',
-      `I would like to inquire about your services listed on Dosnine Limited.`,
-      '',
-      'Service Details:',
-      `- Company: ${ad?.company_name || 'N/A'}`,
-      ad?.website ? `- Website: ${ad.website}` : null,
-      `- Listing Link: ${adUrl}`,
-    ]
-      .filter(Boolean)
-      .join('\n')
-  )
 
   useEffect(() => {
     if (id) {
@@ -59,10 +51,20 @@ export default function AdDetailPage() {
     }
   }, [isFullscreen])
 
+  useEffect(() => {
+    if (!ad?.company_name || message) return
+    setMessage(`Hello ${ad.company_name}, I am interested in your services and would like a quote. Please contact me with more details.`)
+  }, [ad?.company_name, message])
+
+  useEffect(() => {
+    if (phone || !user?.primaryPhoneNumber?.phoneNumber) return
+    setPhone(user.primaryPhoneNumber.phoneNumber)
+  }, [phone, user?.primaryPhoneNumber?.phoneNumber])
+
   const loadAd = async () => {
     const { data } = await supabase
       .from('advertisements')
-      .select('*')
+      .select('id, title, category, company_name, description, image_url, image_urls, is_active, is_featured, impressions, clicks')
       .eq('id', id)
       .single()
 
@@ -81,6 +83,39 @@ export default function AdDetailPage() {
         setAd(prev => prev ? { ...prev, clicks: (prev.clicks || 0) + 1 } : null)
       }
     } catch (err) {
+    }
+  }
+
+  const submitInquiry = async (event) => {
+    event.preventDefault()
+    if (!isSignedIn) {
+      toast.error('Sign in with a verified Dosnine account to contact this advertiser.')
+      router.push(`/sign-in?redirect_url=${encodeURIComponent(router.asPath)}`)
+      return
+    }
+
+    setSending(true)
+    try {
+      const token = await getToken()
+      const response = await fetch('/api/advertisements/inquiries', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ advertisementId: ad.id, message, phone }),
+      })
+      const payload = await response.json()
+      if (!response.ok || !payload?.success) {
+        throw new Error(payload?.error || 'Unable to send your enquiry.')
+      }
+      setMessage('')
+      setPhone('')
+      toast.success('Your enquiry was sent to the advertiser.')
+    } catch (error) {
+      toast.error(error.message || 'Unable to send your enquiry.')
+    } finally {
+      setSending(false)
     }
   }
 
@@ -277,7 +312,7 @@ export default function AdDetailPage() {
 
               <div className="mb-10 bg-gray-50 rounded-xl p-6">
                 <h3 className="text-xl font-bold text-gray-800 mb-4">Service Details</h3>
-                <div className="grid sm:grid-cols-2 gap-4 text-sm">
+                <div className="text-sm">
                   <div className="flex items-start gap-3 text-gray-700">
                     <Tag className="w-4 h-4 mt-0.5 text-accent" />
                     <div>
@@ -285,43 +320,6 @@ export default function AdDetailPage() {
                       <p className="capitalize">{ad.category?.replace('_', ' ') || 'Not provided'}</p>
                     </div>
                   </div>
-
-                  {ad.phone && (
-                    <div className="flex items-start gap-3 text-gray-700">
-                      <Phone className="w-4 h-4 mt-0.5 text-accent" />
-                      <div>
-                        <p className="font-semibold text-gray-900">Phone</p>
-                        <a href={`tel:${ad.phone}`} className="text-accent hover:underline">{ad.phone}</a>
-                      </div>
-                    </div>
-                  )}
-
-                  {ad.email && (
-                    <div className="flex items-start gap-3 text-gray-700">
-                      <Mail className="w-4 h-4 mt-0.5 text-accent" />
-                      <div>
-                        <p className="font-semibold text-gray-900">Email</p>
-                        <p>{ad.email}</p>
-                      </div>
-                    </div>
-                  )}
-
-                  {ad.website && (
-                    <div className="flex items-start gap-3 text-gray-700">
-                      <Globe className="w-4 h-4 mt-0.5 text-accent" />
-                      <div>
-                        <p className="font-semibold text-gray-900">Website</p>
-                        <a
-                          href={ad.website.startsWith('http') ? ad.website : `https://${ad.website}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-accent hover:underline break-all"
-                        >
-                          {ad.website}
-                        </a>
-                      </div>
-                    </div>
-                  )}
                 </div>
               </div>
 
@@ -331,30 +329,16 @@ export default function AdDetailPage() {
               <div className="bg-accent rounded-xl p-8 text-white text-center">
                 <h3 className="text-2xl font-bold mb-3">Get a Quote from {ad.company_name}</h3>
                 <p className="mb-6 text-white/90">
-                  Contact {ad.company_name} for professional service
+                  Send your enquiry directly through Dosnine. A verified account is required.
                 </p>
-                <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                  {ad.phone && (
-                    <a
-                      href={`https://wa.me/1${ad.phone}?text=${whatsappText}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="bg-white text-accent px-8 py-4 rounded-lg font-bold hover:bg-gray-100 transition shadow-lg inline-flex items-center justify-center gap-2"
-                    >
-                      <MessageCircle className="w-5 h-5" />
-                      WhatsApp Now
-                    </a>
-                  )}
-                  {ad.email && (
-                    <a
-                      href={`mailto:${ad.email}`}
-                      className="bg-white/10 border-2 border-white text-white px-8 py-4 rounded-lg font-bold hover:bg-white/20 transition inline-flex items-center justify-center gap-2"
-                    >
-                      <Mail className="w-5 h-5" />
-                      Send Email
-                    </a>
-                  )}
-                </div>
+                <form onSubmit={submitInquiry} className="mx-auto max-w-xl space-y-3 text-left">
+                  <textarea value={message} onChange={(event) => setMessage(event.target.value)} rows={4} required minLength={10} placeholder="Tell the advertiser what service you need..." className="w-full rounded-lg bg-white px-4 py-3 text-gray-900 outline-none" />
+                  <input value={phone} onChange={(event) => setPhone(event.target.value)} type="tel" placeholder="Your phone number" className="w-full rounded-lg bg-white px-4 py-3 text-gray-900 outline-none" />
+                  <button type="submit" disabled={sending} className="w-full bg-white text-accent px-8 py-4 rounded-lg font-bold hover:bg-gray-100 transition inline-flex items-center justify-center gap-2 disabled:opacity-60">
+                    <MessageCircle className="w-5 h-5" />
+                    {sending ? 'Sending...' : 'Send Enquiry'}
+                  </button>
+                </form>
               </div>
             </div>
           </div>

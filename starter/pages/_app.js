@@ -4,6 +4,7 @@ import { ClerkProvider, SignedIn, SignedOut, SignInButton, SignUpButton, useUser
 import '../styles/globals.css';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
+import AdList from '../components/AdList';
 import VisitorEmailPopup from '../components/VisitorEmailPopup';
 import Seo from '../components/Seo';
 import SiteProtection from '../components/SiteProtection';
@@ -134,6 +135,7 @@ function AppContent({ Component, pageProps }) {
   
   const hideLayout = NO_LAYOUT_PAGES.includes(router.pathname);
   const isCurrentPagePublic = isPublicRoute(router.pathname);
+  const showAdvertisements = !hideLayout && !router.pathname.startsWith('/admin') && router.pathname !== '/ads/[id]';
   
   // Use the page-level layout if it exists, otherwise use the default layout
   const getLayout = Component.getLayout || ((page) => page);
@@ -268,6 +270,7 @@ function AppContent({ Component, pageProps }) {
       <SiteProtection />
       <Toaster position="top-center" />
       {!hideLayout && <Header />}
+      {showAdvertisements && <AdList compact />}
       
       {isCurrentPagePublic ? (
         <main className="min-h-screen">
