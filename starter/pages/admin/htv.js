@@ -54,15 +54,31 @@ function formatCurrency(value) {
   return `JMD ${Number(value || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 }
 
+// Parse a DATE column (e.g. "2026-09-01") as a local calendar date, not a UTC instant,
+// so month/day labels don't shift backward a day in negative UTC-offset timezones.
+function parseDateOnly(value) {
+  if (!value) return null
+  if (typeof value === 'string') {
+    const match = value.match(/^(\d{4})-(\d{2})-(\d{2})/)
+    if (match) {
+      const [, year, month, day] = match
+      return new Date(Number(year), Number(month) - 1, Number(day))
+    }
+  }
+  return new Date(value)
+}
+
 function getMonthLabel(value) {
   if (!value) return 'Unknown'
-  const date = new Date(value)
+  const date = parseDateOnly(value)
+  if (!date) return 'Unknown'
   return date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
 }
 
 function getWeekLabel(value) {
   if (!value) return 'Unknown'
-  const date = new Date(value)
+  const date = parseDateOnly(value)
+  if (!date) return 'Unknown'
   return `Week of ${date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`
 }
 
@@ -137,6 +153,8 @@ export default function AdminDashboard() {
   const [submitting, setSubmitting] = useState(false)
   const [isImageEditOpen, setIsImageEditOpen] = useState(false)
   const [isOrderFormOpen, setIsOrderFormOpen] = useState(false)
+  const [isExpenseFormOpen, setIsExpenseFormOpen] = useState(false)
+  const [isExpenseListOpen, setIsExpenseListOpen] = useState(false)
   const [expandedOrderId, setExpandedOrderId] = useState(null)
   const [editingOrderId, setEditingOrderId] = useState(null)
   const [editOrder, setEditOrder] = useState(null)
@@ -161,18 +179,36 @@ export default function AdminDashboard() {
   const [rawMaterials, setRawMaterials] = useState([
     { material: '', cost: 0 },
   ])
+  const [expenses, setExpenses] = useState([])
+  const [submittingExpense, setSubmittingExpense] = useState(false)
+  const [newExpense, setNewExpense] = useState({
+    description: '',
+    category: 'general',
+    amount: '',
+    expense_date: new Date().toISOString().split('T')[0],
+  })
 
   useEffect(() => {
     if (!user) return
     verifyAdminAccess()
   }, [user])
 
+  const buildAuthHeaders = () => {
+    const headers = {}
+    if (user?.id) headers['x-clerk-user-id'] = user.id
+    const primaryEmail = user?.emailAddresses?.[0]?.emailAddress || user?.primaryEmailAddress?.emailAddress || ''
+    if (primaryEmail) headers['x-clerk-user-email'] = primaryEmail
+    const fullName = [user?.firstName, user?.lastName].filter(Boolean).join(' ').trim()
+    if (fullName) headers['x-clerk-user-name'] = fullName
+    return headers
+  }
+
   async function verifyAdminAccess() {
     setLoading(true)
     setError(null)
 
     try {
-      const response = await fetch('/api/admin/verify-admin')
+      const response = await fetch('/api/admin/verify-admin', { headers: buildAuthHeaders() })
       const payload = await parseApiResponse(response)
 
       if (!response.ok || !payload?.isAdmin) {
@@ -183,7 +219,7 @@ export default function AdminDashboard() {
       }
 
       setIsAdmin(true)
-      await loadOrders()
+      await Promise.all([loadOrders(), loadExpenses()])
     } catch (err) {
       console.error('Admin verify failed', err)
       setError('Unable to verify admin access')
@@ -197,7 +233,7 @@ export default function AdminDashboard() {
     setError(null)
 
     try {
-      const response = await fetch('/api/admin/htv-orders')
+      const response = await fetch('/api/admin/htv-orders', { headers: buildAuthHeaders() })
       const payload = await parseApiResponse(response)
 
       if (!response.ok || !payload?.success) {
@@ -213,11 +249,31 @@ export default function AdminDashboard() {
     }
   }
 
+  async function loadExpenses() {
+    try {
+      const response = await fetch('/api/admin/htv-expenses', { headers: buildAuthHeaders() })
+      const payload = await parseApiResponse(response)
+
+      if (!response.ok || !payload?.success) {
+        throw new Error(payload?.error || 'Failed to load expenses')
+      }
+
+      setExpenses(payload.expenses || [])
+    } catch (err) {
+      console.error('HTV expenses load failed', err)
+    }
+  }
+
   const monthOptions = useMemo(() => {
     const months = new Set()
     orders.forEach(order => {
       if (order.order_month) {
         months.add(getMonthLabel(order.order_month))
+      }
+    })
+    expenses.forEach(expense => {
+      if (expense.expense_month || expense.expense_date) {
+        months.add(getMonthLabel(expense.expense_month || expense.expense_date))
       }
     })
 
@@ -228,23 +284,37 @@ export default function AdminDashboard() {
       const bDate = new Date(b)
       return bDate - aDate
     })]
-  }, [orders])
+  }, [orders, expenses])
 
   const filteredOrders = useMemo(() => {
     if (selectedMonth === 'all') return orders
     return orders.filter(order => order.order_month && getMonthLabel(order.order_month) === selectedMonth)
   }, [orders, selectedMonth])
 
+  const filteredExpenses = useMemo(() => {
+    if (selectedMonth === 'all') return expenses
+    return expenses.filter(expense => getMonthLabel(expense.expense_month || expense.expense_date) === selectedMonth)
+  }, [expenses, selectedMonth])
+
+  const manualExpensesTotal = useMemo(
+    () => filteredExpenses.reduce((sum, expense) => sum + Number(expense.amount || 0), 0),
+    [filteredExpenses]
+  )
+
   const summary = useMemo(() => {
     const totals = { revenue: 0, expenses: 0, profit: 0 }
-    filteredOrders.forEach(order => {
-      const { revenue, expenses, profit } = computeOrderFinancials(order)
-      totals.revenue += revenue
-      totals.expenses += expenses
-      totals.profit += profit
-    })
+    filteredOrders
+      .filter(order => (order.status || 'pending') === 'completed')
+      .forEach(order => {
+        const { revenue, expenses, profit } = computeOrderFinancials(order)
+        totals.revenue += revenue
+        totals.expenses += expenses
+        totals.profit += profit
+      })
+    totals.expenses += manualExpensesTotal
+    totals.profit -= manualExpensesTotal
     return totals
-  }, [filteredOrders])
+  }, [filteredOrders, manualExpensesTotal])
 
   const weeklyData = useMemo(() => {
     const weekMap = new Map()
@@ -290,6 +360,80 @@ export default function AdminDashboard() {
     setRawMaterials((prev) => prev.filter((_, idx) => idx !== index))
   }
 
+  const handleAddExpense = async (event) => {
+    event.preventDefault()
+
+    const description = newExpense.description.trim()
+    const amount = Number(newExpense.amount || 0)
+
+    if (!description || description.length < 2) {
+      toast.error('Enter a description for the expense')
+      return
+    }
+
+    if (!amount || amount <= 0) {
+      toast.error('Enter a valid expense amount')
+      return
+    }
+
+    setSubmittingExpense(true)
+
+    try {
+      const response = await fetch('/api/admin/htv-expenses', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...buildAuthHeaders() },
+        body: JSON.stringify({
+          description,
+          category: newExpense.category,
+          amount,
+          expense_date: newExpense.expense_date,
+        }),
+      })
+
+      const payload = await parseApiResponse(response)
+
+      if (!response.ok || !payload?.success) {
+        throw new Error(payload?.error || 'Failed to add expense')
+      }
+
+      setExpenses((prev) => [payload.expense, ...prev])
+      setNewExpense({
+        description: '',
+        category: 'general',
+        amount: '',
+        expense_date: new Date().toISOString().split('T')[0],
+      })
+      toast.success('Expense added')
+    } catch (err) {
+      console.error('Add expense failed', err)
+      toast.error(err.message || 'Failed to add expense')
+    } finally {
+      setSubmittingExpense(false)
+    }
+  }
+
+  const handleDeleteExpense = async (expenseId) => {
+    if (!window.confirm('Delete this expense?')) return
+
+    try {
+      const response = await fetch(`/api/admin/htv-expenses?id=${expenseId}`, {
+        method: 'DELETE',
+        headers: buildAuthHeaders(),
+      })
+      const payload = await parseApiResponse(response)
+
+      if (!response.ok || !payload?.success) {
+        throw new Error(payload?.error || 'Failed to delete expense')
+      }
+
+      setExpenses((prev) => prev.filter((expense) => expense.id !== expenseId))
+      toast.success('Expense deleted')
+    } catch (err) {
+      console.error('Delete expense failed', err)
+      toast.error(err.message || 'Failed to delete expense')
+    }
+  }
+
   const handleCreateOrder = async (event) => {
     event.preventDefault()
 
@@ -303,7 +447,7 @@ export default function AdminDashboard() {
     try {
       const response = await fetch('/api/admin/htv-orders', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...buildAuthHeaders() },
         body: JSON.stringify({
           business_name: newOrder.business_name,
           phone: newOrder.phone,
@@ -392,7 +536,7 @@ export default function AdminDashboard() {
 
       const response = await fetch(`/api/admin/htv-orders?id=${editingOrderId}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...buildAuthHeaders() },
         body: JSON.stringify({
           business_name: editOrder.business_name,
           phone: editOrder.phone,
@@ -446,6 +590,7 @@ export default function AdminDashboard() {
     try {
       const response = await fetch(`/api/admin/htv-orders?id=${orderId}`, {
         method: 'DELETE',
+        headers: buildAuthHeaders(),
       })
 
       const payload = await parseApiResponse(response)
@@ -615,6 +760,175 @@ export default function AdminDashboard() {
             </div>
           </div>
 
+          <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <h2 className="text-lg font-black text-black">Monthly summary</h2>
+            <select
+              value={selectedMonth}
+              onChange={(e) => setSelectedMonth(e.target.value)}
+              className="rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm font-semibold text-black focus:border-accent focus:outline-none"
+            >
+              {monthOptions.map((month) => (
+                <option key={month} value={month}>
+                  {month === 'all' ? 'All time' : month}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="mb-10 grid gap-4 xl:grid-cols-3">
+            <div className="rounded-3xl bg-gray-100 p-6">
+              <div className="text-sm uppercase tracking-[0.3em] text-gray-500">Revenue</div>
+              <div className="mt-4 text-3xl font-black text-black">{formatCurrency(summary.revenue)}</div>
+              <div className="mt-2 text-sm text-gray-600">Total collected from completed orders</div>
+            </div>
+
+            <div className="rounded-3xl bg-gray-100 p-6">
+              <div className="text-sm uppercase tracking-[0.3em] text-gray-500">Expenses</div>
+              <div className="mt-4 text-3xl font-black text-black">{formatCurrency(summary.expenses)}</div>
+              <div className="mt-2 text-sm text-gray-600">Raw materials, labour, and extra costs from completed orders, plus logged business expenses</div>
+            </div>
+
+            <div className="rounded-3xl bg-gray-100 p-6">
+              <div className="text-sm uppercase tracking-[0.3em] text-gray-500">Profit</div>
+              <div className="mt-4 text-3xl font-black text-black">{formatCurrency(summary.profit)}</div>
+              <div className="mt-2 text-sm text-gray-600">Revenue minus expenses</div>
+            </div>
+          </div>
+
+          <section className="mb-10 rounded-3xl bg-white p-6 shadow-sm ring-1 ring-black/5">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h2 className="text-xl font-black text-black">Business expenses</h2>
+                <p className="mt-2 text-sm text-gray-600">Track rent, supplies, utilities, and any other cost not tied to a specific order.</p>
+              </div>
+              <div className="flex flex-wrap gap-3">
+                <button
+                  type="button"
+                  onClick={() => setIsExpenseListOpen(!isExpenseListOpen)}
+                  className="inline-flex items-center gap-2 rounded-2xl bg-gray-100 hover:bg-gray-200 px-4 py-2 text-sm font-semibold text-black transition"
+                >
+                  {isExpenseListOpen ? (
+                    <>
+                      <ChevronUp size={18} />
+                      Hide expenses ({filteredExpenses.length})
+                    </>
+                  ) : (
+                    <>
+                      <ChevronDown size={18} />
+                      View expenses ({filteredExpenses.length})
+                    </>
+                  )}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsExpenseFormOpen(!isExpenseFormOpen)}
+                  className="inline-flex items-center gap-2 rounded-2xl bg-gray-100 hover:bg-gray-200 px-4 py-2 text-sm font-semibold text-black transition"
+                >
+                  {isExpenseFormOpen ? (
+                    <>
+                      <ChevronUp size={18} />
+                      Collapse
+                    </>
+                  ) : (
+                    <>
+                      <ChevronDown size={18} />
+                      Add expense
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+
+            {isExpenseFormOpen && (
+              <form onSubmit={handleAddExpense} className="mt-6 grid gap-4 lg:grid-cols-[2fr_1fr_1fr_1fr_auto] lg:items-end">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-900">Description</label>
+                  <input
+                    value={newExpense.description}
+                    onChange={(e) => setNewExpense({ ...newExpense, description: e.target.value })}
+                    className="mt-2 w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-black focus:border-accent focus:outline-none"
+                    placeholder="e.g. Vinyl rolls, rent, electricity"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-900">Category</label>
+                  <select
+                    value={newExpense.category}
+                    onChange={(e) => setNewExpense({ ...newExpense, category: e.target.value })}
+                    className="mt-2 w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-black focus:border-accent focus:outline-none"
+                  >
+                    <option value="general">General</option>
+                    <option value="supplies">Supplies</option>
+                    <option value="rent">Rent</option>
+                    <option value="utilities">Utilities</option>
+                    <option value="equipment">Equipment</option>
+                    <option value="marketing">Marketing</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-900">Amount</label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={newExpense.amount}
+                    onChange={(e) => setNewExpense({ ...newExpense, amount: e.target.value })}
+                    className="mt-2 w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-black focus:border-accent focus:outline-none"
+                    placeholder="JMD 0"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-900">Date</label>
+                  <input
+                    type="date"
+                    value={newExpense.expense_date}
+                    onChange={(e) => setNewExpense({ ...newExpense, expense_date: e.target.value })}
+                    className="mt-2 w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-black focus:border-accent focus:outline-none"
+                    required
+                  />
+                </div>
+                <button
+                  type="submit"
+                  disabled={submittingExpense}
+                  className="rounded-2xl bg-accent px-6 py-3 text-sm font-bold text-white hover:bg-accent/90 disabled:opacity-50"
+                >
+                  {submittingExpense ? 'Adding...' : 'Add expense'}
+                </button>
+              </form>
+            )}
+
+            {isExpenseListOpen && (
+              filteredExpenses.length > 0 ? (
+                <div className="mt-6 divide-y divide-gray-100 rounded-2xl bg-gray-50">
+                  {filteredExpenses.map((expense) => (
+                    <div key={expense.id} className="flex items-center justify-between gap-4 px-4 py-3">
+                      <div>
+                        <p className="text-sm font-semibold text-black">{expense.description}</p>
+                        <p className="text-xs text-gray-500">
+                          {expense.category} · {parseDateOnly(expense.expense_date)?.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-4">
+                        <span className="text-sm font-bold text-black">{formatCurrency(expense.amount)}</span>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteExpense(expense.id)}
+                          className="text-red-600 hover:text-red-700"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="mt-6 text-sm text-gray-500">No expenses logged {selectedMonth === 'all' ? 'yet' : `for ${selectedMonth}`}.</p>
+              )
+            )}
+          </section>
+
           <section className="mb-10 rounded-3xl bg-white p-6 shadow-sm ring-1 ring-black/5">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div>
@@ -642,55 +956,32 @@ export default function AdminDashboard() {
 
             {isOrderFormOpen && (
               <>
-                <div className="mt-8 grid gap-6 sm:grid-cols-2">
-                  {COMBO_DEALS.map((combo) => (
-                    <button
-                      key={combo.key}
-                      type="button"
-                      onClick={() => setNewOrder({
-                        ...newOrder,
-                        deal: combo.key,
-                        quantity: combo.quantity,
-                        size: newOrder.size,
-                      })}
-                      className={`w-full rounded-2xl border px-4 py-4 text-left transition ${newOrder.deal === combo.key ? 'border-accent bg-accent/10' : 'border-gray-200 bg-white hover:border-accent/70 hover:bg-gray-50'}`}
-                    >
-                      <div className="flex items-center justify-between gap-4">
-                        <div>
-                          <div className="font-semibold text-black">{combo.label}</div>
-                          <div className="mt-1 text-2xl font-black text-black">JMD {combo.price.toLocaleString()}</div>
-                        </div>
-                        {combo.badge ? <div className="rounded-full bg-accent px-3 py-1 text-xs font-semibold text-white">{combo.badge}</div> : null}
-                      </div>
-                    </button>
-                  ))}
-                </div>
-
                 <div className="rounded-3xl bg-gray-50 p-6">
-                  <p className="text-sm font-semibold uppercase tracking-[0.3em] text-accent">SINGLE SIZE PRICING</p>
-                  <div className="mt-4 space-y-4 text-sm text-black">
+                  <p className="text-sm font-semibold uppercase tracking-[0.3em] text-accent">Select size &amp; quantity</p>
+                  <div className="mt-4 grid gap-4 sm:grid-cols-3">
                     {Object.entries(PRICING).map(([key, data]) => (
-                      <div key={key} className="rounded-2xl bg-white p-4 shadow-sm">
-                        <div className="font-semibold">{data.label}</div>
-                        <div className="mt-2 space-y-2">
-                          {Object.entries(data.quantities).map(([qty, price]) => (
-                            <button
-                              key={qty}
-                              type="button"
-                              onClick={() => setNewOrder({
-                                ...newOrder,
-                                deal: '',
-                                size: key,
-                                quantity: Number(qty),
-                              })}
-                              className={`w-full rounded-xl border px-3 py-2 text-left text-sm transition ${newOrder.deal === '' && newOrder.size === key && newOrder.quantity === Number(qty) ? 'border-accent bg-accent/10 text-black' : 'border-gray-200 bg-gray-50 text-gray-700 hover:border-accent/70 hover:bg-gray-50'}`}
-                            >
-                              <div className="flex items-center justify-between">
-                                <span>{qty} — JMD {price.toLocaleString()}</span>
-                                {newOrder.deal === '' && newOrder.size === key && newOrder.quantity === Number(qty) ? <span className="text-accent">Selected</span> : null}
-                              </div>
-                            </button>
-                          ))}
+                      <div key={key} className={`rounded-2xl border-2 p-4 transition ${newOrder.size === key ? 'border-accent bg-accent/5' : 'border-gray-200 bg-white'}`}>
+                        <div className="font-bold text-black">{data.label}</div>
+                        <div className="mt-3 grid gap-2">
+                          {Object.entries(data.quantities).map(([qty, price]) => {
+                            const selected = newOrder.size === key && newOrder.quantity === Number(qty)
+                            return (
+                              <button
+                                key={qty}
+                                type="button"
+                                onClick={() => setNewOrder({
+                                  ...newOrder,
+                                  deal: '',
+                                  size: key,
+                                  quantity: Number(qty),
+                                })}
+                                className={`flex items-center justify-between rounded-xl px-4 py-3 text-sm font-semibold transition ${selected ? 'bg-accent text-white' : 'bg-gray-100 text-gray-800 hover:bg-accent/10'}`}
+                              >
+                                <span>{qty} pcs</span>
+                                <span>{selected ? '✓ ' : ''}JMD {price.toLocaleString()}</span>
+                              </button>
+                            )
+                          })}
                         </div>
                       </div>
                     ))}
@@ -932,28 +1223,6 @@ export default function AdminDashboard() {
             <div className="rounded-3xl bg-red-50 p-10 text-center text-red-700">{error}</div>
           ) : (
             <>
-              <div className="grid gap-4 xl:grid-cols-3">
-                <div className="rounded-3xl bg-gray-100 p-6">
-                  <div className="text-sm uppercase tracking-[0.3em] text-gray-500">Revenue</div>
-                  <div className="mt-4 text-3xl font-black text-black">{formatCurrency(summary.revenue)}</div>
-                  <div className="mt-2 text-sm text-gray-600">Total collected from orders</div>
-                </div>
-
-                <div className="rounded-3xl bg-gray-100 p-6">
-                  <div className="text-sm uppercase tracking-[0.3em] text-gray-500">Expenses</div>
-                  <div className="mt-4 text-3xl font-black text-black">{formatCurrency(summary.expenses)}</div>
-                  <div className="mt-2 text-sm text-gray-600">Raw materials, labour, and extra costs</div>
-                </div>
-
-                <div className="rounded-3xl bg-gray-100 p-6">
-                  <div className="text-sm uppercase tracking-[0.3em] text-gray-500">Profit</div>
-                  <div className="mt-4 text-3xl font-black text-black">{formatCurrency(summary.profit)}</div>
-                  <div className="mt-2 text-sm text-gray-600">Revenue minus expenses</div>
-                </div>
-              </div>
-
-          
-
               <section className="mt-10 rounded-3xl bg-white p-6 shadow-sm ring-1 ring-black/5">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div>
