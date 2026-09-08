@@ -38,7 +38,7 @@ export default function RefundPolicy() {
                 <ul className="list-disc pl-6 mb-4 text-gray-700 space-y-2">
                   <li>Creating an account</li>
                   <li>Posting property listings</li>
-                  <li>Browsing available properties</li>
+                  <li>Browsing property listings</li>
                   <li>Contacting property owners</li>
                   <li>Managing your listings</li>
                 </ul>
@@ -283,7 +283,7 @@ export default function RefundPolicy() {
                 <h3 className="font-bold text-gray-900 mb-3">Quick Reference</h3>
                 <div className="grid md:grid-cols-2 gap-4 text-sm">
                   <div>
-                    <p className="font-semibold text-gray-900 mb-1">Full Refund Available:</p>
+                    <p className="font-semibold text-gray-900 mb-1">Full Refund Eligibility:</p>
                     <ul className="text-gray-700 space-y-1">
                       <li>✓ Within 24hrs before activation</li>
                       <li>✓ Service not delivered</li>

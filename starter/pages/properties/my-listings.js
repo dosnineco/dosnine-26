@@ -3,7 +3,7 @@ import { useAuth, useUser } from '@clerk/nextjs';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
 import { FiPlusCircle, FiEye, FiTrash2, FiMapPin, FiZap } from 'react-icons/fi';
-import { formatMoney } from '../../lib/formatMoney';
+import { formatPropertyMoney } from '../../lib/formatMoney';
 
 export default function MyPropertiesPage() {
   const { user, isLoaded } = useUser();
@@ -155,7 +155,7 @@ export default function MyPropertiesPage() {
                       {property.town}{property.parish && `, ${property.parish}`}
                     </p>
                     <p className="text-2xl font-bold text-gray-900 mt-2">
-                      {formatMoney(property.price)} 
+                      {formatPropertyMoney(property.price, property.currency)} 
                       <span className="text-lg font-normal text-gray-500"> /mo</span>
                     </p>
                   </div>
@@ -166,9 +166,6 @@ export default function MyPropertiesPage() {
                   <span className="flex items-center gap-1">
                     <FiEye size={14} />
                     {property.views || 0} views
-                  </span>
-                  <span className="px-2 py-1 bg-gray-100 rounded text-xs font-medium">
-                    {property.status || 'available'}
                   </span>
                 </div>
 

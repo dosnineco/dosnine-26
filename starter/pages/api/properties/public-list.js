@@ -9,6 +9,7 @@ const PUBLIC_PROPERTY_LIST_FIELDS = [
   'description',
   'type',
   'price',
+  'currency',
   'bedrooms',
   'bathrooms',
   'address',

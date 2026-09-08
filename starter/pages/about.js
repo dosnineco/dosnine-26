@@ -40,7 +40,7 @@ export default function About() {
 				<section className="mb-6">
 					<h2 className="text-2xl font-semibold mb-2">Why choose Dosnine</h2>
 					<p className="mb-2">We combine local market knowledge with modern technology to make property search, management, and marketing simple and reliable for Jamaicans and businesses operating in Jamaica.</p>
-					<p className="mb-2">Our platform is designed to help users quickly discover available properties and connect with trusted professionals.</p>
+					<p className="mb-2">Our platform is designed to help users quickly discover properties and connect with trusted professionals.</p>
 				</section>
 
 				<section className="mb-6">

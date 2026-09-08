@@ -33,3 +33,8 @@ export function formatMoney(amount, currency = '$') {
 export function formatJMD(amount) {
   return formatMoney(amount, 'JMD $');
 }
+
+export function formatPropertyMoney(amount, currency = 'JMD') {
+  const code = String(currency || 'JMD').toUpperCase() === 'USD' ? 'USD' : 'JMD';
+  return formatMoney(amount, `${code} $`);
+}

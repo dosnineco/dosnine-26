@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import clsx from 'clsx';
-import { formatMoney } from '../lib/formatMoney';
+import { formatPropertyMoney } from '../lib/formatMoney';
 import LazyImage from './LazyImage';
 import { Eye } from 'lucide-react';
 
@@ -36,7 +36,7 @@ export default function PropertyCard({ property, isOwner = false, index = 0 }) {
             <div className="text-sm text-gray-600">
               {(property.bedrooms == 0 && property.bathrooms == 0) ? 'Land' : `${property.bedrooms} bed • ${property.bathrooms} bath`}
             </div>
-            <div className="text-accent font-bold text-sm">{formatMoney(property.price)}</div>
+            <div className="text-accent font-bold text-sm">{formatPropertyMoney(property.price, property.currency)}</div>
           </div>
           {viewCount > 0 && (
             <div className="flex items-center gap-1 text-xs text-blue-600 mt-1">

@@ -1,4 +1,5 @@
 import { getDbClient, requireAdminUser } from '../../../lib/apiAuth';
+import { sendBrevoEmail } from '../../../lib/serviceRequestAllocation';
 
 export default async function handler(req, res) {
   try {
@@ -53,9 +54,25 @@ export default async function handler(req, res) {
 
       if (error) throw error;
 
+      let rejectionEmailSent = false;
+      if (id_verification_status === 'rejected' && data?.email) {
+        try {
+          await sendBrevoEmail({
+            to: data.email,
+            subject: 'Your Dosnine ID verification was rejected',
+            htmlContent: `<p>Hello${data.full_name ? ` ${data.full_name}` : ''},</p><p>Your ID verification submission was rejected. Please review your documents and submit them again if needed.</p><p>Regards,<br />Dosnine</p>`,
+            textContent: `Hello${data.full_name ? ` ${data.full_name}` : ''},\n\nYour ID verification submission was rejected. Please review your documents and submit them again if needed.\n\nRegards,\nDosnine`,
+          });
+          rejectionEmailSent = true;
+        } catch (emailError) {
+          console.error('Failed to send ID verification rejection email:', emailError);
+        }
+      }
+
       return res.status(200).json({
         success: true,
         user: data,
+        rejectionEmailSent,
       });
     }
 

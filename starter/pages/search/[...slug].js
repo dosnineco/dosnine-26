@@ -138,7 +138,7 @@ export default function SearchLandingPage({ slug, properties: initialProperties,
               mainEntity: [
                 {
                   '@type': 'Question',
-                  name: `How many ${filters.bedrooms ? filters.bedrooms + ' bedroom ' : ''}properties are available in ${filters.parish || 'this area'}?`,
+                  name: `How many ${filters.bedrooms ? filters.bedrooms + ' bedroom ' : ''}properties are listed in ${filters.parish || 'this area'}?`,
                   acceptedAnswer: {
                     '@type': 'Answer',
                     text: `We currently have ${totalCount} ${filters.bedrooms ? filters.bedrooms + ' bedroom ' : ''}properties for rent in ${filters.parish || 'this area'}. New listings are added daily, so check back often for the latest rentals.`
@@ -179,7 +179,7 @@ export default function SearchLandingPage({ slug, properties: initialProperties,
           <div className="bg-blue-50 rounded-lg p-6 mb-8">
             <h2 className="text-xl font-bold mb-3 text-gray-900">
               {filters.parish && filters.bedrooms 
-                ? `${filters.bedrooms} Bedroom ${filters.type ? filters.type.charAt(0).toUpperCase() + filters.type.slice(1) + 's' : 'Properties'} Available in ${filters.parish}`
+                ? `${filters.bedrooms} Bedroom ${filters.type ? filters.type.charAt(0).toUpperCase() + filters.type.slice(1) + 's' : 'Properties'} in ${filters.parish}`
                 : `Rental Properties in ${filters.parish || 'Jamaica'}`
               }
             </h2>
@@ -269,7 +269,7 @@ export default function SearchLandingPage({ slug, properties: initialProperties,
                   <div>
                     <h3 className="font-semibold text-gray-900 mb-1">How do I find houses for rent in {filters.parish || 'Jamaica'}?</h3>
                     <p className="text-gray-600">
-                      Browse our listings above to find available properties. Each listing shows photos, prices, and direct landlord contact information. 
+                      Browse our listings above to find properties. Each listing shows photos, prices, and direct landlord contact information. 
                       You can filter by bedrooms, location, and property type.
                     </p>
                   </div>
@@ -407,7 +407,7 @@ export async function getServerSideProps(context) {
     ? `${bedroomCount} Bedroom ${propertyType} for Rent in ${parishName} | Dosnine Limited Jamaica`
     : `${parts.join(' ')} | Houses & Apartments for Rent in Jamaica | Dosnine Limited`;
   
-  const pageDescription = `Find ${bedroomCount ? bedroomCount + ' bedroom ' : ''}${filters.type || 'properties'} for rent in ${parishName}, Jamaica. Browse ${count || 'available'} listings with photos, prices, and landlord contact info. No agent fees. Connect directly with property owners.`;
+  const pageDescription = `Find ${bedroomCount ? bedroomCount + ' bedroom ' : ''}${filters.type || 'properties'} for rent in ${parishName}, Jamaica. Browse ${count || 'property'} listings with photos, prices, and landlord contact info. No agent fees. Connect directly with property owners.`;
   
   const pageKeywords = [
     `${bedroomCount} bedroom ${filters.type || 'house'} for rent in ${parishName}`,

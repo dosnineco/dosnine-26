@@ -1,7 +1,7 @@
 import { getDbClient } from '@/lib/apiAuth';
 import * as SibApiV3Sdk from '@getbrevo/brevo';
 
-const sendBrevoEmail = async ({ to, subject, htmlContent, textContent }) => {
+export const sendBrevoEmail = async ({ to, subject, htmlContent, textContent }) => {
   if (!to) return;
   const apiKey = process.env.BREVO_API_KEY;
   if (!apiKey) {

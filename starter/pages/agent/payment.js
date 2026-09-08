@@ -5,7 +5,7 @@ import Head from 'next/head';
 import toast from 'react-hot-toast';
 import { useRoleProtection } from '../../lib/useRoleProtection';
 import { isVerifiedAgent } from '../../lib/rbac';
-import { Copy, Check, AlertCircle, ChevronDown, Award,Users,Home,DollarSign } from 'lucide-react';
+import { Copy, Check, AlertCircle, Award,Users,Home,DollarSign } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { getSiteSettings } from '../../lib/siteSettings';
 
@@ -110,7 +110,6 @@ export default function AgentPayment() {
   const [queueCount, setQueueCount] = useState(null);
   const [queueLoading, setQueueLoading] = useState(true);
   const [selectedPlanId, setSelectedPlanId] = useState('30-day');
-  const [openFAQ, setOpenFAQ] = useState(null);
   const [sessionToken, setSessionToken] = useState(null);
 
   // Generate and track session token for upgrade flow
@@ -212,7 +211,7 @@ export default function AgentPayment() {
               </h1>
               <p className="mt-2 text-gray-300 text-sm sm:text-base">
                 {isOwnerUser
-                  ? 'Once your property is live, clients can contact you directly for free. If you want extra help finding a tenant, choose the vacancy-fill service.'
+                  ? 'We find and help place a tenant for 20% of the first month\'s rent.'
                   : 'Based on deal value. Choose your plan and get verified in 24 hours.'}
               </p>
 
@@ -255,80 +254,31 @@ export default function AgentPayment() {
             {isOwnerUser ? (
               <div className="px-8 py-6 space-y-6">
                 <div className="bg-blue-50 border border-blue-200 rounded-xl p-5">
-                  <h2 className="text-xl font-bold text-gray-900 mb-2">Free direct enquiries</h2>
+                  <h2 className="text-xl font-bold text-gray-900 mb-2">Find a tenant for 20%</h2>
                   <p className="text-gray-700 mb-3">
-                    Once your property is uploaded, clients can message you directly. This is free and lets them ask for your property, income, job, and contact details before arranging a viewing.
+                    We market your property, connect you with interested renters, and help move the conversation toward a tenant.
                   </p>
                   <p className="text-gray-700 mb-3">
-                    If your property is not up to standard, or if it is not attracting tenants, we can advise what to improve before you advertise again. Results may vary and there is no guarantee of outcome.
+                    Our fee is 20% of the first month&apos;s rental fee, paid when a tenant is successfully placed. There is no upfront fee.
                   </p>
                   <div className="flex flex-wrap items-center gap-3">
-                    <span className="inline-flex items-center rounded-full bg-white px-3 py-1 text-sm font-semibold text-gray-900 border border-gray-200">Free direct contact</span>
-                    <span className="inline-flex items-center rounded-full bg-white px-3 py-1 text-sm font-semibold text-gray-900 border border-gray-200">Vacancy fill: J$9,900</span>
+                    <span className="inline-flex items-center rounded-full bg-white px-3 py-1 text-sm font-semibold text-gray-900 border border-gray-200">20% of first month&apos;s rent</span>
+                    <span className="inline-flex items-center rounded-full bg-white px-3 py-1 text-sm font-semibold text-gray-900 border border-gray-200">No upfront fee</span>
                   </div>
                 </div>
 
                 <div className="bg-gray-100 border-l-4 border-accent p-4 rounded-lg">
-                  <p className="font-semibold text-gray-900">Need help filling your vacancy?</p>
-                  <p className="text-sm text-gray-700 mt-1">We can help find a suitable tenant for your property. Book a consultation or request the vacancy-fill service on WhatsApp.</p>
-                </div>
-
-                <div className="bg-gray-100 rounded-lg p-5">
-                  <div className="flex flex-wrap items-baseline justify-between gap-2 mb-4">
-                    <h2 className="text-xl font-bold text-gray-900">Pay for vacancy-fill service</h2>
-                    <p className="text-2xl font-bold text-accent">J$9,900</p>
-                  </div>
-                  <ol className="list-decimal list-inside space-y-2 text-sm text-gray-700 mb-4">
-                    <li>Transfer J$9,900 to the account below.</li>
-                    <li>Use the transfer note shown below.</li>
-                    <li>Take a screenshot of the transfer receipt.</li>
-                    <li>Send the proof immediately using the WhatsApp button below.</li>
-                  </ol>
-                  {bankDetails.map((bank) => (
-                    <div key={bank.accountNumber} className="bg-white rounded-lg p-4 text-sm text-gray-700 space-y-2">
-                      {[
-                        ['Amount', 'J$9,900'],
-                        ['Bank', bank.bank],
-                        ['Account name', bank.accountName],
-                        ['Account number', bank.accountNumber],
-                        ['Branch', bank.branch],
-                        ['Transfer note', `Vacancy Service - ${emailHandle}`],
-                      ].map(([label, value]) => {
-                        const field = `vacancy-${label.toLowerCase().replace(/\\s+/g, '-')}`;
-                        return (
-                          <div key={label} className="flex items-center justify-between gap-3">
-                            <span><strong>{label}:</strong> {value}</span>
-                            <button
-                              type="button"
-                              onClick={() => copyToClipboard(value, field)}
-                              className="shrink-0 p-1 text-gray-400 hover:text-accent transition"
-                              title={`Copy ${label.toLowerCase()}`}
-                              aria-label={`Copy ${label.toLowerCase()}`}
-                            >
-                              {copied === field ? <Check size={16} /> : <Copy size={16} />}
-                            </button>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  ))}
+                  <p className="font-semibold text-gray-900">Ready to find a tenant?</p>
+                  <p className="text-sm text-gray-700 mt-1">Send us your property details and rental price. We will explain the next steps.</p>
                 </div>
 
                 <a
-                  href={`https://wa.me/18763369045?text=${encodeURIComponent(`Hi Dosnine, I have paid J$9,900 for the Vacancy Fill Service. Email: ${userEmail}. I am sending my payment proof now.`)}`}
+                  href={`https://wa.me/18763369045?text=${encodeURIComponent(`Hi Dosnine, I need help finding a tenant. Email: ${userEmail}. My property rent is [amount]. Please explain the 20% first-month-rent placement fee.`)}`}
                   target="_blank"
                   rel="noreferrer"
                   className="inline-flex items-center justify-center rounded-lg bg-accent px-5 py-3 text-sm font-semibold text-white hover:bg-accent/90"
                 >
-                  Send Payment Proof on WhatsApp
-                </a>
-                <a
-                  href="https://wa.me/18763369045?text=Hi%20Dosnine%2C%20I%20need%20a%20consultation%20before%20using%20the%20Vacancy%20Fill%20Service."
-                  target="_blank"
-                  rel="noreferrer"
-                  className="text-sm font-semibold text-accent hover:underline"
-                >
-                  Need a consultation? WhatsApp 876-336-9045
+                  Find Me a Tenant
                 </a>
               </div>
             ) : (
@@ -543,55 +493,6 @@ export default function AgentPayment() {
             )}
           </div>
 
-          {/* FAQ */}
-          <div className="mt-8 bg-white rounded-lg border border-gray-200 overflow-hidden">
-            <div className="p-6 border-b border-gray-200">
-              <h3 className="font-semibold text-lg">Frequently Asked Questions</h3>
-            </div>
-            <div className="divide-y divide-gray-200">
-              {[
-                {
-                  question: 'How is access determined?',
-                  answer: 'Access is tied to deal value (rental or buyer budgets), not lead count. Pick the plan that matches the budgets you want to work.'
-                },
-                {
-                  question: 'What happens if I do not pay?',
-                  answer: 'Your account stays open but you cannot claim requests beyond the Free Access limits until payment is confirmed.'
-                },
-                {
-                  question: 'When does the access window start?',
-                  answer: 'Within 24 hours of sending payment proof on WhatsApp. The countdown starts at confirmation, not at transfer time.'
-                },
-                {
-                  question: 'Can I switch plans later?',
-                  answer: 'Yes. Select a new plan and submit a new transfer before your current window ends to avoid downtime.'
-                },
-                {
-                  question: 'How do I list properties?',
-                  answer: 'All plans include unlimited listings during the active access window.'
-                }
-              ].map((item, idx) => (
-                <button
-                  key={idx}
-                  onClick={() => setOpenFAQ(openFAQ === idx ? null : idx)}
-                  className="w-full text-left p-6 hover:bg-gray-50 transition"
-                >
-                  <div className="flex items-center justify-between gap-4">
-                    <h4 className="font-medium text-gray-900">{item.question}</h4>
-                    <ChevronDown
-                      size={20}
-                      className={`flex-shrink-0 text-accent transition-transform duration-300 ${
-                        openFAQ === idx ? 'rotate-180' : ''
-                      }`}
-                    />
-                  </div>
-                  {openFAQ === idx && (
-                    <p className="text-gray-600 text-sm mt-4">{item.answer}</p>
-                  )}
-                </button>
-              ))}
-            </div>
-          </div>
         </div>
       </div>
     </>

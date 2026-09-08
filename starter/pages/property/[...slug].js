@@ -6,7 +6,7 @@ import { useRouter } from 'next/router';
 import toast from 'react-hot-toast';
 import { useUser } from '@clerk/nextjs';
 import { Phone, MapPin } from 'lucide-react';
-import { formatMoney } from '../../lib/formatMoney';
+import { formatPropertyMoney } from '../../lib/formatMoney';
 import { normalizeParish } from '../../lib/normalizeParish';
 import PropertyAgentRequest from '../../components/PropertyAgentRequest';
 import InFeedAd from '../../components/InFeedAd';
@@ -171,14 +171,6 @@ export default function PropertyPage({ property, similarProperties, isVerifiedAg
   // Generate JSON-LD schema for SEO (Property + BreadcrumbList for Feature Snippets)
   const isLand = property.bedrooms == 0 && property.bathrooms == 0;
   const status = String(property.status || '').toLowerCase().trim();
-  const statusLabel = status === 'coming_soon'
-    ? 'Coming Soon'
-    : status === 'active'
-      ? 'Active'
-      : status === 'available'
-        ? 'Available'
-        : '';
-
   const jsonLdProperty = isLand ? {
     '@context': 'https://schema.org',
     '@type': 'RealEstateListing',
@@ -191,8 +183,8 @@ export default function PropertyPage({ property, similarProperties, isVerifiedAg
       addressRegion: property.parish || '',
       addressCountry: 'JM'
     },
-    priceRange: `${formatMoney(property.price)}`,
-    priceCurrency: 'JMD',
+    priceRange: `${formatPropertyMoney(property.price, property.currency)}`,
+    priceCurrency: String(property.currency || 'JMD').toUpperCase(),
     floorSize: property.square_feet ? {
       '@type': 'QuantitativeValue',
       value: property.square_feet,
@@ -203,7 +195,7 @@ export default function PropertyPage({ property, similarProperties, isVerifiedAg
     offers: {
       '@type': 'Offer',
       price: property.price,
-      priceCurrency: 'JMD',
+      priceCurrency: String(property.currency || 'JMD').toUpperCase(),
       availability: 'https://schema.org/InStock',
       validFrom: property.created_at,
       priceValidUntil: new Date(new Date().setMonth(new Date().getMonth() + 3)).toISOString().split('T')[0]
@@ -243,8 +235,8 @@ export default function PropertyPage({ property, similarProperties, isVerifiedAg
       addressRegion: property.parish || '',
       addressCountry: 'JM'
     },
-    priceRange: `${formatMoney(property.price)}`,
-    priceCurrency: 'JMD',
+    priceRange: `${formatPropertyMoney(property.price, property.currency)}`,
+    priceCurrency: String(property.currency || 'JMD').toUpperCase(),
     numberOfBedrooms: property.bedrooms || null,
     numberOfBathrooms: property.bathrooms || null,
     floorSize: property.square_feet ? {
@@ -261,7 +253,7 @@ export default function PropertyPage({ property, similarProperties, isVerifiedAg
     offers: {
       '@type': 'Offer',
       price: property.price,
-      priceCurrency: 'JMD',
+      priceCurrency: String(property.currency || 'JMD').toUpperCase(),
       availability: 'https://schema.org/InStock',
       validFrom: property.created_at,
       priceValidUntil: new Date(new Date().setMonth(new Date().getMonth() + 3)).toISOString().split('T')[0]
@@ -331,7 +323,7 @@ export default function PropertyPage({ property, similarProperties, isVerifiedAg
         name: `How much is this land for sale in ${property.parish}?`,
         acceptedAnswer: {
           '@type': 'Answer',
-          text: `This land in ${property.town ? property.town + ', ' : ''}${property.parish} is available for ${formatMoney(property.price)}. Contact the owner or agent directly via WhatsApp or phone for viewing arrangements.`
+          text: `This land in ${property.town ? property.town + ', ' : ''}${property.parish} is listed at ${formatPropertyMoney(property.price, property.currency)}. Contact the owner or agent directly via WhatsApp or phone for viewing arrangements.`
         }
       },
       {
@@ -370,7 +362,7 @@ export default function PropertyPage({ property, similarProperties, isVerifiedAg
         name: `How much is this ${property.bedrooms} bedroom ${property.type || 'property'} for rent in ${property.parish}?`,
         acceptedAnswer: {
           '@type': 'Answer',
-          text: `This ${property.bedrooms} bedroom ${property.type || 'property'} in ${property.town ? property.town + ', ' : ''}${property.parish} is available for ${formatMoney(property.price)} per month. Contact the landlord directly via WhatsApp for viewing arrangements.`
+          text: `This ${property.bedrooms} bedroom ${property.type || 'property'} in ${property.town ? property.town + ', ' : ''}${property.parish} is listed at ${formatPropertyMoney(property.price, property.currency)} per month. Contact the landlord directly via WhatsApp for viewing arrangements.`
         }
       },
       {
@@ -399,12 +391,10 @@ export default function PropertyPage({ property, similarProperties, isVerifiedAg
       },
       {
         '@type': 'Question',
-        name: `When is this ${property.parish} rental property available?`,
+        name: `How can I arrange a viewing for this ${property.parish} rental property?`,
         acceptedAnswer: {
           '@type': 'Answer',
-          text: property.available_date 
-            ? `This property is available from ${new Date(property.available_date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}. Contact the landlord to arrange a viewing.`
-            : 'This property is available now. Contact the landlord directly to schedule a viewing and discuss move-in details.'
+          text: 'Contact the landlord directly to schedule a viewing and discuss move-in details.'
         }
       }
     ]
@@ -413,10 +403,10 @@ export default function PropertyPage({ property, similarProperties, isVerifiedAg
   if (archived) {
     return (
       <>
-        <Seo title={`${property.title || 'Property'} — Removed | Dosnine Limited`} description={`This property is no longer available.`} />
+        <Seo title={`${property.title || 'Property'} — Removed | Dosnine Limited`} description="This property listing has been removed." />
         <div className="max-w-3xl mx-auto py-16 px-4 text-center">
-          <h1 className="text-2xl font-semibold mb-4">This property is no longer available</h1>
-          <p className="mb-6">The listing you requested has been removed or expired. Browse similar available properties below or explore search pages for the area.</p>
+          <h1 className="text-2xl font-semibold mb-4">This property listing has been removed</h1>
+          <p className="mb-6">The listing you requested has been removed or expired. Browse similar properties below or explore search pages for the area.</p>
 
           {similarProperties && similarProperties.length > 0 && (
             <div className="space-y-4">
@@ -425,7 +415,7 @@ export default function PropertyPage({ property, similarProperties, isVerifiedAg
                   <div className="p-3 bg-gray-50 rounded-lg">
                     <div className="text-lg font-medium">{p.title || `${p.bedrooms || ''} ${p.type || ''}`}</div>
                     <div className="text-sm text-gray-600">{p.parish} — {p.town}</div>
-                    <div className="text-sm text-accent">{p.price ? formatMoney(p.price) : ''}</div>
+                    <div className="text-sm text-accent">{p.price ? formatPropertyMoney(p.price, p.currency) : ''}</div>
                   </div>
                 </Link>
               ))}
@@ -445,12 +435,12 @@ export default function PropertyPage({ property, similarProperties, isVerifiedAg
     <>
       <Seo
         title={isLand 
-          ? `Land For Sale in ${property.parish} ${property.town ? `- ${property.town}` : ''} | ${formatMoney(property.price)} | Dosnine Limited Jamaica`
-          : `${property.bedrooms} Bedroom ${property.type === 'house' ? 'House' : 'Apartment'} for Rent in ${property.parish} ${property.town ? `- ${property.town}` : ''} | ${formatMoney(property.price)}/month | Dosnine Limited Jamaica`
+          ? `Land For Sale in ${property.parish} ${property.town ? `- ${property.town}` : ''} | ${formatPropertyMoney(property.price, property.currency)} | Dosnine Limited Jamaica`
+          : `${property.bedrooms} Bedroom ${property.type === 'house' ? 'House' : 'Apartment'} for Rent in ${property.parish} ${property.town ? `- ${property.town}` : ''} | ${formatPropertyMoney(property.price, property.currency)}/month | Dosnine Limited Jamaica`
         }
         description={isLand 
           ? `${property.town ? property.town + ', ' : ''}${property.parish} land for sale. ${property.description?.substring(0, 120)}... Contact owner directly.`
-          : `${property.bedrooms} bedroom ${property.type || 'property'} for rent in ${property.town ? property.town + ', ' : ''}${property.parish}, Jamaica. ${property.description?.substring(0, 120)}... Contact landlord directly. Available now.`
+          : `${property.bedrooms} bedroom ${property.type || 'property'} for rent in ${property.town ? property.town + ', ' : ''}${property.parish}, Jamaica. ${property.description?.substring(0, 120)}... Contact landlord directly.`
         }
         image={currentImage}
         url={`https://dosnine.com/property/${property.slug}`}
@@ -523,11 +513,6 @@ export default function PropertyPage({ property, similarProperties, isVerifiedAg
               <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between mb-2 gap-3">
                 <div>
                   <h1 className="text-3xl font-bold">{property.title}</h1>
-                  {statusLabel && (
-                    <div className="mt-3  inline-flex items-center rounded-full bg-yellow-100 text-yellow-800 px-3 py-1 text-sm font-semibold uppercase tracking-wide">
-                      {statusLabel}
-                    </div>
-                  )}
                 </div>
 
                 {isVerifiedAgent && (
@@ -543,7 +528,7 @@ export default function PropertyPage({ property, similarProperties, isVerifiedAg
 
               <div className="flex items-center gap-6 mb-6 pb-6 border-b">
                 <div className="text-center">
-                  <div className="text-2xl font-bold text-green-600">{formatMoney(property.price, '$')}</div>
+                  <div className="text-2xl font-bold text-green-600">{formatPropertyMoney(property.price, property.currency)}</div>
                   <div className="text-sm text-gray-600">{property.type === 'rent' ? '/ month' : null}</div>
                 </div>
                 {property.bedrooms === 0 && property.bathrooms === 0 ? (
@@ -571,11 +556,6 @@ export default function PropertyPage({ property, similarProperties, isVerifiedAg
                 <p className="text-sm text-gray-700">
                   <strong>Verified address:</strong> {property.formatted_address || property.address || `${property.town}, ${property.parish}`}
                 </p>
-                {property.available_date && (
-                  <p className="text-sm text-gray-700 mt-2">
-                    <strong>Available from:</strong> {property.available_date}
-                  </p>
-                )}
               </div>
 
               {mapEmbedUrl && (
@@ -688,7 +668,7 @@ export default function PropertyPage({ property, similarProperties, isVerifiedAg
               <div className="prose max-w-none text-gray-700">
                 <p className="mb-3">
                   Interested in <strong>land for sale in {property.parish}, Jamaica</strong>? 
-                  This property in {property.town || property.parish} is available at <strong>{formatMoney(property.price)}</strong>. 
+                  This property in {property.town || property.parish} is listed at <strong>{formatPropertyMoney(property.price, property.currency)}</strong>. 
                   It&apos;s an excellent opportunity to invest in real estate in one of Jamaica&apos;s desirable locations.
                 </p>
                 <p className="mb-3">
@@ -713,7 +693,7 @@ export default function PropertyPage({ property, similarProperties, isVerifiedAg
               <div className="prose max-w-none text-gray-700">
                 <p className="mb-3">
                   Looking for a <strong>{property.bedrooms} bedroom {property.type || 'property'} for rent in {property.parish}</strong>? 
-                  This property in {property.town || property.parish} offers great value at <strong>{formatMoney(property.price)} per month</strong>.
+                  This property in {property.town || property.parish} offers great value at <strong>{formatPropertyMoney(property.price, property.currency)} per month</strong>.
                 </p>
                 <p className="mb-3">
                   {property.parish} is a popular area for rentals in Jamaica, with properties ranging from apartments to houses. 
@@ -769,7 +749,7 @@ export default function PropertyPage({ property, similarProperties, isVerifiedAg
                         <div className="absolute top-2 right-2 bg-yellow-400 text-black px-2 py-1 rounded-full text-xs font-bold">⭐</div>
                       )}
                       <div className="absolute bottom-2 left-2 bg-accent text-white px-2 py-1 rounded text-sm font-semibold">
-                        {formatMoney(prop.price)}
+                        {formatPropertyMoney(prop.price, prop.currency)}
                       </div>
                     </div>
                     

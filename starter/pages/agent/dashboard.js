@@ -450,15 +450,6 @@ export default function AgentDashboard() {
                 <span className="sm:hidden">{shouldShowUpgrade() ? 'Upgrade' : 'Plan'}</span>
               </Link>
             )}
-            {isOwner && (
-              <Link
-                href="/agent/payment"
-                className="px-4 py-2 bg-accent text-white rounded-lg hover:bg-accent/90 transition font-medium flex items-center justify-center gap-1.5 border border-accent col-span-2 sm:col-span-1"
-              >
-                <CreditCard className="w-5 h-5" />
-                <span>Vacancy Service</span>
-              </Link>
-            )}
           </div>
           </div>
 
@@ -468,9 +459,9 @@ export default function AgentDashboard() {
                 <div className="flex items-start gap-3">
                   <DollarSign className="text-accent flex-shrink-0 mt-0.5" size={24} />
                   <div>
-                    <h3 className="font-bold text-gray-900 mb-1">Fill Your Vacancy for J$9,900</h3>
+                    <h3 className="font-bold text-gray-900 mb-1">Need a tenant? We can find one.</h3>
                     <p className="text-gray-700 text-sm">
-                      Direct enquiries from clients are free once your property is live. Pay only when you want Dosnine to help find a tenant for your vacancy.
+                      Dosnine finds and helps place a tenant for 20% of the first month&apos;s rent. No upfront vacancy-service fee.
                     </p>
                   </div>
                 </div>
@@ -479,7 +470,7 @@ export default function AgentDashboard() {
                   className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-accent text-white font-semibold rounded-lg hover:bg-accent/90 transition text-sm whitespace-nowrap"
                 >
                   <CreditCard className="w-5 h-5" />
-                  View Payment
+                  Find a Tenant
                 </Link>
               </div>
             </div>

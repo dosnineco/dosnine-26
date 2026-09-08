@@ -179,7 +179,7 @@ export default function RequestAgentPage() {
       }
 
       if (name === 'budgetMin' && numericValue < range.min) {
-        toast.error('No properties are available below that amount.');
+        toast.error('No properties were found below that amount.');
         numericValue = range.min;
       }
 
@@ -223,7 +223,7 @@ export default function RequestAgentPage() {
     const range = getBudgetRange(formData.requestType);
 
     if (name === 'budgetMin' && numericValue < range.min) {
-      toast.error('No properties are available below that amount.');
+      toast.error('No properties were found below that amount.');
       return;
     }
 

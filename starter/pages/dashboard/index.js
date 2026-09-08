@@ -5,7 +5,7 @@ import { useRouter } from 'next/router';
 import { useUser } from '@clerk/nextjs';
 import { supabase } from '../../lib/supabase';
 import axios from 'axios';
-import { formatMoney } from '../../lib/formatMoney';
+import { formatPropertyMoney } from '../../lib/formatMoney';
 import { Clock, XCircle, Briefcase, DollarSign } from 'lucide-react';
 
 export default function Dashboard() {
@@ -47,9 +47,9 @@ export default function Dashboard() {
   };
 
   const formatDate = (value) => {
-    if (!value) return 'Not available';
+    if (!value) return 'Not provided';
     const date = new Date(value);
-    return Number.isNaN(date.getTime()) ? 'Not available' : date.toLocaleDateString();
+    return Number.isNaN(date.getTime()) ? 'Not provided' : date.toLocaleDateString();
   };
 
   const isRegularOwner = () => userType !== 'agent';
@@ -877,7 +877,7 @@ export default function Dashboard() {
                           {prop.status}
                         </span>
                       </td>
-                      <td className="py-3 px-4">{formatMoney(prop.price)}</td>
+                      <td className="py-3 px-4">{formatPropertyMoney(prop.price, prop.currency)}</td>
                       <td className="py-3 px-4 text-sm text-gray-600">
                         {new Date(prop.created_at).toLocaleDateString()}
                       </td>

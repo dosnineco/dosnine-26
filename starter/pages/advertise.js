@@ -132,18 +132,6 @@ const reasons = [
   },
 ];
 
-const upgrades = [
-  { key: 'homepage_feature', label: 'Homepage Feature', price: 3500, description: 'Featured placement on the main homepage.' },
-  { key: 'top_category', label: 'Top Category Placement', price: 4500, description: 'Appear above competitors in your category.' },
-  { key: 'facebook_promo', label: 'Facebook Promotion', price: 2500, description: 'Amplify your reach on Facebook.' },
-  { key: 'instagram_promo', label: 'Instagram Promotion', price: 2500, description: 'Boost visibility on Instagram stories and posts.' },
-  { key: 'newsletter_blast', label: 'Newsletter Blast', price: 4000, description: 'Included in the next property newsletter.' },
-  { key: 'urgent_badge', label: 'Urgent Badge', price: 1800, description: 'Signal immediate availability to buyers.' },
-  { key: 'featured_business_badge', label: 'Featured Business Badge', price: 2200, description: 'Showcase your business as a verified advertiser.' },
-  { key: 'htv_logo_pack', label: 'HTV Logo Pack', price: 2750, description: 'Physical HTV-ready-to-press logos for shirts and other branded gear.' },
-  { key: 'brand_partnership', label: 'Custom Brand Partnership', price: 0, description: 'Custom campaigns for banks, trucking companies, electrical services, pest control, and other property-focused brands. Our team will prepare a quote.' },
-];
-
 const faqs = [
   {
     question: 'How long before my ad goes live?',
@@ -249,7 +237,6 @@ export default function AdvertisePage() {
   const [submitError, setSubmitError] = useState('');
   const [imageFiles, setImageFiles] = useState([]);
   const [imagePreviews, setImagePreviews] = useState([]);
-  const [selectedUpgrades, setSelectedUpgrades] = useState({});
   const [form, setForm] = useState({
     company_name: '',
     business_logo: '',
@@ -271,16 +258,7 @@ export default function AdvertisePage() {
     [form.plan_id]
   );
 
-  const upgradeTotal = useMemo(
-    () => Object.entries(selectedUpgrades).reduce((total, [key, active]) => {
-      if (!active) return total;
-      const upgrade = upgrades.find((option) => option.key === key);
-      return total + (upgrade?.price || 0);
-    }, 0),
-    [selectedUpgrades]
-  );
-
-  const totalAmount = selectedPlan.price + upgradeTotal;
+  const totalAmount = selectedPlan.price;
   const emailForNote = (form.email || 'YOUR_EMAIL').trim();
   const whatsappText = encodeURIComponent(
     `Hello Dosnine Team, I submitted an ad request (${selectedPlan.name}) for ${submissionId}. Amount sent: ${formatMoney(totalAmount)}. Submission: ${submissionId || 'pending'}. I am sending payment proof now.`
@@ -352,8 +330,7 @@ export default function AdvertisePage() {
         email: form.email || user?.primaryEmailAddress?.emailAddress || 'no-email@dosnine.local',
         image_url: uploadedImageUrls[0] || null,
         image_urls: uploadedImageUrls,
-        is_featured: Boolean(selectedUpgrades.featured_business_badge || selectedPlan.id === '14-day' || selectedPlan.id === '30-day'),
-        upgrades: Object.keys(selectedUpgrades).filter((key) => selectedUpgrades[key]),
+        is_featured: Boolean(selectedPlan.id === '14-day' || selectedPlan.id === '30-day'),
       };
 
       const token = await getToken();
@@ -592,22 +569,24 @@ export default function AdvertisePage() {
               <section className="rounded-none border border-slate-200 bg-white p-6 shadow-[0_20px_60px_-35px_rgba(15,23,42,0.35)] sm:p-8 lg:p-10">
                 <SectionHeading
                   eyebrow="Why advertise"
-                  title="A premium channel for serious service businesses"
-                  subtitle="Every section is built to answer one question clearly: why should your business invest here?"
+                  title="A clearer path to new customers"
+                  subtitle="Reach people who are already looking for the services you provide."
                 />
-                <div className="mt-8 grid gap-4 md:grid-cols-2">
+                <div className="mt-8 divide-y divide-slate-200 border-y border-slate-200">
                   {reasons.map((reason) => {
                     const Icon = reason.icon;
                     return (
                       <div
                         key={reason.title}
-                        className="rounded-none border border-slate-200 bg-slate-50 p-5 sm:p-6"
+                        className="flex items-start gap-4 py-5 sm:gap-6"
                       >
-                        <div className="flex h-11 w-11 items-center justify-center rounded-none bg-accent/10 text-accent">
-                          <Icon className="h-5 w-5" />
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-none bg-accent/10 text-accent">
+                          <Icon className="h-5 w-5" aria-hidden="true" />
                         </div>
-                        <h3 className="mt-4 text-lg font-semibold text-slate-900 sm:text-xl">{reason.title}</h3>
-                        <p className="mt-2 text-sm leading-7 text-slate-600">{reason.description}</p>
+                        <div>
+                          <h3 className="text-lg font-semibold text-slate-900">{reason.title}</h3>
+                          <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-600">{reason.description}</p>
+                        </div>
                       </div>
                     );
                   })}
@@ -671,41 +650,6 @@ export default function AdvertisePage() {
                           <span className={`font-semibold ${selected ? 'text-white' : 'text-accent'}`}>Choose plan</span>
                         </div>
                       </button>
-                    );
-                  })}
-                </div>
-              </section>
-
-              <section className="rounded-none border border-slate-200 bg-white p-8 shadow-[0_20px_60px_-35px_rgba(15,23,42,0.35)] sm:p-10">
-                <SectionHeading
-                  eyebrow="Optional upgrades"
-                  title="Make your campaign stand out even more"
-                  subtitle="Add premium visibility features before you checkout."
-                />
-                <div className="mt-8 grid gap-4 lg:grid-cols-2">
-                  {upgrades.map((upgrade) => {
-                    const active = Boolean(selectedUpgrades[upgrade.key]);
-                    return (
-                      <label
-                        key={upgrade.key}
-                        className={`flex cursor-pointer items-start gap-3 rounded-none border p-5 transition ${
-                          active ? 'border-accent bg-accent/5 shadow-sm' : 'border-slate-200 bg-white hover:border-slate-300'
-                        }`}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={active}
-                          onChange={() => setSelectedUpgrades((prev) => ({ ...prev, [upgrade.key]: !prev[upgrade.key] }))}
-                          className="mt-1 h-4 w-4 rounded border-slate-300 text-accent focus:ring-accent"
-                        />
-                        <div className="flex-1">
-                          <div className="flex items-center justify-between gap-3">
-                            <p className="font-semibold text-slate-900">{upgrade.label}</p>
-                            <p className="text-sm font-semibold text-accent">+{formatMoney(upgrade.price)}</p>
-                          </div>
-                          <p className="mt-1 text-sm text-slate-600">{upgrade.description}</p>
-                        </div>
-                      </label>
                     );
                   })}
                 </div>
@@ -941,22 +885,6 @@ export default function AdvertisePage() {
                           </div>
                           <p className="text-lg font-semibold text-slate-900">{formatMoney(selectedPlan.price)}</p>
                         </div>
-                        {upgradeTotal > 0 ? (
-                          <div className="mt-4 border-t border-slate-200 pt-4">
-                            <p className="text-sm font-semibold text-slate-700">Add-ons</p>
-                            <div className="mt-2 space-y-2 text-sm text-slate-600">
-                              {Object.entries(selectedUpgrades).filter(([, active]) => active).map(([key]) => {
-                                const upgrade = upgrades.find((option) => option.key === key);
-                                return (
-                                  <div key={key} className="flex items-center justify-between gap-3">
-                                    <span>{upgrade?.label}</span>
-                                    <span>{formatMoney(upgrade?.price || 0)}</span>
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          </div>
-                        ) : null}
                         <div className="mt-4 border-t border-slate-200 pt-4">
                           <div className="flex items-center justify-between gap-3">
                             <p className="font-semibold text-slate-900">Estimated total</p>
