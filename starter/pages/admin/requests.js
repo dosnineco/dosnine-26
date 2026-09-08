@@ -22,6 +22,9 @@ export default function AdminRequestsPage() {
   const [commentText, setCommentText] = useState('');
   const [filterUrgency, setFilterUrgency] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
+  const [filterLocation, setFilterLocation] = useState('');
+  const [filterBudgetMin, setFilterBudgetMin] = useState('');
+  const [filterBudgetMax, setFilterBudgetMax] = useState('');
   const [showAutoAssign, setShowAutoAssign] = useState(false);
   const [autoAssignAgentId, setAutoAssignAgentId] = useState('');
   const [autoAssignCount, setAutoAssignCount] = useState(5);
@@ -486,6 +489,40 @@ export default function AdminRequestsPage() {
                     </button>
                   ))}
                 </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-2">
+                  <label className="text-sm text-gray-600">
+                    <span className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Location</span>
+                    <input
+                      type="search"
+                      value={filterLocation}
+                      onChange={(e) => setFilterLocation(e.target.value)}
+                      placeholder="Search location"
+                      className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-accent focus:border-accent outline-none"
+                    />
+                  </label>
+                  <label className="text-sm text-gray-600">
+                    <span className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Budget from</span>
+                    <input
+                      type="number"
+                      min="0"
+                      value={filterBudgetMin}
+                      onChange={(e) => setFilterBudgetMin(e.target.value)}
+                      placeholder="Minimum budget"
+                      className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-accent focus:border-accent outline-none"
+                    />
+                  </label>
+                  <label className="text-sm text-gray-600">
+                    <span className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Budget to</span>
+                    <input
+                      type="number"
+                      min="0"
+                      value={filterBudgetMax}
+                      onChange={(e) => setFilterBudgetMax(e.target.value)}
+                      placeholder="Maximum budget"
+                      className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-accent focus:border-accent outline-none"
+                    />
+                  </label>
+                </div>
               </div>
 
               {/* Stats Overview */}
@@ -546,13 +583,19 @@ export default function AdminRequestsPage() {
                   requests.filter(request => {
                     const typeMatch = filterType === 'all' || request.request_type === filterType;
                     const urgencyMatch = filterUrgency === 'all' || request.urgency === filterUrgency;
+                    const locationMatch = !filterLocation.trim()
+                      || String(request.location || '').toLowerCase().includes(filterLocation.trim().toLowerCase());
+                    const requestBudgetMin = Number(request.budget_min ?? request.budget_max ?? 0);
+                    const requestBudgetMax = Number(request.budget_max ?? request.budget_min ?? 0);
+                    const budgetMinMatch = !filterBudgetMin || requestBudgetMax >= Number(filterBudgetMin);
+                    const budgetMaxMatch = !filterBudgetMax || requestBudgetMin <= Number(filterBudgetMax);
                     const statusMatch =
                       filterStatus === 'all'
                         ? true
                         : filterStatus === 'assigned'
                           ? (request.status === 'assigned' || request.status === 'in_progress')
                           : request.status === filterStatus;
-                    return typeMatch && urgencyMatch && statusMatch;
+                    return typeMatch && urgencyMatch && locationMatch && budgetMinMatch && budgetMaxMatch && statusMatch;
                   }).map((request) => (
                     <div key={request.id} className="bg-white rounded-lg shadow-sm p-4 hover:shadow-md transition">
                       <div className="flex justify-between items-start gap-4 mb-3">

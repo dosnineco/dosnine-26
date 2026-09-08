@@ -39,6 +39,23 @@
 .bg-accent { background-color: var(--accent-color); }
 .border-accent { border-color: var(--accent-color); }
 
+.property-page h1,
+.property-page h2,
+.property-page h3,
+.property-form-page h1 {
+  font-family: Georgia, 'Times New Roman', serif;
+  letter-spacing: normal;
+}
+
+.property-page p,
+.property-form-page p,
+.property-form-page label,
+.property-form-page input,
+.property-form-page select,
+.property-form-page textarea {
+  letter-spacing: normal;
+}
+
 /* Standardized Button System */
 /* Primary button - accent color */
 .btn-primary,

@@ -15,6 +15,30 @@ const PUBLIC_PROPERTY_DETAIL_FIELDS = [
   'bedrooms',
   'bathrooms',
   'address',
+  'formatted_address',
+  'latitude',
+  'longitude',
+  'town',
+  'parish',
+  'available_date',
+  'image_urls',
+  'phone_number',
+  'views',
+  'status',
+  'created_at',
+].join(',');
+
+const LEGACY_PROPERTY_DETAIL_FIELDS = [
+  'id',
+  'slug',
+  'owner_id',
+  'title',
+  'description',
+  'type',
+  'price',
+  'bedrooms',
+  'bathrooms',
+  'address',
   'town',
   'parish',
   'available_date',
@@ -67,12 +91,24 @@ export default async function handler(req, res) {
     }).parse(req.query || {});
 
     const db = supabase;
-    const { data: property, error: propertyError } = await db
+    let { data: property, error: propertyError } = await db
       .from('properties')
       .select(PUBLIC_PROPERTY_DETAIL_FIELDS)
       .eq('slug', slug)
       .in('status', PUBLIC_VISIBLE_STATUSES)
       .single();
+
+    // Keep older deployments readable until the location migration is applied.
+    if (propertyError) {
+      const legacyResult = await db
+        .from('properties')
+        .select(LEGACY_PROPERTY_DETAIL_FIELDS)
+        .eq('slug', slug)
+        .in('status', PUBLIC_VISIBLE_STATUSES)
+        .single();
+      property = legacyResult.data;
+      propertyError = legacyResult.error;
+    }
 
     if (propertyError || !property) {
       return res.status(404).json({ error: 'Property not found' });
@@ -93,9 +129,15 @@ export default async function handler(req, res) {
 
     const { data: ownerData } = await db
       .from('users')
-      .select('agent_is_verified, verified_at')
+      .select('full_name, agent_is_verified, verified_at')
       .eq('id', propertyData.owner_id)
       .single();
+
+    const { data: agentData } = await db
+      .from('agents')
+      .select('business_name, verification_status')
+      .eq('user_id', propertyData.owner_id)
+      .maybeSingle();
 
     const { data: similarProperties } = await db
       .from('properties')
@@ -110,6 +152,11 @@ export default async function handler(req, res) {
       property: propertyData,
       similarProperties: similarProperties || [],
       isVerifiedAgent: ownerData?.agent_is_verified || false,
+      owner: {
+        name: ownerData?.full_name || 'Property owner',
+        businessName: agentData?.business_name || null,
+        isAgent: Boolean(agentData),
+      },
     });
   } catch (error) {
     if (error?.name === 'ZodError') {

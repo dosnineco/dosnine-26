@@ -5,13 +5,15 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import toast from 'react-hot-toast';
 import { useUser } from '@clerk/nextjs';
-import { Zap, Phone } from 'lucide-react';
+import { Phone, MapPin } from 'lucide-react';
 import { formatMoney } from '../../lib/formatMoney';
 import { normalizeParish } from '../../lib/normalizeParish';
 import PropertyAgentRequest from '../../components/PropertyAgentRequest';
+import InFeedAd from '../../components/InFeedAd';
 
 export async function getServerSideProps(context) {
-  const slug = context.params?.slug;
+  const slugParam = context.params?.slug;
+  const slug = Array.isArray(slugParam) ? slugParam.join('/') : slugParam;
   const host = context.req.headers.host || 'localhost:3000';
   const forwardedProto = String(context.req.headers['x-forwarded-proto'] || '').split(',')[0].trim();
   const isLocalHost = /^(localhost|127\.0\.0\.1|0\.0\.0\.0)(:\d+)?$/i.test(host);
@@ -50,11 +52,12 @@ export async function getServerSideProps(context) {
       property: payload.property,
       similarProperties: payload.similarProperties || [],
       isVerifiedAgent: payload.isVerifiedAgent || false,
+      owner: payload.owner || null,
     },
   };
 }
 
-export default function PropertyPage({ property, similarProperties, isVerifiedAgent, archived }) {
+export default function PropertyPage({ property, similarProperties, isVerifiedAgent, archived, owner }) {
   const { user } = useUser();
   const router = useRouter();
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
@@ -68,11 +71,9 @@ export default function PropertyPage({ property, similarProperties, isVerifiedAg
   const allImages = imageUrls.length > 0 ? imageUrls : propertyImages.map(img => img.image_url);
   const currentImage = allImages[currentImageIndex] || '/placeholder.png';
   const fullscreenImage = fullscreenIndex !== null ? allImages[fullscreenIndex] : null;
-
-  // Aggressive scroll to top on any route or property change
-  useEffect(() => {
- 
-  }, [property.owner_id, isVerifiedAgent]);
+  const mapEmbedUrl = property.latitude && property.longitude
+    ? `https://www.google.com/maps?q=${Number(property.latitude)},${Number(property.longitude)}&z=18&output=embed`
+    : null;
 
   // Handle keyboard navigation in fullscreen mode
   useEffect(() => {
@@ -456,7 +457,7 @@ export default function PropertyPage({ property, similarProperties, isVerifiedAg
         structuredData={[jsonLdProperty, jsonLdBreadcrumb, jsonLdFAQ]}
       />
 
-      <div className="container mx-auto px-4 py-8">
+      <div className="property-page container mx-auto px-4 py-8 text-slate-700">
         {/* Breadcrumb Navigation */}
         <div className="mb-4 ">
           <Link href="/" className="btn-outline btn-sm">← Back to Browse</Link>
@@ -538,7 +539,7 @@ export default function PropertyPage({ property, similarProperties, isVerifiedAg
                   </div>
                 )}
               </div>
-              <p className="text-lg text-gray-600 mb-4">{property.town}, {property.parish}</p>
+              <p className="flex items-center gap-2 text-base text-slate-500 mb-4"><MapPin className="h-4 w-4 text-accent" />{property.town}, {property.parish}</p>
 
               <div className="flex items-center gap-6 mb-6 pb-6 border-b">
                 <div className="text-center">
@@ -566,9 +567,9 @@ export default function PropertyPage({ property, similarProperties, isVerifiedAg
               <h2 className="text-2xl font-bold mb-4">About this property</h2>
               <p className="text-gray-700 mb-4">{property.description}</p>
 
-              <div className="bg-blue-50 p-4 rounded-lg mb-4">
+              <div className="bg-slate-50 p-4 rounded-xl mb-4">
                 <p className="text-sm text-gray-700">
-                  <strong>Address:</strong> {property.address}
+                  <strong>Verified address:</strong> {property.formatted_address || property.address || `${property.town}, ${property.parish}`}
                 </p>
                 {property.available_date && (
                   <p className="text-sm text-gray-700 mt-2">
@@ -576,6 +577,21 @@ export default function PropertyPage({ property, similarProperties, isVerifiedAg
                   </p>
                 )}
               </div>
+
+              {mapEmbedUrl && (
+                <div className="mt-6 overflow-hidden rounded-xl bg-slate-100">
+                  <div className="flex items-center gap-2 px-4 py-3 text-sm font-semibold text-slate-900">
+                    <MapPin className="h-4 w-4 text-accent" /> Exact location
+                  </div>
+                  <iframe
+                    title={`Map showing ${property.title}`}
+                    src={mapEmbedUrl}
+                    className="h-72 w-full border-0"
+                    loading="lazy"
+                  />
+                  <p className="px-4 py-3 text-xs text-slate-500">Map location is provided by the listing poster. Confirm details before arranging a viewing.</p>
+                </div>
+              )}
 
               
             </div>
@@ -586,6 +602,13 @@ export default function PropertyPage({ property, similarProperties, isVerifiedAg
             <div className="bg-white rounded-xl  p-6 relative top-4">
               
               <h3 className="text-xl font-bold mb-4">{isVerifiedAgent ? 'Contact Agent' : 'Contact Landlord'}</h3>
+
+              <div className="mb-5 rounded-xl bg-slate-50 p-4">
+                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Posted by</p>
+                <p className="mt-1 text-lg font-semibold text-slate-950">{owner?.businessName || owner?.name || 'Property owner'}</p>
+                {owner?.businessName && <p className="text-sm text-slate-500">{owner.name}</p>}
+                {isVerifiedAgent && <p className="mt-2 text-xs font-semibold text-blue-700">Verified real estate agent</p>}
+              </div>
 
               <button
                 onClick={() => setShowRequestForm(true)}
@@ -651,6 +674,10 @@ export default function PropertyPage({ property, similarProperties, isVerifiedAg
 
          
           </div>
+        </div>
+
+        <div className="my-12 flex justify-center">
+          <InFeedAd />
         </div>
 
         {/* Location-specific SEO content */}
