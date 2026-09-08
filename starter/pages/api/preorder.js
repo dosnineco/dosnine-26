@@ -3,7 +3,7 @@ import * as SibApiV3Sdk from '@getbrevo/brevo'
 import { enforceRateLimit } from '../../lib/rateLimit'
 
 const BREVO_API_KEY = process.env.BREVO_API_KEY || ''
-const BREVO_FROM_EMAIL = 'dosnineco@gmail.com'
+const BREVO_FROM_EMAIL = 'admin@dosnine.com'
 const BREVO_FROM_NAME = 'Dosnine'
 
 export default async function handler(req, res) {

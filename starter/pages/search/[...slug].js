@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Fragment } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
 // formatMoney not used here
 import PropertyCard from '../../components/PropertyCard';
+import InFeedAd from '../../components/InFeedAd';
 import { useUser } from '@clerk/nextjs';
 import { PARISHES, normalizeParish } from '../../lib/normalizeParish';
 
@@ -224,9 +225,12 @@ export default function SearchLandingPage({ slug, properties: initialProperties,
               {properties.map((prop, idx) => {
                 const isOwner = userOwnerId && prop.owner_id === userOwnerId;
                 return (
-                  <div key={prop.id} onClick={() => saveListState(idx)}>
-                    <PropertyCard property={prop} isOwner={isOwner} index={idx} />
-                  </div>
+                  <Fragment key={prop.id}>
+                    <div onClick={() => saveListState(idx)}>
+                      <PropertyCard property={prop} isOwner={isOwner} index={idx} />
+                    </div>
+                    {(idx + 1) % 6 === 0 && <InFeedAd />}
+                  </Fragment>
                 );
               })}
             </div>

@@ -1,5 +1,6 @@
-import { useEffect, useState, useRef, lazy, Suspense } from 'react';
+import { useEffect, useState, useRef, lazy, Suspense, Fragment } from 'react';
 const PropertyCard = lazy(() => import('../components/PropertyCard'));
+const InFeedAd = lazy(() => import('../components/InFeedAd'));
 import Seo from '../components/Seo';
 import Link from 'next/link';
 import { FiSearch } from 'react-icons/fi';
@@ -217,6 +218,8 @@ export default function Home() {
     setLocationInput(suggestion);
     setShowSuggestions(false);
     setLocationSuggestions([]);
+    setFilters((prev) => ({ ...prev, location: suggestion }));
+    setPage(1);
   };
 
   return (
@@ -407,11 +410,18 @@ export default function Home() {
               {/* Real Properties - Clickable */}
               {properties.map((prop, idx) => {
                 return (
-                  <Suspense key={prop.id} fallback={<div className="bg-white rounded-lg border p-4 h-48" />}>
-                    <div onClick={() => saveListState(idx)}>
-                      <PropertyCard property={prop} index={idx} />
-                    </div>
-                  </Suspense>
+                  <Fragment key={prop.id}>
+                    <Suspense fallback={<div className="bg-white rounded-lg border p-4 h-48" />}>
+                      <div onClick={() => saveListState(idx)}>
+                        <PropertyCard property={prop} index={idx} />
+                      </div>
+                    </Suspense>
+                    {(idx + 1) % 6 === 0 && (
+                      <Suspense fallback={null}>
+                        <InFeedAd />
+                      </Suspense>
+                    )}
+                  </Fragment>
                 );
               })}
 

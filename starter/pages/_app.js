@@ -4,7 +4,7 @@ import { ClerkProvider, SignedIn, SignedOut, SignInButton, SignUpButton, useUser
 import '../styles/globals.css';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
-import AdList from '../components/AdList';
+import SponsoredAdBanner from '../components/SponsoredAdBanner';
 import VisitorEmailPopup from '../components/VisitorEmailPopup';
 import Seo from '../components/Seo';
 import SiteProtection from '../components/SiteProtection';
@@ -269,7 +269,7 @@ function AppContent({ Component, pageProps }) {
       <SiteProtection />
       <Toaster position="top-center" />
       {!hideLayout && <Header />}
-      {showAdvertisements && <AdList compact />}
+      {showAdvertisements && <SponsoredAdBanner compact />}
       
       {isCurrentPagePublic ? (
         <main className="min-h-screen">

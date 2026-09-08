@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { useRouter } from 'next/router';
-import { UserButton, useUser } from '@clerk/nextjs';
+import { UserButton, useUser, SignInButton } from '@clerk/nextjs';
 import { FiHome, FiGrid, FiPlusCircle, FiMenu, FiSettings, FiUser } from 'react-icons/fi';
 import { useState, useEffect } from 'react';
 import axios from 'axios';
@@ -95,12 +95,11 @@ export default function Header() {
               >
                 Browse
               </Link>
-              <Link 
-                href="/agent/dashboard" 
-                className={`px-3 py-2 rounded-lg transition text-sm ${router.pathname === '/agent/dashboard' ? 'bg-gray-200 text-gray-900 font-medium' : 'text-gray-600 hover:bg-gray-100'}`}
-              >
-                Sign In
-              </Link>
+              <SignInButton mode="modal">
+                <button className="px-3 py-2 rounded-lg transition text-sm text-gray-600 hover:bg-gray-100">
+                  Sign In
+                </button>
+              </SignInButton>
             </>
           )}
         </div>
@@ -124,7 +123,7 @@ export default function Header() {
           />
           
           {/* Menu Panel */}
-          <div className="fixed top-0 right-0 bottom-0 w-64 bg-white shadow-2xl z-50 md:hidden overflow-y-auto">
+          <div className="fixed top-0 right-0 bottom-0 w-full bg-white shadow-2xl z-50 md:hidden overflow-y-auto">
             <div className="flex flex-col h-full">
               {/* Close Button */}
               <div className="flex items-center justify-between p-4 border-b border-gray-200">
@@ -173,32 +172,7 @@ export default function Header() {
                 >
                   Request an Agent
                 </Link>
-                
-                <Link 
-                  href="/market" 
-                  onClick={() => setMobileMenuOpen(false)}
-                  className={`px-4 py-3 rounded-lg font-medium ${router.pathname === '/market' ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50'}`}
-                >
-                  Market
-                </Link>
 
-
-                <Link 
-                href='/properties/bulk-create'
-                  onClick={() => setMobileMenuOpen(false)}
-                  className={`px-4 py-3 rounded-lg font-medium ${router.pathname === '/bulk-create' ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50'}`}
-                >
-                  Bulk Create
-                </Link>
-                
-             
-                
-                
-                
-               
-                
-              
-                
                 {/* Divider for authenticated users */}
                 {isSignedIn && (
                   <>
@@ -244,13 +218,14 @@ export default function Header() {
                 </div>
               ) : (
                 <div className="border-t border-gray-200 p-4">
-                  <Link 
-                    href="/" 
-                    onClick={() => setMobileMenuOpen(false)}
-                    className="w-full px-4 py-3 bg-accent text-white rounded-lg text-center font-medium hover:bg-accent/90 transition block"
-                  >
-                    Sign In / Sign Up
-                  </Link>
+                  <SignInButton mode="modal">
+                    <button
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="w-full px-4 py-3 bg-accent text-white rounded-lg text-center font-medium hover:bg-accent/90 transition block"
+                    >
+                      Sign In / Sign Up
+                    </button>
+                  </SignInButton>
                 </div>
               )}
             </div>

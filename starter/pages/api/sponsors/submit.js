@@ -62,8 +62,8 @@ async function sendAdminAdSubmissionEmail({
   const apiKey = process.env.BREVO_API_KEY;
   if (!apiKey) return;
 
-  const adminEmail = process.env.ADMIN_NOTIFICATION_EMAIL || process.env.ADMIN_EMAIL || 'dosnineco@gmail.com';
-  const senderEmail = process.env.BREVO_FROM_EMAIL || 'dosnineco@gmail.com';
+  const adminEmail = process.env.ADMIN_NOTIFICATION_EMAIL || process.env.ADMIN_EMAIL || 'admin@dosnine.com';
+  const senderEmail = process.env.BREVO_FROM_EMAIL || 'admin@dosnine.com';
   const senderName = process.env.BREVO_FROM_NAME || 'Dosnine';
 
   const apiInstance = new SibApiV3Sdk.TransactionalEmailsApi();

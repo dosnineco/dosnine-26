@@ -97,7 +97,7 @@ const sendPropertyOwnerNotificationEmail = async ({
     '',
     'Please reply directly to the client using the phone number or email above.',
   ].join('\n');
-  emailPayload.sender = { name: 'Dosnine', email: 'dosnineco@gmail.com' };
+  emailPayload.sender = { name: 'Dosnine', email: 'admin@dosnine.com' };
   emailPayload.to = [{ email: ownerEmail, name: ownerName || 'Property Owner' }];
 
   await apiInstance.sendTransacEmail(emailPayload);
@@ -204,7 +204,7 @@ const sendServiceFeeConfirmationEmail = async ({
   emailPayload.textContent = textContent;
   emailPayload.sender = {
     name: 'Dosnine',
-    email: 'dosnineco@gmail.com',
+    email: 'admin@dosnine.com',
   };
   emailPayload.to = [{ email: clientEmail, name: clientName }];
 

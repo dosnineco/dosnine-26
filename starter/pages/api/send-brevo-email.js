@@ -53,7 +53,7 @@ export default async function handler(req, res) {
     sendSmtpEmail.htmlContent = htmlContent;
     sendSmtpEmail.sender = {
       name: 'Dosnine',
-      email: 'dosnineco@gmail.com',
+      email: 'admin@dosnine.com',
     };
     sendSmtpEmail.to = [{ email: to }];
     if (textContent) {

@@ -76,7 +76,7 @@ export default function ContactPage() {
                     <div>
                       <h3 className="font-semibold text-gray-900">Email</h3>
                         <a href="mailto:info@dosnine.com" className="text-accent hover:underline">
-                        dosnineco@gmail.com
+                        admin@dosnine.com
                       </a>
                       <p className="text-sm text-gray-600 mt-1">
                         We respond within 24 hours

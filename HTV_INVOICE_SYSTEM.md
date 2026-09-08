@@ -67,7 +67,7 @@ Each invoice includes:
 │  DOSNINE HEADER & INVOICE #     │
 ├─────────────────────────────────┤
 │ FROM: Dosnine Ltd               │
-│ 📧 dosnineco@gmail.com          │
+│ 📧 admin@dosnine.com          │
 │ 📱 876-336-9045                 │
 │                                 │
 │ TO: [Customer Business]         │

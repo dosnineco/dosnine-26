@@ -59,7 +59,7 @@ const HtvInvoice = forwardRef(({ order, onClose }, ref) => {
           <p className="invoice-contact-name">Dosnine Ltd</p>
           <div className="invoice-contact-line">
             <Mail size={14} />
-            <span>dosnineco@gmail.com</span>
+            <span>admin@dosnine.com</span>
           </div>
           <div className="invoice-contact-line">
             <Phone size={14} />
@@ -223,7 +223,7 @@ const HtvInvoice = forwardRef(({ order, onClose }, ref) => {
       {/* Footer */}
       <div className="invoice-footer">
         <p className="invoice-footer-line">Thank you for your business! Invoice generated on {new Date().toLocaleDateString()}</p>
-        <p className="invoice-footer-line">Dosnine Ltd | dosnineco@gmail.com | 876-336-9045</p>
+        <p className="invoice-footer-line">Dosnine Ltd | admin@dosnine.com | 876-336-9045</p>
       </div>
     </div>
   );

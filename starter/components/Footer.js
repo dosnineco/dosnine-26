@@ -73,8 +73,8 @@ export default function Footer() {
             <h3 className="font-bold text-gray-900 mb-3">Contact</h3>
             <ul className="space-y-2 text-sm text-gray-600">
               <li>
-                <a href="mailto:dosnineco@gmail.com" className="hover:text-blue-600 transition">
-                  dosnineco@gmail.com
+                <a href="mailto:admin@dosnine.com" className="hover:text-blue-600 transition">
+                  admin@dosnine.com
                 </a>
               </li>
               <li>

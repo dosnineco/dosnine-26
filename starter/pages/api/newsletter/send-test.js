@@ -56,7 +56,7 @@ export default async function handler(req, res) {
     sendSmtpEmail.textContent = sanitizeString(textContent, 5000);
     sendSmtpEmail.sender = {
       name: 'Dosnine',
-      email: 'dosnineco@gmail.com',
+      email: 'admin@dosnine.com',
     };
     sendSmtpEmail.to = [{ email: recipientEmail }];
 
