@@ -680,7 +680,7 @@ export default function PropertyPage({ property, similarProperties, isVerifiedAg
           </div>
         </div>
 
-        <div className="my-12 flex justify-center">
+        <div className="my-12   flex justify-center align-middle">
           <InFeedAd />
         </div>
 

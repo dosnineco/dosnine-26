@@ -79,22 +79,22 @@ export default function InFeedAd() {
         Sponsored
       </span>
 
-      <div className="relative h-48 w-full flex-shrink-0 overflow-hidden bg-gray-100">
+      <div className="relative flex h-48 w-full flex-shrink-0 items-center justify-center overflow-hidden bg-gray-100 p-3 sm:h-52 lg:h-56">
         {imageUrl ? (
           <img
             src={imageUrl}
             alt={ad.company_name || 'Advertisement'}
-            className="w-full h-full object-contain"
+            className="max-h-full max-w-full object-contain"
             loading="lazy"
           />
         ) : (
-          <div className="w-full h-full flex items-center justify-center text-3xl font-bold text-gray-600">
+          <div className="flex h-full w-full items-center justify-center text-3xl font-bold text-gray-600">
             {ad.company_name?.slice(0, 1)?.toUpperCase() || 'A'}
           </div>
         )}
       </div>
 
-      <div className="flex-1 p-3 flex flex-col overflow-hidden">
+      <div className="flex min-w-0 flex-1 flex-col overflow-hidden p-3">
         <div className="flex-1">
           <div className="text-xs font-medium text-gray-500 mb-1 truncate">{ad.company_name}</div>
           <div className="text-lg font-semibold line-clamp-2">
