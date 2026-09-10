@@ -24,7 +24,7 @@ export default function Footer() {
               </li>
               <li>
                 <a href="/agent/signup" className="text-gray-600 hover:text-blue-600 transition">
-                  Register as a Agent
+                  Register as an Agent
                 </a>
               </li>
               <li>

@@ -1,6 +1,7 @@
 import { useState, useEffect, Fragment } from 'react';
 import Head from 'next/head';
-import Link from 'next/link';
+import toast from 'react-hot-toast';
+import { Share2, ChevronLeft, ChevronRight, ArrowRight } from 'lucide-react';
 // formatMoney not used here
 import PropertyCard from '../../components/PropertyCard';
 import InFeedAd from '../../components/InFeedAd';
@@ -69,6 +70,21 @@ export default function SearchLandingPage({ slug, properties: initialProperties,
 
   const PROPERTIES_PER_PAGE = 20;
   const totalPages = totalCount > 0 ? Math.ceil(totalCount / PROPERTIES_PER_PAGE) : 1;
+
+  const handleShare = async () => {
+    const shareUrl = `https://dosnine.com/search/${(slug || []).join('/')}`;
+    const shareData = { title: pageTitle, text: pageDescription, url: shareUrl };
+    try {
+      if (navigator.share) {
+        await navigator.share(shareData);
+      } else {
+        await navigator.clipboard.writeText(shareUrl);
+        toast.success('Link copied to clipboard');
+      }
+    } catch (error) {
+      // user cancelled share or clipboard unavailable
+    }
+  };
 
   return (
     <div>
@@ -167,8 +183,15 @@ export default function SearchLandingPage({ slug, properties: initialProperties,
       </Head>
 
       <div className="container mx-auto px-4 py-8">
-        <div className="mb-6">
-          <Link href="/" className="text-accent hover:underline text-sm">← Back to Browse All</Link>
+        <div className="mb-6 flex items-center justify-between">
+          <a href="/" className="text-accent hover:underline text-sm">← Back to Browse All</a>
+          <button
+            onClick={handleShare}
+            className="flex items-center gap-1 bg-gray-100 hover:bg-gray-200 text-slate-700 px-3 py-1 rounded-full text-sm font-semibold transition"
+            title="Share this search"
+          >
+            <Share2 className="w-4 h-4" /> Share
+          </button>
         </div>
 
         <h1 className="text-4xl font-bold mb-2 text-gray-900">{generateTitle()}</h1>
@@ -213,9 +236,9 @@ export default function SearchLandingPage({ slug, properties: initialProperties,
           <div className="text-center py-12 bg-blue-50 rounded-lg border border-blue-200 p-8">
             <h2 className="text-2xl font-bold text-gray-800 mb-2">No Properties Found</h2>
             <p className="text-gray-600 mb-6">We don&apos;t currently have listings matching {generateTitle()}. Check back soon!</p>
-            <Link href="/" className="btn-primary">
+            <a href="/" className="btn-primary">
               Browse All Properties
-            </Link>
+            </a>
           </div>
         ) : (
           <div>
@@ -229,7 +252,11 @@ export default function SearchLandingPage({ slug, properties: initialProperties,
                     <div onClick={() => saveListState(idx)}>
                       <PropertyCard property={prop} isOwner={isOwner} index={idx} />
                     </div>
-                    {(idx + 1) % 6 === 0 && <InFeedAd />}
+                    {(idx + 1) % 6 === 0 && (
+                      <div className="col-span-1 sm:col-span-2 lg:col-span-3 xl:col-span-4">
+                        <InFeedAd />
+                      </div>
+                    )}
                   </Fragment>
                 );
               })}
@@ -237,27 +264,27 @@ export default function SearchLandingPage({ slug, properties: initialProperties,
 
             {totalPages > 1 && (
               <nav className="flex justify-center items-center gap-2 mb-8">
-                <Link href={`/search/${(slug || []).join('/')}?page=${Math.max(1, page - 1)}`} className="btn-primary btn-sm">
-                  ← Prev
-                </Link>
+                <a href={`/search/${(slug || []).join('/')}?page=${Math.max(1, page - 1)}`} className="btn-primary btn-sm inline-flex items-center gap-1">
+                  <ChevronLeft className="w-4 h-4" /> Prev
+                </a>
 
                 {[...Array(Math.min(totalPages, 5))].map((_, i) => {
                   const pageNum = page > 3 ? page + i - 2 : i + 1;
                   if (pageNum > totalPages) return null;
                   return (
-                    <Link
+                    <a
                       key={pageNum}
                       href={`/search/${(slug || []).join('/')}?page=${pageNum}`}
                       className={`btn-sm ${page === pageNum ? 'btn-primary' : 'btn-outline'}`}
                     >
                       {pageNum}
-                    </Link>
+                    </a>
                   );
                 })}
 
-                <Link href={`/search/${(slug || []).join('/')}?page=${Math.min(totalPages, page + 1)}`} className="btn-primary btn-sm">
-                  Next →
-                </Link>
+                <a href={`/search/${(slug || []).join('/')}?page=${Math.min(totalPages, page + 1)}`} className="btn-primary btn-sm inline-flex items-center gap-1">
+                  Next <ChevronRight className="w-4 h-4" />
+                </a>
               </nav>
             )}
 
@@ -300,30 +327,30 @@ export default function SearchLandingPage({ slug, properties: initialProperties,
               <div className="bg-white rounded-xl shadow-sm border p-6">
                 <h2 className="text-2xl font-bold mb-4">Popular Searches</h2>
                 <div className="space-y-2 text-sm">
-                  <Link href="/search/1-bedroom-apartment-st-catherine" className="block text-accent hover:underline">
-                    → 1 Bedroom House for rent in St Catherine
-                  </Link>
-                  <Link href="/search/2-bedroom-house-st-catherine" className="block text-accent hover:underline">
-                    → 2 Bedroom House for rent in St Catherine
-                  </Link>
-                  <Link href="/search/3-bedroom-house-st-catherine" className="block text-accent hover:underline">
-                    → 3 Bedroom House for rent in St Catherine
-                  </Link>
-                  <Link href="/search/houses-for-rent-spanish-town" className="block text-accent hover:underline">
-                    → House for rent Spanish Town
-                  </Link>
-                  <Link href="/search/houses-for-rent-portmore" className="block text-accent hover:underline">
-                    → House for rent in Portmore
-                  </Link>
-                  <Link href="/search/apartments-for-rent-kingston" className="block text-accent hover:underline">
-                    → Apartments for rent in Kingston
-                  </Link>
-                  <Link href="/search/houses-for-rent-st-james" className="block text-accent hover:underline">
-                    → Houses for rent in St James
-                  </Link>
-                  <Link href="/search/2-bedroom-apartment-st-andrew" className="block text-accent hover:underline">
-                    → 2 Bedroom Apartments in St Andrew
-                  </Link>
+                  <a href="/search/1-bedroom-apartment-st-catherine" className="flex items-center gap-1 text-accent hover:underline">
+                    <ArrowRight className="w-3.5 h-3.5" /> 1 Bedroom House for rent in St Catherine
+                  </a>
+                  <a href="/search/2-bedroom-house-st-catherine" className="flex items-center gap-1 text-accent hover:underline">
+                    <ArrowRight className="w-3.5 h-3.5" /> 2 Bedroom House for rent in St Catherine
+                  </a>
+                  <a href="/search/3-bedroom-house-st-catherine" className="flex items-center gap-1 text-accent hover:underline">
+                    <ArrowRight className="w-3.5 h-3.5" /> 3 Bedroom House for rent in St Catherine
+                  </a>
+                  <a href="/search/houses-for-rent-spanish-town" className="flex items-center gap-1 text-accent hover:underline">
+                    <ArrowRight className="w-3.5 h-3.5" /> House for rent Spanish Town
+                  </a>
+                  <a href="/search/houses-for-rent-portmore" className="flex items-center gap-1 text-accent hover:underline">
+                    <ArrowRight className="w-3.5 h-3.5" /> House for rent in Portmore
+                  </a>
+                  <a href="/search/apartments-for-rent-kingston" className="flex items-center gap-1 text-accent hover:underline">
+                    <ArrowRight className="w-3.5 h-3.5" /> Apartments for rent in Kingston
+                  </a>
+                  <a href="/search/houses-for-rent-st-james" className="flex items-center gap-1 text-accent hover:underline">
+                    <ArrowRight className="w-3.5 h-3.5" /> Houses for rent in St James
+                  </a>
+                  <a href="/search/2-bedroom-apartment-st-andrew" className="flex items-center gap-1 text-accent hover:underline">
+                    <ArrowRight className="w-3.5 h-3.5" /> 2 Bedroom Apartments in St Andrew
+                  </a>
                 </div>
               </div>
             </div>

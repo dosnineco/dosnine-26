@@ -497,7 +497,7 @@ export default function SponsoredAdBanner({ compact = false }) {
                   className="
                     h-full
                     w-full
-                    object-cover
+                    object-contain
                   "
                   loading="lazy"
                 />
@@ -625,7 +625,7 @@ export default function SponsoredAdBanner({ compact = false }) {
                   className="
                     h-full
                     w-full
-                    object-cover
+                    object-contain
                   "
                   loading="lazy"
                 />
@@ -747,10 +747,7 @@ export default function SponsoredAdBanner({ compact = false }) {
                   className="
                     h-full
                     w-full
-                    object-cover
-                    transition
-                    duration-300
-                    group-hover:scale-105
+                    object-contain
                   "
                   loading="lazy"
                 />

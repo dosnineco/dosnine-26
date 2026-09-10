@@ -1,4 +1,3 @@
-import Link from 'next/link';
 import clsx from 'clsx';
 import { formatPropertyMoney } from '../lib/formatMoney';
 import LazyImage from './LazyImage';
@@ -11,7 +10,7 @@ export default function PropertyCard({ property, isOwner = false, index = 0 }) {
   const isComingSoon = status === 'coming_soon';
 
   return (
-    <Link 
+    <a 
       data-list-index={index} 
       className={clsx('bg-white border border-gray-200 rounded-xl flex flex-col h-80 overflow-hidden')} 
       href={`/property/${property.slug || property.id}`}
@@ -46,6 +45,6 @@ export default function PropertyCard({ property, isOwner = false, index = 0 }) {
           )}
         </div>
       </div>
-    </Link>
+    </a>
   );
 }

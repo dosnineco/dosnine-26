@@ -84,7 +84,7 @@ export default function InFeedAd() {
           <img
             src={imageUrl}
             alt={ad.company_name || 'Advertisement'}
-            className="w-full h-full object-cover transition duration-300 group-hover:scale-105"
+            className="w-full h-full object-contain"
             loading="lazy"
           />
         ) : (

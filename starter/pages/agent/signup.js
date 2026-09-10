@@ -1,4 +1,4 @@
-import { useUser, SignedOut, SignedIn, SignInButton, SignUpButton } from '@clerk/clerk-react';
+import { SignedOut, SignedIn, SignInButton, SignUpButton } from '@clerk/clerk-react';
 import AgentSignup from '@/components/AgentSignup';
 import Seo from '@/components/Seo';
 
@@ -21,11 +21,12 @@ export default function AgentSignupPage() {
             backgroundImage: "url('https://etikxypnxjsonefwnzkr.supabase.co/storage/v1/object/public/property-images/avi-waxman-f9qZuKoZYoY-unsplash.jpg')",
           }}
         >
-          <div className="absolute inset-0 bg-black bg-opacity-50"></div>
-          <div className="relative z-10 bg-white/95 backdrop-blur-md rounded-2xl shadow-2xl p-8 max-w-lg w-full mx-4 text-center border border-white/20">
-            <h1 className="text-4xl font-bold text-gray-900 mb-2">Sign In Required</h1>
-            <p className="text-lg text-gray-600 mb-8">
-              Please sign in or sign up to register as an agent on DoSnine.
+          <div className="absolute inset-0 bg-black/60"></div>
+          <div className="relative z-10 bg-white/95 backdrop-blur-md rounded-2xl shadow-2xl p-10 max-w-lg w-full mx-4 text-center border border-white/20">
+            <img src="/logo.png" alt="Dosnine" className="h-14 w-auto mx-auto mb-6" />
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">Sign In Required</h1>
+            <p className="text-base text-gray-600 mb-8">
+              Please sign in or sign up to register as an agent on Dosnine.
             </p>
             <div className="flex flex-col sm:flex-row gap-4">
               <SignInButton mode="redirect" redirectUrl="/agent/signup">

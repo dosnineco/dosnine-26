@@ -267,10 +267,10 @@ export default function PropertyRequestsMarketplace() {
               <ArrowRight className="text-accent" size={20} />
             </Link>
             <Link
-              href="/agent/signup"
+              href="https://reimagined-broccoli-q77wgqrx7ppfxjpr-3000.app.github.dev/agent/signup"
               className="flex items-center gap-2 text-sm text-gray-900 font-semibold hover:text-gray-700 transition-colors delay-50 border-b-2 border-accent hover:border-gray-700 pb-2"
             >
-              Create agent account
+              Market my house for rent
               <ArrowRight className="text-accent" size={16} />
             </Link>
             <Link

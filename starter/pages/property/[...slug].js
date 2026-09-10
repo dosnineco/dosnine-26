@@ -1,11 +1,10 @@
 import Head from 'next/head';
 import Seo from '../../components/Seo';
-import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import toast from 'react-hot-toast';
 import { useUser } from '@clerk/nextjs';
-import { Phone, MapPin } from 'lucide-react';
+import { Phone, MapPin, Share2, X, ChevronLeft, ChevronRight, BadgeCheck, MessageCircle, Eye, Bed, Bath, Star, ImageOff } from 'lucide-react';
 import { formatPropertyMoney } from '../../lib/formatMoney';
 import { normalizeParish } from '../../lib/normalizeParish';
 import PropertyAgentRequest from '../../components/PropertyAgentRequest';
@@ -142,6 +141,21 @@ export default function PropertyPage({ property, similarProperties, isVerifiedAg
 
   const handleNextImage = () => {
     setCurrentImageIndex((i) => (i === allImages.length - 1 ? 0 : i + 1));
+  };
+
+  const handleShare = async () => {
+    const shareUrl = `https://dosnine.com/property/${property.slug}`;
+    const shareData = { title: property.title, text: `Check out this property: ${property.title}`, url: shareUrl };
+    try {
+      if (navigator.share) {
+        await navigator.share(shareData);
+      } else {
+        await navigator.clipboard.writeText(shareUrl);
+        toast.success('Link copied to clipboard');
+      }
+    } catch (error) {
+      // user cancelled share or clipboard unavailable
+    }
   };
 
   const formatPhone = (raw) => {
@@ -411,20 +425,20 @@ export default function PropertyPage({ property, similarProperties, isVerifiedAg
           {similarProperties && similarProperties.length > 0 && (
             <div className="space-y-4">
               {similarProperties.map((p) => (
-                <Link key={p.id} href={`/property/${p.slug}`} className="block text-left">
+                <a key={p.id} href={`/property/${p.slug}`} className="block text-left">
                   <div className="p-3 bg-gray-50 rounded-lg">
                     <div className="text-lg font-medium">{p.title || `${p.bedrooms || ''} ${p.type || ''}`}</div>
                     <div className="text-sm text-gray-600">{p.parish} — {p.town}</div>
                     <div className="text-sm text-accent">{p.price ? formatPropertyMoney(p.price, p.currency) : ''}</div>
                   </div>
-                </Link>
+                </a>
               ))}
             </div>
           )}
 
           <div className="mt-8">
-            <Link href="/search/houses-for-rent" className="text-accent mr-4">Browse houses for rent</Link>
-            <Link href="/search/apartments-for-rent" className="text-accent">Browse apartments for rent</Link>
+            <a href="/search/houses-for-rent" className="text-accent mr-4">Browse houses for rent</a>
+            <a href="/search/apartments-for-rent" className="text-accent">Browse apartments for rent</a>
           </div>
         </div>
       </>
@@ -450,7 +464,7 @@ export default function PropertyPage({ property, similarProperties, isVerifiedAg
       <div className="property-page container mx-auto px-4 py-8 text-slate-700">
         {/* Breadcrumb Navigation */}
         <div className="mb-4 ">
-          <Link href="/" className="btn-outline btn-sm">← Back to Browse</Link>
+          <a href="/" className="btn-outline btn-sm inline-flex items-center gap-1"><ChevronLeft className="w-4 h-4" /> Back to Browse</a>
         </div>
         
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -471,13 +485,13 @@ export default function PropertyPage({ property, similarProperties, isVerifiedAg
                     onClick={handlePrevImage}
                     className="absolute left-4 top-1/2 -translate-y-1/2 bg-black/50 text-white p-2 rounded-full hover:bg-black/70 transition"
                   >
-                    ←
+                    <ChevronLeft className="w-5 h-5" />
                   </button>
                   <button
                     onClick={handleNextImage}
                     className="absolute right-4 top-1/2 -translate-y-1/2 bg-black/50 text-white p-2 rounded-full hover:bg-black/70 transition"
                   >
-                    →
+                    <ChevronRight className="w-5 h-5" />
                   </button>
                   <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/50 text-white px-3 py-1 rounded-full text-sm">
                     {currentImageIndex + 1} / {allImages.length}
@@ -515,14 +529,21 @@ export default function PropertyPage({ property, similarProperties, isVerifiedAg
                   <h1 className="text-3xl font-bold">{property.title}</h1>
                 </div>
 
-                {isVerifiedAgent && (
-                  <div className="flex items-center gap-1 bg-blue-50 text-blue-700 px-3 py-1 rounded-full text-sm font-semibold flex-shrink-0">
-                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                    </svg>
-                    Verified
-                  </div>
-                )}
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <button
+                    onClick={handleShare}
+                    className="flex items-center gap-1 bg-gray-100 hover:bg-gray-200 text-slate-700 px-3 py-1 rounded-full text-sm font-semibold transition"
+                    title="Share this property"
+                  >
+                    <Share2 className="w-4 h-4" /> Share
+                  </button>
+                  {isVerifiedAgent && (
+                    <div className="flex items-center gap-1 bg-blue-50 text-blue-700 px-3 py-1 rounded-full text-sm font-semibold">
+                      <BadgeCheck className="w-4 h-4" />
+                      Verified
+                    </div>
+                  )}
+                </div>
               </div>
               <p className="flex items-center gap-2 text-base text-slate-500 mb-4"><MapPin className="h-4 w-4 text-accent" />{property.town}, {property.parish}</p>
 
@@ -538,11 +559,11 @@ export default function PropertyPage({ property, similarProperties, isVerifiedAg
                 ) : (
                   <div className="flex gap-8">
                     <div className="text-center">
-                      <div className="text-2xl font-bold">🛏️ {property.bedrooms}</div>
+                      <div className="text-2xl font-bold flex items-center gap-2"><Bed className="w-6 h-6" /> {property.bedrooms}</div>
                       <div className="text-sm text-gray-600">Bedrooms</div>
                     </div>
                     <div className="text-center">
-                      <div className="text-2xl font-bold">🚿 {property.bathrooms}</div>
+                      <div className="text-2xl font-bold flex items-center gap-2"><Bath className="w-6 h-6" /> {property.bathrooms}</div>
                       <div className="text-sm text-gray-600">Bathrooms</div>
                     </div>
                   </div>
@@ -594,18 +615,21 @@ export default function PropertyPage({ property, similarProperties, isVerifiedAg
                 onClick={() => setShowRequestForm(true)}
                 className="w-full btn-primary mb-4 flex items-center justify-center gap-2 text-lg py-3"
               >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                </svg>
+                <MessageCircle className="w-5 h-5" />
                 {isVerifiedAgent ? 'I Want This Property' : 'Request Property Information'}
+              </button>
+
+              <button
+                onClick={handleShare}
+                className="w-full btn-outline mb-4 flex items-center justify-center gap-2 py-3"
+              >
+                <Share2 className="w-5 h-5" /> Share this property
               </button>
 
               {isVerifiedAgent && (
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
                   <div className="flex items-center gap-2 text-blue-700 font-semibold text-sm">
-                    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                    </svg>
+                    <BadgeCheck className="w-5 h-5" />
                     Verified Agent
                   </div>
                   <p className="text-xs text-gray-600 mt-1">This property is listed by a verified real estate agent</p>
@@ -647,7 +671,7 @@ export default function PropertyPage({ property, similarProperties, isVerifiedAg
                 </div>
                 
                 <div className="pt-4 border-t">
-                  <p className="text-sm text-gray-500">👁️ Views: <span className="font-semibold text-gray-700">{property.views || 0}</span></p>
+                  <p className="flex items-center gap-1 text-sm text-gray-500"><Eye className="w-4 h-4" /> Views: <span className="font-semibold text-gray-700">{property.views || 0}</span></p>
                 </div>
               </div>
             </div>
@@ -679,10 +703,10 @@ export default function PropertyPage({ property, similarProperties, isVerifiedAg
                 <div className="mt-4">
                   <h3 className="text-lg font-semibold mb-2">Popular Searches in {property.parish}:</h3>
                   <ul className="list-disc list-inside space-y-1 text-sm">
-                    <li><Link href={`/search/land-for-sale-${property.parish.toLowerCase().replace(/ /g, '-')}`} className="text-accent hover:underline">Land for sale in {property.parish}</Link></li>
-                    <li><Link href={`/search/residential-land-${property.parish.toLowerCase().replace(/ /g, '-')}`} className="text-accent hover:underline">Residential land in {property.parish}</Link></li>
-                    <li><Link href={`/search/commercial-land-${property.parish.toLowerCase().replace(/ /g, '-')}`} className="text-accent hover:underline">Commercial land in {property.parish}</Link></li>
-                    <li><Link href={`/search/property-investment-${property.parish.toLowerCase().replace(/ /g, '-')}`} className="text-accent hover:underline">Property investment in {property.parish}</Link></li>
+                    <li><a href={`/search/land-for-sale-${property.parish.toLowerCase().replace(/ /g, '-')}`} className="text-accent hover:underline">Land for sale in {property.parish}</a></li>
+                    <li><a href={`/search/residential-land-${property.parish.toLowerCase().replace(/ /g, '-')}`} className="text-accent hover:underline">Residential land in {property.parish}</a></li>
+                    <li><a href={`/search/commercial-land-${property.parish.toLowerCase().replace(/ /g, '-')}`} className="text-accent hover:underline">Commercial land in {property.parish}</a></li>
+                    <li><a href={`/search/property-investment-${property.parish.toLowerCase().replace(/ /g, '-')}`} className="text-accent hover:underline">Property investment in {property.parish}</a></li>
                   </ul>
                 </div>
               </div>
@@ -703,10 +727,10 @@ export default function PropertyPage({ property, similarProperties, isVerifiedAg
                 <div className="mt-4">
                   <h3 className="text-lg font-semibold mb-2">Popular Searches in {property.parish}:</h3>
                   <ul className="list-disc list-inside space-y-1 text-sm">
-                    <li><Link href={`/search/1-bedroom-apartment-${property.parish.toLowerCase().replace(/ /g, '-')}`} className="text-accent hover:underline">1 Bedroom for rent in {property.parish}</Link></li>
-                    <li><Link href={`/search/2-bedroom-house-${property.parish.toLowerCase().replace(/ /g, '-')}`} className="text-accent hover:underline">2 Bedroom House for rent in {property.parish}</Link></li>
-                    <li><Link href={`/search/3-bedroom-house-${property.parish.toLowerCase().replace(/ /g, '-')}`} className="text-accent hover:underline">3 Bedroom House for rent in {property.parish}</Link></li>
-                    <li><Link href={`/search/apartments-for-rent-${property.parish.toLowerCase().replace(/ /g, '-')}`} className="text-accent hover:underline">Apartments for rent in {property.parish}</Link></li>
+                    <li><a href={`/search/1-bedroom-apartment-${property.parish.toLowerCase().replace(/ /g, '-')}`} className="text-accent hover:underline">1 Bedroom for rent in {property.parish}</a></li>
+                    <li><a href={`/search/2-bedroom-house-${property.parish.toLowerCase().replace(/ /g, '-')}`} className="text-accent hover:underline">2 Bedroom House for rent in {property.parish}</a></li>
+                    <li><a href={`/search/3-bedroom-house-${property.parish.toLowerCase().replace(/ /g, '-')}`} className="text-accent hover:underline">3 Bedroom House for rent in {property.parish}</a></li>
+                    <li><a href={`/search/apartments-for-rent-${property.parish.toLowerCase().replace(/ /g, '-')}`} className="text-accent hover:underline">Apartments for rent in {property.parish}</a></li>
                   </ul>
                 </div>
               </div>
@@ -726,7 +750,7 @@ export default function PropertyPage({ property, similarProperties, isVerifiedAg
                 const firstImage = prop.image_urls?.[0] || prop.property_images?.[0]?.image_url;
                 
                 return (
-                  <Link 
+                  <a 
                     key={prop.id} 
                     href={`/property/${prop.slug || prop.id}`}
                     className="bg-white rounded-xl  overflow-hidden  transition transform hover:scale-105 block"
@@ -743,10 +767,10 @@ export default function PropertyPage({ property, similarProperties, isVerifiedAg
                           }}
                         />
                       ) : (
-                        <div className="w-full h-full flex items-center justify-center bg-gray-300 text-gray-600">📷 No image</div>
+                        <div className="w-full h-full flex flex-col items-center justify-center gap-1 bg-gray-300 text-gray-600"><ImageOff className="w-6 h-6" /> No image</div>
                       )}
                       {prop.is_featured && (
-                        <div className="absolute top-2 right-2 bg-yellow-400 text-black px-2 py-1 rounded-full text-xs font-bold">⭐</div>
+                        <div className="absolute top-2 right-2 bg-yellow-400 text-black p-1 rounded-full"><Star className="w-4 h-4" /></div>
                       )}
                       <div className="absolute bottom-2 left-2 bg-accent text-white px-2 py-1 rounded text-sm font-semibold">
                         {formatPropertyMoney(prop.price, prop.currency)}
@@ -766,10 +790,10 @@ export default function PropertyPage({ property, similarProperties, isVerifiedAg
                             <span>{prop.bathrooms} bath</span>
                           </>
                         )}
-                        <span className="ml-auto text-xs">👁️ {prop.views || 0}</span>
+                        <span className="ml-auto flex items-center gap-1 text-xs"><Eye className="w-3 h-3" /> {prop.views || 0}</span>
                       </div>
                     </div>
-                  </Link>
+                  </a>
                 );
               })}
             </div>
@@ -799,9 +823,7 @@ export default function PropertyPage({ property, similarProperties, isVerifiedAg
             className="absolute top-4 right-4 z-10 text-white hover:bg-white/20 p-2 rounded-lg transition"
             title="Close (Esc)"
           >
-            <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
+            <X className="w-8 h-8" />
           </button>
 
           {/* Main image */}
@@ -826,9 +848,7 @@ export default function PropertyPage({ property, similarProperties, isVerifiedAg
                   className="absolute left-4 top-1/2 -translate-y-1/2 text-white hover:bg-white/20 p-3 rounded-full transition"
                   title="Previous (←)"
                 >
-                  <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                  </svg>
+                  <ChevronLeft className="w-8 h-8" />
                 </button>
 
                 <button
@@ -839,9 +859,7 @@ export default function PropertyPage({ property, similarProperties, isVerifiedAg
                   className="absolute right-4 top-1/2 -translate-y-1/2 text-white hover:bg-white/20 p-3 rounded-full transition"
                   title="Next (→)"
                 >
-                  <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                  </svg>
+                  <ChevronRight className="w-8 h-8" />
                 </button>
 
                 {/* Image counter */}
