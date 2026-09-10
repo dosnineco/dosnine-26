@@ -4,8 +4,8 @@ export default function PrivacyPolicy() {
   return (
     <>
       <Head>
-        <title>Privacy Policy | Dosnine Ltd</title>
-        <meta name="description" content="Privacy Policy for Dosnine Ltd. Learn how we collect, use, and protect your personal information." />
+        <title>Privacy Policy | Dosnine Limited</title>
+        <meta name="description" content="Privacy Policy for Dosnine Limited. Learn how we collect, use, and protect your personal information." />
         <meta name="robots" content="index, follow" />
         <link rel="canonical" href="https://www.dosnine.com/privacy-policy" />
       </Head>
@@ -14,7 +14,7 @@ export default function PrivacyPolicy() {
         <div className="container mx-auto px-4 max-w-4xl">
           <div className="bg-white rounded-lg shadow-sm p-8">
             <h1 className="text-4xl font-bold text-gray-900 mb-4">Privacy Policy</h1>
-            <p className="text-gray-600 mb-8">Last Updated: December 15, 2025</p>
+            <p className="text-gray-600 mb-8">Last Updated: September 10, 2026</p>
 
             <div className="prose prose-lg max-w-none">
               
@@ -25,7 +25,7 @@ export default function PrivacyPolicy() {
                 <div className="mb-6 bg-white p-4 rounded border-2 border-red-400">
                   <h3 className="text-xl font-semibold text-red-900 mb-3">For Verified Real Estate Agents:</h3>
                   <p className="text-gray-900 mb-4 font-semibold">
-                    By registering as a verified agent on our platform, you EXPLICITLY AND IRREVOCABLY CONSENT to the following data sharing:
+                    By registering as a verified agent on our platform, you consent to the following data sharing as needed to provide our services:
                   </p>
                   <ul className="list-disc pl-6 mb-4 text-gray-900 space-y-2">
                     <li><strong>Your full name, business name, phone number, and email address</strong> will be visible to clients who request your services</li>
@@ -42,7 +42,7 @@ export default function PrivacyPolicy() {
                 <div className="mb-6 bg-white p-4 rounded border-2 border-red-400">
                   <h3 className="text-xl font-semibold text-red-900 mb-3">For Premium Service Request Clients:</h3>
                   <p className="text-gray-900 mb-4 font-semibold">
-                    By submitting a premium service request ($49.99), you EXPLICITLY AND IRREVOCABLY CONSENT to the following data sharing:
+                    By submitting a premium service request, you consent to the following data sharing as needed to provide the requested service:
                   </p>
                   <ul className="list-disc pl-6 mb-4 text-gray-900 space-y-2">
                     <li><strong>Your full name, phone number, and email address</strong> will be immediately shared with the verified agent you select</li>
@@ -51,14 +51,14 @@ export default function PrivacyPolicy() {
                     <li><strong>Your contact information will be retained</strong> in the agent's notification dashboard for the duration of your service period (30 days minimum)</li>
                   </ul>
                   <p className="text-red-900 font-bold text-sm mt-4">
-                    ⚠️ ONCE SUBMITTED, YOUR INFORMATION IS IMMEDIATELY SHARED WITH THE AGENT. This cannot be undone. The agent will have permanent access to the information you provided in your service request.
+                    ⚠️ Once submitted, your information may be shared with the selected agent so the agent can contact you. We may retain records as required for service delivery, safety, dispute resolution, and legal or regulatory obligations. You may contact us to request access, correction, or deletion where applicable.
                   </p>
                 </div>
 
                 <div className="bg-yellow-100 border-2 border-yellow-600 p-4 rounded mt-4">
                   <p className="text-gray-900 font-bold mb-2">Legal Protection and Disclaimer:</p>
                   <p className="text-sm text-gray-800">
-                    Dosnine Ltd acts solely as a platform connecting agents and clients. We are NOT responsible for:
+                    Dosnine Limited acts solely as a platform connecting agents and clients. To the maximum extent permitted by law, we are not responsible for:
                   </p>
                   <ul className="list-disc pl-6 text-sm text-gray-800 space-y-1 mt-2">
                     <li>How agents use client contact information</li>
@@ -68,7 +68,7 @@ export default function PrivacyPolicy() {
                     <li>Misuse of shared data by either party</li>
                   </ul>
                   <p className="text-sm text-gray-800 font-semibold mt-3">
-                    BY USING THIS PLATFORM, YOU RELEASE DOSNINE LTD FROM ANY AND ALL LIABILITY RELATED TO DATA SHARING BETWEEN AGENTS AND CLIENTS.
+                    By using this platform, you acknowledge that direct interactions and data exchanges between agents and clients are between those parties. Nothing in this notice limits rights or remedies that cannot legally be excluded.
                   </p>
                 </div>
               </section>
@@ -76,10 +76,10 @@ export default function PrivacyPolicy() {
               <section className="mb-8">
                 <h2 className="text-2xl font-bold text-gray-900 mb-4">1. Introduction</h2>
                 <p className="text-gray-700 mb-4">
-                  Welcome to Dosnine Ltd ("we," "our," or "us"). We are committed to protecting your privacy and ensuring the security of your personal information. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our website and services.
+                  Welcome to Dosnine Limited ("we," "our," or "us"). We are committed to protecting your privacy and securing your personal information. This Privacy Policy explains how we collect, use, disclose, retain, and safeguard your information when you use our website and services.
                 </p>
                 <p className="text-gray-700 mb-6">
-                  By using Dosnine Ltd, you agree to the collection and use of information in accordance with this policy. If you do not agree with our policies and practices, please do not use our services.
+                  By using Dosnine Limited, you acknowledge the collection and use of information described in this policy. If you do not agree with these practices, please do not use our services.
                 </p>
               </section>
 
@@ -122,7 +122,7 @@ export default function PrivacyPolicy() {
                   <li><strong>Account Management:</strong> To create and manage your account</li>
                   <li><strong>Communication:</strong> To send you updates, notifications, and respond to inquiries</li>
                   <li><strong>Property Listings:</strong> To display your properties to potential renters</li>
-                  <li><strong>Payment Processing:</strong> To process boost advertising payments</li>
+                  <li><strong>Payment Processing:</strong> To process Tenant Service Advertisement payments</li>
                   <li><strong>Analytics:</strong> To understand usage patterns and improve user experience</li>
                   <li><strong>Security:</strong> To detect and prevent fraud or abuse</li>
                   <li><strong>Legal Compliance:</strong> To comply with applicable laws and regulations</li>
@@ -205,7 +205,7 @@ export default function PrivacyPolicy() {
                   <li><strong>Objection:</strong> Object to certain data processing activities</li>
                 </ul>
                 <p className="text-gray-700">
-                  To exercise these rights, please contact us at <a href="mailto:info@dosnine.com" className="text-blue-600 hover:underline">info@dosnine.com</a>
+                  To exercise these rights, please contact us at <a href="mailto:admin@dosnine.com" className="text-blue-600 hover:underline">admin@dosnine.com</a>
                 </p>
               </section>
 
@@ -260,8 +260,8 @@ export default function PrivacyPolicy() {
                 </p>
                 <div className="bg-gray-50 p-6 rounded-lg">
                   <p className="text-gray-700 mb-2"><strong>Dosnine Limited</strong></p>
-                  <p className="text-gray-700 mb-2">Email: <a href="mailto:info@dosnine.com" className="text-blue-600 hover:underline">info@dosnine.com</a></p>
-                  <p className="text-gray-700 mb-2">Phone: <a href="tel:+18765551234" className="text-blue-600 hover:underline">+1 (876) 555-1234</a></p>
+                  <p className="text-gray-700 mb-2">Email: <a href="mailto:admin@dosnine.com" className="text-blue-600 hover:underline">admin@dosnine.com</a></p>
+                  <p className="text-gray-700 mb-2">Phone: <a href="tel:+18763369045" className="text-blue-600 hover:underline">+1 (876) 336-9045</a></p>
                   <p className="text-gray-700">Location: Kingston, Jamaica</p>
                 </div>
               </section>

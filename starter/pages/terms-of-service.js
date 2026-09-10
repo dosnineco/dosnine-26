@@ -4,8 +4,8 @@ export default function TermsOfService() {
   return (
     <>
       <Head>
-        <title>Terms of Service | Dosnine Ltd</title>
-        <meta name="description" content="Terms of Service for Dosnine Ltd. Read our terms and conditions for using our rental property platform." />
+        <title>Terms of Service | Dosnine Limited</title>
+        <meta name="description" content="Terms of Service for Dosnine Limited. Read our terms and conditions for using our rental property platform." />
         <meta name="robots" content="index, follow" />
         <link rel="canonical" href="https://www.dosnine.com/terms-of-service" />
       </Head>
@@ -14,27 +14,27 @@ export default function TermsOfService() {
         <div className="container mx-auto px-4 max-w-4xl">
           <div className="bg-white rounded-lg shadow-sm p-8">
             <h1 className="text-4xl font-bold text-gray-900 mb-4">Terms of Service</h1>
-            <p className="text-gray-600 mb-8">Last Updated: November 25, 2025</p>
+            <p className="text-gray-600 mb-8">Last Updated: September 10, 2026</p>
 
             <div className="prose prose-lg max-w-none">
               <section className="mb-8">
                 <h2 className="text-2xl font-bold text-gray-900 mb-4">1. Agreement to Terms</h2>
                 <p className="text-gray-700 mb-4">
-                  Welcome to Dosnine Ltd. By accessing or using our website and services, you agree to be bound by these Terms of Service ("Terms"). If you do not agree to these Terms, please do not use our services.
+                  Welcome to Dosnine Limited. By accessing or using our website and services, you agree to be bound by these Terms of Service ("Terms"). If you do not agree to these Terms, please do not use our services.
                 </p>
                 <p className="text-gray-700 mb-6">
-                  These Terms constitute a legally binding agreement between you and Dosnine Ltd ("we," "us," or "our"). We reserve the right to update these Terms at any time, and your continued use constitutes acceptance of such changes.
+                  These Terms constitute a legally binding agreement between you and Dosnine Limited ("we," "us," or "our"). We reserve the right to update these Terms at any time. Where required by law, we will provide notice of material changes, and continued use after the effective date constitutes acceptance of the updated Terms.
                 </p>
               </section>
 
               <section className="mb-8">
                 <h2 className="text-2xl font-bold text-gray-900 mb-4">2. Description of Service</h2>
                 <p className="text-gray-700 mb-4">
-                  Dosnine Ltd provides an online platform that connects property owners (landlords) with potential renters in Jamaica. Our services include:
+                  Dosnine Limited provides an online platform that connects property owners (landlords) with potential renters in Jamaica. Our services include:
                 </p>
                 <ul className="list-disc pl-6 mb-4 text-gray-700 space-y-2">
                   <li>Property listing and search functionality</li>
-                  <li>Property boost advertising services</li>
+                  <li>Tenant Service Advertisement services</li>
                   <li>User account management</li>
                   <li>Communication tools between landlords and renters</li>
                   <li>Analytics and tracking for property listings</li>
@@ -96,29 +96,23 @@ export default function TermsOfService() {
               </section>
 
               <section className="mb-8">
-                <h2 className="text-2xl font-bold text-gray-900 mb-4">5. Boost Advertising Service</h2>
-                
-                <h3 className="text-xl font-semibold text-gray-900 mb-3">5.1 Boost Terms</h3>
-                <ul className="list-disc pl-6 mb-4 text-gray-700 space-y-2">
-                  <li>Boost service costs JMD $2,500 for 10 days</li>
-                  <li>Maximum of 20 active boosts at any time</li>
-                  <li>Featured properties appear in rotating banner</li>
-                  <li>Boosts rotate every 10 minutes</li>
-                  <li>Boost duration is fixed at 10 days</li>
-                  <li>Payment is processed through PayPal</li>
-                </ul>
+                <h2 className="text-2xl font-bold text-gray-900 mb-4">5. Tenant Service Advertisement</h2>
 
-                <h3 className="text-xl font-semibold text-gray-900 mb-3">5.2 Boost Limitations</h3>
-                <ul className="list-disc pl-6 mb-4 text-gray-700 space-y-2">
-                  <li>We do not guarantee specific results or rental success</li>
-                  <li>Placement may vary based on available boost slots</li>
-                  <li>Boosts expire automatically after 10 days</li>
-                  <li>We reserve the right to remove boosts that violate terms</li>
-                </ul>
-
-                <h3 className="text-xl font-semibold text-gray-900 mb-3">5.3 Cancellations</h3>
+                <h3 className="text-xl font-semibold text-gray-900 mb-3">5.1 Service Terms</h3>
                 <p className="text-gray-700 mb-4">
-                  See our <a href="/refund-policy" className="text-blue-600 hover:underline">Refund Policy</a> for information about boost cancellations and refunds.
+                  Dosnine Limited offers paid Tenant Service Advertisement plans that may include a business profile, image gallery, contact details, website link, category placement, featured placement, priority placement, and newsletter inclusion, depending on the plan purchased.
+                </p>
+                <ul className="list-disc pl-6 mb-4 text-gray-700 space-y-2">
+                  <li>Available plans may have different durations, prices, features, and placement options</li>
+                  <li>Payment must be received before the advertisement is activated</li>
+                  <li>Advertisement content is subject to review and approval</li>
+                  <li>We do not guarantee a specific number of views, enquiries, leads, or business results</li>
+                  <li>We may pause, reject, edit, or remove advertisements that violate these Terms or applicable law</li>
+                </ul>
+
+                <h3 className="text-xl font-semibold text-gray-900 mb-3">5.2 Cancellations</h3>
+                <p className="text-gray-700 mb-4">
+                  See our <a href="/refund-policy" className="text-blue-600 hover:underline">Refund Policy</a> for information about Tenant Service Advertisement cancellations and refunds.
                 </p>
               </section>
 
@@ -144,7 +138,7 @@ export default function TermsOfService() {
                 <ul className="list-disc pl-6 mb-4 text-gray-700 space-y-2">
                   <li>All payments are processed through PayPal</li>
                   <li>Prices are displayed in Jamaican Dollars (JMD)</li>
-                  <li>Payment must be received before boost activation</li>
+                  <li>Payment must be received before Tenant Service Advertisement activation</li>
                   <li>You are responsible for any payment processing fees</li>
                   <li>Pricing is subject to change with notice</li>
                   <li>We do not store your payment information</li>
@@ -194,7 +188,7 @@ export default function TermsOfService() {
 
                 <h3 className="text-xl font-semibold text-gray-900 mb-3">9.3 Limitation of Liability</h3>
                 <p className="text-gray-700 mb-4">
-                  To the maximum extent permitted by law, Dosnine Limited shall not be liable for any indirect, incidental, special, consequential, or punitive damages arising from your use of our services. Our total liability shall not exceed the amount you paid for boost services in the past 12 months.
+                  To the maximum extent permitted by law, Dosnine Limited shall not be liable for any indirect, incidental, special, consequential, or punitive damages arising from your use of our services. Our total liability shall not exceed the amount you paid for the specific service giving rise to the claim during the 12 months before the event giving rise to the claim.
                 </p>
               </section>
 
@@ -271,8 +265,8 @@ export default function TermsOfService() {
                 </p>
                 <div className="bg-gray-50 p-6 rounded-lg">
                   <p className="text-gray-700 mb-2"><strong>Dosnine Limited</strong></p>
-                  <p className="text-gray-700 mb-2">Email: <a href="mailto:info@dosnine.com" className="text-blue-600 hover:underline">info@dosnine.com</a></p>
-                  <p className="text-gray-700 mb-2">Phone: <a href="tel:+18765551234" className="text-blue-600 hover:underline">+1 (876) 555-1234</a></p>
+                  <p className="text-gray-700 mb-2">Email: <a href="mailto:admin@dosnine.com" className="text-blue-600 hover:underline">admin@dosnine.com</a></p>
+                  <p className="text-gray-700 mb-2">Phone: <a href="tel:+18763369045" className="text-blue-600 hover:underline">+1 (876) 336-9045</a></p>
                   <p className="text-gray-700">Location: Kingston, Jamaica</p>
                 </div>
               </section>
