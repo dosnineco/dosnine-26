@@ -37,12 +37,12 @@ export default function PropertyCard({ property, isOwner = false, index = 0 }) {
             </div>
             <div className="text-accent font-bold text-sm">{formatPropertyMoney(property.price, property.currency)}</div>
           </div>
-          {viewCount > 0 && (
+          {/* {viewCount > 0 && (
             <div className="flex items-center gap-1 text-xs text-blue-600 mt-1">
               <Eye className="w-3 h-3" />
               <span>{viewCount} views</span>
             </div>
-          )}
+          )} */}
         </div>
       </div>
     </a>
