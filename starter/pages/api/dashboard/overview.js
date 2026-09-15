@@ -138,11 +138,6 @@ export default async function handler(req, res) {
       };
     });
 
-    const approvedSubmissions = submissions.filter((entry) => String(entry?.status || '').toLowerCase() === 'approved').length;
-    const totalViews = ads.reduce((sum, ad) => sum + Number(ad?.impressions || 0), 0);
-    const totalClicks = ads.reduce((sum, ad) => sum + Number(ad?.clicks || 0), 0);
-    const activeAds = ads.filter((ad) => ad?.is_active).length;
-
     const approvedSubmissionKeys = new Set(
       submissions
         .filter((entry) => String(entry?.status || '').toLowerCase() === 'approved')
@@ -155,6 +150,12 @@ export default async function handler(req, res) {
         const key = `${String(ad?.company_name || '').trim().toLowerCase()}|${String(ad?.email || '').trim().toLowerCase()}`;
         return approvedSubmissionKeys.has(key);
       });
+
+    const totalViews = ads.reduce((sum, ad) => sum + Number(ad?.impressions || 0), 0);
+    const totalClicks = ads.reduce((sum, ad) => sum + Number(ad?.clicks || 0), 0);
+    const activeAds = ads.filter((ad) => ad?.is_active).length;
+    const pendingAds = ads.filter((ad) => !ad?.is_active).length + (pendingAdSubmission ? 1 : 0);
+    const verifiedAds = verifiedAdvertisements.length;
 
     const isApprovedAgent =
       agentData?.verification_status === 'approved' &&
@@ -181,8 +182,8 @@ export default async function handler(req, res) {
         activeAds,
         totalViews,
         totalClicks,
-        verifiedAds: approvedSubmissions,
-        pendingAds: pendingAdSubmission ? 1 : 0,
+        verifiedAds,
+        pendingAds,
       },
       advertisements: ads,
       verifiedAdvertisements,

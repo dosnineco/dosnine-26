@@ -47,7 +47,7 @@ const PUBLIC_ROUTES = [
 ];
 
 // Pages that should not have header/footer
-const NO_LAYOUT_PAGES = ['/advertise', '/ads/request-agent', '/course', '/logo', '/ads-course', '/hill-lot'];
+const NO_LAYOUT_PAGES = ['/ads/request-agent', '/course', '/logo', '/ads-course', '/hill-lot'];
 
 // Helper function to check if a route is public (fixes pathname collision issue)
 const isPublicRoute = (pathname) => {
@@ -134,7 +134,7 @@ function AppContent({ Component, pageProps }) {
   
   const hideLayout = NO_LAYOUT_PAGES.includes(router.pathname);
   const isCurrentPagePublic = isPublicRoute(router.pathname);
-  const showAdvertisements = !hideLayout && !router.pathname.startsWith('/admin') && router.pathname !== '/ads/[id]';
+  const showAdvertisements = isCurrentPagePublic && !hideLayout && !router.pathname.startsWith('/admin') && router.pathname !== '/ads/[id]';
   
   // Use the page-level layout if it exists, otherwise use the default layout
   const getLayout = Component.getLayout || ((page) => page);
@@ -212,7 +212,7 @@ function AppContent({ Component, pageProps }) {
     };
 
     syncUser();
-  }, [isSignedIn, user?.id, isClerkLoaded, isSynced]);
+  }, [isSignedIn, user?.id, isClerkLoaded, isSynced, user]);
 
   // Security gate: block every private page (admin, agent, dashboard, etc.) until ID verification is approved
   useEffect(() => {
@@ -225,7 +225,7 @@ function AppContent({ Component, pageProps }) {
     if (!isAdmin && !isVerified) {
       router.replace('/verify');
     }
-  }, [isSignedIn, isSynced, profileData, isCurrentPagePublic, router]);
+  }, [isSignedIn, isSynced, profileData, isCurrentPagePublic, router, user]);
 
   // If page has custom layout (like ads pages), use it without Header/Footer
   if (Component.getLayout) {

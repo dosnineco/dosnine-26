@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { useAuth, useUser } from '@clerk/nextjs';
 import { useRouter } from 'next/router';
 import axios from 'axios';
@@ -52,9 +53,40 @@ export default function AgentSignup() {
     checkAgentStatus();
   }, [user, router, getToken]);
 
+  useEffect(() => {
+    const loadProfileData = async () => {
+      if (!user?.id) return;
+
+      try {
+        const token = await getToken();
+        const { data } = await axios.get('/api/user/profile', {
+          withCredentials: true,
+          headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        });
+
+        if (!data) return;
+
+        const profileFullName = data.full_name || data.fullName || user.fullName || '';
+        const profileEmail = data.email || user?.primaryEmailAddress?.emailAddress || user?.emailAddresses?.[0]?.emailAddress || '';
+        const profilePhone = data.phone || '';
+
+        setFormData((prev) => ({
+          ...prev,
+          fullName: prev.fullName || profileFullName || '',
+          email: prev.email || profileEmail || '',
+          phone: prev.phone || profilePhone || '',
+        }));
+      } catch (error) {
+        console.log('User profile lookup failed for signup prefill:', error);
+      }
+    };
+
+    loadProfileData();
+  }, [user, getToken]);
+
   const [formData, setFormData] = useState({
     fullName: user?.fullName || '',
-    email: user?.primaryEmailAddress?.emailAddress || '',
+    email: user?.primaryEmailAddress?.emailAddress || user?.emailAddresses?.[0]?.emailAddress || '',
     phone: '',
     businessName: '',
     yearsExperience: '',
@@ -255,7 +287,6 @@ export default function AgentSignup() {
     return (
       <div className="min-h-screen bg-gray-50 p-4 flex items-center">
         <div className="max-w-md mx-auto bg-white rounded-lg shadow-lg p-8 text-center">
-          <Clock className="w-16 h-16 text-yellow-500 mx-auto mb-4" />
           <h1 className="text-2xl font-bold text-gray-900 mb-2">Verification Pending</h1>
           <p className="text-gray-600 mb-6">
             Your agent application is submitted and currently under review. We will notify you within 24-48 hours.
@@ -272,12 +303,12 @@ export default function AgentSignup() {
               <li>✓ Agent dashboard access</li>
             </ul>
           </div>
-          <a
+          <Link
             href="/dashboard"
-            className="inline-block w-full btn-accent px-4 py-2 rounded-lg font-semibold transition"
+            className="inline-block w-full btn-accent px-4 py-2 rounded-lg font-semibold transition text-center"
           >
             Go to Dashboard
-          </a>
+          </Link>
 
         </div>
       </div>
@@ -323,7 +354,7 @@ export default function AgentSignup() {
           {step === 1 && (
             <div className="space-y-6">
               <h2 className="text-2xl font-bold text-gray-900">Agent Registration</h2>
-              <p className="text-gray-600">Let's start with your basic information</p>
+              <p className="text-gray-600">Let&apos;s start with your basic information</p>
 
               {/* Full Name */}
               <div>

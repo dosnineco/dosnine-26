@@ -244,10 +244,10 @@ export default function PropertyRequestsMarketplace() {
       <div className="container mx-auto mb-8">
         <div className="text-center mb-12">
           <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
-            Live Property Requests from Buyers & Renters
+            What Clients Are Looking For
           </h1>
           <p className="text-gray-600 text-base mb-8 leading-relaxed">
-            These are real people looking for properties. Claim a request to get their contact details.
+            Browse the latest property needs shared by clients across Jamaica. Find the right match and connect with clients who are ready to move.
           </p>
           
           {/* Action Links */}
@@ -267,10 +267,10 @@ export default function PropertyRequestsMarketplace() {
               <ArrowRight className="text-accent" size={20} />
             </Link>
             <Link
-              href="https://reimagined-broccoli-q77wgqrx7ppfxjpr-3000.app.github.dev/agent/signup"
+              href="/agent/signup"
               className="flex items-center gap-2 text-sm text-gray-900 font-semibold hover:text-gray-700 transition-colors delay-50 border-b-2 border-accent hover:border-gray-700 pb-2"
             >
-              Market my house for rent
+              Sign up as agent
               <ArrowRight className="text-accent" size={16} />
             </Link>
             <Link
@@ -340,8 +340,8 @@ export default function PropertyRequestsMarketplace() {
             <div className="container mx-auto">
               <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-8">
                 <div>
-                  <h2 className="text-3xl font-bold text-gray-900">Active Requests</h2>
-                  <p className="text-gray-600 mt-2">Review the most recent buyer and renter requests across the island.</p>
+                  <h2 className="text-3xl font-bold text-gray-900">I am looking for</h2>
+                  <p className="text-gray-600 mt-2">See what clients are currently looking for across Jamaica.</p>
                 </div>
                 <Link href="/request" className="inline-flex items-center gap-2 rounded-full bg-gray-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-gray-800">
                   Submit a request

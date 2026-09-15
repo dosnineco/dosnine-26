@@ -357,51 +357,73 @@ export default function Dashboard() {
         )}
 
         {/* Quick Actions */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-          <Link
-            href="/properties/my-listings"
-            className="flex items-center gap-4 bg-white border border-gray-200 rounded-lg p-6 hover:shadow-lg transition"
-          >
-            <div className="w-12 h-12 bg-accent/10 rounded-lg flex items-center justify-center">
-              <svg className="w-6 h-6 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-              </svg>
-            </div>
-            <div>
-              <h3 className="font-semibold text-gray-900">My Properties</h3>
-              <p className="text-sm text-gray-500">View and manage your listings</p>
-            </div>
-          </Link>
+        <div className="mb-6 grid gap-4 lg:grid-cols-[240px_minmax(0,1fr)]">
+          <aside className="rounded-2xl border border-gray-200 bg-gray-50 p-4 sm:p-5">
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent">Quick Actions</p>
+            <h2 className="mt-2 text-xl font-bold text-gray-900">Start here</h2>
+            <p className="mt-2 text-sm text-gray-600">
+              Manage your listings, grow your reach, and keep your property pipeline moving.
+            </p>
+          </aside>
 
-          <Link
-            href="/properties/new"
-            className="flex items-center gap-4 bg-accent text-white rounded-lg p-6 hover:bg-accent/90 transition"
-          >
-            <div className="w-12 h-12 bg-white/20 rounded-lg flex items-center justify-center">
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-              </svg>
-            </div>
-            <div>
-              <h3 className="font-semibold">Post a Property</h3>
-              <p className="text-sm text-white/80">Add a new listing</p>
-            </div>
-          </Link>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            <Link
+              href="/properties/my-listings"
+              className="group flex h-full min-h-[220px] flex-col justify-between rounded-2xl border border-gray-200 bg-white p-4 transition duration-200 hover:-translate-y-0.5 hover:border-accent hover:bg-accent/5"
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-accent/10 text-accent">
+                  <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                  </svg>
+                </div>
+                <span className="text-xs font-medium uppercase tracking-wide text-gray-400">Listings</span>
+              </div>
 
-          <Link
-            href="/advertise"
-            className="flex items-center gap-4 bg-white border border-gray-200 rounded-lg p-6 hover:shadow-lg transition"
-          >
-            <div className="w-12 h-12 bg-accent/10 rounded-lg flex items-center justify-center">
-              <svg className="w-6 h-6 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-              </svg>
-            </div>
-            <div>
-              <h3 className="font-semibold text-gray-900">Create an Ad</h3>
-              <p className="text-sm text-gray-500">Reach buyers and renters fast</p>
-            </div>
-          </Link>
+              <div className="mt-4">
+                <h3 className="text-base font-semibold text-gray-900">Manage Properties</h3>
+                <p className="mt-1 text-sm text-gray-600">View, update, and organize your listings from one place.</p>
+              </div>
+            </Link>
+
+            <Link
+              href="/properties/new"
+              className="group flex h-full min-h-[220px] flex-col justify-between rounded-2xl bg-accent p-4 text-white transition duration-200 hover:bg-accent/90"
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-white/20">
+                  <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                  </svg>
+                </div>
+                <span className="text-xs font-medium uppercase tracking-wide text-white/80">New</span>
+              </div>
+
+              <div className="mt-4">
+                <h3 className="text-base font-semibold">Post a Property</h3>
+                <p className="mt-1 text-sm text-white/80">Add a new listing and attract the right buyers or tenants.</p>
+              </div>
+            </Link>
+
+            <Link
+              href="/advertise"
+              className="group flex h-full min-h-[220px] flex-col justify-between rounded-2xl border border-gray-200 bg-white p-4 transition duration-200 hover:-translate-y-0.5 hover:border-accent hover:bg-accent/5"
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-accent/10 text-accent">
+                  <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                </div>
+                <span className="text-xs font-medium uppercase tracking-wide text-gray-400">Promote</span>
+              </div>
+
+              <div className="mt-4">
+                <h3 className="text-base font-semibold text-gray-900">Create an Ad</h3>
+                <p className="mt-1 text-sm text-gray-600">Reach buyers and renters faster with a branded ad.</p>
+              </div>
+            </Link>
+          </div>
         </div>
 
           {/* Become Agent Prompt */}
@@ -724,7 +746,7 @@ export default function Dashboard() {
         )} */}
 
 
-        {!redirecting && adStats.verifiedAds > 0 && (
+        {!redirecting && (adStats.totalAds > 0 || adStats.totalViews > 0 || adStats.totalClicks > 0) && (
           <div className="bg-white rounded-lg p-6 mb-8">
             <h2 className="text-2xl font-bold mb-4">Ad Performance</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5">
@@ -754,7 +776,7 @@ export default function Dashboard() {
                 ))}
               </div>
             ) : (
-              <p className="text-gray-500">No active verified ads yet.</p>
+              <p className="text-gray-500">No active ads yet. Your ad metrics will appear here once the campaign is live.</p>
             )}
           </div>
         )}

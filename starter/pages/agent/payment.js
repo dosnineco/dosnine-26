@@ -96,6 +96,9 @@ const bankDetails = [
 ];
 
 const formatCurrency = (amount) => `J$${amount.toLocaleString()}`;
+const OWNER_SERVICE_PRICE_USD = 5;
+const USD_TO_JMD = 155;
+const OWNER_SERVICE_PRICE_JMD = OWNER_SERVICE_PRICE_USD * USD_TO_JMD;
 
 export default function AgentPayment() {
   const { loading: authLoading, userData } = useRoleProtection({
@@ -111,6 +114,7 @@ export default function AgentPayment() {
   const [queueLoading, setQueueLoading] = useState(true);
   const [selectedPlanId, setSelectedPlanId] = useState('30-day');
   const [sessionToken, setSessionToken] = useState(null);
+  const [ownerCurrency, setOwnerCurrency] = useState('USD');
 
   // Generate and track session token for upgrade flow
   useEffect(() => {
@@ -176,6 +180,9 @@ export default function AgentPayment() {
       ? `Hello Dosnine Team, I want to activate ${selectedPlan.name} (${selectedPlan.duration}). Email: ${userEmail}. Amount: ${formatCurrency(selectedPlan.price)}. Session: ${sessionToken}. I am sending my bank transfer proof now.`
       : `Hello Dosnine Team, please activate ${selectedPlan.name} for ${userEmail}. Session: ${sessionToken}.`
   );
+  const ownerJmdWhatsappText = encodeURIComponent(
+    `Hi Dosnine, I want to join Tenant Services and pay in JMD. Email: ${userEmail}. Please send the local payment instructions for JMD ${OWNER_SERVICE_PRICE_JMD.toLocaleString()}.`
+  );
 
   const copyToClipboard = (text, field) => {
     navigator.clipboard.writeText(text);
@@ -199,6 +206,7 @@ export default function AgentPayment() {
     <>
       <Head>
         <title>Agent Access Plans — Dosnine Limited</title>
+        <script src="https://gumroad.com/js/gumroad.js" defer />
       </Head>
 
       <div className="min-h-screen bg-white py-8 px-4 sm:py-12">
@@ -207,11 +215,11 @@ export default function AgentPayment() {
             {/* Header */}
             <div className="bg-gray-500 text-white px-6 py-8 sm:px-8 sm:py-10 rounded-lg">
               <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
-                {isOwnerUser ? 'Owner Vacancy Service' : 'Agent Access Plans'}
+                {isOwnerUser ? 'Dosnine Tenant Services' : 'Agent Access Plans'}
               </h1>
               <p className="mt-2 text-gray-300 text-sm sm:text-base">
                 {isOwnerUser
-                  ? 'We find and help place a tenant for 20% of the first month\'s rent.'
+                  ? 'Tenant placement support for Jamaican property owners.'
                   : 'Based on deal value. Choose your plan and get verified in 24 hours.'}
               </p>
 
@@ -254,32 +262,112 @@ export default function AgentPayment() {
             {isOwnerUser ? (
               <div className="px-8 py-6 space-y-6">
                 <div className="bg-blue-50 border border-blue-200 rounded-xl p-5">
-                  <h2 className="text-xl font-bold text-gray-900 mb-2">Find a tenant for 20%</h2>
+                  <h2 className="text-xl font-bold text-gray-900 mb-2">Stop leaving rental income on the table.</h2>
                   <p className="text-gray-700 mb-3">
-                    We market your property, connect you with interested renters, and help move the conversation toward a tenant.
+                    Dosnine helps Jamaican property owners keep their rental units occupied by putting their available properties in front of people actively looking for somewhere to live.
                   </p>
+
+                  <p className="text-gray-900 font-bold mb-3">Your goal: 100% occupancy. Our job: help you get there.</p>
+
                   <p className="text-gray-700 mb-3">
-                    Our fee is 20% of the first month&apos;s rental fee, paid when a tenant is successfully placed. There is no upfront fee.
+                    With your membership, Dosnine helps promote your available rental property, generate tenant interest and connect you with prospective renters.
                   </p>
-                  <div className="flex flex-wrap items-center gap-3">
-                    <span className="inline-flex items-center rounded-full bg-white px-3 py-1 text-sm font-semibold text-gray-900 border border-gray-200">20% of first month&apos;s rent</span>
-                    <span className="inline-flex items-center rounded-full bg-white px-3 py-1 text-sm font-semibold text-gray-900 border border-gray-200">No upfront fee</span>
+
+                  <div className="mb-3">
+                    <p className="text-gray-900 font-bold mb-2">What you get:</p>
+                    <ul className="list-disc list-inside space-y-1 text-gray-700">
+                      <li>Tenant-placement support</li>
+                      <li>Property promotion through Dosnine</li>
+                      <li>Access to prospective tenants</li>
+                      <li>Help getting your rental in front of more people</li>
+                      <li>Ongoing support while your membership is active</li>
+                      <li>Suitable for apartments, houses, rooms and other rental properties</li>
+                    </ul>
                   </div>
+
+                  <p className="text-gray-700 font-medium mb-2">
+                    Built for Jamaican landlords who want fewer vacant days and more rental income.
+                  </p>
+
+                  <div className="text-2xl font-bold text-gray-900 mt-4">$5/month.</div>
+
+                  <p className="text-gray-700 mt-4">
+                    <span className="font-bold">Important:</span> 100% occupancy is the target—not a guaranteed result. Tenant placement depends on property location, rental price, condition, availability, demand and the owner&apos;s approval of prospective tenants.
+                  </p>
                 </div>
 
-                <div className="bg-gray-100 border-l-4 border-accent p-4 rounded-lg">
-                  <p className="font-semibold text-gray-900">Ready to find a tenant?</p>
-                  <p className="text-sm text-gray-700 mt-1">Send us your property details and rental price. We will explain the next steps.</p>
-                </div>
+                <div className="rounded-xl bg-gray-100 p-5 sm:p-6">
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                    <div>
+                      <p className="text-sm font-bold uppercase tracking-wide text-accent">Owner membership</p>
+                      <h2 className="mt-1 text-xl font-bold text-gray-900">Ready to start?</h2>
+                      <p className="mt-2 max-w-xl text-sm leading-6 text-gray-700">
+                        Get your rental property in front of prospective tenants faster with Dosnine Tenant Services.
+                      </p>
+                    </div>
+                    <div className="flex-shrink-0 rounded-lg bg-white px-4 py-3 text-left sm:text-right">
+                      <p className="text-2xl font-bold text-gray-900">
+                        {ownerCurrency === 'USD' ? '$5' : `J$${OWNER_SERVICE_PRICE_JMD.toLocaleString()}`}
+                      </p>
+                      <p className="text-xs font-medium text-gray-500">per month</p>
+                    </div>
+                  </div>
 
-                <a
-                  href={`https://wa.me/18763369045?text=${encodeURIComponent(`Hi Dosnine, I need help finding a tenant. Email: ${userEmail}. My property rent is [amount]. Please explain the 20% first-month-rent placement fee.`)}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex items-center justify-center rounded-lg bg-accent px-5 py-3 text-sm font-semibold text-white hover:bg-accent/90"
-                >
-                  Find Me a Tenant
-                </a>
+                  <div className="mt-5 flex items-center justify-between gap-3">
+                    <span className="text-sm font-semibold text-gray-700">Pay in</span>
+                    <div className="flex rounded-lg bg-white p-1" role="group" aria-label="Choose payment currency">
+                      {['USD', 'JMD'].map((currency) => (
+                        <button
+                          key={currency}
+                          type="button"
+                          onClick={() => setOwnerCurrency(currency)}
+                          aria-pressed={ownerCurrency === currency}
+                          className={`rounded-md px-4 py-2 text-xs font-bold transition ${
+                            ownerCurrency === currency ? 'bg-accent text-white' : 'text-gray-600 hover:bg-gray-100'
+                          }`}
+                        >
+                          {currency}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="mt-5 flex flex-col gap-3">
+                  {ownerCurrency === 'USD' ? (
+                    <a
+                      href="https://dosnine.gumroad.com/l/tentant-services"
+                      data-gumroad-action="buy"
+                      rel="noreferrer"
+                      className="inline-flex min-h-12 w-full items-center justify-center rounded-lg bg-accent px-5 py-3 text-center text-sm font-bold text-white hover:bg-accent/90"
+                    >
+                      Join Tenant Services - $5/month
+                    </a>
+                  ) : (
+                    <a
+                      href={`https://wa.me/18763369045?text=${ownerJmdWhatsappText}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex min-h-12 w-full items-center justify-center rounded-lg bg-accent px-5 py-3 text-center text-sm font-bold text-white hover:bg-accent/90"
+                    >
+                      Pay JMD {OWNER_SERVICE_PRICE_JMD.toLocaleString()} on WhatsApp
+                    </a>
+                  )}
+
+                  <a
+                    href={`https://wa.me/18763369045?text=${encodeURIComponent(`Hi Dosnine, I need help finding a tenant. Email: ${userEmail}. My property rent is [amount]. Please explain the Dosnine Tenant Services membership process and the $5/month plan.`)}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex min-h-11 w-full items-center justify-center rounded-lg bg-white px-5 py-3 text-center text-sm font-semibold text-gray-900 hover:bg-gray-50"
+                  >
+                    Have questions? Ask on WhatsApp
+                  </a>
+                  </div>
+                  <p className="mt-3 text-center text-xs text-gray-500">
+                    {ownerCurrency === 'USD'
+                      ? 'Secure checkout through Gumroad. Cancel anytime.'
+                      : 'We will send JMD payment instructions on WhatsApp.'}
+                  </p>
+                </div>
               </div>
             ) : (
             <div className="px-8 py-6 space-y-8">

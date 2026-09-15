@@ -96,11 +96,11 @@ export default function InFeedAd() {
 
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden p-3">
         <div className="flex-1">
-          <div className="text-xs font-medium text-gray-500 mb-1 truncate">{ad.company_name}</div>
-          <div className="text-lg font-semibold line-clamp-2">
+          <div className="mb-1 min-w-0 truncate text-xs font-medium text-gray-500">{ad.company_name}</div>
+          <div className="h-12 min-w-0 overflow-hidden break-words text-lg font-semibold leading-6 line-clamp-2">
             {ad.title || ad.headline || 'Discover more'}
           </div>
-          <div className="text-sm text-gray-500 line-clamp-2 mt-1">
+          <div className="mt-1 h-10 min-w-0 overflow-hidden break-words text-sm leading-5 text-gray-500 line-clamp-2">
             {ad.description || 'Learn more about this business.'}
           </div>
         </div>

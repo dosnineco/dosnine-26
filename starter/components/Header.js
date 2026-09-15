@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { useRouter } from 'next/router';
-import { UserButton, useUser, SignInButton } from '@clerk/nextjs';
+import { UserButton, useUser, SignInButton, SignUpButton } from '@clerk/nextjs';
 import { FiHome, FiGrid, FiPlusCircle, FiMenu, FiSettings, FiUser } from 'react-icons/fi';
 import { useState, useEffect } from 'react';
 import axios from 'axios';
@@ -100,6 +100,11 @@ export default function Header() {
                   Sign In
                 </button>
               </SignInButton>
+              <SignUpButton mode="modal">
+                <button className="px-3 py-2 rounded-lg transition text-sm text-gray-600 hover:bg-gray-100">
+                  Sign Up
+                </button>
+              </SignUpButton>
             </>
           )}
         </div>
@@ -218,14 +223,24 @@ export default function Header() {
                 </div>
               ) : (
                 <div className="border-t border-gray-200 p-4">
-                  <SignInButton mode="modal">
-                    <button
-                      onClick={() => setMobileMenuOpen(false)}
-                      className="w-full px-4 py-3 bg-accent text-white rounded-lg text-center font-medium hover:bg-accent/90 transition block"
-                    >
-                      Sign In / Sign Up
-                    </button>
-                  </SignInButton>
+                  <div className="flex gap-2">
+                    <SignInButton mode="modal">
+                      <button
+                        onClick={() => setMobileMenuOpen(false)}
+                        className="w-full px-4 py-3 bg-accent text-white rounded-lg text-center font-medium hover:bg-accent/90 transition block"
+                      >
+                        Sign In
+                      </button>
+                    </SignInButton>
+                    <SignUpButton mode="modal">
+                      <button
+                        onClick={() => setMobileMenuOpen(false)}
+                        className="w-full px-4 py-3 border border-accent text-accent rounded-lg text-center font-medium hover:bg-accent/10 transition block"
+                      >
+                        Sign Up
+                      </button>
+                    </SignUpButton>
+                  </div>
                 </div>
               )}
             </div>

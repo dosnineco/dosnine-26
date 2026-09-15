@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useUser } from '@clerk/nextjs';
 import { useAuth } from '@clerk/nextjs';
 import { useRouter } from 'next/router';
@@ -50,7 +50,7 @@ export default function AgentDashboard() {
   const [agentData, setAgentData] = useState(initialUserData?.agent || null);
   const isOwner = initialUserData?.user_type === 'owner';
   const [requests, setRequests] = useState([]);
-  const [filterStatus, setFilterStatus] = useState('assigned');
+  const [filterStatus, setFilterStatus] = useState('all');
   const [filterUrgency, setFilterUrgency] = useState('all');
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [actionLoading, setActionLoading] = useState(false);
@@ -171,15 +171,7 @@ export default function AgentDashboard() {
     fetchAdStats();
   }, [authLoaded, userId, getToken]);
 
-  useEffect(() => {
-    if (agentData && authLoaded && userId) {
-      fetchRequests();
-    }
-  }, [agentData, authLoaded, userId]);
-
-
-
-  async function fetchRequests() {
+  const fetchRequests = useCallback(async () => {
     if (!authLoaded) return;
     if (!userId) {
       setLoading(false);
@@ -217,7 +209,13 @@ export default function AgentDashboard() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [authLoaded, getToken, router, userId]);
+
+  useEffect(() => {
+    if (agentData && authLoaded && userId) {
+      fetchRequests();
+    }
+  }, [agentData, authLoaded, userId, fetchRequests]);
 
   async function handleRequestAction(requestId, action, commentData = null) {
     if (!user?.id || !authLoaded) return;
@@ -347,110 +345,69 @@ export default function AgentDashboard() {
       <div className="min-h-screen bg-gray-50">
         <div className="max-w-7xl mx-auto px-6 sm:px-6 lg:px-8 py-8">
           {/* Quick Actions Section */}
-          <div className="bg-white rounded-xl border border-gray-200 p-6 mb-4">
-            <div className="flex items-center gap-3 mb-4">
-              <CheckCircle className="w-8 h-8 text-accent" />
-              <h2 className="text-xl font-bold text-gray-900">Quick Actions</h2>
+          <div className="mb-4 rounded-xl border border-gray-200 bg-gray-50 p-6">
+            <div className="mb-4 flex items-center gap-3">
+              <h2 className="text-md font-bold text-gray-900">Quick Actions</h2>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
+              <Link
+                href="/properties/my-listings"
+                className="group flex h-full  items-center gap-3 rounded-lg border border-gray-200 bg-white p-3 transition hover:border-accent hover:bg-accent/5"
+              >
+                <Home className="h-5 w-5 text-accent transition group-hover:scale-110" />
+                <h3 className="text-sm font-semibold text-gray-900">Manage Properties</h3>
+              </Link>
+
               <Link
                 href="/properties/new"
-                className="flex items-center gap-3 p-4 bg-accent/5 border border-accent/20 rounded-lg hover:bg-accent/10 transition group"
+                className="group flex h-full  items-center gap-3 rounded-lg border border-gray-200 bg-white p-3 transition hover:border-accent hover:bg-accent/5"
               >
-                <Plus className="w-6 h-6 text-accent group-hover:scale-110 transition" />
-                <div>
-                  <h3 className="font-semibold text-gray-900">New Property</h3>
-                  <p className="text-sm text-gray-600">Add a listing</p>
-                </div>
+                <Plus className="h-5 w-5 text-accent transition group-hover:scale-110" />
+                <h3 className="text-sm font-semibold text-gray-900">New Property</h3>
               </Link>
+
               {!isOwner && (
                 <Link
                   href="/properties/bulk-create"
-                  className="flex items-center gap-3 p-4 bg-accent/5 border border-accent/20 rounded-lg hover:bg-accent/10 transition group"
+                  className="group flex h-full  items-center gap-3 rounded-lg border border-gray-200 bg-white p-3 transition hover:border-accent hover:bg-accent/5"
                 >
-                  <Plus className="w-6 h-6 text-accent group-hover:scale-110 transition" />
-                  <div>
-                    <h3 className="font-semibold text-gray-900">Bulk Create</h3>
-                    <p className="text-sm text-gray-600">Upload multiple</p>
-                  </div>
+                  <Plus className="h-5 w-5 text-accent transition group-hover:scale-110" />
+                  <h3 className="text-sm font-semibold text-gray-900">Bulk Create</h3>
                 </Link>
               )}
+
+              {isOwner && (
+                <Link
+                  href="/agent/payment"
+                  className="group flex h-full items-center gap-3 rounded-lg border border-gray-200 bg-white p-3 transition hover:border-accent hover:bg-accent/5"
+                >
+                  <DollarSign className="h-5 w-5 text-accent transition group-hover:scale-110" />
+                  <h3 className="text-sm font-semibold text-gray-900">Rent My House</h3>
+                </Link>
+              )}
+
               <Link
                 href="/advertise"
-                className="flex items-center gap-3 p-4 bg-accent/5 border border-accent/20 rounded-lg hover:bg-accent/10 transition group"
+                className="group flex h-full  items-center gap-3 rounded-lg border border-gray-200 bg-white p-3 transition hover:border-accent hover:bg-accent/5"
               >
-                <CheckCircle className="w-6 h-6 text-accent group-hover:scale-110 transition" />
-                <div>
-                  <h3 className="font-semibold text-gray-900">Create Ad</h3>
-                  <p className="text-sm text-gray-600">Promote your business</p>
-                </div>
+                <CheckCircle className="h-5 w-5 text-accent transition group-hover:scale-110" />
+                <h3 className="text-sm font-semibold text-gray-900">Create Ad</h3>
               </Link>
+
               {!isOwner && (
-              <Link
-                href="/agent/parish-requests"
-                className="flex items-center gap-3 p-4 bg-accent/5 border border-accent/20 rounded-lg hover:bg-accent/10 transition group relative"
-              >
-                <span className="absolute -top-2 -right-2 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full shadow-sm z-10">NEW</span>
-                <Search className="w-6 h-6 text-accent group-hover:scale-110 transition" />
-                <div>
+                <Link
+                  href="/agent/parish-requests"
+                  className="group relative flex h-full items-center gap-3 rounded-lg border border-gray-200 bg-white p-3 transition hover:border-accent hover:bg-accent/5"
+                >
+                  <span className="absolute -right-1 -top-1 z-10 rounded-full bg-red-500 px-1.5 py-0.5 text-[10px] font-bold text-white shadow-sm">
+                    NEW
+                  </span>
+                  <Search className="h-6 w-6 text-accent transition group-hover:scale-110" />
                   <h3 className="font-semibold text-gray-900">Parish Search</h3>
-                  <p className="text-sm text-gray-600">Find opportunities</p>
-                </div>
-              </Link>
+                </Link>
               )}
-             
             </div>
-
-             <div className="mb-5 mt-5 grid grid-cols-2 sm:flex sm:flex-nowrap gap-3">
-
-            <Link 
-              href="/properties/my-listings"
-              className="px-4 py-2 bg-white text-black rounded-lg hover:bg-gray-100 transition font-medium flex items-center justify-center gap-1.5 border border-gray-300"
-            >
-              <Home className="w-5 h-5" />
-              <span className="hidden sm:inline">My Properties</span>
-              <span className="sm:hidden">Properties</span>
-            </Link>
-
-          {!isOwner && (
-            <Link 
-                href="/agent/my-applications"
-                className="px-4 py-2 bg-white text-black rounded-lg hover:bg-gray-100 transition font-medium flex items-center justify-center gap-1.5 border border-gray-300 col-span-2 sm:col-span-1"
-              >
-                
-                <Mail className="w-5 h-5" />
-                <span className="hidden sm:inline">My Applications</span>
-                <span className="sm:hidden">Applications</span>
-              </Link>
-                    
-              )}
-
-             
-           
-            
-            
-            {!isOwner && (
-              <Link 
-                href="/agent/payment"
-                onClick={(e) => {
-                  if (isAccessExpired()) {
-                    toast.error('Your access has expired. Please upgrade to continue receiving leads.', { duration: 4000 });
-                  } else if (isFreePlan()) {
-                    toast('Upgrade to unlock higher-value leads!', {  duration: 4000 });
-                  }
-                }}
-                className={`px-4 py-2 rounded-lg transition font-medium flex items-center justify-center gap-1.5 border col-span-2 sm:col-span-1 ${
-                  shouldShowUpgrade() 
-                    ? 'bg-green-500 text-white border-green-600 hover:bg-green-600 animate-pulse' 
-                    : 'bg-white text-black border-gray-300 hover:bg-gray-100'
-                }`}
-              >
-                <CreditCard className="w-5 h-5" />
-                <span className="hidden sm:inline">{shouldShowUpgrade() ? 'Upgrade Now' : 'Access Plan'}</span>
-                <span className="sm:hidden">{shouldShowUpgrade() ? 'Upgrade' : 'Plan'}</span>
-              </Link>
-            )}
-          </div>
           </div>
 
           {isOwner && (
@@ -470,7 +427,7 @@ export default function AgentDashboard() {
                   className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-accent text-white font-semibold rounded-lg hover:bg-accent/90 transition text-sm whitespace-nowrap"
                 >
                   <CreditCard className="w-5 h-5" />
-                  Find a Tenant
+                  Rent My House
                 </Link>
               </div>
             </div>
@@ -654,7 +611,12 @@ export default function AgentDashboard() {
                 ))}
               </div>
             ) : (
-              <p className="text-sm text-gray-500">No active ads yet.</p>
+              <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 p-4">
+                <p className="text-sm text-gray-600 mb-3">No ads yet. Your ad performance will appear here once your campaign is live.</p>
+                <Link href="/advertise" className="inline-flex items-center justify-center rounded-lg bg-accent px-3.5 py-2 text-sm font-semibold text-white hover:bg-accent/90">
+                  Advertise with Us
+                </Link>
+              </div>
             )}
           </div>
 

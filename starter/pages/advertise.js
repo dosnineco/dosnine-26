@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
+import Image from 'next/image';
 import Head from 'next/head';
 import Link from 'next/link';
-import { useAuth, useUser } from '@clerk/nextjs';
+import { SignInButton, SignUpButton, useAuth, useUser } from '@clerk/nextjs';
 import {
   ArrowRight,
   BadgeCheck,
@@ -228,7 +229,7 @@ function TrustPill({ icon: Icon, title }) {
 }
 
 export default function AdvertisePage() {
-  const { user } = useUser();
+  const { user, isSignedIn } = useUser();
   const { getToken } = useAuth();
   const [step, setStep] = useState(1);
   const [submitting, setSubmitting] = useState(false);
@@ -265,16 +266,27 @@ export default function AdvertisePage() {
   );
 
   useEffect(() => {
+    if (!isSignedIn) {
+      sessionStorage.setItem('redirectAfterSignIn', '/advertise');
+      return;
+    }
+
     if (user?.primaryEmailAddress?.emailAddress && !form.email) {
       setForm((prev) => ({ ...prev, email: user.primaryEmailAddress.emailAddress }));
     }
-  }, [user, form.email]);
+  }, [user, form.email, isSignedIn]);
 
   useEffect(() => {
     return () => {
       imagePreviews.forEach((url) => URL.revokeObjectURL(url));
     };
   }, [imagePreviews]);
+
+  const requireSignIn = () => {
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem('redirectAfterSignIn', '/advertise');
+    }
+  };
 
   const copyToClipboard = async (value, key) => {
     try {
@@ -289,6 +301,12 @@ export default function AdvertisePage() {
 
   const onSubmit = async (event) => {
     event.preventDefault();
+
+    if (!isSignedIn) {
+      requireSignIn();
+      return;
+    }
+
     setSubmitError('');
 
     if (imageFiles.length === 0) {
@@ -663,215 +681,248 @@ export default function AdvertisePage() {
                       title="Tell us about your business and we will handle the rest"
                       subtitle="A polished listing increases trust and helps you attract better-qualified leads."
                     />
-                    <form onSubmit={onSubmit} className="mt-8 space-y-4">
-                      <div className="grid gap-4 md:grid-cols-2">
-                        <div>
-                          <label className="mb-1 block text-sm font-semibold text-slate-700">Business Name</label>
-                          <input
-                            type="text"
-                            value={form.company_name}
-                            onChange={(event) => setForm((prev) => ({ ...prev, company_name: event.target.value }))}
-                            className="w-full rounded-none border border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 outline-none focus:border-accent"
-                            required
-                          />
-                        </div>
-                        <div>
-                          <label className="mb-1 block text-sm font-semibold text-slate-700">Business Logo</label>
-                          <input
-                            type="text"
-                            value={form.business_logo}
-                            onChange={(event) => setForm((prev) => ({ ...prev, business_logo: event.target.value }))}
-                            className="w-full rounded-none border border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 outline-none focus:border-accent"
-                            placeholder="https://yourwebsite.com/logo.png"
-                          />
+
+                    {!isSignedIn ? (
+                      <div className="mt-8 rounded-none border border-accent/20 bg-accent/5 p-5">
+                        <h3 className="text-lg font-semibold text-slate-900">Sign in to continue</h3>
+                        <p className="mt-2 text-sm leading-6 text-slate-600">
+                          Please sign in or create an account before submitting your ad request. You will be returned here automatically after sign-in.
+                        </p>
+                        <div className="mt-4 flex flex-col gap-3 sm:flex-row">
+                          <SignInButton mode="modal">
+                            <button
+                              type="button"
+                              onClick={requireSignIn}
+                              className="px-3 py-2 rounded-lg transition text-sm text-gray-600 hover:bg-gray-100"
+                            >
+                              Sign In
+                            </button>
+                          </SignInButton>
+                          <SignUpButton mode="redirect" redirectUrl="/advertise" afterSignUpUrl="/advertise">
+                            <button
+                              type="button"
+                              onClick={requireSignIn}
+                              className="inline-flex items-center justify-center rounded-none border border-slate-300 bg-white px-5 py-3 font-semibold text-slate-700 transition hover:bg-slate-50"
+                            >
+                              Create Account
+                            </button>
+                          </SignUpButton>
                         </div>
                       </div>
-
-                      <div className="grid gap-4 md:grid-cols-2">
-                        <div>
-                          <label className="mb-1 block text-sm font-semibold text-slate-700">Ad Title</label>
-                          <input
-                            type="text"
-                            value={form.title}
-                            onChange={(event) => setForm((prev) => ({ ...prev, title: event.target.value }))}
-                            className="w-full rounded-none border border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 outline-none focus:border-accent"
-                            placeholder="Optional"
-                          />
-                        </div>
-                        <div>
-                          <label className="mb-1 block text-sm font-semibold text-slate-700">Category</label>
-                          <select
-                            value={form.category}
-                            onChange={(event) => setForm((prev) => ({ ...prev, category: event.target.value }))}
-                            className="w-full rounded-none border border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 outline-none focus:border-accent"
-                          >
-                            {categories.map((category) => (
-                              <option key={category.value} value={category.value}>
-                                {category.label}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                      </div>
-
-                      <div className="grid gap-4 md:grid-cols-2">
-                        <div>
-                          <label className="mb-1 block text-sm font-semibold text-slate-700">Phone</label>
-                          <div className="relative">
-                            <Phone className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                    ) : (
+                      <form onSubmit={onSubmit} className="mt-8 space-y-4">
+                        <div className="grid gap-4 md:grid-cols-2">
+                          <div>
+                            <label className="mb-1 block text-sm font-semibold text-slate-700">Business Name</label>
                             <input
-                              type="tel"
-                              value={form.phone}
-                              onChange={(event) => setForm((prev) => ({ ...prev, phone: event.target.value }))}
-                              className="w-full rounded-none border border-slate-200 bg-slate-50 py-3 pl-10 pr-4 text-slate-900 outline-none focus:border-accent"
-                              placeholder="876-123-4567"
+                              type="text"
+                              value={form.company_name}
+                              onChange={(event) => setForm((prev) => ({ ...prev, company_name: event.target.value }))}
+                              className="w-full rounded-none border border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 outline-none focus:border-accent"
                               required
                             />
                           </div>
-                        </div>
-                        <div>
-                          <label className="mb-1 block text-sm font-semibold text-slate-700">WhatsApp</label>
-                          <div className="relative">
-                            <MessageCircle className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                            <input
-                              type="tel"
-                              value={form.whatsapp}
-                              onChange={(event) => setForm((prev) => ({ ...prev, whatsapp: event.target.value }))}
-                              className="w-full rounded-none border border-slate-200 bg-slate-50 py-3 pl-10 pr-4 text-slate-900 outline-none focus:border-accent"
-                              placeholder="876-123-4567"
-                            />
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="grid gap-4 md:grid-cols-2">
-                        <div>
-                          <label className="mb-1 block text-sm font-semibold text-slate-700">Email</label>
-                          <div className="relative">
-                            <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                            <input
-                              type="email"
-                              value={form.email}
-                              onChange={(event) => setForm((prev) => ({ ...prev, email: event.target.value }))}
-                              className="w-full rounded-none border border-slate-200 bg-slate-50 py-3 pl-10 pr-4 text-slate-900 outline-none focus:border-accent"
-                              placeholder="you@example.com"
-                            />
-                          </div>
-                        </div>
-                        <div>
-                          <label className="mb-1 block text-sm font-semibold text-slate-700">Website</label>
-                          <div className="relative">
-                            <Globe2 className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                            <input
-                              type="url"
-                              value={form.website}
-                              onChange={(event) => setForm((prev) => ({ ...prev, website: event.target.value }))}
-                              className="w-full rounded-none border border-slate-200 bg-slate-50 py-3 pl-10 pr-4 text-slate-900 outline-none focus:border-accent"
-                              placeholder="https://yourwebsite.com"
-                            />
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="grid gap-4 md:grid-cols-2">
-                        <div>
-                          <label className="mb-1 block text-sm font-semibold text-slate-700">Contact Name</label>
-                          <input
-                            type="text"
-                            value={form.contact_name}
-                            onChange={(event) => setForm((prev) => ({ ...prev, contact_name: event.target.value }))}
-                            className="w-full rounded-none border border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 outline-none focus:border-accent"
-                            placeholder="Optional"
-                          />
-                        </div>
-                        <div>
-                          <label className="mb-1 block text-sm font-semibold text-slate-700">Location</label>
-                          <div className="relative">
-                            <MapPin className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                          <div>
+                            <label className="mb-1 block text-sm font-semibold text-slate-700">Business Logo</label>
                             <input
                               type="text"
-                              value={form.location}
-                              onChange={(event) => setForm((prev) => ({ ...prev, location: event.target.value }))}
-                              className="w-full rounded-none border border-slate-200 bg-slate-50 py-3 pl-10 pr-4 text-slate-900 outline-none focus:border-accent"
-                              placeholder="Kingston, St. Andrew"
+                              value={form.business_logo}
+                              onChange={(event) => setForm((prev) => ({ ...prev, business_logo: event.target.value }))}
+                              className="w-full rounded-none border border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 outline-none focus:border-accent"
+                              placeholder="https://yourwebsite.com/logo.png"
                             />
                           </div>
                         </div>
-                      </div>
 
-                      <div>
-                        <label className="mb-1 block text-sm font-semibold text-slate-700">Upload Images</label>
-                        <label className="flex cursor-pointer flex-col items-center justify-center rounded-none border border-dashed border-slate-300 bg-slate-50 px-6 py-8 text-center transition hover:border-accent hover:bg-accent/5">
-                          <UploadCloud className="h-8 w-8 text-accent" />
-                          <span className="mt-3 text-sm font-semibold text-slate-900">Upload up to 3 images</span>
-                          <span className="mt-1 text-sm text-slate-500">PNG, JPG or WebP up to 8MB each</span>
-                          <input
-                            type="file"
-                            accept="image/png,image/jpeg,image/jpg,image/webp"
-                            multiple
-                            required
-                            onChange={(event) => {
-                              const selectedFiles = Array.from(event.target.files || []).slice(0, 3);
-                              if (selectedFiles.length === 0) return;
+                        <div className="grid gap-4 md:grid-cols-2">
+                          <div>
+                            <label className="mb-1 block text-sm font-semibold text-slate-700">Ad Title</label>
+                            <input
+                              type="text"
+                              value={form.title}
+                              onChange={(event) => setForm((prev) => ({ ...prev, title: event.target.value }))}
+                              className="w-full rounded-none border border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 outline-none focus:border-accent"
+                              placeholder="Optional"
+                            />
+                          </div>
+                          <div>
+                            <label className="mb-1 block text-sm font-semibold text-slate-700">Category</label>
+                            <select
+                              value={form.category}
+                              onChange={(event) => setForm((prev) => ({ ...prev, category: event.target.value }))}
+                              className="w-full rounded-none border border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 outline-none focus:border-accent"
+                            >
+                              {categories.map((category) => (
+                                <option key={category.value} value={category.value}>
+                                  {category.label}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        </div>
 
-                              const oversized = selectedFiles.find((file) => file.size > 8 * 1024 * 1024);
-                              if (oversized) {
-                                toast.error('Each image must be 8MB or less.');
-                                return;
-                              }
-
-                              imagePreviews.forEach((url) => URL.revokeObjectURL(url));
-                              setImageFiles(selectedFiles);
-                              setImagePreviews(selectedFiles.map((file) => URL.createObjectURL(file)));
-
-                              if ((event.target.files || []).length > 3) {
-                                toast('Only the first 3 images were selected.');
-                              }
-                            }}
-                            className="hidden"
-                          />
-                        </label>
-                        {imagePreviews.length > 0 ? (
-                          <div className="mt-4 grid gap-3 sm:grid-cols-3">
-                            {imagePreviews.map((preview, index) => (
-                              <img
-                                key={`${preview}-${index}`}
-                                src={preview}
-                                alt={`Preview ${index + 1}`}
-                                className="h-24 w-full rounded-none object-cover"
+                        <div className="grid gap-4 md:grid-cols-2">
+                          <div>
+                            <label className="mb-1 block text-sm font-semibold text-slate-700">Phone</label>
+                            <div className="relative">
+                              <Phone className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                              <input
+                                type="tel"
+                                value={form.phone}
+                                onChange={(event) => setForm((prev) => ({ ...prev, phone: event.target.value }))}
+                                className="w-full rounded-none border border-slate-200 bg-slate-50 py-3 pl-10 pr-4 text-slate-900 outline-none focus:border-accent"
+                                placeholder="876-123-4567"
+                                required
                               />
-                            ))}
+                            </div>
+                          </div>
+                          <div>
+                            <label className="mb-1 block text-sm font-semibold text-slate-700">WhatsApp</label>
+                            <div className="relative">
+                              <MessageCircle className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                              <input
+                                type="tel"
+                                value={form.whatsapp}
+                                onChange={(event) => setForm((prev) => ({ ...prev, whatsapp: event.target.value }))}
+                                className="w-full rounded-none border border-slate-200 bg-slate-50 py-3 pl-10 pr-4 text-slate-900 outline-none focus:border-accent"
+                                placeholder="876-123-4567"
+                              />
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="grid gap-4 md:grid-cols-2">
+                          <div>
+                            <label className="mb-1 block text-sm font-semibold text-slate-700">Email</label>
+                            <div className="relative">
+                              <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                              <input
+                                type="email"
+                                value={form.email}
+                                onChange={(event) => setForm((prev) => ({ ...prev, email: event.target.value }))}
+                                className="w-full rounded-none border border-slate-200 bg-slate-50 py-3 pl-10 pr-4 text-slate-900 outline-none focus:border-accent"
+                                placeholder="you@example.com"
+                              />
+                            </div>
+                          </div>
+                          <div>
+                            <label className="mb-1 block text-sm font-semibold text-slate-700">Website</label>
+                            <div className="relative">
+                              <Globe2 className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                              <input
+                                type="url"
+                                value={form.website}
+                                onChange={(event) => setForm((prev) => ({ ...prev, website: event.target.value }))}
+                                className="w-full rounded-none border border-slate-200 bg-slate-50 py-3 pl-10 pr-4 text-slate-900 outline-none focus:border-accent"
+                                placeholder="https://yourwebsite.com"
+                              />
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="grid gap-4 md:grid-cols-2">
+                          <div>
+                            <label className="mb-1 block text-sm font-semibold text-slate-700">Contact Name</label>
+                            <input
+                              type="text"
+                              value={form.contact_name}
+                              onChange={(event) => setForm((prev) => ({ ...prev, contact_name: event.target.value }))}
+                              className="w-full rounded-none border border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 outline-none focus:border-accent"
+                              placeholder="Optional"
+                            />
+                          </div>
+                          <div>
+                            <label className="mb-1 block text-sm font-semibold text-slate-700">Location</label>
+                            <div className="relative">
+                              <MapPin className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                              <input
+                                type="text"
+                                value={form.location}
+                                onChange={(event) => setForm((prev) => ({ ...prev, location: event.target.value }))}
+                                className="w-full rounded-none border border-slate-200 bg-slate-50 py-3 pl-10 pr-4 text-slate-900 outline-none focus:border-accent"
+                                placeholder="Kingston, St. Andrew"
+                              />
+                            </div>
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="mb-1 block text-sm font-semibold text-slate-700">Upload Images</label>
+                          <label className="flex cursor-pointer flex-col items-center justify-center rounded-none border border-dashed border-slate-300 bg-slate-50 px-6 py-8 text-center transition hover:border-accent hover:bg-accent/5">
+                            <UploadCloud className="h-8 w-8 text-accent" />
+                            <span className="mt-3 text-sm font-semibold text-slate-900">Upload up to 3 images</span>
+                            <span className="mt-1 text-sm text-slate-500">PNG, JPG or WebP up to 8MB each</span>
+                            <input
+                              type="file"
+                              accept="image/png,image/jpeg,image/jpg,image/webp"
+                              multiple
+                              required
+                              onChange={(event) => {
+                                const selectedFiles = Array.from(event.target.files || []).slice(0, 3);
+                                if (selectedFiles.length === 0) return;
+
+                                const oversized = selectedFiles.find((file) => file.size > 8 * 1024 * 1024);
+                                if (oversized) {
+                                  toast.error('Each image must be 8MB or less.');
+                                  return;
+                                }
+
+                                imagePreviews.forEach((url) => URL.revokeObjectURL(url));
+                                setImageFiles(selectedFiles);
+                                setImagePreviews(selectedFiles.map((file) => URL.createObjectURL(file)));
+
+                                if ((event.target.files || []).length > 3) {
+                                  toast('Only the first 3 images were selected.');
+                                }
+                              }}
+                              className="hidden"
+                            />
+                          </label>
+                          {imagePreviews.length > 0 ? (
+                            <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                              {imagePreviews.map((preview, index) => (
+                                <div key={`${preview}-${index}`} className="relative h-24 w-full overflow-hidden rounded-none">
+                                  <Image
+                                    src={preview}
+                                    alt={`Preview ${index + 1}`}
+                                    fill
+                                    unoptimized
+                                    className="object-cover"
+                                  />
+                                </div>
+                              ))}
+                            </div>
+                          ) : null}
+                        </div>
+
+                        <div>
+                          <label className="mb-1 block text-sm font-semibold text-slate-700">Description</label>
+                          <textarea
+                            value={form.description}
+                            onChange={(event) => setForm((prev) => ({ ...prev, description: event.target.value }))}
+                            className="w-full rounded-none border border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 outline-none focus:border-accent"
+                            rows={5}
+                            placeholder="Tell buyers what you offer, your location, and what makes your business stand out."
+                            required
+                          />
+                        </div>
+
+                        {submitError ? (
+                          <div className="rounded-none border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+                            {submitError}
                           </div>
                         ) : null}
-                      </div>
 
-                      <div>
-                        <label className="mb-1 block text-sm font-semibold text-slate-700">Description</label>
-                        <textarea
-                          value={form.description}
-                          onChange={(event) => setForm((prev) => ({ ...prev, description: event.target.value }))}
-                          className="w-full rounded-none border border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 outline-none focus:border-accent"
-                          rows={5}
-                          placeholder="Tell buyers what you offer, your location, and what makes your business stand out."
-                          required
-                        />
-                      </div>
-
-                      {submitError ? (
-                        <div className="rounded-none border border-red-200 bg-red-50 p-3 text-sm text-red-700">
-                          {submitError}
-                        </div>
-                      ) : null}
-
-                      <button
-                        type="submit"
-                        disabled={submitting}
-                        className="flex w-full items-center justify-center gap-2 rounded-none bg-accent px-6 py-3.5 font-semibold text-white transition hover:bg-accent/90 disabled:bg-slate-400"
-                      >
-                        {submitting ? 'Submitting...' : `Review & Continue to Secure Payment — ${formatMoney(totalAmount)}`}
-                        {!submitting ? <ArrowRight className="h-5 w-5" /> : null}
-                      </button>
-                    </form>
+                        <button
+                          type="submit"
+                          disabled={submitting}
+                          className="flex w-full items-center justify-center gap-2 rounded-none bg-accent px-6 py-3.5 font-semibold text-white transition hover:bg-accent/90 disabled:bg-slate-400"
+                        >
+                          {submitting ? 'Submitting...' : `Review & Continue to Secure Payment — ${formatMoney(totalAmount)}`}
+                          {!submitting ? <ArrowRight className="h-5 w-5" /> : null}
+                        </button>
+                      </form>
+                    )}
                   </div>
 
                   <div className="space-y-4">
