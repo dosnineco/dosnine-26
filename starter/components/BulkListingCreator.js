@@ -1,9 +1,8 @@
 import { useState, useEffect } from 'react';
-import { supabase } from '../lib/supabase';
-import { useUser } from '@clerk/nextjs';
+import { useAuth, useUser } from '@clerk/nextjs';
 import toast from 'react-hot-toast';
 import { normalizeParish } from '../lib/normalizeParish';
-import { sanitizeText, sanitizePrice, sanitizeNumber, sanitizePhone, sanitizeArea, validateImageFile, generateSafeSlug } from '../lib/sanitize';
+import { sanitizeText, sanitizePrice, sanitizeNumber, sanitizePhone, sanitizeArea, validateImageFile } from '../lib/sanitize';
 import { Upload, X, Plus, Image as ImageIcon, MapPin, DollarSign, Home, Info } from 'lucide-react';
 
 const PARISHES = [
@@ -12,8 +11,18 @@ const PARISHES = [
   'Trelawny', 'Hanover', 'Westmoreland', 'St Mary'
 ];
 
+function fileToDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
 export default function BulkListingCreator() {
   const { user } = useUser();
+  const { getToken } = useAuth();
 
   const SectionHint = ({ message }) => (
     <span
@@ -130,43 +139,6 @@ export default function BulkListingCreator() {
     setPhotoData(photoData.filter(p => p.id !== photoId));
   };
 
-  const generateSlug = async (title) => {
-    let slug = generateSafeSlug(title);
-
-    // Check if slug exists
-    const { data } = await supabase
-      .from('properties')
-      .select('slug')
-      .eq('slug', slug)
-      .single();
-
-    if (data) {
-      slug = `${slug}-${Date.now()}`;
-    }
-
-    return slug;
-  };
-
-  const uploadPhoto = async (file, propertyId, position) => {
-    const fileExt = file.name.split('.').pop();
-    const fileName = `${propertyId}/${Date.now()}-${position}.${fileExt}`;
-
-    const { error: uploadError } = await supabase.storage
-      .from('property-images')
-      .upload(fileName, file, {
-        cacheControl: '3600',
-        upsert: false
-      });
-
-    if (uploadError) throw uploadError;
-
-    const { data: { publicUrl } } = supabase.storage
-      .from('property-images')
-      .getPublicUrl(fileName);
-
-    return publicUrl;
-  };
-
   const publishAll = async () => {
     if (!user) {
       toast.error('Must be signed in');
@@ -190,6 +162,20 @@ export default function BulkListingCreator() {
 
     if (validRows.length === 0) {
       toast.error('Add at least one listing with area, price, bedrooms, and bathrooms');
+      return;
+    }
+
+    const listingFingerprints = validRows.map((row) => [
+      sanitizeArea(row.area).trim().toLowerCase(),
+      sanitizeNumber(row.bedrooms, 0, 20),
+      sanitizeNumber(row.bathrooms, 0, 20),
+      sanitizePrice(row.price),
+      baseData.type,
+      baseData.listing_type,
+    ].join('|'));
+
+    if (new Set(listingFingerprints).size !== listingFingerprints.length) {
+      toast.error('Duplicate listings detected. Change the area, price, or room counts before publishing.');
       return;
     }
 
@@ -219,18 +205,8 @@ export default function BulkListingCreator() {
     setUploading(true);
 
     try {
-      // Get user record
-      const { data: userData } = await supabase
-        .from('users')
-        .select('id')
-        .eq('clerk_id', user.id)
-        .single();
-
-      if (!userData) {
-        throw new Error('User not found');
-      }
-
-      const ownerUuid = userData.id;
+      // Use the server API for database and storage access so browser RLS cannot reject the insert.
+      const token = await getToken();
       const createdListings = [];
 
       // Process each row
@@ -264,48 +240,42 @@ export default function BulkListingCreator() {
                          baseData.type === 'townhouse' ? 'Townhouse' : 'Property';
         
         const title = sanitizeText(`${sanitizedBedrooms} Bedroom ${typeLabel} - ${sanitizedArea}`);
-        const slug = await generateSlug(title);
-
-        // Insert property
-        const { data: property, error: propErr } = await supabase
-          .from('properties')
-          .insert([{
-            owner_id: ownerUuid,
-            slug,
-            title,
-            description,
-            parish: normalizeParish(baseData.parish),
-            town: sanitizedArea,
-            address: sanitizedArea,
-            bedrooms: sanitizedBedrooms,
-            bathrooms: sanitizedBathrooms,
-            price: sanitizedPrice,
-            currency: baseData.currency,
-            type: baseData.type,
-            status: 'available',
-            phone_number: sanitizePhone(baseData.phone_number) || null
-          }])
-          .select()
-          .single();
-
-        if (propErr) throw propErr;
-
-        // Upload photos for this listing
         const listingPhotos = photoData.filter(p => p.listingIndex === i);
-        
-        const imageUrls = [];
-        for (let j = 0; j < listingPhotos.length; j++) {
-          const url = await uploadPhoto(listingPhotos[j].file, property.id, j);
-          imageUrls.push(url);
+        const images = await Promise.all(listingPhotos.map((photo) => fileToDataUrl(photo.file)));
+        const response = await fetch('/api/properties/create', {
+          method: 'POST',
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify({
+            form: {
+              title,
+              description,
+              parish: normalizeParish(baseData.parish),
+              town: sanitizedArea,
+              address: sanitizedArea,
+              bedrooms: sanitizedBedrooms,
+              bathrooms: sanitizedBathrooms,
+              price: sanitizedPrice,
+              currency: baseData.currency,
+              type: baseData.listing_type,
+              property_type: baseData.type,
+              status: 'available',
+              phone_number: sanitizePhone(baseData.phone_number) || null,
+            },
+            images: images.map((dataUrl) => ({ dataUrl })),
+          }),
+        });
+        const payload = await response.json();
+        if (!response.ok || !payload?.success) {
+          if (response.status === 409) {
+            throw new Error('A matching property already exists. Change the area, price, or room counts before publishing.');
+          }
+          throw new Error(payload?.error || 'Failed to create property');
         }
-
-        // Update property with image URLs
-        await supabase
-          .from('properties')
-          .update({ image_urls: imageUrls })
-          .eq('id', property.id);
-
-        createdListings.push(property);
+        createdListings.push(payload);
       }
 
       toast.success(`🎉 Published ${createdListings.length} listings!`);
@@ -352,7 +322,7 @@ export default function BulkListingCreator() {
           <SectionHint message="Set defaults shared by every listing. Use the template tokens to auto-fill each row's description." />
         </h2>
         
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
           <div>
             <label className="block text-sm font-medium mb-1 text-gray-700">Property Type</label>
             <select
@@ -381,6 +351,18 @@ export default function BulkListingCreator() {
               {PARISHES.map((p) => (
                 <option key={p} value={p}>{p}</option>
               ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-1 text-gray-700">Listing type *</label>
+            <select
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-accent focus:border-transparent"
+              value={baseData.listing_type}
+              onChange={(e) => setBaseData({ ...baseData, listing_type: e.target.value })}
+            >
+              <option value="rent">Rent</option>
+              <option value="sale">Sale</option>
             </select>
           </div>
         </div>

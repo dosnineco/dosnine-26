@@ -129,6 +129,11 @@ export default async function handler(req, res) {
     }
 
     if (propertyError || !property?.id) {
+      if (propertyError?.code === '23505' || String(propertyError?.message || '').includes('unique_property_fingerprint')) {
+        return res.status(409).json({
+          error: 'A matching property already exists. Change the area, price, or room counts before publishing.',
+        });
+      }
       return res.status(500).json({ error: propertyError?.message || 'Failed to create property' });
     }
 
