@@ -13,6 +13,7 @@ export default function ParishRequestAnalytics() {
   const [underservedAreas, setUnderservedAreas] = useState([]);
   const [requestsByType, setRequestsByType] = useState({});
   const [weeklyVolume, setWeeklyVolume] = useState(0);
+  const [popularCommunities, setPopularCommunities] = useState([]);
   const [loading, setLoading] = useState(true);
 
   const jamaicaParishes = [
@@ -32,13 +33,13 @@ export default function ParishRequestAnalytics() {
       // Fetch visitor emails by parish
       const { data: visitors } = await supabase
         .from('visitor_emails')
-        .select('parish, created_at')
+        .select('parish, area, budget_min, created_at')
         .not('parish', 'is', null);
 
       // Fetch service requests with budget and location
       const { data: requests } = await supabase
         .from('service_requests')
-        .select('location, budget_min, budget_max, created_at, request_type');
+        .select('location, budget_min, budget_max, created_at, request_type, property_type');
 
       // Process visitor data
       const visitorCounts = {};
@@ -78,8 +79,37 @@ export default function ParishRequestAnalytics() {
 
       const oneWeekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
       let weeklyCount = 0;
+      const communityActivity = {};
+
+      const addCommunityRequest = (location, requestType, propertyType, budgetMin, budgetMax) => {
+        const community = String(location || '').trim();
+        if (!community || community.length < 2) return;
+
+        if (!communityActivity[community]) {
+          communityActivity[community] = {
+            community,
+            count: 0,
+            requestTypes: {},
+            propertyTypes: {},
+            budgetMin: 0,
+            budgetMax: 0,
+            budgetCount: 0,
+          };
+        }
+
+        const activity = communityActivity[community];
+        activity.count++;
+        if (requestType) activity.requestTypes[requestType] = (activity.requestTypes[requestType] || 0) + 1;
+        if (propertyType) activity.propertyTypes[propertyType] = (activity.propertyTypes[propertyType] || 0) + 1;
+        if (budgetMin || budgetMax) {
+          activity.budgetMin += Number(budgetMin || 0);
+          activity.budgetMax += Number(budgetMax || budgetMin || 0);
+          activity.budgetCount++;
+        }
+      };
 
       requests?.forEach(item => {
+        addCommunityRequest(item.location, item.request_type, item.property_type, item.budget_min, item.budget_max);
         const matchedParish = jamaicaParishes.find(p => 
           item.location?.toLowerCase().includes(p.toLowerCase())
         );
@@ -121,6 +151,23 @@ export default function ParishRequestAnalytics() {
           weeklyCount++;
         }
       });
+
+      const visitorAreas = visitors?.reduce((areas, visitor) => {
+        if (visitor.area) areas.push(visitor);
+        return areas;
+      }, []) || [];
+      visitorAreas.forEach(visitor => addCommunityRequest(visitor.area, 'property inquiry', null, visitor.budget_min, null));
+
+      const popular = Object.values(communityActivity)
+        .map(activity => ({
+          ...activity,
+          topRequestType: Object.entries(activity.requestTypes).sort((a, b) => b[1] - a[1])[0]?.[0],
+          topPropertyType: Object.entries(activity.propertyTypes).sort((a, b) => b[1] - a[1])[0]?.[0],
+          averageBudgetMin: activity.budgetCount ? Math.round(activity.budgetMin / activity.budgetCount) : 0,
+          averageBudgetMax: activity.budgetCount ? Math.round(activity.budgetMax / activity.budgetCount) : 0,
+        }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 6);
 
       // Calculate averages for price ranges
       Object.keys(priceRangesData).forEach(parish => {
@@ -171,6 +218,7 @@ export default function ParishRequestAnalytics() {
       setWeeklyVolume(weeklyCount);
       setTrendingParishes(trending);
       setUnderservedAreas(underserved);
+      setPopularCommunities(popular);
     } catch (error) {
       console.error('Error fetching analytics:', error);
     } finally {
@@ -194,6 +242,44 @@ export default function ParishRequestAnalytics() {
     if (price >= 1000000) return `JMD ${(price / 1000000).toFixed(1)}M`;
     if (price >= 1000) return `JMD ${(price / 1000).toFixed(0)}K`;
     return `JMD ${price}`;
+  };
+
+  const PopularCommunitiesCard = () => {
+    if (popularCommunities.length === 0) return null;
+
+    return (
+      <div className="bg-white rounded-lg shadow-md p-6 border-t-4 border-t-orange-500 sm:col-span-2">
+        <div className="flex items-center gap-2 mb-1">
+          <MapPin className="w-5 h-5 text-orange-600" />
+          <h3 className="text-lg font-bold text-gray-900">Popular Communities Seeking Property</h3>
+        </div>
+        <p className="text-sm text-gray-600 mb-4">Locations with the most active buyer, renter, and property inquiries.</p>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+          {popularCommunities.map((community, index) => (
+            <div key={community.community} className="p-4 bg-orange-50 rounded-lg">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-xs font-bold text-orange-700">#{index + 1} COMMUNITY</p>
+                  <p className="font-bold text-gray-900 mt-1">{community.community}</p>
+                </div>
+                <span className="text-sm font-bold text-orange-700 whitespace-nowrap">
+                  {community.count} {community.count === 1 ? 'request' : 'requests'}
+                </span>
+              </div>
+              <p className="text-sm text-gray-700 mt-3">
+                Seeking {community.topPropertyType || 'property'} for {community.topRequestType || 'inquiries'}
+              </p>
+              {community.averageBudgetMin > 0 && (
+                <p className="text-xs text-gray-600 mt-1">
+                  Average budget: {formatPrice(community.averageBudgetMin)} - {formatPrice(community.averageBudgetMax)}
+                </p>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+    );
   };
 
   const BarGraph = ({ data, percentages, title, icon: Icon, color }) => {
@@ -651,6 +737,8 @@ export default function ParishRequestAnalytics() {
 
         {/* Graphs Grid - responsive: 2 columns on small+ screens, stacked on mobile */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-6">
+              <PopularCommunitiesCard />
+
         <BarGraph
           data={visitorData}
           percentages={visitorPercentages}
