@@ -1,6 +1,6 @@
 import Head from 'next/head';
 import Seo from '../../components/Seo';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/router';
 import toast from 'react-hot-toast';
 import { useUser } from '@clerk/nextjs';
@@ -63,6 +63,7 @@ export default function PropertyPage({ property, similarProperties, isVerifiedAg
   const [isOwner, setIsOwner] = useState(false);
   const [showRequestForm, setShowRequestForm] = useState(false);
   const [fullscreenIndex, setFullscreenIndex] = useState(null);
+  const touchStartRef = useRef({ x: 0, y: 0 });
 
   // Support both image_urls array and property_images table
   const imageUrls = property.image_urls || [];
@@ -141,6 +142,32 @@ export default function PropertyPage({ property, similarProperties, isVerifiedAg
 
   const handleNextImage = () => {
     setCurrentImageIndex((i) => (i === allImages.length - 1 ? 0 : i + 1));
+  };
+
+  const handleTouchStart = (event) => {
+    if (typeof window !== 'undefined' && window.innerWidth >= 768) return;
+    const touch = event.touches[0];
+    touchStartRef.current = { x: touch.clientX, y: touch.clientY };
+  };
+
+  const handleTouchEnd = (event) => {
+    if (typeof window !== 'undefined' && window.innerWidth >= 768) return;
+
+    if (!event.changedTouches || !event.changedTouches[0]) return;
+
+    const touch = event.changedTouches[0];
+    const deltaX = touch.clientX - touchStartRef.current.x;
+    const deltaY = touch.clientY - touchStartRef.current.y;
+
+    if (Math.abs(deltaX) > 50 && Math.abs(deltaX) > Math.abs(deltaY)) {
+      if (deltaX < 0) {
+        handleNextImage();
+      } else {
+        handlePrevImage();
+      }
+    }
+
+    touchStartRef.current = { x: 0, y: 0 };
   };
 
   const handleShare = async () => {
@@ -470,7 +497,11 @@ export default function PropertyPage({ property, similarProperties, isVerifiedAg
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Images Section */}
           <div className="lg:col-span-2">
-            <div className="relative bg-gray-200 rounded-xl overflow-hidden mb-4">
+            <div
+              className="relative bg-gray-200 rounded-xl overflow-hidden mb-4"
+              onTouchStart={handleTouchStart}
+              onTouchEnd={handleTouchEnd}
+            >
               <img 
                 src={currentImage} 
                 alt={property.title} 
@@ -816,6 +847,8 @@ export default function PropertyPage({ property, similarProperties, isVerifiedAg
         <div 
           className="fixed inset-0 z-50 bg-black/95 flex flex-col items-center justify-center"
           onClick={() => setFullscreenIndex(null)}
+          onTouchStart={handleTouchStart}
+          onTouchEnd={handleTouchEnd}
         >
           {/* Close button */}
           <button

@@ -32,19 +32,42 @@ export default async function handler(req, res) {
 
   try {
     const db = supabase;
-    const {
-      parish = '',
-      minPrice = '',
-      maxPrice = '',
-      bedrooms = '',
-      location = '',
-      page = '1',
-      perPage = '20',
-      slugText = '',
-    } = req.query;
+    const rawParish = String(req.query.parish || '').trim();
+    const rawMinPrice = String(req.query.minPrice || '').trim();
+    const rawMaxPrice = String(req.query.maxPrice || '').trim();
+    const rawBedrooms = String(req.query.bedrooms || '').trim();
+    const rawLocation = String(req.query.location || '').trim();
+    const rawPage = String(req.query.page || '1').trim();
+    const rawPerPage = String(req.query.perPage || '20').trim();
+    const rawSlugText = String(req.query.slugText || '').trim();
 
-    const pageNumber = Math.max(Number(page) || 1, 1);
-    const pageSize = Math.min(Math.max(Number(perPage) || 20, 1), 50);
+    const parish = rawParish.replace(/[^a-zA-Z0-9\s&-]/g, '').slice(0, 60);
+    const location = rawLocation.replace(/[^a-zA-Z0-9\s,.-]/g, '').slice(0, 100);
+    const slugText = rawSlugText.replace(/[^a-zA-Z0-9\s-]/gi, ' ').slice(0, 200);
+    const minPrice = Number(rawMinPrice) || '';
+    const maxPrice = Number(rawMaxPrice) || '';
+    const bedrooms = Number(rawBedrooms) || '';
+    const page = Number(rawPage) || 1;
+    const perPage = Number(rawPerPage) || 20;
+
+    const pageNumber = Math.min(Math.max(page, 1), 200);
+    const pageSize = Math.min(Math.max(perPage, 1), 50);
+
+    const {
+      parish: parishFilter = '',
+      minPrice: minPriceFilter = '',
+      maxPrice: maxPriceFilter = '',
+      bedrooms: bedroomsFilter = '',
+      location: locationFilter = '',
+      slugText: slugToken = '',
+    } = {
+      parish: parish,
+      minPrice: minPrice,
+      maxPrice: maxPrice,
+      bedrooms: bedrooms,
+      location: location,
+      slugText: slugText,
+    };
 
     let query = db
       .from('properties')
@@ -52,24 +75,26 @@ export default async function handler(req, res) {
       .order('is_featured', { ascending: false })
       .order('created_at', { ascending: false });
 
-    const normalizedParish = normalizeParish(String(parish || ''));
+    const normalizedParish = normalizeParish(String(parishFilter || ''));
     if (normalizedParish) query = query.eq('parish', normalizedParish);
 
-    const min = minPrice !== '' ? Number(minPrice) : null;
-    const max = maxPrice !== '' ? Number(maxPrice) : null;
-    const beds = bedrooms !== '' ? Number(bedrooms) : null;
+    const min = minPriceFilter !== '' ? Number(minPriceFilter) : null;
+    const max = maxPriceFilter !== '' ? Number(maxPriceFilter) : null;
+    const beds = bedroomsFilter !== '' ? Number(bedroomsFilter) : null;
 
     if (min !== null && !Number.isNaN(min)) query = query.gte('price', min);
     if (max !== null && !Number.isNaN(max)) query = query.lte('price', max);
     if (beds !== null && !Number.isNaN(beds)) query = query.eq('bedrooms', beds);
 
-    const trimmedLocation = String(location || '').trim();
+    const trimmedLocation = String(locationFilter || '').trim();
     if (trimmedLocation && !normalizedParish) {
       const searchTerm = `%${trimmedLocation}%`;
-      query = query.or(`town.ilike.${searchTerm},address.ilike.${searchTerm},parish.ilike.${searchTerm}`);
+      query = query.or(
+        `town.ilike.${searchTerm},address.ilike.${searchTerm},parish.ilike.${searchTerm},formatted_address.ilike.${searchTerm},title.ilike.${searchTerm},description.ilike.${searchTerm}`
+      );
     }
 
-    const tokenSource = String(slugText || '').toLowerCase().trim();
+    const tokenSource = String(slugToken || '').toLowerCase().trim();
     if (tokenSource) {
       const tokens = tokenSource
         .replace(/_/g, '-')

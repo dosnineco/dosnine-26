@@ -32,11 +32,7 @@ const plans = [
     duration: '7 Days',
     price: 11999,
     badge: 'Most Popular',
-    highlight: 'Generate steady enquiries.',
-    bestFor: 'Growing local businesses',
-    visibility: 'Broad property audience reach',
     accent: 'from-accent/20 to-violet-500/10',
-    features: ['Business profile', 'Image gallery', 'Phone number', 'WhatsApp contact', 'Website link', 'Category placement'],
     popular: true,
   },
   {
@@ -45,11 +41,7 @@ const plans = [
     duration: '14 Days',
     price: 17999,
     badge: 'Professional',
-    highlight: 'Ideal for growing businesses.',
-    bestFor: 'Brands ready to scale',
-    visibility: 'Priority visibility in key categories',
     accent: 'from-cyan-500/15 to-blue-500/10',
-    features: ['Business profile', 'Image gallery', 'Phone number', 'WhatsApp contact', 'Website link', 'Category placement', 'Description', 'Featured badge'],
   },
   {
     id: '30-day',
@@ -57,11 +49,7 @@ const plans = [
     duration: '30 Days',
     price: 52499,
     badge: 'Elite',
-    highlight: 'Maximum visibility with newsletter inclusion.',
-    bestFor: 'High-value service brands',
-    visibility: 'Premium placement + newsletter inclusion',
     accent: 'from-emerald-500/15 to-teal-500/10',
-    features: ['Business profile', 'Image gallery', 'Phone number', 'WhatsApp contact', 'Website link', 'Category placement', 'Description', 'Featured badge', 'Priority placement', 'Email newsletter'],
   },
 ];
 
@@ -162,52 +150,91 @@ const faqs = [
 
 const formatMoney = (value) => `J$${Number(value || 0).toLocaleString()}`;
 
-const compressImageToWebP = (file, maxWidth = 1600, quality = 0.82) =>
-  new Promise((resolve, reject) => {
-    const image = new Image();
+const MAX_IMAGE_SIZE_KB = 250;
+
+const cropAndCompressAdImage = async (file, outputSize = 1200, maxBytes = MAX_IMAGE_SIZE_KB * 1024) => {
+  const image = await new Promise((resolve, reject) => {
     const objectUrl = URL.createObjectURL(file);
+    const img = new Image();
 
-    image.onload = () => {
-      const canvas = document.createElement('canvas');
-      const ratio = image.width > maxWidth ? maxWidth / image.width : 1;
-      canvas.width = Math.round(image.width * ratio);
-      canvas.height = Math.round(image.height * ratio);
-
-      const context = canvas.getContext('2d');
-      if (!context) {
-        URL.revokeObjectURL(objectUrl);
-        reject(new Error('Unable to process image.'));
-        return;
-      }
-
-      context.drawImage(image, 0, 0, canvas.width, canvas.height);
-      canvas.toBlob(
-        (blob) => {
-          URL.revokeObjectURL(objectUrl);
-          if (!blob) {
-            reject(new Error('Image compression failed.'));
-            return;
-          }
-
-          const compressedFile = new File(
-            [blob],
-            `${(file.name || 'ad-image').replace(/\.[^.]+$/, '')}.webp`,
-            { type: 'image/webp' }
-          );
-          resolve(compressedFile);
-        },
-        'image/webp',
-        quality
-      );
+    img.onload = () => {
+      URL.revokeObjectURL(objectUrl);
+      resolve(img);
     };
 
-    image.onerror = () => {
+    img.onerror = () => {
       URL.revokeObjectURL(objectUrl);
       reject(new Error('Invalid image file.'));
     };
 
-    image.src = objectUrl;
+    img.src = objectUrl;
   });
+
+  const cropSize = Math.min(image.width, image.height);
+  const startX = (image.width - cropSize) / 2;
+  const startY = (image.height - cropSize) / 2;
+
+  const canvas = document.createElement('canvas');
+  canvas.width = outputSize;
+  canvas.height = outputSize;
+
+  const context = canvas.getContext('2d');
+  if (!context) {
+    throw new Error('Unable to process image.');
+  }
+
+  context.fillStyle = '#f8fafc';
+  context.fillRect(0, 0, outputSize, outputSize);
+  context.drawImage(image, startX, startY, cropSize, cropSize, 0, 0, outputSize, outputSize);
+
+  const blobToFile = (blob) =>
+    new File(
+      [blob],
+      `${(file.name || 'ad-image').replace(/\.[^.]+$/, '')}.webp`,
+      { type: 'image/webp' }
+    );
+
+  let quality = 0.82;
+  let outputBlob = null;
+
+  for (let attempt = 0; attempt < 6; attempt += 1) {
+    outputBlob = await new Promise((resolve, reject) => {
+      canvas.toBlob(
+        (blob) => {
+          if (!blob) {
+            reject(new Error('Image compression failed.'));
+            return;
+          }
+          resolve(blob);
+        },
+        'image/webp',
+        quality
+      );
+    });
+
+    if (outputBlob.size <= maxBytes || quality <= 0.38) break;
+    quality -= 0.12;
+  }
+
+  return blobToFile(outputBlob || new Blob([], { type: 'image/webp' }));
+};
+
+const compressImageFiles = async (files) => {
+  const compressedFiles = [];
+
+  for (const file of files) {
+    if (!file) continue;
+    try {
+      const compressed = await cropAndCompressAdImage(file);
+      compressedFiles.push(compressed);
+    } catch (error) {
+      console.error('Image compression failed:', error);
+      compressedFiles.push(file);
+    }
+  }
+
+  return compressedFiles;
+};
 
 function SectionHeading({ eyebrow, title, subtitle }) {
   return (
@@ -233,6 +260,7 @@ export default function AdvertisePage() {
   const { getToken } = useAuth();
   const [step, setStep] = useState(1);
   const [submitting, setSubmitting] = useState(false);
+  const [saveStatus, setSaveStatus] = useState('');
   const [copied, setCopied] = useState('');
   const [submissionId, setSubmissionId] = useState('');
   const [submitError, setSubmitError] = useState('');
@@ -309,6 +337,19 @@ export default function AdvertisePage() {
 
     setSubmitError('');
 
+    const missingFields = [];
+    if (!String(form.company_name || '').trim()) missingFields.push('Business name');
+    if (!String(form.phone || '').trim()) missingFields.push('Phone');
+    if (!String(form.description || '').trim()) missingFields.push('Description');
+    if (!String(form.location || '').trim()) missingFields.push('Location');
+
+    if (missingFields.length > 0) {
+      const message = `Please complete the missing field(s): ${missingFields.join(', ')}`;
+      setSubmitError(message);
+      toast.error(message);
+      return;
+    }
+
     if (imageFiles.length === 0) {
       const message = 'Please upload at least 1 ad image before continuing.';
       setSubmitError(message);
@@ -316,19 +357,26 @@ export default function AdvertisePage() {
       return;
     }
 
+    setSaveStatus('Saving your ad details...');
     setSubmitting(true);
 
     try {
+      const toastId = toast.loading('Cropping to square and storing images…');
+      setSaveStatus('Processing and saving images...');
+      const compressedFiles = await compressImageFiles(imageFiles);
+      toast.dismiss(toastId);
+
       const uploadedImageUrls = [];
 
-      for (const file of imageFiles) {
-        const compressedImage = await compressImageToWebP(file);
+      setSaveStatus('Uploading images...');
+
+      for (const file of compressedFiles) {
         const uploadResponse = await fetch('/api/sponsors/upload-images', {
           method: 'POST',
           headers: {
-            'Content-Type': compressedImage.type || 'image/webp',
+            'Content-Type': file.type || 'image/webp',
           },
-          body: compressedImage,
+          body: file,
         });
 
         const uploadPayload = await uploadResponse.json();
@@ -342,6 +390,8 @@ export default function AdvertisePage() {
 
         uploadedImageUrls.push(uploadPayload.image_url);
       }
+
+      setSaveStatus('Saving your ad request...');
 
       const submissionPayload = {
         ...form,
@@ -373,12 +423,14 @@ export default function AdvertisePage() {
       }
 
       setSubmissionId(payload.id || '');
+      setSaveStatus('Saved. Preparing payment step...');
       setStep(2);
       window.scrollTo({ top: 0, behavior: 'smooth' });
       toast.success('Ad request submitted. Complete payment to activate.');
     } catch (error) {
       const message = error?.message || 'Unable to submit ad request.';
       setSubmitError(message);
+      setSaveStatus('');
       toast.error(message);
     } finally {
       setSubmitting(false);
@@ -520,104 +572,50 @@ export default function AdvertisePage() {
             </div>
           ) : (
             <>
-              <header className="rounded-none border border-slate-200 bg-white p-6 shadow-[0_30px_80px_-30px_rgba(15,23,42,0.35)] sm:p-8 lg:p-14">
-                <div className="grid gap-8 lg:grid-cols-[1.1fr_0.9fr] lg:items-center">
-                  <div>
-                    <p className="text-sm font-semibold uppercase tracking-[0.24em] text-accent">Advertise on Dosnine Properties</p>
-                    <h1 className="mt-4 text-3xl font-semibold tracking-tight text-slate-900 sm:text-4xl lg:text-5xl">
-                      Reach serious buyers and renters in Jamaica
-                    </h1>
-                    <p className="mt-4 max-w-2xl text-base leading-7 text-slate-600 sm:text-lg">
-                      Premium placement for service businesses that want qualified leads, faster visibility, and a stronger local reputation.
-                    </p>
-                    <div className="mt-7 flex flex-col gap-3 sm:flex-row">
-                      <a
-                        href="#advertise-form"
-                        className="inline-flex items-center justify-center gap-2 rounded-none bg-accent px-6 py-3.5 font-semibold text-white transition hover:bg-accent/90"
-                      >
-                        Start advertising today
-                        <ArrowRight className="h-5 w-5" />
-                      </a>
-                      <a
-                        href="#plans"
-                        className="inline-flex items-center justify-center rounded-none border border-slate-200 bg-white px-6 py-3.5 font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
-                      >
-                        View ad plans
-                      </a>
-                    </div>
-                    <div className="mt-6 flex flex-wrap gap-2 sm:gap-3">
-                      {trustBadges.map((badge) => {
-                        const Icon = badge.icon;
-                        return <TrustPill key={badge.title} icon={Icon} title={badge.title} />;
-                      })}
-                    </div>
-                  </div>
-
-                  <div className="rounded-none border border-slate-200 bg-slate-50 p-5 shadow-inner sm:p-6">
-                    <div className="rounded-none border border-slate-200 bg-white p-6">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="text-sm font-semibold text-slate-500">Premium placement</p>
-                          <p className="mt-1 text-2xl font-semibold text-slate-900">Trusted by growing service brands</p>
-                        </div>
-                        <div className="rounded-none bg-accent/10 p-3 text-accent">
-                          <Sparkles className="h-6 w-6" />
-                        </div>
-                      </div>
-                      <div className="mt-6 grid gap-3 sm:grid-cols-2">
-                        {metrics.map((metric, index) => (
-                          <div
-                            key={metric.label}
-                            className="rounded-none border border-slate-200 bg-slate-50 p-4"
-                          >
-                            <p className="text-2xl font-semibold text-slate-900">{metric.value}</p>
-                            <p className="mt-1 text-sm text-slate-600">{metric.label}</p>
-                          </div>
-                        ))}
-                      </div>
-                      <div className="mt-6 rounded-none border border-accent/20 bg-accent/5 p-4 text-sm text-slate-700">
-                        <p className="font-semibold text-slate-900">Why it works</p>
-                        <p className="mt-2">Your ad is seen by property-minded customers who are already looking for the services you offer.</p>
-                      </div>
-                    </div>
+              <header className="rounded-none border border-slate-200 bg-white p-6 shadow-[0_30px_80px_-30px_rgba(15,23,42,0.35)] sm:p-8">
+                <div className="max-w-3xl">
+                  <p className="text-sm font-semibold uppercase tracking-[0.24em] text-accent">Advertise on Dosnine Properties</p>
+                  <h1 className="mt-4 text-3xl font-semibold tracking-tight text-slate-900 sm:text-4xl">
+                    Reach serious buyers and renters in Jamaica
+                  </h1>
+                  <p className="mt-4 max-w-2xl text-base leading-7 text-slate-600 sm:text-lg">
+                    Premium placement for service businesses that want qualified leads, faster visibility, and a stronger local reputation.
+                  </p>
+                  <div className="mt-7 flex flex-col gap-3 sm:flex-row">
+                    <a
+                      href="#advertise-form"
+                      className="inline-flex items-center justify-center gap-2 rounded-none bg-accent px-6 py-3.5 font-semibold text-white transition hover:bg-accent/90"
+                    >
+                      Start advertising today
+                      <ArrowRight className="h-5 w-5" />
+                    </a>
+                    <a
+                      href="#plans"
+                      className="inline-flex items-center justify-center rounded-none border border-slate-200 bg-white px-6 py-3.5 font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
+                    >
+                      View ad plans
+                    </a>
                   </div>
                 </div>
               </header>
 
               <section className="rounded-none border border-slate-200 bg-white p-6 shadow-[0_20px_60px_-35px_rgba(15,23,42,0.35)] sm:p-8 lg:p-10">
-                <SectionHeading
-                  eyebrow="Why advertise"
-                  title="A clearer path to new customers"
-                  subtitle="Reach people who are already looking for the services you provide."
-                />
-                <div className="mt-8 divide-y divide-slate-200 border-y border-slate-200">
-                  {reasons.map((reason) => {
-                    const Icon = reason.icon;
-                    return (
-                      <div
-                        key={reason.title}
-                        className="flex items-start gap-4 py-5 sm:gap-6"
-                      >
-                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-none bg-accent/10 text-accent">
-                          <Icon className="h-5 w-5" aria-hidden="true" />
-                        </div>
-                        <div>
-                          <h3 className="text-lg font-semibold text-slate-900">{reason.title}</h3>
-                          <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-600">{reason.description}</p>
-                        </div>
-                      </div>
-                    );
-                  })}
+                <div className="grid gap-4 md:grid-cols-3">
+                  {[
+                    'Premium listing placement',
+                    'Direct WhatsApp and phone enquiries',
+                    'Fast review and approval',
+                  ].map((item) => (
+                    <div key={item} className="rounded-none border border-slate-200 bg-slate-50 p-4 text-sm font-medium text-slate-700">
+                      <span className="inline-flex items-center gap-2"><CheckCircle2 className="h-4 w-4 text-accent" />{item}</span>
+                    </div>
+                  ))}
                 </div>
               </section>
 
               <section id="plans" className="rounded-none border border-slate-200 bg-white p-6 shadow-[0_20px_60px_-35px_rgba(15,23,42,0.35)] sm:p-8 lg:p-10">
-                <SectionHeading
-                  eyebrow="Advertising plans"
-                  title="Choose the plan that matches your growth stage"
-                  subtitle="Pick a package that fits your budget, timeline, and visibility goals."
-                />
-                <div className="mt-8 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+                <p className="text-center text-sm font-medium text-slate-600">Your ad is shown across the Dosnine Properties website to daily viewers.</p>
+                <div className="mt-6 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
                   {plans.map((plan) => {
                     const selected = form.plan_id === plan.id;
                     return (
@@ -640,7 +638,6 @@ export default function AdvertisePage() {
                           <p className={`text-xs font-semibold uppercase tracking-[0.24em] ${selected ? 'text-white/80' : 'text-accent'}`}>{plan.badge}</p>
                           <h3 className={`mt-2 text-xl font-semibold sm:text-2xl ${selected ? 'text-white' : 'text-slate-900'}`}>{plan.name}</h3>
                         </div>
-                        <p className={`mt-4 text-sm leading-7 ${selected ? 'text-white/85' : 'text-slate-600'}`}>{plan.highlight}</p>
                         <div className="mt-5 flex items-end justify-between gap-3">
                           <div>
                             <p className={`text-sm ${selected ? 'text-white/80' : 'text-slate-500'}`}>Duration</p>
@@ -651,20 +648,7 @@ export default function AdvertisePage() {
                             <p className={`text-xl font-semibold ${selected ? 'text-white' : 'text-slate-900'}`}>{formatMoney(plan.price)}</p>
                           </div>
                         </div>
-                        <div className="mt-5 rounded-none border border-white/20 bg-white/10 p-4">
-                          <p className={`text-sm font-semibold ${selected ? 'text-white' : 'text-slate-700'}`}>Best for</p>
-                          <p className={`mt-1 text-sm ${selected ? 'text-white/85' : 'text-slate-600'}`}>{plan.bestFor}</p>
-                        </div>
-                        <div className="mt-5 flex-1 space-y-3">
-                          {plan.features.map((feature) => (
-                            <div key={feature} className="flex items-start gap-2 text-sm">
-                              <CheckCircle2 className={`mt-0.5 h-4 w-4 shrink-0 ${selected ? 'text-white' : 'text-accent'}`} />
-                              <span className={selected ? 'text-white/85' : 'text-slate-700'}>{feature}</span>
-                            </div>
-                          ))}
-                        </div>
-                        <div className="mt-6 flex items-center justify-between gap-3 text-sm">
-                          <span className={selected ? 'text-white/80' : 'text-slate-500'}>{plan.visibility}</span>
+                        <div className="mt-6 flex items-center justify-end gap-3 text-sm">
                           <span className={`font-semibold ${selected ? 'text-white' : 'text-accent'}`}>Choose plan</span>
                         </div>
                       </button>
@@ -711,7 +695,7 @@ export default function AdvertisePage() {
                       </div>
                     ) : (
                       <form onSubmit={onSubmit} className="mt-8 space-y-4">
-                        <div className="grid gap-4 md:grid-cols-2">
+                        <div className="grid gap-4 md:grid-cols-1">
                           <div>
                             <label className="mb-1 block text-sm font-semibold text-slate-700">Business Name</label>
                             <input
@@ -720,16 +704,6 @@ export default function AdvertisePage() {
                               onChange={(event) => setForm((prev) => ({ ...prev, company_name: event.target.value }))}
                               className="w-full rounded-none border border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 outline-none focus:border-accent"
                               required
-                            />
-                          </div>
-                          <div>
-                            <label className="mb-1 block text-sm font-semibold text-slate-700">Business Logo</label>
-                            <input
-                              type="text"
-                              value={form.business_logo}
-                              onChange={(event) => setForm((prev) => ({ ...prev, business_logo: event.target.value }))}
-                              className="w-full rounded-none border border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 outline-none focus:border-accent"
-                              placeholder="https://yourwebsite.com/logo.png"
                             />
                           </div>
                         </div>
@@ -857,7 +831,7 @@ export default function AdvertisePage() {
                               accept="image/png,image/jpeg,image/jpg,image/webp"
                               multiple
                               required
-                              onChange={(event) => {
+                              onChange={async (event) => {
                                 const selectedFiles = Array.from(event.target.files || []).slice(0, 3);
                                 if (selectedFiles.length === 0) return;
 
@@ -867,9 +841,18 @@ export default function AdvertisePage() {
                                   return;
                                 }
 
-                                imagePreviews.forEach((url) => URL.revokeObjectURL(url));
-                                setImageFiles(selectedFiles);
-                                setImagePreviews(selectedFiles.map((file) => URL.createObjectURL(file)));
+                                const loadingId = toast.loading('Cropping to square and compressing images…');
+                                try {
+                                  const compressedFiles = await compressImageFiles(selectedFiles);
+                                  imagePreviews.forEach((url) => URL.revokeObjectURL(url));
+                                  setImageFiles(compressedFiles);
+                                  setImagePreviews(compressedFiles.map((file) => URL.createObjectURL(file)));
+                                  toast.dismiss(loadingId);
+                                  toast.success('Images cropped to square and ready to store.');
+                                } catch (error) {
+                                  toast.dismiss(loadingId);
+                                  toast.error(error?.message || 'Unable to process images.');
+                                }
 
                                 if ((event.target.files || []).length > 3) {
                                   toast('Only the first 3 images were selected.');
@@ -881,7 +864,7 @@ export default function AdvertisePage() {
                           {imagePreviews.length > 0 ? (
                             <div className="mt-4 grid gap-3 sm:grid-cols-3">
                               {imagePreviews.map((preview, index) => (
-                                <div key={`${preview}-${index}`} className="relative h-24 w-full overflow-hidden rounded-none">
+                                <div key={`${preview}-${index}`} className="relative aspect-square w-full overflow-hidden rounded-none border border-slate-200 bg-slate-100">
                                   <Image
                                     src={preview}
                                     alt={`Preview ${index + 1}`}
@@ -913,82 +896,30 @@ export default function AdvertisePage() {
                           </div>
                         ) : null}
 
+                        {submitting ? (
+                          <div className="rounded-none border border-accent/20 bg-accent/5 p-3 text-sm text-slate-700">
+                            <div className="flex items-center gap-3">
+                              <span className="h-4 w-4 animate-spin rounded-full border-2 border-accent border-t-transparent" />
+                              <span>{saveStatus || 'Saving your ad request...'}</span>
+                            </div>
+                          </div>
+                        ) : null}
+
                         <button
                           type="submit"
                           disabled={submitting}
-                          className="flex w-full items-center justify-center gap-2 rounded-none bg-accent px-6 py-3.5 font-semibold text-white transition hover:bg-accent/90 disabled:bg-slate-400"
+                          className="flex w-full items-center justify-center gap-2 rounded-none bg-accent px-6 py-4 text-base font-bold text-white transition hover:bg-accent/90 disabled:bg-slate-400"
                         >
-                          {submitting ? 'Submitting...' : `Review & Continue to Secure Payment — ${formatMoney(totalAmount)}`}
+                          {submitting ? (saveStatus || 'Saving...') : `Pay ${formatMoney(totalAmount)}`}
                           {!submitting ? <ArrowRight className="h-5 w-5" /> : null}
                         </button>
                       </form>
                     )}
                   </div>
 
-                  <div className="space-y-4">
-                    <div className="rounded-none border border-slate-200 bg-slate-50 p-5">
-                      <p className="text-sm font-semibold uppercase tracking-[0.24em] text-accent">Your order</p>
-                      <div className="mt-4 rounded-none border border-slate-200 bg-white p-4">
-                        <div className="flex items-center justify-between gap-3">
-                          <div>
-                            <p className="font-semibold text-slate-900">{selectedPlan.name}</p>
-                            <p className="text-sm text-slate-600">{selectedPlan.duration}</p>
-                          </div>
-                          <p className="text-lg font-semibold text-slate-900">{formatMoney(selectedPlan.price)}</p>
-                        </div>
-                        <div className="mt-4 border-t border-slate-200 pt-4">
-                          <div className="flex items-center justify-between gap-3">
-                            <p className="font-semibold text-slate-900">Estimated total</p>
-                            <p className="text-xl font-semibold text-accent">{formatMoney(totalAmount)}</p>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="mt-4 rounded-none border border-slate-200 bg-white p-4 text-sm text-slate-600">
-                        <p className="font-semibold text-slate-900">What you get</p>
-                        <ul className="mt-3 space-y-2">
-                          <li className="flex items-center gap-2"><CheckCircle2 className="h-4 w-4 text-accent" /> Premium listing placement</li>
-                          <li className="flex items-center gap-2"><CheckCircle2 className="h-4 w-4 text-accent" /> Direct lead delivery</li>
-                          <li className="flex items-center gap-2"><CheckCircle2 className="h-4 w-4 text-accent" /> Fast review and approval</li>
-                        </ul>
-                      </div>
-                    </div>
-
-                    <div className="rounded-none border border-slate-200 bg-white p-5">
-                      <p className="text-sm font-semibold uppercase tracking-[0.24em] text-accent">Why businesses choose us</p>
-                      <div className="mt-4 space-y-3">
-                        <div className="flex items-start gap-2 text-sm text-slate-600">
-                          <CheckCircle2 className="mt-1 h-4 w-4 shrink-0 text-accent" />
-                          <span>Premium property audience with real buying intent.</span>
-                        </div>
-                        <div className="flex items-start gap-2 text-sm text-slate-600">
-                          <CheckCircle2 className="mt-1 h-4 w-4 shrink-0 text-accent" />
-                          <span>Fast support on WhatsApp and email from our team.</span>
-                        </div>
-                        <div className="flex items-start gap-2 text-sm text-slate-600">
-                          <CheckCircle2 className="mt-1 h-4 w-4 shrink-0 text-accent" />
-                          <span>No hidden fees. Just a clear, predictable investment.</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
                 </div>
               </section>
 
-              <section className="rounded-none border border-slate-200 bg-white p-8 shadow-[0_20px_60px_-35px_rgba(15,23,42,0.35)] sm:p-10">
-                <SectionHeading
-                  eyebrow="Frequently asked questions"
-                  title="Everything you need to know before you book"
-                  subtitle="Clear answers reduce friction and remove uncertainty."
-                />
-                <div className="mt-8 space-y-3">
-                  {faqs.map((faq) => (
-                    <details key={faq.question} className="rounded-none border border-slate-200 bg-slate-50 p-4">
-                      <summary className="cursor-pointer list-none font-semibold text-slate-900">{faq.question}</summary>
-                      <p className="mt-3 text-sm leading-7 text-slate-600">{faq.answer}</p>
-                    </details>
-                  ))}
-                </div>
-              </section>
             </>
           )}
         </div>

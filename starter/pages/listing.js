@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, lazy, Suspense, Fragment } from 'react';
+import { useEffect, useState, useRef, useCallback, lazy, Suspense, Fragment } from 'react';
 const PropertyCard = lazy(() => import('../components/PropertyCard'));
 const InFeedAd = lazy(() => import('../components/InFeedAd'));
 import Seo from '../components/Seo';
@@ -11,6 +11,169 @@ import { PARISHES, normalizeParish } from '../lib/normalizeParish';
 import VisitorEmailPopup from '@/components/VisitorEmailPopup';
 import BecomeAgentBanner from '../components/BecomeAgentBanner';
 const PROPERTIES_PER_PAGE = 30;
+
+const PARISH_ALIAS_LOOKUP = {
+  'st andrew': 'St Andrew',
+  'st catherine': 'St Catherine',
+  'st james': 'St James',
+  'st mary': 'St Mary',
+  'st ann': 'St Ann',
+  'st thomas': 'St Thomas',
+  'st elizabeth': 'St Elizabeth',
+  'kingston': 'Kingston',
+  'portland': 'Portland',
+  'clarendon': 'Clarendon',
+  'manchester': 'Manchester',
+  'trelawny': 'Trelawny',
+  'hanover': 'Hanover',
+  'westmoreland': 'Westmoreland',
+};
+
+const LOCATION_HINTS = [
+  'kingston 6',
+  'half way tree',
+  'hwt',
+  'greater portmore',
+  'portmore',
+  'braeton',
+  'spanish town',
+  'montego bay',
+  'mobay',
+  'ocho rios',
+  'ochi',
+  'mandeville',
+  'may pen',
+  'negril',
+  'old harbour',
+  'morant bay',
+  'falmouth',
+  'port antonio',
+  'savanna-la-mar',
+  'linstead',
+  'brownstown',
+];
+
+function convertPrice(value, suffix = '') {
+  const numericValue = Number(String(value || '').replace(/,/g, '').trim());
+  if (!Number.isFinite(numericValue)) return '';
+
+  const normalizedSuffix = String(suffix || '').toLowerCase();
+  let total = numericValue;
+
+  if (normalizedSuffix === 'k') total *= 1000;
+  if (normalizedSuffix === 'm' || normalizedSuffix === 'million') total *= 1000000;
+
+  return String(Math.round(total));
+}
+
+function parseSearchQuery(query) {
+  const text = String(query || '').toLowerCase().trim();
+  const result = { location: '', parish: '', bedrooms: '', minPrice: '', maxPrice: '' };
+
+  if (!text) return result;
+
+  const bedroomMap = {
+    one: '1',
+    two: '2',
+    three: '3',
+    four: '4',
+    five: '5',
+    six: '6',
+    seven: '7',
+    eight: '8',
+    nine: '9',
+    ten: '10',
+  };
+
+  const explicitBedroomMatch = text.match(/(\d+)\s*(?:bed|beds|bedroom|bedrooms)/i);
+  if (explicitBedroomMatch) {
+    result.bedrooms = explicitBedroomMatch[1];
+  }
+
+  if (!result.bedrooms) {
+    const wordBedroomMatch = text.match(/(one|two|three|four|five|six|seven|eight|nine|ten)\s*(?:bed|beds|bedroom|bedrooms)/i);
+    if (wordBedroomMatch) {
+      result.bedrooms = bedroomMap[wordBedroomMatch[1].toLowerCase()] || '';
+    }
+  }
+
+  const rangeMatch = text.match(/(?:between|from)\s*([\d,]+(?:\.\d+)?)\s*(k|m|million)?\s*(?:and|to|-|–)\s*([\d,]+(?:\.\d+)?)\s*(k|m|million)?/i)
+    || text.match(/([\d,]+(?:\.\d+)?)\s*(k|m|million)?\s*(?:to|-|–|and)\s*([\d,]+(?:\.\d+)?)\s*(k|m|million)?/i);
+
+  if (rangeMatch) {
+    const [, minRaw, minSuffix, maxRaw, maxSuffix] = rangeMatch;
+    const minValue = convertPrice(minRaw, minSuffix || '');
+    const maxValue = convertPrice(maxRaw, maxSuffix || '');
+
+    if (minValue) result.minPrice = minValue;
+    if (maxValue) result.maxPrice = maxValue;
+  }
+
+  if (!result.maxPrice) {
+    const maxPriceMatch = text.match(/(?:under|below|less than|not more than|up to|upto|max(?:imum)?|budget)\s*(?:jmd|j\$|\$)?\s*([\d,]+(?:\.\d+)?)\s*(k|m|million)?/i);
+    if (maxPriceMatch) {
+      result.maxPrice = convertPrice(maxPriceMatch[1], maxPriceMatch[2]);
+    }
+  }
+
+  if (!result.minPrice) {
+    const minPriceMatch = text.match(/(?:from|starting at|starting from|at least|above|over|more than|min(?:imum)?)\s*(?:jmd|j\$|\$)?\s*([\d,]+(?:\.\d+)?)\s*(k|m|million)?/i);
+    if (minPriceMatch) {
+      result.minPrice = convertPrice(minPriceMatch[1], minPriceMatch[2]);
+    }
+  }
+
+  if (!result.minPrice && !result.maxPrice && /\d/.test(text)) {
+    const singlePriceMatch = text.match(/(?:jmd|j\$|\$)?\s*([\d,]+(?:\.\d+)?)\s*(k|m|million)?/i);
+    const hasPriceCue = /(?:k|m|million|jmd|j\$|\$)/.test(text) || /(?:under|below|less than|budget|max|minimum|up to|upto)/.test(text);
+
+    if (singlePriceMatch && hasPriceCue) {
+      const [, amount, suffix] = singlePriceMatch;
+      if (amount) {
+        result.maxPrice = convertPrice(amount, suffix || '');
+      }
+    }
+  }
+
+  const parishCandidates = Object.entries(PARISH_ALIAS_LOOKUP).sort((a, b) => b[0].length - a[0].length);
+  for (const [alias, label] of parishCandidates) {
+    if (text.includes(alias) && !text.includes('kingston 6')) {
+      result.parish = label;
+      break;
+    }
+  }
+
+  const locationCandidates = [...LOCATION_HINTS].sort((a, b) => b.length - a.length);
+  for (const candidate of locationCandidates) {
+    if (text.includes(candidate)) {
+      result.location = candidate
+        .replace(/\s+/g, ' ')
+        .replace(/\s+,/g, ',')
+        .trim();
+      break;
+    }
+  }
+
+  if (!result.location) {
+    const fallbackLocationMatch = text.match(/(?:in|around|near|for|at)\s+([a-z0-9\s&-]+?)(?=\s+(?:under|below|less than|max|maximum|budget|bed|beds|bedroom|bedrooms|house|apartment|flat|townhouse)|$)/i);
+    if (fallbackLocationMatch) {
+      const location = fallbackLocationMatch[1].trim();
+      if (location && !location.includes('st ') && !location.includes('kingston')) {
+        result.location = location.replace(/\s+/g, ' ').trim();
+      }
+    }
+  }
+
+  if (!result.location && !result.parish) {
+    const textSansNumbers = text.replace(/\d+/g, ' ').replace(/\b(?:bed|beds|bedroom|bedrooms|under|below|less than|max|maximum|budget|house|apartment|flat|townhouse|looking|for|need|around|near|in|at|to)\b/g, ' ');
+    const locationTokens = textSansNumbers.split(/\s+/).filter(Boolean).slice(0, 3).join(' ');
+    if (locationTokens.length > 2 && !locationTokens.includes('st ') && !locationTokens.includes('kingston')) {
+      result.location = locationTokens.trim();
+    }
+  }
+
+  return result;
+}
 
 // Role Card Component - same size as PropertyCard
 function RoleCard({ title, subtitle, icon: Icon, bgColor, textColor, link, user, bgImage }) {
@@ -76,6 +239,7 @@ export default function Home() {
   const [locationSuggestions, setLocationSuggestions] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [locationInput, setLocationInput] = useState('');
+  const [showFilterPanel, setShowFilterPanel] = useState(false);
 
   // Restore list state if present (page, filters, scroll position)
   const [restoring, setRestoring] = useState(false);
@@ -99,34 +263,7 @@ export default function Home() {
     }
   }, []);
 
-  useEffect(() => {
-    fetchProperties();
-  }, [filters, page]);
-
-  // After properties load, if we're restoring from a saved state, scroll to saved position
-  useEffect(() => {
-    if (!restoring) return;
-    if (loading) return;
-    try {
-      const state = restoreRef.current;
-      if (state) {
-        // Try to scroll to the exact card, else restore scrollY
-        const el = document.querySelector(`[data-list-index="${state.index}"]`);
-        if (el) {
-          el.scrollIntoView({ behavior: 'auto', block: 'center' });
-        } else if (typeof state.scrollY === 'number') {
-          window.scrollTo(0, state.scrollY);
-        }
-      }
-    } catch (err) {
-      console.error('Error restoring scroll position', err);
-    } finally {
-      setRestoring(false);
-      restoreRef.current = null;
-    }
-  }, [properties, loading, restoring]);
-
-  async function fetchProperties() {
+  const fetchProperties = useCallback(async () => {
     setLoading(true);
     setLoadError('');
     try {
@@ -174,7 +311,34 @@ export default function Home() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [filters, page]);
+
+  useEffect(() => {
+    fetchProperties();
+  }, [fetchProperties]);
+
+  // After properties load, if we're restoring from a saved state, scroll to saved position
+  useEffect(() => {
+    if (!restoring) return;
+    if (loading) return;
+    try {
+      const state = restoreRef.current;
+      if (state) {
+        // Try to scroll to the exact card, else restore scrollY
+        const el = document.querySelector(`[data-list-index="${state.index}"]`);
+        if (el) {
+          el.scrollIntoView({ behavior: 'auto', block: 'center' });
+        } else if (typeof state.scrollY === 'number') {
+          window.scrollTo(0, state.scrollY);
+        }
+      }
+    } catch (err) {
+      console.error('Error restoring scroll position', err);
+    } finally {
+      setRestoring(false);
+      restoreRef.current = null;
+    }
+  }, [properties, loading, restoring]);
 
   const totalPages =  PROPERTIES_PER_PAGE > 0 ? Math.ceil(totalCount / PROPERTIES_PER_PAGE) : 0;
 
@@ -190,6 +354,19 @@ export default function Home() {
 
   // Check if any filter is active
   const hasActiveFilters = filters.parish || filters.minPrice || filters.maxPrice || filters.location || filters.bedrooms;
+
+  const activeFilterEntries = [
+    filters.location ? { key: 'location', label: `Location: ${filters.location}` } : null,
+    filters.parish ? { key: 'parish', label: `Parish: ${filters.parish}` } : null,
+    filters.bedrooms ? { key: 'bedrooms', label: `Bedrooms: ${filters.bedrooms}` } : null,
+    filters.minPrice ? { key: 'minPrice', label: `Min: J$${Number(filters.minPrice).toLocaleString()}` } : null,
+    filters.maxPrice ? { key: 'maxPrice', label: `Max: J$${Number(filters.maxPrice).toLocaleString()}` } : null,
+  ].filter(Boolean);
+
+  const handleRemoveFilter = (field) => {
+    setFilters((prev) => ({ ...prev, [field]: '' }));
+    setPage(1);
+  };
 
   const fetchLocationSuggestions = async (searchText) => {
     if (!searchText || searchText.length < 2) {
@@ -218,8 +395,6 @@ export default function Home() {
     setLocationInput(suggestion);
     setShowSuggestions(false);
     setLocationSuggestions([]);
-    setFilters((prev) => ({ ...prev, location: suggestion }));
-    setPage(1);
   };
 
   return (
@@ -242,97 +417,175 @@ export default function Home() {
 
 
 
-        <form 
+        <form
           onSubmit={(e) => {
             e.preventDefault();
-            const fd = new FormData(e.target);
-            setFilters({
-              parish: fd.get('parish') || '',
-              minPrice: fd.get('minPrice') || '',
-              maxPrice: fd.get('maxPrice') || '',
-              location: locationInput || '',
-              bedrooms: fd.get('bedrooms') || ''
-            });
+            const parsed = parseSearchQuery(locationInput);
+            setFilters(parsed);
             setPage(1);
             setShowSuggestions(false);
           }}
-          className="bg-white p-6 rounded-lg border border-gray-200 flex gap-3 flex-wrap items-end mb-8"
+          className="bg-white p-4 rounded-xl border border-gray-200 mb-4"
         >
-          <div className="flex-1 min-w-[200px] relative">
-            <label className="block text-sm font-medium text-gray-700 mb-1">Location Search</label>
-            <input
-              type="text"
-              name="location"
-              value={locationInput}
-              onChange={handleLocationInput}
-              onFocus={() => setShowSuggestions(true)}
-              onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
-              placeholder="Enter area, town, or landmark..."
-              className="w-full border border-gray-300 px-3 py-2.5 rounded-lg"
-              autoComplete="off"
-            />
-            {showSuggestions && locationSuggestions.length > 0 && (
-              <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                {locationSuggestions.map((suggestion, idx) => (
-                  <button
-                    key={idx}
-                    type="button"
-                    onClick={() => selectSuggestion(suggestion)}
-                    className="w-full text-left px-4 py-2.5 hover:bg-gray-100 transition text-sm text-gray-700"
-                  >
-                    {suggestion}
-                  </button>
-                ))}
+          <div className="relative">
+            <label className="block text-sm font-medium text-gray-700 mb-2">Search Properties</label>
+
+            <div className="flex gap-2">
+              <div className="relative flex-1">
+                <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+
+                <input
+                  type="text"
+                  name="search"
+                  value={locationInput}
+                  onChange={handleLocationInput}
+                  onFocus={() => setShowSuggestions(true)}
+                  onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+                  placeholder="Try '2 bedroom house in Portmore under 150k'"
+                  className="w-full border border-gray-300 pl-11 pr-4 py-3.5 rounded-lg text-base"
+                  autoComplete="off"
+                />
+
+                {showSuggestions && locationSuggestions.length > 0 && (
+                  <div className="absolute z-20 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-xl overflow-hidden">
+                    {locationSuggestions.map((suggestion, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => selectSuggestion(suggestion)}
+                        className="w-full text-left px-4 py-3 hover:bg-gray-50 border-b last:border-b-0 text-sm text-gray-700"
+                      >
+                        {suggestion}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
-            )}
+
+              <button type="submit" className="btn-primary px-6 py-3 rounded-lg">
+                Search
+              </button>
+            </div>
           </div>
 
-          <div className="flex-1 min-w-[150px]">
-            <label className="block text-sm font-medium text-gray-700 mb-1">Bedrooms</label>
-            <select name="bedrooms" className="w-full border border-gray-300 px-3 py-2.5 rounded-lg">
-              <option value="">Any</option>
-              <option value="1">1 Bed</option>
-              <option value="2">2 Beds</option>
-              <option value="3">3 Beds</option>
-              <option value="4">4 Beds</option>
-              <option value="5">5+ Beds</option>
-            </select>
-          </div>
+          <div className="mt-3 flex items-center justify-between gap-3 flex-wrap">
+            <div className="flex flex-wrap gap-2 text-sm">
+              <span className="text-gray-500">Try:</span>
 
-          <div className="flex-1 min-w-[200px]">
-            <label className="block text-sm font-medium text-gray-700 mb-1">Parish</label>
-            <select name="parish" className="w-full border border-gray-300 px-3 py-2.5 rounded-lg">
-              <option value="">All Parishes</option>
-              {PARISHES.map((p) => (
-                <option key={p} value={p}>{p}</option>
+              {[
+                '2 bedroom in Portmore',
+                'Kingston under 150k',
+                '3 bedroom St Andrew',
+                'Montego Bay',
+              ].map((example) => (
+                <button
+                  key={example}
+                  type="button"
+                  onClick={() => {
+                    setLocationInput(example);
+                    setFilters(parseSearchQuery(example));
+                    setPage(1);
+                  }}
+                  className="px-3 py-1.5 bg-gray-100 rounded-full hover:bg-gray-200"
+                >
+                  {example}
+                </button>
               ))}
-            </select>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setShowFilterPanel((current) => !current)}
+              className="inline-flex items-center justify-center px-3 py-2 rounded-lg border border-gray-200 bg-gray-50 text-sm font-medium text-gray-700 hover:bg-gray-100"
+            >
+              {showFilterPanel ? 'Hide filters' : 'Filters'}
+            </button>
           </div>
 
-          <div className="flex-1 min-w-[150px]">
-            <label className="block text-sm font-medium text-gray-700 mb-1">Min Price</label>
-            <input 
-              name="minPrice" 
-              type="number"
-              placeholder="0" 
-              className="w-full border border-gray-300 px-3 py-2.5 rounded-lg" 
-            />
-          </div>
+          {showFilterPanel && (
+            <div className="mt-4 border-t border-gray-200 pt-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+              <div>
+                <label className="block text-xs font-medium uppercase tracking-wide text-gray-600 mb-1">Bedrooms</label>
+                <select
+                  value={filters.bedrooms}
+                  onChange={(e) => {
+                    setFilters((prev) => ({ ...prev, bedrooms: e.target.value }));
+                    setPage(1);
+                  }}
+                  className="w-full border border-gray-300 px-3 py-2.5 rounded-lg"
+                >
+                  <option value="">Any</option>
+                  <option value="1">1 Bed</option>
+                  <option value="2">2 Beds</option>
+                  <option value="3">3 Beds</option>
+                  <option value="4">4 Beds</option>
+                  <option value="5">5+ Beds</option>
+                </select>
+              </div>
 
-          <div className="flex-1 min-w-[150px]">
-            <label className="block text-sm font-medium text-gray-700 mb-1">Max Price</label>
-            <input 
-              name="maxPrice" 
-              type="number"
-              placeholder="Any" 
-              className="w-full border border-gray-300 px-3 py-2.5 rounded-lg" 
-            />
-          </div>
+              <div>
+                <label className="block text-xs font-medium uppercase tracking-wide text-gray-600 mb-1">Parish</label>
+                <select
+                  value={filters.parish}
+                  onChange={(e) => {
+                    setFilters((prev) => ({ ...prev, parish: e.target.value }));
+                    setPage(1);
+                  }}
+                  className="w-full border border-gray-300 px-3 py-2.5 rounded-lg"
+                >
+                  <option value="">All Parishes</option>
+                  {PARISHES.map((p) => (
+                    <option key={p} value={p}>{p}</option>
+                  ))}
+                </select>
+              </div>
 
-          <button type="submit" className="btn-primary">
-            Update Results
-          </button>
+              <div>
+                <label className="block text-xs font-medium uppercase tracking-wide text-gray-600 mb-1">Min Price</label>
+                <input
+                  type="number"
+                  value={filters.minPrice}
+                  onChange={(e) => {
+                    setFilters((prev) => ({ ...prev, minPrice: e.target.value }));
+                    setPage(1);
+                  }}
+                  placeholder="0"
+                  className="w-full border border-gray-300 px-3 py-2.5 rounded-lg"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium uppercase tracking-wide text-gray-600 mb-1">Max Price</label>
+                <input
+                  type="number"
+                  value={filters.maxPrice}
+                  onChange={(e) => {
+                    setFilters((prev) => ({ ...prev, maxPrice: e.target.value }));
+                    setPage(1);
+                  }}
+                  placeholder="Any"
+                  className="w-full border border-gray-300 px-3 py-2.5 rounded-lg"
+                />
+              </div>
+            </div>
+          )}
         </form>
+
+        {activeFilterEntries.length > 0 && (
+          <div className="flex flex-wrap items-center gap-2 mb-6">
+            {activeFilterEntries.map((entry) => (
+              <button
+                key={entry.key}
+                type="button"
+                onClick={() => handleRemoveFilter(entry.key)}
+                className="inline-flex items-center gap-2 rounded-full bg-gray-100 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-200"
+              >
+                <span>{entry.label}</span>
+                <span aria-label={`Remove ${entry.label}`}>×</span>
+              </button>
+            ))}
+          </div>
+        )}
 
 
 
@@ -363,12 +616,12 @@ export default function Home() {
                 Submit a request and agents will contact you with matching options.
               </p>
 
-              <a
+              <Link
                 href="/request"
-                className="inline-block bg-accent  text-white font-semibold px-6 py-3 rounded-lg transition"
+                className="inline-block bg-accent text-white font-semibold px-6 py-3 rounded-lg transition"
               >
                 Submit Request
-              </a>
+              </Link>
             </div>
             ) : (
               // Show "Be Among The First" CTA when no properties in system and no filters applied
