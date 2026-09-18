@@ -51,6 +51,7 @@ const LOCATION_HINTS = [
   'savanna-la-mar',
   'linstead',
   'brownstown',
+  'westmor',
 ];
 
 function convertPrice(value, suffix = '') {
@@ -143,15 +144,13 @@ function parseSearchQuery(query) {
     }
   }
 
-  const locationCandidates = [...LOCATION_HINTS].sort((a, b) => b.length - a.length);
-  for (const candidate of locationCandidates) {
-    if (text.includes(candidate)) {
-      result.location = candidate
-        .replace(/\s+/g, ' ')
-        .replace(/\s+,/g, ',')
-        .trim();
-      break;
-    }
+  const locationCandidates = [...LOCATION_HINTS]
+    .filter((candidate) => text.includes(candidate))
+    .sort((a, b) => b.length - a.length);
+  if (locationCandidates.length > 0) {
+    result.location = locationCandidates
+      .map((candidate) => candidate.replace(/\s+/g, ' ').replace(/\s+,/g, ',').trim())
+      .join(' and ');
   }
 
   if (!result.location) {
@@ -572,18 +571,25 @@ export default function Home() {
         </form>
 
         {activeFilterEntries.length > 0 && (
-          <div className="flex flex-wrap items-center gap-2 mb-6">
-            {activeFilterEntries.map((entry) => (
-              <button
-                key={entry.key}
-                type="button"
-                onClick={() => handleRemoveFilter(entry.key)}
-                className="inline-flex items-center gap-2 rounded-full bg-gray-100 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-200"
-              >
-                <span>{entry.label}</span>
-                <span aria-label={`Remove ${entry.label}`}>×</span>
-              </button>
-            ))}
+          <div className="mb-6">
+            <div className="flex flex-wrap items-center gap-2">
+              {activeFilterEntries.map((entry) => (
+                <button
+                  key={entry.key}
+                  type="button"
+                  onClick={() => handleRemoveFilter(entry.key)}
+                  className="inline-flex items-center gap-2 rounded-full bg-gray-100 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-200"
+                >
+                  <span>{entry.label}</span>
+                  <span aria-label={`Remove ${entry.label}`}>×</span>
+                </button>
+              ))}
+            </div>
+            {filters.location && (
+              <p className="mt-2 text-sm text-gray-500" aria-live="polite">
+                Showing listings with partial matches for &quot;{filters.location}&quot;.
+              </p>
+            )}
           </div>
         )}
 
@@ -604,23 +610,33 @@ export default function Home() {
         ) : properties.length === 0 ? (
           <div className="text-center py-12">
             {hasActiveFilters ? (
-              // Show "No results" message when filters are active
+              // Turn an unsuccessful search into a prefilled request.
              <div className="max-w-2xl mx-auto bg-blue-50 border-2 border-blue-200 rounded-xl p-8 text-center">
               <FiSearch className="w-12 h-12 text-blue-600 mx-auto mb-4" />
 
               <h3 className="text-2xl font-bold text-gray-800 mb-3">
-                No Results Found
+                Tell Us What You&apos;re Looking For
               </h3>
 
               <p className="text-gray-700 mb-6">
-                Submit a request and agents will contact you with matching options.
+                We couldn&apos;t find an exact match, but you can tell us what you need and verified agents will send you matching options.
               </p>
 
               <Link
-                href="/request"
+                href={{
+                  pathname: '/request',
+                  query: {
+                    requestType: 'rent',
+                    location: filters.location,
+                    parish: filters.parish,
+                    bedrooms: filters.bedrooms,
+                    budgetMin: filters.minPrice,
+                    budgetMax: filters.maxPrice,
+                  },
+                }}
                 className="inline-block bg-accent text-white font-semibold px-6 py-3 rounded-lg transition"
               >
-                Submit Request
+                Tell Us What You Need
               </Link>
             </div>
             ) : (

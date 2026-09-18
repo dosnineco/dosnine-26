@@ -87,11 +87,18 @@ export default async function handler(req, res) {
     if (beds !== null && !Number.isNaN(beds)) query = query.eq('bedrooms', beds);
 
     const trimmedLocation = String(locationFilter || '').trim();
-    if (trimmedLocation && !normalizedParish) {
-      const searchTerm = `%${trimmedLocation}%`;
-      query = query.or(
-        `town.ilike.${searchTerm},address.ilike.${searchTerm},parish.ilike.${searchTerm},formatted_address.ilike.${searchTerm},title.ilike.${searchTerm},description.ilike.${searchTerm}`
-      );
+    if (trimmedLocation) {
+      const locationTerms = trimmedLocation
+        .split(/\s+(?:and|or)\s+|[,;]+/i)
+        .map((term) => term.trim())
+        .filter(Boolean);
+      const locationFields = ['town', 'address', 'parish', 'formatted_address', 'title', 'description'];
+      const locationSearches = locationTerms.flatMap((term) => {
+        const searchTerm = `%${term}%`;
+        return locationFields.map((field) => `${field}.ilike.${searchTerm}`);
+      });
+
+      if (locationSearches.length > 0) query = query.or(locationSearches.join(','));
     }
 
     const tokenSource = String(slugToken || '').toLowerCase().trim();

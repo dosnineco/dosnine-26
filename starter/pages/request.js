@@ -59,6 +59,31 @@ export default function RequestAgentPage() {
     }
   }, [isSignedIn, user]);
 
+  useEffect(() => {
+    if (!router.isReady) return;
+
+    const queryValue = (value) => Array.isArray(value) ? value[0] : value;
+    const location = queryValue(router.query.location) || '';
+    const parish = queryValue(router.query.parish) || '';
+    const bedrooms = queryValue(router.query.bedrooms) || '';
+    const budgetMin = queryValue(router.query.budgetMin) || '';
+    const budgetMax = queryValue(router.query.budgetMax) || '';
+    const requestType = queryValue(router.query.requestType) || '';
+
+    if (!location && !parish && !bedrooms && !budgetMin && !budgetMax && !requestType) return;
+
+    setFormData(prev => ({
+      ...prev,
+      requestType: ['buy', 'rent', 'sell', 'lease', 'valuation'].includes(requestType)
+        ? requestType
+        : prev.requestType,
+      location: prev.location || [location, parish].filter(Boolean).join(', '),
+      bedrooms: prev.bedrooms || bedrooms,
+      budgetMin: prev.budgetMin || budgetMin,
+      budgetMax: prev.budgetMax || budgetMax,
+    }));
+  }, [router.isReady, router.query]);
+
   // Keep budget values inside the selected request-type range.
   useEffect(() => {
     setFormData((prev) => {

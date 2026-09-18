@@ -34,6 +34,8 @@ export default function AdminNewsletterPage() {
   const [testResult, setTestResult] = useState(null);
   const [linkUrl, setLinkUrl] = useState('');
   const [showLinkInput, setShowLinkInput] = useState(false);
+  const [advertisements, setAdvertisements] = useState([]);
+  const [selectedAdvertisementId, setSelectedAdvertisementId] = useState('');
   const uploadInputRef = useRef(null);
 
   const editor = useEditor({
@@ -78,6 +80,7 @@ export default function AdminNewsletterPage() {
   useEffect(() => {
     if (!accessAllowed) return;
     fetchSummary();
+    loadAdvertisements();
     loadLocalDrafts();
   }, [accessAllowed]);
 
@@ -143,6 +146,60 @@ export default function AdminNewsletterPage() {
     } catch (err) {
       console.error('Newsletter summary error:', err);
     }
+  };
+
+  const loadAdvertisements = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('advertisements')
+        .select('id, title, company_name, category, description, image_url, image_urls, is_active')
+        .eq('is_active', true)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setAdvertisements(data || []);
+    } catch (err) {
+      console.error('Advertisement loading error:', err);
+      toast.error('Could not load advertisements for the newsletter.');
+    }
+  };
+
+  const escapeHtml = (value) => String(value || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+
+  const insertAdvertisement = () => {
+    if (!editor || !selectedAdvertisementId) return;
+    const advertisement = advertisements.find((item) => String(item.id) === String(selectedAdvertisementId));
+    if (!advertisement) return;
+
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || window.location.origin;
+    const adUrl = `${siteUrl.replace(/\/$/, '')}/ads/${advertisement.id}`;
+    const imageUrls = Array.isArray(advertisement.image_urls) ? advertisement.image_urls : [];
+    const imageUrl = imageUrls[0] || advertisement.image_url || '';
+    const title = escapeHtml(advertisement.title || advertisement.company_name || 'Featured advertisement');
+    const companyName = escapeHtml(advertisement.company_name);
+    const category = escapeHtml(String(advertisement.category || '').replace(/_/g, ' '));
+    const description = escapeHtml(advertisement.description);
+    const image = imageUrl
+      ? `<img src="${escapeHtml(imageUrl)}" alt="${title}" style="display:block;width:100%;max-width:560px;height:auto;margin:0 auto 16px;border-radius:8px;" />`
+      : '';
+    const advertisementHtml = `
+      <div style="margin:24px 0;padding:20px;border:1px solid #e5e7eb;border-radius:12px;background:#ffffff;">
+        ${image}
+        <p style="margin:0 0 6px;font-size:12px;color:#6b7280;text-transform:uppercase;">${category}</p>
+        <h2 style="margin:0 0 6px;font-size:22px;color:#111827;">${title}</h2>
+        <p style="margin:0 0 12px;font-weight:600;color:#374151;">${companyName}</p>
+        <p style="margin:0 0 16px;color:#4b5563;line-height:1.6;">${description}</p>
+        <a href="${escapeHtml(adUrl)}" target="_blank" rel="noreferrer" style="display:inline-block;padding:10px 16px;border-radius:8px;background:#2563eb;color:#ffffff;text-decoration:none;font-weight:600;">View advertisement</a>
+      </div>
+    `;
+
+    editor.chain().focus().insertContent(advertisementHtml).run();
+    setSelectedAdvertisementId('');
   };
 
   const saveDraft = async () => {
@@ -562,6 +619,27 @@ export default function AdminNewsletterPage() {
                           className="rounded-2xl border border-gray-200 bg-gray-50 px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-100"
                         >
                           Image
+                        </button>
+                        <select
+                          value={selectedAdvertisementId}
+                          onChange={(event) => setSelectedAdvertisementId(event.target.value)}
+                          className="rounded-2xl border border-gray-200 bg-gray-50 px-3 py-2 text-xs font-semibold text-gray-700"
+                          aria-label="Select an advertisement to add"
+                        >
+                          <option value="">Add advertisement...</option>
+                          {advertisements.map((advertisement) => (
+                            <option key={advertisement.id} value={advertisement.id}>
+                              {advertisement.title || advertisement.company_name || 'Advertisement'}
+                            </option>
+                          ))}
+                        </select>
+                        <button
+                          type="button"
+                          onClick={insertAdvertisement}
+                          disabled={!selectedAdvertisementId}
+                          className="rounded-2xl border border-accent bg-accent px-3 py-2 text-xs font-semibold text-white hover:bg-accent/90 disabled:opacity-50"
+                        >
+                          Insert ad
                         </button>
                       </div>
                       {showLinkInput && (
