@@ -111,6 +111,8 @@ function MyApp({ Component, pageProps }) {
   return (
     <ClerkProvider
       publishableKey={process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}
+      standardBrowser
+      touchSession
       navigate={(to) => {
         // Avoid Next.js "hard navigate to the same URL" invariant when Clerk redirects to the current page
         if (typeof window !== 'undefined' && to === window.location.pathname + window.location.search) {

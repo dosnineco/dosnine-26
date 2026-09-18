@@ -140,6 +140,35 @@ export default function AdminUsersPage() {
     }
   };
 
+  const setPremiumStatus = async (userToUpdate, enabled) => {
+    const expirationDate = new Date();
+    expirationDate.setDate(expirationDate.getDate() + 30);
+
+    try {
+      const response = await fetch('/api/admin/users', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', ...buildAuthHeaders() },
+        credentials: 'include',
+        body: JSON.stringify({
+          id: userToUpdate.id,
+          premium_service_request: enabled,
+          premium_service_request_expires: enabled ? expirationDate.toISOString() : null,
+        }),
+      });
+      const payload = await response.json();
+      if (!response.ok || !payload?.success) throw new Error(payload?.error || 'Failed to update payment status');
+      toast.success(enabled ? 'User marked as paid for 30 days' : 'Paid status removed');
+      await fetchUsers();
+      setEditingUser((currentUser) => currentUser ? {
+        ...currentUser,
+        premium_service_request: enabled,
+        premium_service_request_expires: enabled ? expirationDate.toISOString() : null,
+      } : currentUser);
+    } catch (err) {
+      toast.error(err.message || 'Failed to update payment status');
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -496,13 +525,25 @@ export default function AdminUsersPage() {
                           {new Date(u.created_at).toLocaleDateString()}
                         </td>
                         <td className="px-5 py-4">
-                          <button
-                            onClick={() => handleOpenModal(u)}
-                            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-semibold bg-gray-900 text-white hover:bg-black"
-                          >
-                            <Settings className="w-3.5 h-3.5" />
-                            Manage
-                          </button>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <button
+                              onClick={() => setPremiumStatus(u, !isPremiumActive(u))}
+                              className={`px-3 py-1.5 rounded-md text-xs font-semibold ${
+                                isPremiumActive(u)
+                                  ? 'bg-red-100 text-red-700 hover:bg-red-200'
+                                  : 'bg-green-100 text-green-700 hover:bg-green-200'
+                              }`}
+                            >
+                              {isPremiumActive(u) ? 'Remove paid' : 'Mark paid'}
+                            </button>
+                            <button
+                              onClick={() => handleOpenModal(u)}
+                              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-semibold bg-gray-900 text-white hover:bg-black"
+                            >
+                              <Settings className="w-3.5 h-3.5" />
+                              Manage
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -638,6 +679,27 @@ export default function AdminUsersPage() {
                     >
                       Deactivate
                     </button>
+                  </div>
+                </div>
+
+                <div>
+                  <p className="text-xs font-semibold text-gray-500 uppercase mb-2">Payment</p>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <button
+                      onClick={() => setPremiumStatus(editingUser, !isPremiumActive(editingUser))}
+                      className={`px-3 py-1.5 rounded-md text-xs font-medium ${
+                        isPremiumActive(editingUser)
+                          ? 'bg-red-100 text-red-700 hover:bg-red-200'
+                          : 'bg-green-100 text-green-700 hover:bg-green-200'
+                      }`}
+                    >
+                      {isPremiumActive(editingUser) ? 'Remove paid status' : 'Mark paid for 30 days'}
+                    </button>
+                    {isPremiumActive(editingUser) && (
+                      <span className="text-xs text-gray-500">
+                        Expires {new Date(editingUser.premium_service_request_expires).toLocaleDateString()}
+                      </span>
+                    )}
                   </div>
                 </div>
 

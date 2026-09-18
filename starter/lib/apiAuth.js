@@ -1,4 +1,4 @@
-import { getAuth } from '@clerk/nextjs/server';
+import { clerkClient, getAuth } from '@clerk/nextjs/server';
 import { supabase } from '@/lib/supabase';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 
@@ -68,6 +68,21 @@ export function getClerkUserContext(req) {
   };
 }
 
+async function getVerifiedClerkUser(clerkId) {
+  try {
+    const clerkUser = await clerkClient.users.getUser(clerkId);
+    const email = clerkUser.emailAddresses?.find(
+      (address) => address.id === clerkUser.primaryEmailAddressId
+    )?.emailAddress || clerkUser.emailAddresses?.[0]?.emailAddress || null;
+    const fullName = [clerkUser.firstName, clerkUser.lastName].filter(Boolean).join(' ').trim() || null;
+
+    return { email, fullName };
+  } catch (error) {
+    console.error('Failed to load Clerk user details:', error);
+    return { email: null, fullName: null };
+  }
+}
+
 export async function requireClerkUser(req, res) {
   const context = getClerkUserContext(req);
   if (!context.clerkId) {
@@ -80,6 +95,9 @@ export async function requireClerkUser(req, res) {
 
 export async function getDbUserByClerkId(clerkId, { createIfMissing = false, fallbackEmail = null, fallbackFullName = null } = {}) {
   const db = getDbClient();
+  const clerkDetails = await getVerifiedClerkUser(clerkId);
+  const trustedEmail = clerkDetails.email || fallbackEmail;
+  const trustedFullName = clerkDetails.fullName || fallbackFullName;
 
   const { data: existingUsers, error: userError } = await db
     .from('users')
@@ -90,6 +108,26 @@ export async function getDbUserByClerkId(clerkId, { createIfMissing = false, fal
   const existingUser = Array.isArray(existingUsers) ? existingUsers[0] : null;
 
   if (existingUser?.id) {
+    const identityUpdate = {};
+    if (trustedEmail && (isPlaceholderEmail(existingUser.email) || existingUser.email !== trustedEmail)) {
+      identityUpdate.email = trustedEmail.trim().toLowerCase();
+    }
+    if (trustedFullName && (!existingUser.full_name || existingUser.full_name === PLACEHOLDER_FULL_NAME)) {
+      identityUpdate.full_name = trustedFullName;
+    }
+
+    if (Object.keys(identityUpdate).length > 0) {
+      const { data: refreshedUser, error: refreshError } = await db
+        .from('users')
+        .update(identityUpdate)
+        .eq('id', existingUser.id)
+        .select('*')
+        .single();
+
+      if (refreshError) return { user: null, error: refreshError };
+      return { user: refreshedUser, error: null };
+    }
+
     return { user: existingUser, error: null };
   }
 
@@ -97,11 +135,11 @@ export async function getDbUserByClerkId(clerkId, { createIfMissing = false, fal
     return { user: null, error: userError || null };
   }
 
-  if (fallbackEmail) {
+  if (trustedEmail) {
     const { data: emailUsers, error: emailLookupError } = await db
       .from('users')
       .select('*')
-      .eq('email', fallbackEmail)
+      .eq('email', trustedEmail)
       .limit(1);
 
     if (emailLookupError) {
@@ -115,7 +153,7 @@ export async function getDbUserByClerkId(clerkId, { createIfMissing = false, fal
         .from('users')
         .update({
           clerk_id: clerkId,
-          full_name: emailUser.full_name || fallbackFullName || 'Dosnine User',
+          full_name: emailUser.full_name || trustedFullName || 'Dosnine User',
         })
         .eq('id', emailUser.id);
 
@@ -142,14 +180,14 @@ export async function getDbUserByClerkId(clerkId, { createIfMissing = false, fal
     return { user: null, error: null };
   }
 
-  const normalizedEmail = fallbackEmail
-    ? fallbackEmail.trim().toLowerCase()
+  const normalizedEmail = trustedEmail
+    ? trustedEmail.trim().toLowerCase()
     : `${clerkId}@placeholder.dosnine.local`;
 
   const bootstrapUser = {
     clerk_id: clerkId,
     email: normalizedEmail,
-    full_name: fallbackFullName || 'Dosnine User',
+    full_name: trustedFullName || 'Dosnine User',
     user_type: 'landlord',
   };
 
@@ -160,8 +198,8 @@ export async function getDbUserByClerkId(clerkId, { createIfMissing = false, fal
   if (insertError) {
     const minimalBootstrapUser = {
       clerk_id: clerkId,
-      email: fallbackEmail || `${clerkId}@placeholder.dosnine.local`,
-      full_name: fallbackFullName || 'Dosnine User',
+      email: trustedEmail || `${clerkId}@placeholder.dosnine.local`,
+      full_name: trustedFullName || 'Dosnine User',
     };
 
     await db
