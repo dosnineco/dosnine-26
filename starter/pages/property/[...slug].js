@@ -101,29 +101,6 @@ export default function PropertyPage({ property, similarProperties, isVerifiedAg
     document.body.scrollTop = 0;
   }, [router.asPath, property.id]);
 
-  // Force scroll to top on route change events
-  useEffect(() => {
-    const handleRouteChangeStart = () => {
-      window.scrollTo(0, 0);
-      document.documentElement.scrollTop = 0;
-      document.body.scrollTop = 0;
-    };
-
-    const handleRouteChangeComplete = () => {
-      window.scrollTo(0, 0);
-      document.documentElement.scrollTop = 0;
-      document.body.scrollTop = 0;
-    };
-
-    router.events.on('routeChangeStart', handleRouteChangeStart);
-    router.events.on('routeChangeComplete', handleRouteChangeComplete);
-    
-    return () => {
-      router.events.off('routeChangeStart', handleRouteChangeStart);
-      router.events.off('routeChangeComplete', handleRouteChangeComplete);
-    };
-  }, [router.events]);
-
   useEffect(() => {
     const checkOwner = async () => {
       if (!user) return;
@@ -183,6 +160,19 @@ export default function PropertyPage({ property, similarProperties, isVerifiedAg
     } catch (error) {
       // user cancelled share or clipboard unavailable
     }
+  };
+
+  const handleBack = () => {
+    const previousUrl = document.referrer;
+    const previousPath = previousUrl ? new URL(previousUrl, window.location.origin).pathname : '';
+    const cameFromBrowse = previousPath === '/listing' || previousPath.startsWith('/search/');
+
+    if (cameFromBrowse && window.history.length > 1) {
+      router.back();
+      return;
+    }
+
+    router.push('/listing');
   };
 
   const formatPhone = (raw) => {
@@ -491,12 +481,21 @@ export default function PropertyPage({ property, similarProperties, isVerifiedAg
       <div className="property-page container mx-auto px-4 py-8 text-slate-700">
         {/* Breadcrumb Navigation */}
         <div className="mb-4 ">
-          <a href="/" className="btn-outline btn-sm inline-flex items-center gap-1"><ChevronLeft className="w-4 h-4" /> Back to Browse</a>
+          <button type="button" onClick={handleBack} className="btn-outline btn-sm inline-flex items-center gap-1"><ChevronLeft className="w-4 h-4" /> Back to Browse</button>
         </div>
         
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Images Section */}
           <div className="lg:col-span-2">
+            <div className="flex justify-end mb-3">
+              <button
+                    onClick={handleShare}
+                    className="flex items-center gap-1 bg-gray-100 hover:bg-gray-200 text-slate-700 px-3 py-1 rounded-full text-sm font-semibold transition"
+                    title="Share this property"
+                  >
+                    <Share2 className="w-4 h-4" /> Share
+                  </button>
+            </div>
             <div
               className="relative bg-gray-200 rounded-xl overflow-hidden mb-4"
               onTouchStart={handleTouchStart}
@@ -531,6 +530,8 @@ export default function PropertyPage({ property, similarProperties, isVerifiedAg
               )}
             </div>
 
+             
+
             {/* Thumbnail Grid */}
             {allImages.length > 1 && (
               <div className="grid grid-cols-4 gap-2 mb-6">
@@ -561,13 +562,7 @@ export default function PropertyPage({ property, similarProperties, isVerifiedAg
                 </div>
 
                 <div className="flex items-center gap-2 flex-shrink-0">
-                  <button
-                    onClick={handleShare}
-                    className="flex items-center gap-1 bg-gray-100 hover:bg-gray-200 text-slate-700 px-3 py-1 rounded-full text-sm font-semibold transition"
-                    title="Share this property"
-                  >
-                    <Share2 className="w-4 h-4" /> Share
-                  </button>
+                
                   {isVerifiedAgent && (
                     <div className="flex items-center gap-1 bg-blue-50 text-blue-700 px-3 py-1 rounded-full text-sm font-semibold">
                       <BadgeCheck className="w-4 h-4" />
@@ -711,7 +706,7 @@ export default function PropertyPage({ property, similarProperties, isVerifiedAg
           </div>
         </div>
 
-        <div className="my-12   flex justify-center align-middle">
+        <div className="my-12 flex justify-start align-middle">
           <InFeedAd />
         </div>
 
@@ -821,7 +816,6 @@ export default function PropertyPage({ property, similarProperties, isVerifiedAg
                             <span>{prop.bathrooms} bath</span>
                           </>
                         )}
-                        <span className="ml-auto flex items-center gap-1 text-xs"><Eye className="w-3 h-3" /> {prop.views || 0}</span>
                       </div>
                     </div>
                   </a>

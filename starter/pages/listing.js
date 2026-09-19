@@ -238,6 +238,9 @@ export default function Home() {
   const [locationSuggestions, setLocationSuggestions] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [locationInput, setLocationInput] = useState('');
+  const [locationLoading, setLocationLoading] = useState(false);
+  const [locating, setLocating] = useState(false);
+  const [locationError, setLocationError] = useState('');
   const [showFilterPanel, setShowFilterPanel] = useState(false);
 
   // Restore list state if present (page, filters, scroll position)
@@ -373,13 +376,17 @@ export default function Home() {
       return;
     }
 
+    setLocationLoading(true);
     try {
-      const response = await fetch(`/api/properties/suggestions?q=${encodeURIComponent(searchText)}`);
+      const response = await fetch(`/api/places/autocomplete?input=${encodeURIComponent(searchText)}`);
       const payload = await response.json();
-      if (!response.ok || !payload?.success) throw new Error(payload?.error || 'Failed to fetch suggestions');
+      if (!response.ok || !payload?.success) throw new Error(payload?.error || 'Failed to fetch Google Maps suggestions');
       setLocationSuggestions(payload.suggestions || []);
     } catch (err) {
       console.error('Error fetching suggestions:', err);
+      setLocationSuggestions([]);
+    } finally {
+      setLocationLoading(false);
     }
   };
 
@@ -390,10 +397,54 @@ export default function Home() {
     fetchLocationSuggestions(value);
   };
 
+  const applyLocationSearch = (value, parish = '') => {
+    const parsed = parseSearchQuery(value);
+    setLocationError('');
+    setFilters({
+      ...parsed,
+      parish: parish || parsed.parish,
+      location: parsed.location || value,
+    });
+    setPage(1);
+    setShowSuggestions(false);
+  };
+
+  const handleSuggestionPointerDown = (event, suggestion) => {
+    event.preventDefault();
+    selectSuggestion(suggestion);
+  };
+
   const selectSuggestion = (suggestion) => {
-    setLocationInput(suggestion);
+    const value = suggestion.description || suggestion;
+    setLocationInput(value);
+    applyLocationSearch(value);
     setShowSuggestions(false);
     setLocationSuggestions([]);
+  };
+
+  const useCurrentLocation = () => {
+    if (!navigator.geolocation) return;
+
+    setLocating(true);
+    navigator.geolocation.getCurrentPosition(async ({ coords }) => {
+      try {
+        const response = await fetch(`/api/geocode?latitude=${coords.latitude}&longitude=${coords.longitude}`);
+        const result = await response.json();
+        if (!response.ok) throw new Error(result?.error || 'Could not find your current area');
+
+        const area = [result.town, result.parish].filter(Boolean).join(', ') || result.formattedAddress;
+        setLocationInput(result.formattedAddress || area);
+        applyLocationSearch(area, result.parish);
+      } catch (error) {
+        console.error('Error finding current location:', error);
+        setLocationError(error.message || 'Could not find your current area.');
+      } finally {
+        setLocating(false);
+      }
+    }, () => {
+      setLocating(false);
+      setLocationError('Location permission was denied or unavailable.');
+    }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 300000 });
   };
 
   return (
@@ -439,24 +490,45 @@ export default function Home() {
                   value={locationInput}
                   onChange={handleLocationInput}
                   onFocus={() => setShowSuggestions(true)}
+                  onTouchStart={() => setShowSuggestions(true)}
                   onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
                   placeholder="Try '2 bedroom house in Portmore under 150k'"
                   className="w-full border border-gray-300 pl-11 pr-4 py-3.5 rounded-lg text-base"
                   autoComplete="off"
                 />
 
-                {showSuggestions && locationSuggestions.length > 0 && (
+                {showSuggestions && (
                   <div className="absolute z-20 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-xl overflow-hidden">
+                    <button
+                      type="button"
+                      onPointerDown={(event) => {
+                        event.preventDefault();
+                        useCurrentLocation();
+                      }}
+                      disabled={locating}
+                      className="w-full text-left px-4 py-3 font-semibold text-accent hover:bg-gray-50 border-b disabled:opacity-60"
+                    >
+                      {locating ? 'Finding your current location...' : 'Use my current location'}
+                    </button>
+                    {locationLoading && (
+                      <p className="px-4 py-3 text-sm text-gray-500">Searching Google Maps...</p>
+                    )}
                     {locationSuggestions.map((suggestion, idx) => (
                       <button
-                        key={idx}
+                        key={suggestion.placeId || idx}
                         type="button"
-                        onClick={() => selectSuggestion(suggestion)}
+                        onPointerDown={(event) => handleSuggestionPointerDown(event, suggestion)}
                         className="w-full text-left px-4 py-3 hover:bg-gray-50 border-b last:border-b-0 text-sm text-gray-700"
                       >
-                        {suggestion}
+                        {suggestion.description || suggestion}
                       </button>
                     ))}
+                    {!locationLoading && locationInput.length < 2 && (
+                      <p className="px-4 py-3 text-sm text-gray-500">Search a parish, community, or address.</p>
+                    )}
+                    {locationError && (
+                      <p className="px-4 py-3 text-sm text-red-600">{locationError}</p>
+                    )}
                   </div>
                 )}
               </div>

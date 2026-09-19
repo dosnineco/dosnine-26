@@ -73,7 +73,7 @@ export default function InFeedAd() {
     <Link
       ref={cardRef}
       href={`/ads/${ad.id}`}
-      className="w-full bg-white border border-gray-200 rounded-xl flex flex-col h-80 overflow-hidden relative group"
+      className="w-full aspect-square lg:max-w-md bg-white border border-gray-200 rounded-xl flex flex-col overflow-hidden relative group"
     >
       <span className="absolute left-3 top-3 z-10 bg-gray-900/80 text-white text-[9px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full">
         Sponsored
