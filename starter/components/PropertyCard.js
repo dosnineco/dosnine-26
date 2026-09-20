@@ -8,6 +8,8 @@ export default function PropertyCard({ property, isOwner = false, index = 0 }) {
   const viewCount = Number(property.views || property.impressions || 0);
   const status = String(property.status || '').toLowerCase().trim();
   const isComingSoon = status === 'coming_soon';
+  const listingType = String(property.listing_type || property.listingType || property.type || '').toLowerCase().trim();
+  const isRental = ['rent', 'rental', 'for rent', 'for_rent'].includes(listingType);
 
   return (
     <a 
@@ -31,18 +33,15 @@ export default function PropertyCard({ property, isOwner = false, index = 0 }) {
         </div>
 
         <div className="mt-4 pt-2 border-t">
-          <div className="flex min-w-0 items-center justify-between gap-2">
-            <div className="min-w-0 text-sm text-gray-600">
+          <div className="flex min-w-0 flex-nowrap items-center justify-between gap-2">
+            <div className="min-w-0 whitespace-nowrap text-sm text-gray-600">
               {(property.bedrooms == 0 && property.bathrooms == 0) ? 'Land' : `${property.bedrooms} bed • ${property.bathrooms} bath`}
             </div>
-            <div className="shrink-0 whitespace-nowrap text-accent font-bold text-sm">{formatPropertyMoney(property.price, property.currency)}</div>
-          </div>
-          {/* {viewCount > 0 && (
-            <div className="flex items-center gap-1 text-xs text-blue-600 mt-1">
-              <Eye className="w-3 h-3" />
-              <span>{viewCount} views</span>
+            <div className="shrink-0 whitespace-nowrap text-accent font-bold text-sm">
+              {formatPropertyMoney(property.price, property.currency)}{isRental ? '/m' : ''}
             </div>
-          )} */}
+          </div>
+       
         </div>
       </div>
     </a>

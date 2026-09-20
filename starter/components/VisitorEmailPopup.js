@@ -377,7 +377,7 @@ if (!formData.name || !formData.email || !formData.phone ||
 return (
   <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
 
-    <div className="bg-white w-full max-w-3xl rounded-2xl shadow-2xl relative overflow-y-auto max-h-[90vh]">
+    <div className="bg-white w-full max-w-4xl sm:rounded-2xl shadow-2xl relative overflow-y-auto max-h-[90vh]">
 
       {/* CLOSE BUTTON */}
       <button
@@ -388,18 +388,47 @@ return (
       </button>
 
       {/* HEADER */}
-      <div className="bg-accent text-white p-8">
-        <h2 className="text-2xl font-bold">Connect with an Agent</h2>
-        <p className="opacity-90">Get matched with verified professionals</p>
+      <div className="bg-accent text-white p-10">
+        <h2 className="text-2xl font-bold mb-2">What are you looking for?</h2>
+
+        <div className="flex items-center justify-center gap-4">
+          {[1, 2, 3, 4].map((number, index) => (
+            <div key={number} className="flex items-center gap-4">
+              <div
+                className={`w-10 h-10 rounded-full flex items-center justify-center font-semibold transition ${
+                  step >= number
+                    ? 'bg-white text-accent'
+                    : 'bg-white/30 text-white'
+                }`}
+              >
+                {number}
+              </div>
+              {index < 3 && (
+                <div
+                  className={`h-1 w-10 sm:w-16 transition ${
+                    step > number ? 'bg-white' : 'bg-white/40'
+                  }`}
+                />
+              )}
+            </div>
+          ))}
+        </div>
+
+        <div className="flex justify-between text-xs opacity-90 mt-3 max-w-lg mx-auto">
+          <span>Your Info</span>
+          <span>Property</span>
+          <span>Budget</span>
+          <span>Details</span>
+        </div>
       </div>
 
       {/* FORM */}
-      <form onSubmit={handleSubmit} className="p-8 space-y-6">
+      <form onSubmit={handleSubmit} className="p-10 space-y-6">
 
         {/* STEP 1 */}
         {step === 1 && (
-          <>
-            <div>
+          <div className="grid md:grid-cols-2 gap-10">
+            <div className="space-y-5">
               <label className="block font-bold mb-1">
                 Full Name <span className="text-red-500">*</span>
               </label>
@@ -408,7 +437,7 @@ return (
                 name="name"
                 value={formData.name}
                 onChange={handleInputChange}
-                className="input"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-accent focus:border-accent outline-none"
                 required
               />
             </div>
@@ -422,7 +451,7 @@ return (
                 name="email"
                 value={formData.email}
                 onChange={handleInputChange}
-                className="input"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-accent focus:border-accent outline-none"
                 required
               />
             </div>
@@ -436,7 +465,7 @@ return (
                 name="phone"
                 value={formData.phone}
                 onChange={handleInputChange}
-                className="input"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-accent focus:border-accent outline-none"
                 required
               />
             </div>
@@ -446,28 +475,28 @@ return (
                 What do you need help with? <span className="text-red-500">*</span>
               </label>
 
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+              <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
                 {["buy","rent","sell","lease","valuation"].map(type => (
                   <button
                     key={type}
                     type="button"
                     onClick={() => setFormData(prev => ({ ...prev, requestType: type }))}
-                    className={`py-2 px-3 rounded-full text-sm font-semibold border transition-colors ${
+                    className={`py-4 px-5 rounded-lg border-2 text-base font-semibold transition-colors ${
                       formData.requestType === type
-                        ? 'bg-accent text-white border-transparent'
-                        : 'bg-gray-100 text-gray-700 border-gray-200 hover:bg-gray-200'
+                        ? 'border-accent bg-accent/10 text-accent'
+                        : 'border-gray-300 text-gray-700 hover:border-accent hover:bg-accent/5'
                     }`}
                   >
-                    {type}
+                    {type.charAt(0).toUpperCase() + type.slice(1)}
                   </button>
                 ))}
               </div>
             </div>
 
-            <button type="button" onClick={nextStep} className="btn-primary w-full">
+            <button type="button" onClick={nextStep} className="mt-8 w-full bg-accent text-white py-4 rounded-lg font-semibold text-base hover:opacity-90 transition">
               Continue
             </button>
-          </>
+          </div>
         )}
 
         {/* STEP 2 */}
@@ -481,7 +510,7 @@ return (
                 name="propertyType"
                 value={formData.propertyType}
                 onChange={handleInputChange}
-                className="input"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-accent focus:border-accent outline-none"
               >
                 <option value="house">House</option>
                 <option value="apartment">Apartment</option>
@@ -500,7 +529,7 @@ return (
     name="parish"
     value={formData.parish}
     onChange={handleInputChange}
-    className="input"
+    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-accent focus:border-accent outline-none"
     required
   >
     <option value="">Select Parish</option>
@@ -537,7 +566,7 @@ return (
                 name="location"
                 value={formData.location}
                 onChange={handleInputChange}
-                className="input"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-accent focus:border-accent outline-none"
                 required
               />
             </div>
@@ -553,7 +582,7 @@ return (
                   value={formData.bedrooms}
                   onChange={handleInputChange}
                   placeholder="Bedrooms"
-                  className="input"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-accent focus:border-accent outline-none"
                 />
               </div>
 
@@ -567,16 +596,16 @@ return (
                   value={formData.bathrooms}
                   onChange={handleInputChange}
                   placeholder="Bathrooms"
-                  className="input"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-accent focus:border-accent outline-none"
                 />
               </div>
             </div>
 
             <div className="flex gap-4">
-              <button type="button" onClick={prevStep} className="flex-1 border py-3 rounded-lg">
+              <button type="button" onClick={prevStep} className="flex-1 border border-gray-300 py-4 rounded-lg font-semibold text-base hover:bg-gray-100 transition">
                 Back
               </button>
-              <button type="button" onClick={nextStep} className="flex-1 bg-accent text-white py-3 rounded-lg">
+              <button type="button" onClick={nextStep} className="flex-1 bg-accent text-white py-4 rounded-lg font-semibold text-base hover:opacity-90 transition">
                 Continue
               </button>
             </div>
@@ -648,10 +677,10 @@ return (
             </div>
 
             <div className="flex gap-4">
-              <button type="button" onClick={prevStep} className="flex-1 border py-3 rounded-lg">
+              <button type="button" onClick={prevStep} className="flex-1 border border-gray-300 py-4 rounded-lg font-semibold text-base hover:bg-gray-100 transition">
                 Back
               </button>
-              <button type="button" onClick={nextStep} className="flex-1 bg-accent text-white py-3 rounded-lg">
+              <button type="button" onClick={nextStep} className="flex-1 bg-accent text-white py-4 rounded-lg font-semibold text-base hover:opacity-90 transition">
                 Continue
               </button>
             </div>
@@ -669,17 +698,17 @@ return (
               value={formData.description}
               onChange={handleInputChange}
               placeholder="Additional details eg. Monthly income, Occupation(Job), family size, etc. (optional)"
-              className="input h-40"
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-accent focus:border-accent outline-none h-40"
             />
 
             <div className="flex gap-4">
-              <button type="button" onClick={prevStep} className="flex-1 border py-3 rounded-lg">
+              <button type="button" onClick={prevStep} className="flex-1 border border-gray-300 py-4 rounded-lg font-semibold text-base hover:bg-gray-100 transition">
                 Back
               </button>
               <button
                 type="submit"
                 disabled={loading}
-                className="flex-1 bg-accent text-white py-3 rounded-lg"
+                className="flex-1 bg-accent text-white py-4 rounded-lg font-semibold text-base hover:opacity-90 transition disabled:opacity-50"
               >
                 {loading ? "Submitting..." : "Submit Request"}
               </button>

@@ -1,20 +1,125 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Crosshair, LoaderCircle, MapPin, Search } from 'lucide-react';
 import toast from 'react-hot-toast';
 
-const JAMAICA_MAP_URL = 'https://www.google.com/maps?q=Jamaica&z=8&output=embed';
+const JAMAICA_GOOGLE_MAPS_LINK = 'https://www.google.com/maps/search/?api=1&query=Jamaica';
+const JAMAICA_CENTER = [18.1096, -77.2975];
 
-function createMapUrl(latitude, longitude) {
-  const span = 0.01;
-  return `https://www.google.com/maps?q=${latitude},${longitude}&z=18&output=embed`;
+function createGoogleMapsLink(latitude, longitude) {
+  return `https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}`;
+}
+
+function createQueryGoogleMapsLink(query) {
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
 }
 
 export default function LocationPicker({ parish, town, address, onAddressChange, onLocationChange }) {
   const [searching, setSearching] = useState(false);
   const [locating, setLocating] = useState(false);
   const [message, setMessage] = useState('');
-  const [mapUrl, setMapUrl] = useState(JAMAICA_MAP_URL);
+  const [googleMapsLink, setGoogleMapsLink] = useState(JAMAICA_GOOGLE_MAPS_LINK);
   const [showPermissionDialog, setShowPermissionDialog] = useState(false);
+  const mapContainerRef = useRef(null);
+  const mapRef = useRef(null);
+  const markerRef = useRef(null);
+  const googleRef = useRef(null);
+
+  useEffect(() => {
+    const query = [address, town, parish, 'Jamaica'].filter(Boolean).join(', ');
+    if (!query) return;
+
+    setGoogleMapsLink(createQueryGoogleMapsLink(query));
+  }, [address, town, parish]);
+
+  const placePin = (latitude, longitude, formattedAddress = `${latitude}, ${longitude}`, locationDetails = {}) => {
+    const map = mapRef.current;
+    const google = googleRef.current;
+    if (!map || !google) return;
+
+    if (markerRef.current) markerRef.current.setMap(null);
+    markerRef.current = new google.maps.Marker({
+      position: { lat: latitude, lng: longitude },
+      map,
+      title: 'Property location',
+      animation: google.maps.Animation.DROP,
+    });
+    map.panTo({ lat: latitude, lng: longitude });
+    map.setZoom(16);
+    setGoogleMapsLink(createGoogleMapsLink(latitude, longitude));
+    onAddressChange(formattedAddress);
+    onLocationChange({
+      latitude,
+      longitude,
+      formattedAddress,
+      parish: locationDetails.parish || '',
+      town: locationDetails.town || '',
+    });
+  };
+
+  useEffect(() => {
+    let active = true;
+    const scriptId = 'google-maps-javascript-api';
+    const initializeMap = () => {
+      if (!active || !mapContainerRef.current || !window.google?.maps || mapRef.current) return;
+
+      googleRef.current = window.google;
+      const map = new window.google.maps.Map(mapContainerRef.current, {
+        center: { lat: JAMAICA_CENTER[0], lng: JAMAICA_CENTER[1] },
+        zoom: 8,
+        mapTypeControl: false,
+        streetViewControl: false,
+        fullscreenControl: true,
+        zoomControl: true,
+      });
+
+      map.addListener('click', (event) => {
+        const latitude = Number(event.latLng.lat().toFixed(7));
+        const longitude = Number(event.latLng.lng().toFixed(7));
+        placePin(latitude, longitude);
+        setMessage('Pin placed. Confirm this location before posting.');
+      });
+      mapRef.current = map;
+    };
+
+    const loadGoogleMaps = async () => {
+      try {
+        const response = await fetch('/api/maps/config');
+        const payload = await response.json();
+        if (!response.ok || !payload?.apiKey) {
+          setMessage(payload?.error || 'Google Maps could not be configured.');
+          return;
+        }
+
+        const existingScript = document.getElementById(scriptId);
+        if (existingScript) {
+          if (window.google?.maps) initializeMap();
+          else existingScript.addEventListener('load', initializeMap, { once: true });
+          return;
+        }
+
+        const script = document.createElement('script');
+        script.id = scriptId;
+        script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(payload.apiKey)}`;
+        script.async = true;
+        script.defer = true;
+        script.addEventListener('load', initializeMap, { once: true });
+        script.addEventListener('error', () => setMessage('Google Maps could not load. Check the API key and enabled APIs.'), { once: true });
+        document.head.appendChild(script);
+      } catch (error) {
+        setMessage('Google Maps configuration could not be loaded.');
+      }
+    };
+
+    loadGoogleMaps();
+
+    return () => {
+      active = false;
+      if (markerRef.current) markerRef.current.setMap(null);
+      mapRef.current = null;
+      markerRef.current = null;
+      googleRef.current = null;
+    };
+  }, []);
 
   const showPermissionHelp = () => {
     const messageText = 'Location permission is blocked. Click the lock icon beside the address, allow Location, then reload this page.';
@@ -56,9 +161,7 @@ export default function LocationPicker({ parish, town, address, onAddressChange,
         // Coordinates are still valid if reverse geocoding is unavailable.
       }
 
-      onAddressChange(formattedAddress);
-      onLocationChange({ latitude, longitude, formattedAddress, parish, town });
-      setMapUrl(createMapUrl(latitude, longitude));
+      placePin(latitude, longitude, formattedAddress, { parish, town });
       setShowPermissionDialog(false);
       setMessage('Exact GPS location captured. Confirm this pin before posting.');
       setLocating(false);
@@ -103,16 +206,10 @@ export default function LocationPicker({ parish, town, address, onAddressChange,
         return;
       }
 
-      const location = {
-        latitude: Number(result.latitude),
-        longitude: Number(result.longitude),
-        formattedAddress: result.formattedAddress,
-        parish: result.parish || '',
-        town: result.town || '',
-      };
-      onAddressChange(result.formattedAddress);
-      onLocationChange(location);
-      setMapUrl(createMapUrl(Number(result.latitude), Number(result.longitude)));
+      placePin(Number(result.latitude), Number(result.longitude), result.formattedAddress, {
+        parish: result.parish,
+        town: result.town,
+      });
       setMessage('Location verified.');
     } catch (error) {
       setMessage('Could not search maps right now. Please try again.');
@@ -123,18 +220,18 @@ export default function LocationPicker({ parish, town, address, onAddressChange,
   };
 
   return (
-    <div className="mt-3 rounded-xl bg-slate-50 p-4">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+    <div className="mt-4 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+      <div className="border-b border-gray-100 px-5 py-5 sm:px-6">
         <div>
-          <p className="text-sm font-semibold text-slate-900">Verify the exact location</p>
-          <p className="text-xs text-slate-500">Use GPS while at the property for the most accurate pin.</p>
+          <p className="text-lg font-semibold text-gray-900">Where is your property located?</p>
+          <p className="mt-1 text-sm text-gray-500">Confirm the location so people can find your property.</p>
         </div>
-        <div className="flex flex-col gap-2 sm:flex-row">
+        <div className="mt-4 flex flex-col gap-2 sm:flex-row">
           <button
             type="button"
             onClick={useGpsLocation}
             disabled={locating || searching}
-            className="inline-flex items-center justify-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white transition hover:bg-[var(--accent-color-hover)] disabled:opacity-60"
+            className="inline-flex items-center justify-center gap-2 rounded-full bg-accent px-5 py-3 text-sm font-semibold text-white transition hover:bg-[var(--accent-color-hover)] disabled:opacity-60"
           >
             {locating ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Crosshair className="h-4 w-4" />}
             {locating ? 'Finding GPS...' : 'Use exact GPS'}
@@ -143,7 +240,7 @@ export default function LocationPicker({ parish, town, address, onAddressChange,
             type="button"
             onClick={searchLocation}
             disabled={searching || locating}
-            className="inline-flex items-center justify-center gap-2 rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-700 disabled:opacity-60"
+            className="inline-flex items-center justify-center gap-2 rounded-full border border-gray-300 bg-white px-5 py-3 text-sm font-semibold text-gray-800 transition hover:border-gray-900 hover:bg-gray-50 disabled:opacity-60"
           >
             {searching ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
             {searching ? 'Searching...' : 'Search address'}
@@ -151,18 +248,22 @@ export default function LocationPicker({ parish, town, address, onAddressChange,
         </div>
       </div>
       {message && (
-        <p className={`mt-3 flex items-center gap-1 text-xs ${message === 'Location verified.' ? 'text-emerald-700' : 'text-amber-700'}`}>
-          <MapPin className="h-3.5 w-3.5" /> {message}
-        </p>
+        <div className={`mx-5 mt-4 flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium sm:mx-6 ${message === 'Location verified.' || message.includes('captured') ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>
+          <MapPin className="h-3.5 w-3.5 flex-shrink-0" />
+          {message}
+        </div>
       )}
-      <div className="mt-4 overflow-hidden rounded-lg bg-white">
-        <iframe
-          title="Jamaica property location map"
-          src={mapUrl}
-          className="h-64 w-full border-0"
-          loading="lazy"
-        />
-        <p className="px-3 py-2 text-xs text-slate-500">Google Maps is used to verify and display the property location.</p>
+      <div className="relative mt-5 overflow-hidden border-t border-gray-100 bg-gray-100">
+        <div ref={mapContainerRef} className="h-72 w-full sm:h-80" aria-label="Click the map to place a property pin" />
+        <a
+          href={googleMapsLink}
+          target="_blank"
+          rel="noreferrer"
+          className="absolute bottom-4 left-1/2 inline-flex -translate-x-1/2 items-center gap-2 rounded-full bg-white px-5 py-3 text-sm font-semibold text-gray-900 shadow-lg transition hover:bg-gray-50"
+        >
+          <MapPin className="h-4 w-4 text-accent" />
+          Open in Google Maps
+        </a>
       </div>
 
       {showPermissionDialog && (

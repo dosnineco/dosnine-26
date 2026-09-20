@@ -295,20 +295,19 @@ export default function PropertyRequestsMarketplace() {
 
       {/* Featured Properties Preview */}
       {!loadingFeatured && featuredProperties.length > 0 && (
-        <section className="bg-white rounded-xl  py-12 px-4 mt-12">
+        <section className=" mt-12">
           <div className="container mx-auto">
-            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-8">
-              <div>
-                <h2 className="text-3xl font-bold text-gray-900">Featured Properties</h2>
-                <p className="text-gray-600 mt-2">Browse available rentals across Jamaica.</p>
+            <div className="flex flex-row items-center justify-between gap-4 mb-8">
+              <div className="flex items-center gap-2 min-w-0"> 
+                <h2 className="text-3xl font-bold text-gray-900 whitespace-nowrap">Available Properties</h2>
               </div>
-              <Link href="/listing" className="inline-flex items-center gap-2 rounded-full bg-gray-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-gray-800">
-                View All
-                <ArrowRight size={18} />
+              <Link href="/listing" className="inline-flex items-center gap-2 rounded-full bg-accent px-5 py-3 text-sm font-semibold text-white transition hover:bg-gray-800">
+                
+                <ArrowRight size={18}  />
               </Link>
             </div>
             <div className="relative overflow-hidden">
-              <div className="mx-4 overflow-x-auto pb-4 px-4 flex gap-4 snap-x snap-mandatory scrollbar-hide">
+              <div className="mx-4 overflow-x-auto pb-4 px-4 flex gap-4 snap-x   snap-mandatory scrollbar-hide">
                 {featuredProperties.map((prop, idx) => (
                   <div key={prop.id} className=" min-w-[300px] flex-shrink-0 snap-start">
                     <div className="h-80">
@@ -340,11 +339,10 @@ export default function PropertyRequestsMarketplace() {
             <div className="container mx-auto">
               <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-8">
                 <div>
-                  <h2 className="text-3xl font-bold text-gray-900">I am looking for</h2>
-                  <p className="text-gray-600 mt-2">See what clients are currently looking for across Jamaica.</p>
+                  <h2 className="text-3xl font-bold text-gray-900">Submit what you're looking for</h2>
                 </div>
                 <Link href="/request" className="inline-flex items-center gap-2 rounded-full bg-gray-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-gray-800">
-                  Submit a request
+                Submit a request Here
                   <ArrowRight size={18} />
                 </Link>
               </div>
@@ -394,12 +392,7 @@ export default function PropertyRequestsMarketplace() {
                   </p>
                 </div>
 
-                 {/* Similar requests badge */}
-                {similarCount > 0 && (
-                  <div className="inline-flex text-blue-700 text-[10px] font-semibold py-0.5 rounded-full mb-2 items-center gap-1">
-                    +{similarCount} similar {similarCount === 1 ? 'request' : 'requests'}
-                  </div>
-                )}
+               
               </div>
               </div>
             );

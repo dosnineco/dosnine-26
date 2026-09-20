@@ -4,7 +4,6 @@ import { useAuth, useUser } from '@clerk/nextjs';
 import { useRouter } from 'next/router';
 import axios from 'axios';
 import toast from 'react-hot-toast';
-import { PayPalScriptProvider, PayPalButtons } from '@paypal/react-paypal-js';
 import { PARISHES } from '../../lib/normalizeParish';
 import LocationPicker from '../../components/LocationPicker';
 
@@ -298,82 +297,52 @@ const handleSubmit = async (e) => {
   }
 
   return (
-    <div className="property-form-page min-h-screen bg-slate-50 py-10 text-slate-700">
-      <div className="container mx-auto px-4 flex justify-center">
-        <div className="w-full max-w-3xl">
-          <div className="mb-4">
-            <Link href="/properties/my-listings" className="text-blue-600 hover:underline">← Back to My Properties</Link>
+    <div className="property-form-page min-h-screen bg-gray-50 px-4 py-6 text-slate-700 sm:px-6">
+      <div className="container mx-auto flex justify-center">
+        <div className="w-full max-w-4xl">
+          <div className="mb-6">
+            <Link
+              href="/properties/my-listings"
+              className="inline-flex items-center rounded-lg border border-gray-300 bg-white px-4 py-3 text-sm font-semibold text-gray-700 transition hover:border-accent hover:bg-accent/5 hover:text-accent"
+            >
+              Manage My Properties
+            </Link>
           </div>
           
-          <div className="mb-8 text-center">
-            <p className="mb-2 text-xs font-semibold uppercase tracking-[0.2em] text-accent">Dosnine properties</p>
-            <h1 className="text-4xl font-semibold tracking-tight text-slate-950">Post a property</h1>
-            <p className="mx-auto mt-2 max-w-xl text-sm text-slate-500">Present your property clearly, pin its exact location, and help the right people find it.</p>
+          <div className="mb-8 rounded-2xl bg-accent px-6 py-8 text-center text-white sm:px-10 sm:py-10">
+            <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">Post a Property</h1>
           </div>
 
           {extraListingFee && (
-            <div className="mb-6 bg-white rounded-xl border border-accent/30 p-6 text-center">
+            <div className="mb-6 rounded-2xl border border-accent/30 bg-white p-6 text-center shadow-sm">
               <p className="text-gray-800 font-semibold mb-1">Free listing limit reached</p>
               <p className="text-gray-600 text-sm mb-4">
                 Pay a one-time fee of <strong>J${extraListingFee.toLocaleString()}</strong> to post this additional property.
               </p>
-              <PayPalScriptProvider options={{ 'client-id': process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID, currency: 'USD' }}>
-                <PayPalButtons
-                  style={{ layout: 'vertical', color: 'gold', shape: 'rect', label: 'pay' }}
-                  createOrder={(data, actions) => actions.order.create({
-                    purchase_units: [
-                      {
-                        description: 'Additional property listing fee',
-                        amount: { value: (extraListingFee / 155).toFixed(2) },
-                      },
-                    ],
-                  })}
-                  onApprove={async (data, actions) => {
-                    try {
-                      await actions.order.capture();
-                      const token = await getToken();
-                      const res = await axios.post('/api/user/pay-extra-listing', {}, {
-                        withCredentials: true,
-                        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-                      });
-                      if (res.data?.success) {
-                        toast.success('Payment received! You can now post this property.');
-                        setExtraListingFee(null);
-                      } else {
-                        toast.error(res.data?.error || 'Failed to confirm payment');
-                      }
-                    } catch (err) {
-                      console.error('PayPal capture error', err);
-                      toast.error('Payment failed. Please try again.');
-                    }
-                  }}
-                  onError={() => toast.error('Payment failed. Please try again.')}
-                />
-              </PayPalScriptProvider>
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="w-full rounded-2xl bg-white p-6 shadow-[0_12px_40px_rgba(15,23,42,0.07)] sm:p-8">
+          <form onSubmit={handleSubmit} className="w-full p-6 sm:p-10">
         {/* Basic Info */}
         <div className="mb-4">
-          <label className="block text-sm font-medium mb-1">Title *</label>
+          <label className="mb-2 block text-sm font-medium text-gray-700">Title *</label>
           <input
             type="text"
             required
             placeholder="e.g., Beautiful 3 Bed House in Portmore"
-            className="w-full border rounded px-3 py-2"
+            className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none transition focus:border-accent focus:ring-2 focus:ring-accent"
             value={form.title}
             onChange={(e) => setForm({ ...form, title: e.target.value })}
           />
         </div>
 
         <div className="mb-4">
-          <label className="block text-sm font-medium mb-1">Description *</label>
+          <label className="mb-2 block text-sm font-medium text-gray-700">Description *</label>
           <textarea
             required
             placeholder="Describe your property..."
             rows="4"
-            className="w-full border rounded px-3 py-2"
+            className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none transition focus:border-accent focus:ring-2 focus:ring-accent"
             value={form.description}
             onChange={(e) => setForm({ ...form, description: e.target.value })}
           ></textarea>
@@ -382,10 +351,10 @@ const handleSubmit = async (e) => {
         {/* Location */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
           <div>
-            <label className="block text-sm font-medium mb-1">Parish *</label>
+            <label className="mb-2 block text-sm font-medium text-gray-700">Parish *</label>
             <select
               required
-              className="w-full border rounded px-3 py-2"
+              className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none transition focus:border-accent focus:ring-2 focus:ring-accent"
               value={form.parish}
               onChange={(e) => {
                 setForm({ ...form, parish: e.target.value });
@@ -399,12 +368,12 @@ const handleSubmit = async (e) => {
             </select>
           </div>
           <div className="md:col-span-1">
-            <label className="block text-sm font-medium mb-1">Town/Area *</label>
+            <label className="mb-2 block text-sm font-medium text-gray-700">Town/Area *</label>
             <input
               type="text"
               required
-              placeholder="e.g., Portmore"
-              className="w-full border rounded px-3 py-2"
+              placeholder="Portmore"
+              className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none transition focus:border-accent focus:ring-2 focus:ring-accent"
               value={form.town}
               onChange={(e) => {
                 setForm({ ...form, town: e.target.value });
@@ -413,10 +382,10 @@ const handleSubmit = async (e) => {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium mb-1">Category *</label>
+            <label className="mb-2 block text-sm font-medium text-gray-700">Category *</label>
             <select
               required
-              className="w-full border rounded px-3 py-2"
+              className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none transition focus:border-accent focus:ring-2 focus:ring-accent"
               value={form.property_type}
               onChange={(e) => setForm({ ...form, property_type: e.target.value })}
             >
@@ -428,11 +397,11 @@ const handleSubmit = async (e) => {
         </div>
 
         <div className="mb-4">
-          <label className="block text-sm font-medium mb-1">Address</label>
+          <label className="mb-2 block text-sm font-medium text-gray-700">Address</label>
           <input
             type="text"
             placeholder="Street address"
-            className="w-full border rounded px-3 py-2"
+            className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none transition focus:border-accent focus:ring-2 focus:ring-accent"
             value={form.address}
             onChange={(e) => {
               setForm({ ...form, address: e.target.value });
@@ -443,7 +412,7 @@ const handleSubmit = async (e) => {
             parish={form.parish}
             town={form.town}
             address={form.address}
-            onAddressChange={(value) => setForm({ ...form, address: value })}
+            onAddressChange={(value) => setForm((currentForm) => ({ ...currentForm, address: value }))}
             onLocationChange={(location) => {
               setVerifiedLocation(location);
               setForm((currentForm) => ({
@@ -457,11 +426,11 @@ const handleSubmit = async (e) => {
         </div>
 
         <div className="mb-4">
-          <label className="block text-sm font-medium mb-1">Phone Number</label>
+          <label className="mb-2 block text-sm font-medium text-gray-700">Phone Number</label>
           <input
             type="tel"
             placeholder="e.g., +1 876 555-1234"
-            className="w-full border rounded px-3 py-2"
+            className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none transition focus:border-accent focus:ring-2 focus:ring-accent"
             value={form.phone_number}
             onChange={(e) => setForm({ ...form, phone_number: e.target.value })}
           />
@@ -471,23 +440,23 @@ const handleSubmit = async (e) => {
         {['house', 'apartment'].includes(form.property_type) ? (
           <div className="grid grid-cols-2 gap-4 mb-4">
             <div>
-              <label className="block text-sm font-medium mb-1">Bedrooms *</label>
+              <label className="mb-2 block text-sm font-medium text-gray-700">Bedrooms *</label>
               <input
                 type="number"
                 required
                 min="0"
-                className="w-full border rounded px-3 py-2"
+                className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none transition focus:border-accent focus:ring-2 focus:ring-accent"
                 value={form.bedrooms}
                 onChange={(e) => setForm({ ...form, bedrooms: e.target.value })}
               />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">Bathrooms *</label>
+              <label className="mb-2 block text-sm font-medium text-gray-700">Bathrooms *</label>
               <input
                 type="number"
                 required
                 min="0"
-                className="w-full border rounded px-3 py-2"
+                className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none transition focus:border-accent focus:ring-2 focus:ring-accent"
                 value={form.bathrooms}
                 onChange={(e) => setForm({ ...form, bathrooms: e.target.value })}
               />
@@ -502,21 +471,21 @@ const handleSubmit = async (e) => {
         {/* Price */}
         <div className="grid grid-cols-2 gap-4 mb-4">
           <div>
-            <label className="block text-sm font-medium mb-1">Price *</label>
+            <label className="mb-2 block text-sm font-medium text-gray-700">Price *</label>
             <input
               type="number"
               required
               min="0"
               step="0.01"
-              className="w-full border rounded px-3 py-2"
+              className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none transition focus:border-accent focus:ring-2 focus:ring-accent"
               value={form.price}
               onChange={(e) => setForm({ ...form, price: e.target.value })}
             />
           </div>
           <div>
-            <label className="block text-sm font-medium mb-1">Currency</label>
+            <label className="mb-2 block text-sm font-medium text-gray-700">Currency</label>
             <select
-              className="w-full border rounded px-3 py-2"
+              className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none transition focus:border-accent focus:ring-2 focus:ring-accent"
               value={form.currency}
               onChange={(e) => setForm({ ...form, currency: e.target.value })}
             >
@@ -529,9 +498,9 @@ const handleSubmit = async (e) => {
         {/* Status */}
         <div className="grid grid-cols-2 gap-4 mb-4">
           <div>
-            <label className="block text-sm font-medium mb-1">Market</label>
+            <label className="mb-2 block text-sm font-medium text-gray-700">Market</label>
             <select
-              className="w-full border rounded px-3 py-2"
+              className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none transition focus:border-accent focus:ring-2 focus:ring-accent"
               value={form.type}
               onChange={(e) => setForm({ ...form, type: e.target.value })}
             >
@@ -542,8 +511,8 @@ const handleSubmit = async (e) => {
         </div>
 
         {/* Image Upload */}
-        <div className="mb-6 p-4 bg-blue-50 rounded">
-          <label className="block text-sm font-medium mb-2">Upload Images (Max 5) *</label>
+        <div className="mb-6 rounded-lg bg-white p-5">
+          <label className="mb-2 block text-sm font-medium text-gray-700">Upload Images (Max 5) *</label>
           <input
             type="file"
             multiple
@@ -552,7 +521,7 @@ const handleSubmit = async (e) => {
             onChange={handleImageUpload}
             className="block w-full text-sm text-gray-500 mb-3"
           />
-          {uploadingImages && <p className="text-blue-600">Uploading...</p>}
+          {uploadingImages && <p className="text-accent">Uploading...</p>}
 
           {images.length > 0 && (
             <div className="mt-4">
@@ -581,7 +550,7 @@ const handleSubmit = async (e) => {
         <button
           type="submit"
           disabled={loading || uploadingImages}
-          className="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition disabled:opacity-50"
+          className="w-full rounded-lg bg-accent py-4 text-base font-semibold text-white transition hover:opacity-90 disabled:opacity-50"
         >
           {loading ? 'Posting...' : 'Post Property'}
         </button>
