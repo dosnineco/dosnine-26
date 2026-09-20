@@ -378,7 +378,7 @@ export default function Home() {
     try {
       const response = await fetch(`/api/places/autocomplete?input=${encodeURIComponent(searchText)}`);
       const payload = await response.json();
-      if (!response.ok || !payload?.success) throw new Error(payload?.error || 'Failed to fetch Google Maps suggestions');
+      if (!response.ok || !payload?.success) throw new Error(payload?.error || 'Failed to fetch location suggestions');
       setLocationSuggestions(payload.suggestions || []);
     } catch (err) {
       console.error('Error fetching suggestions:', err);
@@ -472,7 +472,7 @@ export default function Home() {
                 {showSuggestions && (
                   <div className="absolute z-20 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-xl overflow-hidden">
                     {locationLoading && (
-                      <p className="px-4 py-3 text-sm text-gray-500">Searching Google Maps...</p>
+                      <p className="px-4 py-3 text-sm text-gray-500">Searching locations...</p>
                     )}
                     {locationSuggestions.map((suggestion, idx) => (
                       <button

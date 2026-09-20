@@ -5,7 +5,6 @@ import { useRouter } from 'next/router';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 import { PARISHES } from '../../lib/normalizeParish';
-import LocationPicker from '../../components/LocationPicker';
 
 export default function NewProperty() {
   const { user, isLoaded } = useUser();
@@ -16,7 +15,6 @@ export default function NewProperty() {
   const [images, setImages] = useState([]);
   const [uploadingImages, setUploadingImages] = useState(false);
   const [extraListingFee, setExtraListingFee] = useState(null);
-  const [verifiedLocation, setVerifiedLocation] = useState(null);
 
   // Check payment status for agents before loading page
   useEffect(() => {
@@ -82,7 +80,6 @@ export default function NewProperty() {
   const resetForm = () => {
     setForm(initialFormState);
     setImages([]);
-    setVerifiedLocation(null);
   };
 
   const fileToDataUrl = (file) => new Promise((resolve, reject) => {
@@ -205,11 +202,6 @@ const handleSubmit = async (e) => {
     return;
   }
 
-  if (!verifiedLocation) {
-    toast.error('Please find and verify the property location on the map');
-    return;
-  }
-
   setLoading(true);
   try {
     const token = await getToken();
@@ -224,9 +216,6 @@ const handleSubmit = async (e) => {
       bathrooms: useRoomCounts ? Number(form.bathrooms || 0) : 0,
       price: Number(form.price),
       property_type: form.property_type,
-      formatted_address: verifiedLocation.formattedAddress,
-      latitude: verifiedLocation.latitude,
-      longitude: verifiedLocation.longitude,
     };
 
     const response = await fetch('/api/properties/create', {
@@ -356,10 +345,7 @@ const handleSubmit = async (e) => {
               required
               className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none transition focus:border-accent focus:ring-2 focus:ring-accent"
               value={form.parish}
-              onChange={(e) => {
-                setForm({ ...form, parish: e.target.value });
-                setVerifiedLocation(null);
-              }}
+              onChange={(e) => setForm({ ...form, parish: e.target.value })}
             >
               <option value="">Select Parish</option>
               {PARISHES.map((p) => (
@@ -375,10 +361,7 @@ const handleSubmit = async (e) => {
               placeholder="Portmore"
               className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none transition focus:border-accent focus:ring-2 focus:ring-accent"
               value={form.town}
-              onChange={(e) => {
-                setForm({ ...form, town: e.target.value });
-                setVerifiedLocation(null);
-              }}
+              onChange={(e) => setForm({ ...form, town: e.target.value })}
             />
           </div>
           <div>
@@ -403,25 +386,7 @@ const handleSubmit = async (e) => {
             placeholder="Street address"
             className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none transition focus:border-accent focus:ring-2 focus:ring-accent"
             value={form.address}
-            onChange={(e) => {
-              setForm({ ...form, address: e.target.value });
-              setVerifiedLocation(null);
-            }}
-          />
-          <LocationPicker
-            parish={form.parish}
-            town={form.town}
-            address={form.address}
-            onAddressChange={(value) => setForm((currentForm) => ({ ...currentForm, address: value }))}
-            onLocationChange={(location) => {
-              setVerifiedLocation(location);
-              setForm((currentForm) => ({
-                ...currentForm,
-                address: location?.formattedAddress || currentForm.address,
-                parish: location?.parish || currentForm.parish,
-                town: location?.town || currentForm.town,
-              }));
-            }}
+            onChange={(e) => setForm({ ...form, address: e.target.value })}
           />
         </div>
 

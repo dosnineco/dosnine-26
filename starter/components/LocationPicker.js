@@ -2,50 +2,43 @@ import { useEffect, useRef, useState } from 'react';
 import { Crosshair, LoaderCircle, MapPin, Search } from 'lucide-react';
 import toast from 'react-hot-toast';
 
-const JAMAICA_GOOGLE_MAPS_LINK = 'https://www.google.com/maps/search/?api=1&query=Jamaica';
 const JAMAICA_CENTER = [18.1096, -77.2975];
 
-function createGoogleMapsLink(latitude, longitude) {
-  return `https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}`;
+function createOpenStreetMapLink(latitude, longitude) {
+  return `https://www.openstreetmap.org/?mlat=${latitude}&mlon=${longitude}#map=16/${latitude}/${longitude}`;
 }
 
-function createQueryGoogleMapsLink(query) {
-  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
+function createQueryOpenStreetMapLink(query) {
+  return `https://www.openstreetmap.org/search?query=${encodeURIComponent(query)}`;
 }
 
 export default function LocationPicker({ parish, town, address, onAddressChange, onLocationChange }) {
   const [searching, setSearching] = useState(false);
   const [locating, setLocating] = useState(false);
   const [message, setMessage] = useState('');
-  const [googleMapsLink, setGoogleMapsLink] = useState(JAMAICA_GOOGLE_MAPS_LINK);
+  const [mapLink, setMapLink] = useState(createQueryOpenStreetMapLink('Jamaica'));
   const [showPermissionDialog, setShowPermissionDialog] = useState(false);
   const mapContainerRef = useRef(null);
   const mapRef = useRef(null);
   const markerRef = useRef(null);
-  const googleRef = useRef(null);
+  const leafletRef = useRef(null);
 
   useEffect(() => {
     const query = [address, town, parish, 'Jamaica'].filter(Boolean).join(', ');
     if (!query) return;
 
-    setGoogleMapsLink(createQueryGoogleMapsLink(query));
+    setMapLink(createQueryOpenStreetMapLink(query));
   }, [address, town, parish]);
 
   const placePin = (latitude, longitude, formattedAddress = `${latitude}, ${longitude}`, locationDetails = {}) => {
     const map = mapRef.current;
-    const google = googleRef.current;
-    if (!map || !google) return;
+    const leaflet = leafletRef.current;
+    if (!map || !leaflet) return;
 
-    if (markerRef.current) markerRef.current.setMap(null);
-    markerRef.current = new google.maps.Marker({
-      position: { lat: latitude, lng: longitude },
-      map,
-      title: 'Property location',
-      animation: google.maps.Animation.DROP,
-    });
-    map.panTo({ lat: latitude, lng: longitude });
-    map.setZoom(16);
-    setGoogleMapsLink(createGoogleMapsLink(latitude, longitude));
+    if (markerRef.current) markerRef.current.remove();
+    markerRef.current = leaflet.marker([latitude, longitude]).addTo(map);
+    map.setView([latitude, longitude], 16);
+    setMapLink(createOpenStreetMapLink(latitude, longitude));
     onAddressChange(formattedAddress);
     onLocationChange({
       latitude,
@@ -58,66 +51,73 @@ export default function LocationPicker({ parish, town, address, onAddressChange,
 
   useEffect(() => {
     let active = true;
-    const scriptId = 'google-maps-javascript-api';
+    const leafletScriptId = 'leaflet-javascript-api';
+    const leafletStyleId = 'leaflet-stylesheet';
     const initializeMap = () => {
-      if (!active || !mapContainerRef.current || !window.google?.maps || mapRef.current) return;
+      const leaflet = window.L;
+      if (!active || !mapContainerRef.current || !leaflet || mapRef.current) return;
 
-      googleRef.current = window.google;
-      const map = new window.google.maps.Map(mapContainerRef.current, {
-        center: { lat: JAMAICA_CENTER[0], lng: JAMAICA_CENTER[1] },
-        zoom: 8,
-        mapTypeControl: false,
-        streetViewControl: false,
-        fullscreenControl: true,
-        zoomControl: true,
-      });
+      leafletRef.current = leaflet;
+      const map = leaflet.map(mapContainerRef.current).setView(JAMAICA_CENTER, 8);
+      leaflet.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap contributors',
+        maxZoom: 19,
+      }).addTo(map);
+      requestAnimationFrame(() => map.invalidateSize());
 
-      map.addListener('click', (event) => {
-        const latitude = Number(event.latLng.lat().toFixed(7));
-        const longitude = Number(event.latLng.lng().toFixed(7));
+      map.on('click', (event) => {
+        const latitude = Number(event.latlng.lat.toFixed(7));
+        const longitude = Number(event.latlng.lng.toFixed(7));
         placePin(latitude, longitude);
         setMessage('Pin placed. Confirm this location before posting.');
       });
       mapRef.current = map;
     };
 
-    const loadGoogleMaps = async () => {
-      try {
-        const response = await fetch('/api/maps/config');
-        const payload = await response.json();
-        if (!response.ok || !payload?.apiKey) {
-          setMessage(payload?.error || 'Google Maps could not be configured.');
-          return;
-        }
-
-        const existingScript = document.getElementById(scriptId);
-        if (existingScript) {
-          if (window.google?.maps) initializeMap();
-          else existingScript.addEventListener('load', initializeMap, { once: true });
-          return;
-        }
-
+    const loadLeaflet = () => {
+      const existingScript = document.getElementById(leafletScriptId);
+      if (window.L) {
+        initializeMap();
+      } else if (existingScript) {
+        existingScript.addEventListener('load', initializeMap, { once: true });
+        const waitForLeaflet = () => {
+          if (!active) return;
+          if (window.L) {
+            initializeMap();
+            return;
+          }
+          window.setTimeout(waitForLeaflet, 50);
+        };
+        waitForLeaflet();
+      } else {
         const script = document.createElement('script');
-        script.id = scriptId;
-        script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(payload.apiKey)}`;
+        script.id = leafletScriptId;
+        script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
         script.async = true;
         script.defer = true;
         script.addEventListener('load', initializeMap, { once: true });
-        script.addEventListener('error', () => setMessage('Google Maps could not load. Check the API key and enabled APIs.'), { once: true });
+        script.addEventListener('error', () => setMessage('The location map could not load. Please use GPS or search the address.'), { once: true });
         document.head.appendChild(script);
-      } catch (error) {
-        setMessage('Google Maps configuration could not be loaded.');
+      }
+
+      if (!document.getElementById(leafletStyleId)) {
+        const style = document.createElement('link');
+        style.id = leafletStyleId;
+        style.rel = 'stylesheet';
+        style.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+        document.head.appendChild(style);
       }
     };
 
-    loadGoogleMaps();
+    loadLeaflet();
 
     return () => {
       active = false;
-      if (markerRef.current) markerRef.current.setMap(null);
+      if (markerRef.current) markerRef.current.remove();
+      if (mapRef.current) mapRef.current.remove();
       mapRef.current = null;
       markerRef.current = null;
-      googleRef.current = null;
+      leafletRef.current = null;
     };
   }, []);
 
@@ -201,7 +201,7 @@ export default function LocationPicker({ parish, town, address, onAddressChange,
       const response = await fetch(`/api/geocode?address=${encodeURIComponent(query)}`);
       const result = await response.json();
       if (!response.ok || !result?.latitude || !result?.longitude) {
-        setMessage(result?.error || 'Google Maps could not find that location.');
+        setMessage(result?.error || 'Could not find that location.');
         onLocationChange(null);
         return;
       }
@@ -256,13 +256,13 @@ export default function LocationPicker({ parish, town, address, onAddressChange,
       <div className="relative mt-5 overflow-hidden border-t border-gray-100 bg-gray-100">
         <div ref={mapContainerRef} className="h-72 w-full sm:h-80" aria-label="Click the map to place a property pin" />
         <a
-          href={googleMapsLink}
+          href={mapLink}
           target="_blank"
           rel="noreferrer"
           className="absolute bottom-4 left-1/2 inline-flex -translate-x-1/2 items-center gap-2 rounded-full bg-white px-5 py-3 text-sm font-semibold text-gray-900 shadow-lg transition hover:bg-gray-50"
         >
           <MapPin className="h-4 w-4 text-accent" />
-          Open in Google Maps
+          Open in OpenStreetMap
         </a>
       </div>
 

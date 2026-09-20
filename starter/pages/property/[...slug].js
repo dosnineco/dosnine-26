@@ -71,9 +71,6 @@ export default function PropertyPage({ property, similarProperties, isVerifiedAg
   const allImages = imageUrls.length > 0 ? imageUrls : propertyImages.map(img => img.image_url);
   const currentImage = allImages[currentImageIndex] || '/placeholder.png';
   const fullscreenImage = fullscreenIndex !== null ? allImages[fullscreenIndex] : null;
-  const mapEmbedUrl = property.latitude && property.longitude
-    ? `https://www.google.com/maps?q=${Number(property.latitude)},${Number(property.longitude)}&z=18&output=embed`
-    : null;
 
   // Handle keyboard navigation in fullscreen mode
   useEffect(() => {
@@ -604,21 +601,6 @@ export default function PropertyPage({ property, similarProperties, isVerifiedAg
                   <strong>Verified address:</strong> {property.formatted_address || property.address || `${property.town}, ${property.parish}`}
                 </p>
               </div>
-
-              {mapEmbedUrl && (
-                <div className="mt-6 overflow-hidden rounded-xl bg-slate-100">
-                  <div className="flex items-center gap-2 px-4 py-3 text-sm font-semibold text-slate-900">
-                    <MapPin className="h-4 w-4 text-accent" /> Exact location
-                  </div>
-                  <iframe
-                    title={`Map showing ${property.title}`}
-                    src={mapEmbedUrl}
-                    className="h-72 w-full border-0"
-                    loading="lazy"
-                  />
-                  <p className="px-4 py-3 text-xs text-slate-500">Map location is provided by the listing poster. Confirm details before arranging a viewing.</p>
-                </div>
-              )}
 
               
             </div>

@@ -3,40 +3,38 @@ import { enforceMethods } from '../../../lib/apiSecurity';
 export default async function handler(req, res) {
   if (!enforceMethods(req, res, ['GET'])) return;
 
-  const apiKey = process.env.GOOGLE_MAPS_API_KEY;
   const input = String(req.query?.input || '').trim().slice(0, 100);
-
-  if (!apiKey) {
-    return res.status(500).json({ error: 'Google Maps is not configured on the server.' });
-  }
 
   if (input.length < 2) {
     return res.status(200).json({ success: true, suggestions: [] });
   }
 
   const params = new URLSearchParams({
-    input,
-    key: apiKey,
-    components: 'country:jm',
-    language: 'en',
+    q: `${input}, Jamaica`,
+    format: 'jsonv2',
+    addressdetails: '1',
+    countrycodes: 'jm',
+    limit: '8',
   });
 
   try {
-    const response = await fetch(`https://maps.googleapis.com/maps/api/place/autocomplete/json?${params.toString()}`);
+    const response = await fetch(`https://nominatim.openstreetmap.org/search?${params.toString()}`, {
+      headers: { 'User-Agent': 'DosninePropertyMarketplace/1.0' },
+    });
     const payload = await response.json();
 
-    if (!response.ok || !['OK', 'ZERO_RESULTS'].includes(payload.status)) {
-      return res.status(502).json({ error: 'Google Maps suggestions are unavailable.' });
+    if (!response.ok || !Array.isArray(payload)) {
+      return res.status(502).json({ error: 'Location suggestions are unavailable.' });
     }
 
     return res.status(200).json({
       success: true,
-      suggestions: (payload.predictions || []).slice(0, 8).map((prediction) => ({
-        description: prediction.description,
-        placeId: prediction.place_id,
+      suggestions: payload.slice(0, 8).map((result) => ({
+        description: result.display_name,
+        placeId: `${result.lat},${result.lon}`,
       })),
     });
   } catch (error) {
-    return res.status(502).json({ error: 'Google Maps suggestions are unavailable.' });
+    return res.status(502).json({ error: 'Location suggestions are unavailable.' });
   }
 }
