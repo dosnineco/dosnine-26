@@ -14,6 +14,18 @@ export default function SearchLandingPage({ slug, properties: initialProperties,
   const [loading, setLoading] = useState(false);
   const [page, setPage] = useState(1);
   const [userOwnerId, setUserOwnerId] = useState(null);
+   const handleBack = () => {
+    const previousUrl = document.referrer;
+    const previousPath = previousUrl ? new URL(previousUrl, window.location.origin).pathname : '';
+    const cameFromBrowse = previousPath === '/listing' || previousPath.startsWith('/search/');
+
+    if (cameFromBrowse && window.history.length > 1) {
+      router.back();
+      return;
+    }
+
+    router.push('/listing');
+  };
 
   useEffect(() => {
     const getUserId = async () => {
@@ -184,7 +196,11 @@ export default function SearchLandingPage({ slug, properties: initialProperties,
 
       <div className="container mx-auto px-4 py-8">
         <div className="mb-6 flex items-center justify-between">
-          <a href="/" className="text-accent hover:underline text-sm">← Back to Browse All</a>
+          <div className="mb-4 ">
+          <button type="button" onClick={handleBack} className="btn-outline btn-sm inline-flex items-center gap-1"><ChevronLeft className="w-4 h-4" /> Back to Browse</button>
+        </div>
+
+
           <button
             onClick={handleShare}
             className="flex items-center gap-1 bg-gray-100 hover:bg-gray-200 text-slate-700 px-3 py-1 rounded-full text-sm font-semibold transition"

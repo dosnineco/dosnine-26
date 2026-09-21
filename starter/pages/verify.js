@@ -153,7 +153,7 @@ export default function VerifyIdentityPage() {
       }
 
       const response = await axios.post('/api/user/verify', payload, {
-        headers: { 'Content-Type': 'multipart/form-data', ...buildAuthHeaders() },
+        headers: buildAuthHeaders(),
         withCredentials: true,
       });
 

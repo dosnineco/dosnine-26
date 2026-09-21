@@ -67,7 +67,7 @@ export default async function handler(req, res) {
 
         const { data: matchingAds, error: adsError } = await db
           .from('advertisements')
-          .select('id')
+          .select('id, advertiser_id')
           .eq('company_name', submission.company_name)
           .eq('email', submission.email)
           .order('created_at', { ascending: false })
@@ -75,10 +75,23 @@ export default async function handler(req, res) {
 
         if (adsError) throw adsError;
 
+        let advertiserId = matchingAds?.[0]?.advertiser_id || null;
+        if (!advertiserId && submission.created_by_clerk_id) {
+          const { data: owner, error: ownerError } = await db
+            .from('users')
+            .select('id')
+            .eq('clerk_id', submission.created_by_clerk_id)
+            .maybeSingle();
+
+          if (ownerError) throw ownerError;
+          advertiserId = owner?.id || null;
+        }
+
         const activePayload = {
           is_active: true,
           is_featured: Boolean(submission?.is_featured),
           expires_at: expiresAt.toISOString(),
+          ...(advertiserId ? { advertiser_id: advertiserId } : {}),
           ...(Array.isArray(submission?.image_urls) && submission.image_urls.length > 0
             ? { image_urls: submission.image_urls.slice(0, 3), image_url: submission.image_urls[0] }
             : (submission?.image_url ? { image_url: submission.image_url } : {})),

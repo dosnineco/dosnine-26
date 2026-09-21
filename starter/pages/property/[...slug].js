@@ -688,10 +688,6 @@ export default function PropertyPage({ property, similarProperties, isVerifiedAg
           </div>
         </div>
 
-        <div className="my-12 flex justify-start align-middle">
-          <InFeedAd />
-        </div>
-
         {/* Location-specific SEO content */}
         <div className="mt-12 bg-gray-50 rounded-xl p-6">
           {property.bedrooms === 0 && property.bathrooms === 0 ? (
@@ -806,6 +802,18 @@ export default function PropertyPage({ property, similarProperties, isVerifiedAg
             </div>
           </div>
         )}
+
+        <div className="mt-12 flex flex-col items-start gap-6">
+          <InFeedAd />
+          <a
+            href={isLand
+              ? `/search/land-for-sale-${property.parish.toLowerCase().replace(/ /g, '-')}`
+              : `/search/houses-for-rent-${property.parish.toLowerCase().replace(/ /g, '-')}`}
+            className="btn-outline btn-sm inline-flex items-center gap-1"
+          >
+            <ChevronLeft className="w-4 h-4" /> Browse more properties in {property.parish}
+          </a>
+        </div>
 
          
       </div>

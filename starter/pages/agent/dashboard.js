@@ -62,15 +62,6 @@ export default function AgentDashboard() {
   const [paidAgentLoading, setPaidAgentLoading] = useState(true);
   const [advertisements, setAdvertisements] = useState([]);
   const [adInquiries, setAdInquiries] = useState([]);
-  const [adStats, setAdStats] = useState({
-    totalAds: 0,
-    activeAds: 0,
-    totalViews: 0,
-    totalClicks: 0,
-    verifiedAds: 0,
-    pendingAds: 0,
-  });
-  const [adStatsLoading, setAdStatsLoading] = useState(true);
 
   // Helper: Check if agent access is expired
   const isAccessExpired = () => {
@@ -130,7 +121,7 @@ export default function AgentDashboard() {
   useEffect(() => {
     if (!authLoaded || !userId) return;
 
-    const fetchAdStats = async () => {
+    const fetchAdvertisements = async () => {
       try {
         const token = await getToken();
         const response = await axios.get('/api/dashboard/overview', {
@@ -143,32 +134,14 @@ export default function AgentDashboard() {
         const payload = response.data || {};
         setAdvertisements(Array.isArray(payload.advertisements) ? payload.advertisements : []);
         setAdInquiries(Array.isArray(payload.adInquiries) ? payload.adInquiries : []);
-        setAdStats(payload.adStats || {
-          totalAds: 0,
-          activeAds: 0,
-          totalViews: 0,
-          totalClicks: 0,
-          verifiedAds: 0,
-          pendingAds: 0,
-        });
       } catch (error) {
-        console.error('Error fetching ad stats:', error);
+        console.error('Error fetching advertisements:', error);
         setAdvertisements([]);
         setAdInquiries([]);
-        setAdStats({
-          totalAds: 0,
-          activeAds: 0,
-          totalViews: 0,
-          totalClicks: 0,
-          verifiedAds: 0,
-          pendingAds: 0,
-        });
-      } finally {
-        setAdStatsLoading(false);
       }
     };
 
-    fetchAdStats();
+    fetchAdvertisements();
   }, [authLoaded, userId, getToken]);
 
   const fetchRequests = useCallback(async () => {
@@ -345,10 +318,8 @@ export default function AgentDashboard() {
       <div className="min-h-screen bg-gray-50">
         <div className="max-w-7xl mx-auto px-6 sm:px-6 lg:px-8 py-8">
           {/* Quick Actions Section */}
-          <div className="mb-4 rounded-xl border border-gray-200 bg-gray-50 p-6">
-            <div className="mb-4 flex items-center gap-3">
-              <h2 className="text-md font-bold text-gray-900">Quick Actions</h2>
-            </div>
+          <div className="mb-4 ">
+       
 
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
               <Link
@@ -433,51 +404,82 @@ export default function AgentDashboard() {
             </div>
           )}
 
-          {isOwner && (
+          {advertisements.length > 0 && (
             <div className="bg-white rounded-lg border border-gray-200 p-6 mb-6">
               <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
                 <div>
                   <h2 className="text-xl font-bold text-gray-900">Your Advertisements</h2>
-                  <p className="text-sm text-gray-600">Approved advertisements are live for Dosnine visitors to view.</p>
                 </div>
                 <Link href="/advertise" className="inline-flex items-center justify-center rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white hover:bg-accent/90">
                   Create Ad
                 </Link>
               </div>
 
-              {advertisements.filter((ad) => ad.is_active).length > 0 ? (
+              {advertisements.length > 0 ? (
                 <div className="space-y-3">
-                  {advertisements.filter((ad) => ad.is_active).map((ad) => (
-                    <div key={ad.id} className="bg-green-50 rounded-lg p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                  {advertisements.map((ad) => (
+                    <div key={ad.id} className={`${ad.is_active ? 'bg-white' : 'bg-gray-50'} rounded-lg p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3`}>
                       <div>
                         <p className="font-semibold text-gray-900">{ad.title || ad.company_name || 'Advertisement'}</p>
-                        <p className="text-sm text-green-700">Live and approved</p>
+                        <p className={`text-sm ${ad.is_active ? 'text-green-700' : 'text-gray-600'}`}>
+                          {ad.is_active ? 'Live and approved' : 'Pending or inactive'}
+                        </p>
                         <p className="text-xs text-gray-500 mt-1">Expires: {ad.expires_at ? new Date(ad.expires_at).toLocaleDateString() : 'No expiry date'}</p>
                       </div>
-                      <Link href={`/ads/${ad.id}`} className="inline-flex items-center justify-center rounded-lg bg-white px-4 py-2 text-sm font-semibold text-gray-900 hover:bg-gray-100">
-                        View Ad
-                      </Link>
+                      <div className="flex flex-wrap items-center gap-3 sm:justify-end">
+                        <div className="text-xs sm:text-sm text-right">
+                          <p className="font-semibold text-blue-700">{Number(ad.impressions || 0).toLocaleString()} views</p>
+                          <p className="font-semibold text-green-700">{Number(ad.clicks || 0).toLocaleString()} clicks</p>
+                        </div>
+                        {ad.is_active ? (
+                          <Link href={`/ads/${ad.id}`} className="inline-flex items-center justify-center rounded-lg bg-white px-4 py-2 text-sm font-semibold text-gray-900 hover:bg-gray-100">
+                            View Ad
+                          </Link>
+                        ) : (
+                          <span className="text-xs font-medium text-gray-500">Not live</span>
+                        )}
+                      </div>
                     </div>
                   ))}
                 </div>
-              ) : (
-                <p className="rounded-lg bg-gray-50 p-4 text-sm text-gray-600">No approved advertisements yet. Ads appear here once payment and approval are confirmed.</p>
-              )}
+              ) : null}
             </div>
           )}
 
           {adInquiries.length > 0 && (
             <div className="bg-white rounded-lg border border-gray-200 p-6 mb-6">
-              <div className="flex items-center justify-between gap-3 mb-4"><div><p className="text-xs font-semibold uppercase tracking-wide text-accent">Client enquiries</p><h2 className="mt-1 text-xl font-bold text-gray-900">Advertisement Leads</h2></div><span className="rounded-full bg-gray-100 px-3 py-1 text-sm font-semibold text-gray-700">{adInquiries.length}</span></div>
-              <div className="space-y-3">
+              <div className="flex items-center justify-between gap-3 mb-4">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-accent">Leads From ADS</p>
+                </div>
+                <span className="rounded-full bg-gray-100 px-3 py-1 text-sm font-semibold text-gray-700">{adInquiries.length}</span>
+              </div>
+              <div className="grid gap-3 md:grid-cols-2">
                 {adInquiries.slice(0, 10).map((inquiry) => (
-                  <div key={inquiry.id} className="bg-gray-50 rounded-lg p-4">
+                  <div key={inquiry.id} className="rounded-lg bg-gray-50 p-4">
                     <div className="flex flex-wrap items-center justify-between gap-2">
-                      <p className="font-semibold text-gray-900">{inquiry.advertisements?.title || inquiry.advertisements?.company_name || 'Advertisement enquiry'}</p>
-                      <span className="rounded-full bg-blue-100 px-2.5 py-1 text-xs font-semibold capitalize text-blue-700">{inquiry.status}</span>
+                      <p className="min-w-0 truncate font-semibold text-gray-900">{inquiry.advertisements?.title || inquiry.advertisements?.company_name || 'Advertisement enquiry'}</p>
+                      <span className="rounded-full bg-blue-100 px-2 py-1 text-xs font-semibold capitalize text-blue-700">{inquiry.status}</span>
                     </div>
-                    <p className="mt-2 text-sm text-gray-800">{inquiry.message}</p>
-                    <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-gray-600"><span className="font-medium text-gray-800">{inquiry.client_name}</span><a href={`mailto:${inquiry.client_email}`} className="hover:text-accent">{inquiry.client_email}</a>{inquiry.client_phone && <a href={`tel:${inquiry.client_phone}`} className="hover:text-accent">{inquiry.client_phone}</a>}<span className="text-xs text-gray-500">{new Date(inquiry.created_at).toLocaleDateString()}</span></div>
+                    <p className="mt-3 line-clamp-3 text-sm leading-5 text-gray-700">{inquiry.message}</p>
+                    <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-2 border-t border-gray-200 pt-3 text-xs text-gray-600">
+                      <span className="font-semibold text-gray-900">{inquiry.client_name}</span>
+                      <a
+                        href={`mailto:${inquiry.client_email}`}
+                        className="inline-flex items-center gap-1.5 rounded-md bg-white px-2.5 py-1.5 font-semibold text-gray-700 shadow-sm transition hover:bg-accent hover:text-black"
+                      >
+                        <Mail className="h-3.5 w-3.5" /> Email
+                      </a>
+                      {inquiry.client_phone && (
+                        <a
+                          href={`tel:${inquiry.client_phone}`}
+                          className="inline-flex items-center gap-1.5 rounded-md bg-white px-2.5 py-1.5 font-semibold text-gray-700 shadow-sm transition hover:bg-accent hover:text-black"
+                        >
+                          <Phone className="h-3.5 w-3.5" /> Call
+                        </a>
+                      )}
+                      <span className="ml-auto text-gray-500">{new Date(inquiry.created_at).toLocaleDateString()}</span>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -566,61 +568,6 @@ export default function AgentDashboard() {
               </div>
             </div>
           </div>
-
-          <div className="bg-white rounded-lg border border-gray-200 p-4 mb-8">
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="text-lg font-semibold text-gray-900">Ad Performance</h2>
-              {adStatsLoading && <span className="text-xs text-gray-500">Loading...</span>}
-            </div>
-
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
-              <div className="bg-gray-50 rounded-lg p-3">
-                <p className="text-xs text-gray-500">Total Ads</p>
-                <p className="text-xl font-bold text-gray-900">{Number(adStats.totalAds || 0).toLocaleString()}</p>
-              </div>
-              <div className="bg-gray-50 rounded-lg p-3">
-                <p className="text-xs text-gray-500">Active Ads</p>
-                <p className="text-xl font-bold text-purple-600">{Number(adStats.activeAds || 0).toLocaleString()}</p>
-              </div>
-              <div className="bg-gray-50 rounded-lg p-3">
-                <p className="text-xs text-gray-500">Total Views</p>
-                <p className="text-xl font-bold text-blue-700">{Number(adStats.totalViews || 0).toLocaleString()}</p>
-              </div>
-              <div className="bg-gray-50 rounded-lg p-3">
-                <p className="text-xs text-gray-500">Total Clicks</p>
-                <p className="text-xl font-bold text-green-700">{Number(adStats.totalClicks || 0).toLocaleString()}</p>
-              </div>
-            </div>
-
-            <p className="text-xs text-gray-500 mb-3">
-              Verified: {Number(adStats.verifiedAds || 0).toLocaleString()} · Pending: {Number(adStats.pendingAds || 0).toLocaleString()}
-            </p>
-
-            {advertisements.filter((ad) => ad.is_active).length > 0 ? (
-              <div className="space-y-2">
-                {advertisements.filter((ad) => ad.is_active).slice(0, 3).map((ad) => (
-                  <div key={ad.id} className="bg-gray-50 rounded-lg p-3 flex items-center justify-between gap-3">
-                    <div>
-                      <p className="font-semibold text-gray-900 text-sm">{ad.title || ad.company_name || 'Advertisement'}</p>
-                    </div>
-                    <div className="text-right text-xs sm:text-sm">
-                      <p className="text-blue-700 font-semibold">{Number(ad.impressions || 0).toLocaleString()} views</p>
-                      <p className="text-green-700 font-semibold">{Number(ad.clicks || 0).toLocaleString()} clicks</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 p-4">
-                <p className="text-sm text-gray-600 mb-3">No ads yet. Your ad performance will appear here once your campaign is live.</p>
-                <Link href="/advertise" className="inline-flex items-center justify-center rounded-lg bg-accent px-3.5 py-2 text-sm font-semibold text-white hover:bg-accent/90">
-                  Advertise with Us
-                </Link>
-              </div>
-            )}
-          </div>
-
-      
 
           {/* Filters */}
           <div className="mb-8 sm:mb-6">

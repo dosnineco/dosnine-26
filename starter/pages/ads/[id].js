@@ -150,35 +150,17 @@ export default function AdDetailPage() {
         <meta name="description" content={ad.description} />
       </Head>
 
-      <div className="min-h-screen  bg-gray-50 py-12 px-4">
+      <div className="min-h-screen   ">
         <div className="max-w-4xl mx-auto">
      
 
           {/* Main Card */}
-          <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
+          <div className=" overflow-hidden">
             {/* Header */}
-            <div className="bg-gradient-to-r from-accent to-red-600 text-white px-8 py-10 text-center relative">
-              {ad.is_featured && (
-                <div className="absolute items-center text-center justify-center top-4 right-4 bg-yellow-400 text-black text-sm px-4 py-2 rounded-full font-bold shadow-lg">
-                  <Star className="inline-block text-center w-4 h-4 mr-1" />
-                  FEATURED PARTNER
-                </div>
-              )}
+              <div className="bg-gradient-to-r from-accent to-red-600 text-white px-8 py-10 text-left relative">
+      
               <h1 className="text-4xl  text-gray-800 font-bold mb-2">{ad.title}</h1>
-              <p className="text-xl text-gray-600 capitalize">
-                {ad.category?.replace('_', ' ')} Services
-              </p>
-              <p className="text-sm text-gray-500 mt-2 flex items-center justify-center gap-3">
-                <span className="text-blue-600 inline-flex items-center gap-1">
-                  <Eye className="w-4 h-4" />
-                  {ad.impressions || 0} views
-                </span>
-                <span className="mx-1">•</span>
-                <span className="text-green-600 inline-flex items-center gap-1">
-                  <MousePointerClick className="w-4 h-4" />
-                  {ad.clicks || 0} clicks
-                </span>
-              </p>
+    
             </div>
 
             {/* Logo/Image */}
@@ -298,6 +280,8 @@ export default function AdDetailPage() {
                 </div>
               </div>
             )}
+
+          
 
             {/* Content */}
             <div className="px-8 py-10">

@@ -309,8 +309,8 @@ export default function PropertyRequestsMarketplace() {
             <div className="relative overflow-hidden">
               <div className="mx-4 overflow-x-auto pb-4 px-4 flex gap-4 snap-x   snap-mandatory scrollbar-hide">
                 {featuredProperties.map((prop, idx) => (
-                  <div key={prop.id} className=" min-w-[300px] flex-shrink-0 snap-start">
-                    <div className="h-80">
+                  <div key={prop.id} className="w-[min(82vw,320px)] flex-shrink-0 snap-start sm:w-[300px]">
+                    <div className="h-[21rem]">
                       <Suspense fallback={<div className="bg-white   p-4 h-full" />}>
                         <PropertyCard property={prop} index={idx} />
                       </Suspense>

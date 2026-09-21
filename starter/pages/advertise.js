@@ -264,6 +264,7 @@ export default function AdvertisePage() {
   const [copied, setCopied] = useState('');
   const [submissionId, setSubmissionId] = useState('');
   const [submitError, setSubmitError] = useState('');
+  const [fieldErrors, setFieldErrors] = useState({});
   const [imageFiles, setImageFiles] = useState([]);
   const [imagePreviews, setImagePreviews] = useState([]);
   const [form, setForm] = useState({
@@ -327,6 +328,19 @@ export default function AdvertisePage() {
     }
   };
 
+  const clearFieldError = (field) => {
+    setFieldErrors((previous) => {
+      if (!previous[field]) return previous;
+      const next = { ...previous };
+      delete next[field];
+      return next;
+    });
+  };
+
+  const getFieldClassName = (field, baseClassName) => (
+    `${baseClassName} ${fieldErrors[field] ? 'border-red-500 bg-red-50 focus:border-red-500' : ''}`
+  );
+
   const onSubmit = async (event) => {
     event.preventDefault();
 
@@ -335,25 +349,30 @@ export default function AdvertisePage() {
       return;
     }
 
-    setSubmitError('');
-
-    const missingFields = [];
-    if (!String(form.company_name || '').trim()) missingFields.push('Business name');
-    if (!String(form.phone || '').trim()) missingFields.push('Phone');
-    if (!String(form.description || '').trim()) missingFields.push('Description');
-    if (!String(form.location || '').trim()) missingFields.push('Location');
-
-    if (missingFields.length > 0) {
-      const message = `Please complete the missing field(s): ${missingFields.join(', ')}`;
-      setSubmitError(message);
-      toast.error(message);
-      return;
+    const errors = {};
+    if (!String(form.company_name || '').trim()) errors.company_name = 'Enter your business name.';
+    if (!String(form.phone || '').trim()) errors.phone = 'Enter a phone number customers can use.';
+    if (!String(form.description || '').trim()) errors.description = 'Describe your services and what makes your business useful.';
+    if (!String(form.location || '').trim()) errors.location = 'Enter the area where you serve customers.';
+    if (form.email && !/^\S+@\S+\.\S+$/.test(form.email.trim())) errors.email = 'Enter a valid email address.';
+    if (form.website) {
+      try {
+        new URL(form.website);
+      } catch {
+        errors.website = 'Enter a complete website address, including https://.';
+      }
     }
+    if (imageFiles.length === 0) errors.imageFiles = 'Upload at least 1 image for your advertisement.';
 
-    if (imageFiles.length === 0) {
-      const message = 'Please upload at least 1 ad image before continuing.';
-      setSubmitError(message);
-      toast.error(message);
+    setFieldErrors(errors);
+    setSubmitError(Object.keys(errors).length > 0 ? 'Please fix the highlighted fields before continuing.' : '');
+
+    if (Object.keys(errors).length > 0) {
+      const firstField = Object.keys(errors)[0];
+      const fieldElement = document.getElementById(`ad-${firstField}`);
+      fieldElement?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      fieldElement?.focus({ preventScroll: true });
+      toast.error(errors[firstField]);
       return;
     }
 
@@ -694,17 +713,22 @@ export default function AdvertisePage() {
                         </div>
                       </div>
                     ) : (
-                      <form onSubmit={onSubmit} className="mt-8 space-y-4">
+                      <form onSubmit={onSubmit} noValidate className="mt-8 space-y-4">
                         <div className="grid gap-4 md:grid-cols-1">
                           <div>
                             <label className="mb-1 block text-sm font-semibold text-slate-700">Business Name</label>
                             <input
+                              id="ad-company_name"
                               type="text"
                               value={form.company_name}
-                              onChange={(event) => setForm((prev) => ({ ...prev, company_name: event.target.value }))}
-                              className="w-full rounded-none border border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 outline-none focus:border-accent"
-                              required
+                              onChange={(event) => {
+                                clearFieldError('company_name');
+                                setForm((prev) => ({ ...prev, company_name: event.target.value }));
+                              }}
+                              className={getFieldClassName('company_name', 'w-full rounded-none border border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 outline-none focus:border-accent')}
+                              aria-invalid={Boolean(fieldErrors.company_name)}
                             />
+                            {fieldErrors.company_name ? <p className="mt-1 text-sm text-red-600">{fieldErrors.company_name}</p> : null}
                           </div>
                         </div>
 
@@ -741,14 +765,19 @@ export default function AdvertisePage() {
                             <div className="relative">
                               <Phone className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                               <input
+                                id="ad-phone"
                                 type="tel"
                                 value={form.phone}
-                                onChange={(event) => setForm((prev) => ({ ...prev, phone: event.target.value }))}
-                                className="w-full rounded-none border border-slate-200 bg-slate-50 py-3 pl-10 pr-4 text-slate-900 outline-none focus:border-accent"
+                                onChange={(event) => {
+                                  clearFieldError('phone');
+                                  setForm((prev) => ({ ...prev, phone: event.target.value }));
+                                }}
+                                className={getFieldClassName('phone', 'w-full rounded-none border border-slate-200 bg-slate-50 py-3 pl-10 pr-4 text-slate-900 outline-none focus:border-accent')}
                                 placeholder="876-123-4567"
-                                required
+                                aria-invalid={Boolean(fieldErrors.phone)}
                               />
                             </div>
+                            {fieldErrors.phone ? <p className="mt-1 text-sm text-red-600">{fieldErrors.phone}</p> : null}
                           </div>
                           <div>
                             <label className="mb-1 block text-sm font-semibold text-slate-700">WhatsApp</label>
@@ -771,26 +800,38 @@ export default function AdvertisePage() {
                             <div className="relative">
                               <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                               <input
+                                id="ad-email"
                                 type="email"
                                 value={form.email}
-                                onChange={(event) => setForm((prev) => ({ ...prev, email: event.target.value }))}
-                                className="w-full rounded-none border border-slate-200 bg-slate-50 py-3 pl-10 pr-4 text-slate-900 outline-none focus:border-accent"
+                                onChange={(event) => {
+                                  clearFieldError('email');
+                                  setForm((prev) => ({ ...prev, email: event.target.value }));
+                                }}
+                                className={getFieldClassName('email', 'w-full rounded-none border border-slate-200 bg-slate-50 py-3 pl-10 pr-4 text-slate-900 outline-none focus:border-accent')}
                                 placeholder="you@example.com"
+                                aria-invalid={Boolean(fieldErrors.email)}
                               />
                             </div>
+                            {fieldErrors.email ? <p className="mt-1 text-sm text-red-600">{fieldErrors.email}</p> : null}
                           </div>
                           <div>
                             <label className="mb-1 block text-sm font-semibold text-slate-700">Website</label>
                             <div className="relative">
                               <Globe2 className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                               <input
+                                id="ad-website"
                                 type="url"
                                 value={form.website}
-                                onChange={(event) => setForm((prev) => ({ ...prev, website: event.target.value }))}
-                                className="w-full rounded-none border border-slate-200 bg-slate-50 py-3 pl-10 pr-4 text-slate-900 outline-none focus:border-accent"
+                                onChange={(event) => {
+                                  clearFieldError('website');
+                                  setForm((prev) => ({ ...prev, website: event.target.value }));
+                                }}
+                                className={getFieldClassName('website', 'w-full rounded-none border border-slate-200 bg-slate-50 py-3 pl-10 pr-4 text-slate-900 outline-none focus:border-accent')}
                                 placeholder="https://yourwebsite.com"
+                                aria-invalid={Boolean(fieldErrors.website)}
                               />
                             </div>
+                            {fieldErrors.website ? <p className="mt-1 text-sm text-red-600">{fieldErrors.website}</p> : null}
                           </div>
                         </div>
 
@@ -810,19 +851,25 @@ export default function AdvertisePage() {
                             <div className="relative">
                               <MapPin className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                               <input
+                                id="ad-location"
                                 type="text"
                                 value={form.location}
-                                onChange={(event) => setForm((prev) => ({ ...prev, location: event.target.value }))}
-                                className="w-full rounded-none border border-slate-200 bg-slate-50 py-3 pl-10 pr-4 text-slate-900 outline-none focus:border-accent"
+                                onChange={(event) => {
+                                  clearFieldError('location');
+                                  setForm((prev) => ({ ...prev, location: event.target.value }));
+                                }}
+                                className={getFieldClassName('location', 'w-full rounded-none border border-slate-200 bg-slate-50 py-3 pl-10 pr-4 text-slate-900 outline-none focus:border-accent')}
                                 placeholder="Kingston, St. Andrew"
+                                aria-invalid={Boolean(fieldErrors.location)}
                               />
                             </div>
+                            {fieldErrors.location ? <p className="mt-1 text-sm text-red-600">{fieldErrors.location}</p> : null}
                           </div>
                         </div>
 
                         <div>
                           <label className="mb-1 block text-sm font-semibold text-slate-700">Upload Images</label>
-                          <label className="flex cursor-pointer flex-col items-center justify-center rounded-none border border-dashed border-slate-300 bg-slate-50 px-6 py-8 text-center transition hover:border-accent hover:bg-accent/5">
+                          <label id="ad-imageFiles" tabIndex={-1} className={`flex cursor-pointer flex-col items-center justify-center rounded-none border border-dashed px-6 py-8 text-center transition hover:border-accent hover:bg-accent/5 ${fieldErrors.imageFiles ? 'border-red-500 bg-red-50' : 'border-slate-300 bg-slate-50'}`}>
                             <UploadCloud className="h-8 w-8 text-accent" />
                             <span className="mt-3 text-sm font-semibold text-slate-900">Upload up to 3 images</span>
                             <span className="mt-1 text-sm text-slate-500">PNG, JPG or WebP up to 8MB each</span>
@@ -834,6 +881,8 @@ export default function AdvertisePage() {
                               onChange={async (event) => {
                                 const selectedFiles = Array.from(event.target.files || []).slice(0, 3);
                                 if (selectedFiles.length === 0) return;
+
+                                clearFieldError('imageFiles');
 
                                 const oversized = selectedFiles.find((file) => file.size > 8 * 1024 * 1024);
                                 if (oversized) {
@@ -861,6 +910,7 @@ export default function AdvertisePage() {
                               className="hidden"
                             />
                           </label>
+                          {fieldErrors.imageFiles ? <p className="mt-1 text-sm text-red-600">{fieldErrors.imageFiles}</p> : null}
                           {imagePreviews.length > 0 ? (
                             <div className="mt-4 grid gap-3 sm:grid-cols-3">
                               {imagePreviews.map((preview, index) => (
@@ -881,13 +931,18 @@ export default function AdvertisePage() {
                         <div>
                           <label className="mb-1 block text-sm font-semibold text-slate-700">Description</label>
                           <textarea
+                            id="ad-description"
                             value={form.description}
-                            onChange={(event) => setForm((prev) => ({ ...prev, description: event.target.value }))}
-                            className="w-full rounded-none border border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 outline-none focus:border-accent"
+                            onChange={(event) => {
+                              clearFieldError('description');
+                              setForm((prev) => ({ ...prev, description: event.target.value }));
+                            }}
+                            className={getFieldClassName('description', 'w-full rounded-none border border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 outline-none focus:border-accent')}
                             rows={5}
                             placeholder="Tell buyers what you offer, your location, and what makes your business stand out."
-                            required
+                            aria-invalid={Boolean(fieldErrors.description)}
                           />
+                          {fieldErrors.description ? <p className="mt-1 text-sm text-red-600">{fieldErrors.description}</p> : null}
                         </div>
 
                         {submitError ? (
