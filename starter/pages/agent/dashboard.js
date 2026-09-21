@@ -387,9 +387,9 @@ export default function AgentDashboard() {
                 <div className="flex items-start gap-3">
                   <DollarSign className="text-accent flex-shrink-0 mt-0.5" size={24} />
                   <div>
-                    <h3 className="font-bold text-gray-900 mb-1">Need a tenant? We can find one.</h3>
+                    <h3 className="font-bold text-gray-900 mb-1">Need a tenant?<br/> We can find one.</h3>
                     <p className="text-gray-700 text-sm">
-                      Dosnine finds and helps place a tenant for 20% of the first month&apos;s rent. No upfront vacancy-service fee.
+                      Dosnine finds and helps place a tenant in that vacant property.
                     </p>
                   </div>
                 </div>
