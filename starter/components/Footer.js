@@ -10,7 +10,7 @@ export default function Footer() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-6">
           {/* Company */}
           <div>
-            <h3 className="font-bold text-gray-900 mb-3">Company</h3>
+            <h3 className="font-bold text-gray-900 mb-3">Dosnine Limited</h3>
           <img src="/logos/dosnine_co_logo.png" alt="Dosnine Logo" className="w-24 h-24 " />
           </div>
           {/* For Landlords */}
@@ -88,7 +88,7 @@ export default function Footer() {
         </div>
 
       
-        <div className="bg-red-50 border-l-4 border-red-600 p-4 mt-4 mb-4">
+        <div className="bg-gray-100 border-l-4 border-red-600 p-4 mt-4 mb-4">
           <p className="text-gray-700 text-xs leading-relaxed">
             <strong>Disclaimer:</strong> Dosnine Ltd (dosnine.com) is an independent property listing and discovery platform. 
             Dosnine Ltd does not act as a real estate agent, broker, intermediary, negotiator, or representative for buyers, sellers, landlords, tenants, or agents. By using this platform, users acknowledge that Dosnine Ltd's role is limited to providing visibility and facilitating direct connections only.

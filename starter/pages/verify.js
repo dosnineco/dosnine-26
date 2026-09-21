@@ -218,7 +218,7 @@ export default function VerifyIdentityPage() {
   return (
     <div className="min-h-screen ">
       <div className="max-w-3xl mx-auto">
-        <div className="bg-white overflow-hidden">
+        <div className=" overflow-hidden">
           <div className="bg-accent px-6 py-8 text-white">
             <div className="flex items-center gap-3 mb-2">
               <ShieldCheck className="w-7 h-7" />
