@@ -297,7 +297,7 @@ export default function PropertyRequestsMarketplace() {
       {!loadingFeatured && featuredProperties.length > 0 && (
         <section className=" mt-12">
           <div className="container mx-auto">
-            <div className="flex flex-row items-center justify-between gap-4 mb-8">
+            <div className="flex flex-row items-center justify-between gap-2 mb-8">
               <div className="flex items-center gap-2 min-w-0"> 
                 <h2 className="text-3xl font-bold text-gray-900 whitespace-nowrap">Available Properties</h2>
               </div>
@@ -307,11 +307,11 @@ export default function PropertyRequestsMarketplace() {
               </Link>
             </div>
             <div className="relative overflow-hidden">
-              <div className="mx-4 overflow-x-auto pb-4 px-4 flex gap-4 snap-x   snap-mandatory scrollbar-hide">
+              <div className=" overflow-x-auto pb-4 px-2 flex gap-4 snap-x   snap-mandatory scrollbar-hide">
                 {featuredProperties.map((prop, idx) => (
                   <div key={prop.id} className="w-[min(82vw,320px)] flex-shrink-0 snap-start sm:w-[300px]">
                     <div className="h-[21rem]">
-                      <Suspense fallback={<div className="bg-white   p-4 h-full" />}>
+                      <Suspense fallback={<div className="bg-white   p-2 h-full" />}>
                         <PropertyCard property={prop} index={idx} />
                       </Suspense>
                     </div>
@@ -335,16 +335,16 @@ export default function PropertyRequestsMarketplace() {
           </div>
         ) : (
           <>
-          <section className="bg-white rounded-xl  py-12 px-4 mt-12">
+          <section className=" mt-12">
             <div className="container mx-auto">
               <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-8">
                 <div>
-                  <h2 className="text-3xl font-bold text-gray-900">Submit what you're looking for</h2>
+                  <h2 className="text-3xl font-bold text-gray-900">Tell Us Your Needs too</h2>
                 </div>
-                <Link href="/request" className="inline-flex items-center gap-2 rounded-full bg-gray-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-gray-800">
-                Submit a request Here
-                  <ArrowRight size={18} />
-                </Link>
+                 <Link href="/request" className="inline-flex items-center gap-2 rounded-full bg-accent px-5 py-3 text-sm font-semibold text-white transition hover:bg-gray-800">
+                Submit here
+                <ArrowRight size={18}  />
+              </Link>
               </div>
 
               <div className="-mx-4 overflow-x-auto pb-4  px-4 flex gap-4 snap-x snap-mandatory scrollbar-hide">
