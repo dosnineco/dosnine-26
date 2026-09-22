@@ -34,6 +34,7 @@ const plans = [
     badge: 'Most Popular',
     accent: 'from-accent/20 to-violet-500/10',
     popular: true,
+    gumroadUrl: 'https://dosnine.gumroad.com/l/ad-growth-7day',
   },
   {
     id: '14-day',
@@ -42,6 +43,7 @@ const plans = [
     price: 17999,
     badge: 'Professional',
     accent: 'from-cyan-500/15 to-blue-500/10',
+    gumroadUrl: 'https://dosnine.gumroad.com/l/ad-professional-14day',
   },
   {
     id: '30-day',
@@ -50,6 +52,7 @@ const plans = [
     price: 52499,
     badge: 'Elite',
     accent: 'from-emerald-500/15 to-teal-500/10',
+    gumroadUrl: 'https://dosnine.gumroad.com/l/ad-elite-30day',
   },
 ];
 
@@ -267,6 +270,7 @@ export default function AdvertisePage() {
   const [fieldErrors, setFieldErrors] = useState({});
   const [imageFiles, setImageFiles] = useState([]);
   const [imagePreviews, setImagePreviews] = useState([]);
+  const [paymentMethod, setPaymentMethod] = useState('gumroad'); // 'gumroad' | 'bank'
   const [form, setForm] = useState({
     company_name: '',
     business_logo: '',
@@ -292,6 +296,9 @@ export default function AdvertisePage() {
   const emailForNote = (form.email || 'YOUR_EMAIL').trim();
   const whatsappText = encodeURIComponent(
     `Hello Dosnine Team, I submitted an ad request (${selectedPlan.name}) for ${submissionId}. Amount sent: ${formatMoney(totalAmount)}. Submission: ${submissionId || 'pending'}. I am sending payment proof now.`
+  );
+  const gumroadWhatsappText = encodeURIComponent(
+    `Hello Dosnine Team, I just paid for the ${selectedPlan.name} ad plan (${selectedPlan.duration}) via Gumroad. Email: ${emailForNote}. Amount: ${formatMoney(totalAmount)}. Submission: ${submissionId || 'pending'}. Please review and publish my ad.`
   );
 
   useEffect(() => {
@@ -464,6 +471,7 @@ export default function AdvertisePage() {
           name="description"
           content="Advertise your business to active property buyers, renters, investors and homeowners across Jamaica. Premium plans, fast approval and direct inquiries."
         />
+        <script src="https://gumroad.com/js/gumroad.js" defer />
       </Head>
 
       <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(90,122,205,0.11),_transparent_30%),linear-gradient(180deg,_#f8fafc_0%,_#f5f7fb_100%)] px-4 py-8 sm:px-6 lg:px-8">
@@ -474,7 +482,7 @@ export default function AdvertisePage() {
                 <p className="text-sm font-semibold uppercase tracking-[0.24em] text-emerald-100">Secure Payment</p>
                 <h1 className="mt-2 text-3xl font-semibold sm:text-4xl">Complete payment to activate your ad</h1>
                 <p className="mt-3 max-w-2xl text-sm text-emerald-50 sm:text-base">
-                  Your ad request has been received. Send payment proof on WhatsApp and we will confirm your campaign quickly.
+                  Your ad request has been received. Pay online with card/PayPal or send a bank transfer — we&apos;ll confirm and publish quickly.
                 </p>
               </div>
 
@@ -514,54 +522,132 @@ export default function AdvertisePage() {
                     </div>
                   </div>
 
-                  <div className="rounded-none border border-slate-200 bg-slate-50 p-5">
-                    <h3 className="text-lg font-semibold text-slate-900">Bank transfer details</h3>
-                    <div className="mt-4 space-y-3">
-                      {bankDetails.map((bank) => (
-                        <div key={bank.bank} className="rounded-none border border-slate-200 bg-white p-4">
-                          <p className="font-semibold text-slate-900">{bank.bank}</p>
-                          {Object.entries(bank).filter(([key]) => key !== 'bank').map(([key, value]) => (
-                            <div key={key} className="mt-2 flex items-center justify-between gap-3">
-                              <span className="text-sm text-slate-600 capitalize">{key.replace(/([A-Z])/g, ' $1')}</span>
-                              <button
-                                type="button"
-                                onClick={() => copyToClipboard(value, `${bank.bank}-${key}`)}
-                                className="inline-flex items-center gap-1 text-sm font-semibold text-slate-900"
-                              >
-                                <span>{value}</span>
-                                {copied === `${bank.bank}-${key}` ? <Check size={14} /> : <Copy size={14} />}
-                              </button>
-                            </div>
-                          ))}
-                        </div>
-                      ))}
-                    </div>
-
-                    <div className="mt-4 rounded-none border border-slate-200 bg-white p-4">
-                      <div className="flex items-center justify-between gap-3">
-                        <span className="text-sm text-slate-600">Transfer note</span>
-                        <button
-                          type="button"
-                          onClick={() => copyToClipboard(emailForNote || submissionId, 'transfer-note')}
-                          className="flex items-center gap-1 text-sm font-semibold text-slate-900"
-                        >
-                          <span className="break-all">{emailForNote || submissionId}</span>
-                          {copied === 'transfer-note' ? <Check size={14} /> : <Copy size={14} />}
-                        </button>
-                      </div>
-                      <div className="mt-2 flex items-center justify-between gap-3">
-                        <span className="text-sm text-slate-600">Amount</span>
-                        <button
-                          type="button"
-                          onClick={() => copyToClipboard(totalAmount, 'amount')}
-                          className="flex items-center gap-1 text-sm font-semibold text-slate-900"
-                        >
-                          <span>{formatMoney(totalAmount)}</span>
-                          {copied === 'amount' ? <Check size={14} /> : <Copy size={14} />}
-                        </button>
-                      </div>
-                    </div>
+                  {/* Payment Method Toggle */}
+                  <div className="flex rounded-none bg-slate-100 p-1" role="group" aria-label="Choose payment method">
+                    <button
+                      type="button"
+                      onClick={() => setPaymentMethod('gumroad')}
+                      aria-pressed={paymentMethod === 'gumroad'}
+                      className={`flex-1 rounded-none px-4 py-3 text-sm font-bold transition ${
+                        paymentMethod === 'gumroad'
+                          ? 'bg-accent text-white shadow-sm'
+                          : 'text-slate-600 hover:bg-slate-200'
+                      }`}
+                    >
+                      Pay Online (Card / PayPal)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPaymentMethod('bank')}
+                      aria-pressed={paymentMethod === 'bank'}
+                      className={`flex-1 rounded-none px-4 py-3 text-sm font-bold transition ${
+                        paymentMethod === 'bank'
+                          ? 'bg-accent text-white shadow-sm'
+                          : 'text-slate-600 hover:bg-slate-200'
+                      }`}
+                    >
+                      Bank Transfer
+                    </button>
                   </div>
+
+                  {/* Gumroad Payment Section */}
+                  {paymentMethod === 'gumroad' && (
+                    <div className="rounded-none border border-slate-200 bg-slate-50 p-5">
+                      <div className="flex items-start gap-3">
+                        <CheckCircle2 className="mt-0.5 h-5 w-5 flex-shrink-0 text-accent" />
+                        <div className="flex-1">
+                          <h3 className="text-lg font-semibold text-slate-900">Pay securely online</h3>
+                          <p className="mt-2 text-sm text-slate-600">
+                            Pay <strong>{formatMoney(totalAmount)}</strong> for the <strong>{selectedPlan.name}</strong> plan using card, PayPal, or Apple Pay via Gumroad. Your ad goes live after payment confirmation.
+                          </p>
+
+                          <a
+                            href={`${selectedPlan.gumroadUrl}?wanted=true&email=${encodeURIComponent(emailForNote)}&utm_source=dosnine&utm_content=${selectedPlan.id}&utm_campaign=advertise`}
+                            data-gumroad-action="buy"
+                            rel="noreferrer"
+                            className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-none bg-accent px-5 py-3 font-semibold text-white transition hover:bg-accent/90"
+                          >
+                            Pay {formatMoney(totalAmount)} with Gumroad →
+                          </a>
+
+                          <div className="mt-4 rounded-none border border-slate-200 bg-white p-4">
+                            <p className="text-xs text-slate-500">
+                              <strong>After payment:</strong> Send your Gumroad receipt to WhatsApp so we can verify and publish your ad faster.
+                            </p>
+                            <a
+                              href={`https://wa.me/18763369045?text=${gumroadWhatsappText}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-none bg-green-600 px-5 py-3 font-semibold text-white transition hover:bg-green-700"
+                            >
+                              <MessageCircle className="h-5 w-5" />
+                              Send Receipt on WhatsApp
+                            </a>
+                          </div>
+
+                          <div className="mt-3 rounded-none border border-slate-200 bg-white p-3">
+                            <p className="text-xs text-slate-500">
+                              <strong>Submission ID:</strong> <span className="break-all font-mono">{submissionId || 'Pending'}</span>
+                              <br />
+                              <em>Useful for tracking — include if needed.</em>
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Bank Transfer Section */}
+                  {paymentMethod === 'bank' && (
+                    <div className="rounded-none border border-slate-200 bg-slate-50 p-5">
+                      <h3 className="text-lg font-semibold text-slate-900">Bank transfer details</h3>
+                      <div className="mt-4 space-y-3">
+                        {bankDetails.map((bank) => (
+                          <div key={bank.bank} className="rounded-none border border-slate-200 bg-white p-4">
+                            <p className="font-semibold text-slate-900">{bank.bank}</p>
+                            {Object.entries(bank).filter(([key]) => key !== 'bank').map(([key, value]) => (
+                              <div key={key} className="mt-2 flex items-center justify-between gap-3">
+                                <span className="text-sm text-slate-600 capitalize">{key.replace(/([A-Z])/g, ' $1')}</span>
+                                <button
+                                  type="button"
+                                  onClick={() => copyToClipboard(value, `${bank.bank}-${key}`)}
+                                  className="inline-flex items-center gap-1 text-sm font-semibold text-slate-900"
+                                >
+                                  <span>{value}</span>
+                                  {copied === `${bank.bank}-${key}` ? <Check size={14} /> : <Copy size={14} />}
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        ))}
+                      </div>
+
+                      <div className="mt-4 rounded-none border border-slate-200 bg-white p-4">
+                        <div className="flex items-center justify-between gap-3">
+                          <span className="text-sm text-slate-600">Transfer note</span>
+                          <button
+                            type="button"
+                            onClick={() => copyToClipboard(emailForNote || submissionId, 'transfer-note')}
+                            className="flex items-center gap-1 text-sm font-semibold text-slate-900"
+                          >
+                            <span className="break-all">{emailForNote || submissionId}</span>
+                            {copied === 'transfer-note' ? <Check size={14} /> : <Copy size={14} />}
+                          </button>
+                        </div>
+                        <div className="mt-2 flex items-center justify-between gap-3">
+                          <span className="text-sm text-slate-600">Amount</span>
+                          <button
+                            type="button"
+                            onClick={() => copyToClipboard(totalAmount, 'amount')}
+                            className="flex items-center gap-1 text-sm font-semibold text-slate-900"
+                          >
+                            <span>{formatMoney(totalAmount)}</span>
+                            {copied === 'amount' ? <Check size={14} /> : <Copy size={14} />}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 <div className="rounded-none border border-slate-200 bg-slate-50 p-5">
@@ -569,16 +655,18 @@ export default function AdvertisePage() {
                     <p className="text-sm font-semibold uppercase tracking-[0.24em] text-accent">Payment confirmation</p>
                     <h3 className="mt-2 text-2xl font-semibold text-slate-900">Send proof and we will activate your ad</h3>
                     <p className="mt-3 text-sm text-slate-600">
-                      Once we verify your payment, your business is reviewed and published on the platform.
+                      {paymentMethod === 'gumroad'
+                        ? 'After paying on Gumroad, forward the receipt on WhatsApp so we can confirm and publish your ad.'
+                        : 'Once we verify your bank transfer, your business is reviewed and published on the platform.'}
                     </p>
                     <a
-                      href={`https://wa.me/18763369045?text=${whatsappText}`}
+                      href={`https://wa.me/18763369045?text=${paymentMethod === 'gumroad' ? gumroadWhatsappText : whatsappText}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="mt-5 inline-flex items-center justify-center gap-2 rounded-none bg-accent px-5 py-3 font-semibold text-white transition hover:bg-accent/90"
+                      className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-none bg-accent px-5 py-3 font-semibold text-white transition hover:bg-accent/90"
                     >
                       <MessageCircle className="h-5 w-5" />
-                      Send proof on WhatsApp
+                      {paymentMethod === 'gumroad' ? 'Send Gumroad Receipt on WhatsApp' : 'Send Bank Proof on WhatsApp'}
                     </a>
                     <div className="mt-4">
                       <Link href="/" className="text-sm font-semibold text-accent underline">
@@ -965,13 +1053,12 @@ export default function AdvertisePage() {
                           disabled={submitting}
                           className="flex w-full items-center justify-center gap-2 rounded-none bg-accent px-6 py-4 text-base font-bold text-white transition hover:bg-accent/90 disabled:bg-slate-400"
                         >
-                          {submitting ? (saveStatus || 'Saving...') : `Pay ${formatMoney(totalAmount)}`}
+                          {submitting ? (saveStatus || 'Saving...') : `Continue to Payment — ${formatMoney(totalAmount)}`}
                           {!submitting ? <ArrowRight className="h-5 w-5" /> : null}
                         </button>
                       </form>
                     )}
                   </div>
-
                 </div>
               </section>
 
