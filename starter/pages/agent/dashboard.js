@@ -23,7 +23,7 @@ export default function AgentDashboard() {
       tabIndex={0}
       aria-label="Section explainer"
     >
-      <Info className="w-5 h-5 text-gray-400 group-hover:text-accent transition" aria-hidden="true" />
+      <Info className="w-5 h-5 text-gray-400 group-hover:text-gray-900 transition" aria-hidden="true" />
       <span
         role="tooltip"
         className="pointer-events-none absolute left-1/2 top-full z-20 mt-2 w-64 -translate-x-1/2 rounded-lg border border-gray-200 bg-white p-3 text-xs text-gray-700 shadow-lg opacity-0 transition group-hover:opacity-100 group-focus-within:opacity-100"
@@ -326,7 +326,7 @@ export default function AgentDashboard() {
                 href="/properties/my-listings"
                 className="group flex h-full  items-center gap-3 rounded-lg border border-gray-200 bg-white p-3 transition hover:border-accent hover:bg-accent/5"
               >
-                <Home className="h-5 w-5 text-accent transition group-hover:scale-110" />
+                <Home className="h-5 w-5 text-gray-900 transition group-hover:scale-110" />
                 <h3 className="text-sm font-semibold text-gray-900">Manage Properties</h3>
               </Link>
 
@@ -334,7 +334,7 @@ export default function AgentDashboard() {
                 href="/properties/new"
                 className="group flex h-full  items-center gap-3 rounded-lg border border-gray-200 bg-white p-3 transition hover:border-accent hover:bg-accent/5"
               >
-                <Plus className="h-5 w-5 text-accent transition group-hover:scale-110" />
+                <Plus className="h-5 w-5 text-gray-900 transition group-hover:scale-110" />
                 <h3 className="text-sm font-semibold text-gray-900">New Property</h3>
               </Link>
 
@@ -343,7 +343,7 @@ export default function AgentDashboard() {
                   href="/properties/bulk-create"
                   className="group flex h-full  items-center gap-3 rounded-lg border border-gray-200 bg-white p-3 transition hover:border-accent hover:bg-accent/5"
                 >
-                  <Plus className="h-5 w-5 text-accent transition group-hover:scale-110" />
+                  <Plus className="h-5 w-5 text-gray-900 transition group-hover:scale-110" />
                   <h3 className="text-sm font-semibold text-gray-900">Bulk Create</h3>
                 </Link>
               )}
@@ -353,8 +353,8 @@ export default function AgentDashboard() {
                   href="/agent/payment"
                   className="group flex h-full items-center gap-3 rounded-lg border border-gray-200 bg-white p-3 transition hover:border-accent hover:bg-accent/5"
                 >
-                  <DollarSign className="h-5 w-5 text-accent transition group-hover:scale-110" />
-                  <h3 className="text-sm font-semibold text-gray-900">Rent My House</h3>
+                  <DollarSign className="h-5 w-5 text-gray-900 transition group-hover:scale-110" />
+                  <h3 className="text-sm font-semibold text-gray-900">Rent Your House</h3>
                 </Link>
               )}
 
@@ -362,7 +362,7 @@ export default function AgentDashboard() {
                 href="/advertise"
                 className="group flex h-full  items-center gap-3 rounded-lg border border-gray-200 bg-white p-3 transition hover:border-accent hover:bg-accent/5"
               >
-                <CheckCircle className="h-5 w-5 text-accent transition group-hover:scale-110" />
+                <CheckCircle className="h-5 w-5 text-gray-900 transition group-hover:scale-110" />
                 <h3 className="text-sm font-semibold text-gray-900">Create Ad</h3>
               </Link>
 
@@ -374,7 +374,7 @@ export default function AgentDashboard() {
                   <span className="absolute -right-1 -top-1 z-10 rounded-full bg-red-500 px-1.5 py-0.5 text-[10px] font-bold text-white shadow-sm">
                     NEW
                   </span>
-                  <Search className="h-6 w-6 text-accent transition group-hover:scale-110" />
+                  <Search className="h-6 w-6 text-gray-900 transition group-hover:scale-110" />
                   <h3 className="font-semibold text-gray-900">Parish Search</h3>
                 </Link>
               )}
@@ -382,14 +382,14 @@ export default function AgentDashboard() {
           </div>
 
           {isOwner && (
-            <div className="bg-blue-50 border-l-4 border-accent rounded-lg p-5 mb-6">
+            <div className="bg-gray-100 border-l-4 border-accent rounded-lg p-5 mb-6">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div className="flex items-start gap-3">
-                  <DollarSign className="text-accent flex-shrink-0 mt-0.5" size={24} />
+                  <DollarSign className="text-gray-900 flex-shrink-0 mt-0.5" size={24} />
                   <div>
-                    <h3 className="font-bold text-gray-900 mb-1">Need a tenant?<br/> We can find one.</h3>
+                    <h3 className="font-bold text-gray-900 mb-1">Rent Your House!</h3>
                     <p className="text-gray-700 text-sm">
-                      Dosnine finds and helps place a tenant in that vacant property.
+                      Dosnine finds and helps place a tenants in that vacant property.
                     </p>
                   </div>
                 </div>
@@ -397,8 +397,7 @@ export default function AgentDashboard() {
                   href="/agent/payment"
                   className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-accent text-white font-semibold rounded-lg hover:bg-accent/90 transition text-sm whitespace-nowrap"
                 >
-                  <CreditCard className="w-5 h-5" />
-                  Rent My House
+                  Rent Your House
                 </Link>
               </div>
             </div>
@@ -450,7 +449,7 @@ export default function AgentDashboard() {
             <div className="bg-white rounded-lg border border-gray-200 p-6 mb-6">
               <div className="flex items-center justify-between gap-3 mb-4">
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-wide text-accent">Leads From ADS</p>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-gray-900">Leads From ADS</p>
                 </div>
                 <span className="rounded-full bg-gray-100 px-3 py-1 text-sm font-semibold text-gray-700">{adInquiries.length}</span>
               </div>
