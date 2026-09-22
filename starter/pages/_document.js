@@ -1,5 +1,5 @@
 import Document, { Html, Head, Main, NextScript } from 'next/document';
-const gtag= 'G-SC64X5RNW0';
+const gtag= 'G-K00JEFT8SM';
 
 class MyDocument extends Document {
 
