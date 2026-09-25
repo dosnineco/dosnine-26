@@ -171,7 +171,7 @@ export default function SponsoredAdBanner({ compact = false }) {
     const refreshInterval =
       setInterval(() => {
         loadAds()
-      }, 60000)
+      }, 40000)
 
     const refreshOnFocus = () => {
       loadAds()

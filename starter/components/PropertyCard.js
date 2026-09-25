@@ -14,7 +14,7 @@ export default function PropertyCard({ property, isOwner = false, index = 0 }) {
   return (
     <a 
       data-list-index={index} 
-      className={clsx('bg-white border border-gray-200 rounded-xl flex h-full min-h-80 flex-col overflow-hidden')}
+      className={clsx('bg-white border border-gray-200 rounded-xl flex h-full min-h-40 flex-col overflow-hidden')}
       href={`/property/${property.slug || property.id}`}
     >
       <div className="relative h-48 w-full flex-shrink-0 overflow-hidden">
@@ -27,15 +27,15 @@ export default function PropertyCard({ property, isOwner = false, index = 0 }) {
       </div>
 
       <div className="flex-1 min-w-0 p-3 flex flex-col">
-        <div className="flex-1">
-          <div className="h-14 min-w-0 overflow-hidden break-words text-lg font-semibold leading-7 line-clamp-2">{property.title}</div>
-          <div className="h-5 min-w-0 truncate text-sm text-gray-500">{property.town}, {property.parish}</div>
+        <div className="flex-1 " >
+          <div className="overflow-hidden break-words text-lg font-semibold">{property.title}</div>
+          <div className=" min-w-0 truncate text-sm text-gray-500">{property.town}, {property.parish}</div>
         </div>
 
-        <div className="mt-4 pt-2 border-t">
-          <div className="flex min-w-0 flex-nowrap items-center justify-between gap-2">
-            <div className="min-w-0 whitespace-nowrap text-sm text-gray-600">
-              {(property.bedrooms == 0 && property.bathrooms == 0) ? 'Land' : `${property.bedrooms} bed • ${property.bathrooms} bath`}
+        <div className=" mt-3 border-t">
+          <div className="flex pt-2 min-w-0 flex-nowrap items-center justify-between gap-2">
+            <div className="min-w-0 whitespace-nowrap text-sm text-gray-600 capitalize">
+              {(property.bedrooms == 0 && property.bathrooms == 0) ? 'Land' : `${property.bedrooms} bed  ${property.bathrooms} bath`}
             </div>
             <div className="shrink-0 whitespace-nowrap text-accent font-bold text-sm">
               {formatPropertyMoney(property.price, property.currency)}{isRental ? '/m' : ''}

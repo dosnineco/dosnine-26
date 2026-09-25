@@ -1,31 +1,47 @@
 import React, { useState, useEffect, Suspense, lazy } from 'react';
-import { useRouter } from 'next/router';
 import toast from 'react-hot-toast';
 import RequestAgentPopup from './RequestAgentPopup';
-import ParishRequestAnalytics from './ParishRequestAnalytics';
-import { Search, MapPin, DollarSign, Clock, FileText, CheckCircle, Lock, Users, Home, Smartphone, Star, Circle, Building2, Building, Filter, X, ArrowRight, Briefcase } from 'lucide-react';
-const PropertyCard = lazy(() => import('./PropertyCard'));
+import {
+  MapPin,
+  DollarSign,
+  CheckCircle,
+  Home,
+  Building2,
+  Building,
+  ArrowRight,
+} from 'lucide-react';
 import Link from 'next/link';
-import AutoPlayYouTube from './AutoPlayYouTube';
+
+const PropertyCard = lazy(() => import('./PropertyCard'));
+
+// Fewer cards on the page — the rest live on /listing and /request
+const FEATURED_LIMIT = 8;
+const REQUEST_LIMIT = 8;
+
+const QUICK_LINKS = [
+  { href: '/listing', label: 'View Properties' },
+  { href: '/request', label: 'Submit a Request' },
+  { href: '/agent/signup', label: 'Sign up as agent' },
+  { href: '/advertise', label: 'Advertise with Us' },
+];
 
 export default function PropertyRequestsMarketplace() {
-  const router = useRouter();
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showPopup, setShowPopup] = useState(false);
   const [featuredProperties, setFeaturedProperties] = useState([]);
   const [loadingFeatured, setLoadingFeatured] = useState(true);
-  const [advertisements, setAdvertisements] = useState([]);
-  const [loadingAds, setLoadingAds] = useState(true);
-  const MAX_CAROUSEL_ITEMS = 15;
 
+  // Featured properties
   useEffect(() => {
     const fetchFeaturedProperties = async () => {
       try {
-        const response = await fetch(`/api/properties/public-list?perPage=${MAX_CAROUSEL_ITEMS}&page=1`);
+        const response = await fetch(
+          `/api/properties/public-list?perPage=${FEATURED_LIMIT}&page=1`
+        );
         const payload = await response.json();
         if (payload?.success && payload?.properties) {
-          setFeaturedProperties(payload.properties.slice(0, MAX_CAROUSEL_ITEMS));
+          setFeaturedProperties(payload.properties.slice(0, FEATURED_LIMIT));
         }
       } catch (error) {
         console.error('Failed to load featured properties:', error);
@@ -36,17 +52,19 @@ export default function PropertyRequestsMarketplace() {
     fetchFeaturedProperties();
   }, []);
 
-  // Fetch requests from both service_requests and visitor_emails tables
+  // Client requests
   useEffect(() => {
     const fetchRequests = async () => {
       try {
         setLoading(true);
-        const response = await fetch(`/api/marketplace/requests?limit=${MAX_CAROUSEL_ITEMS}&page=1`);
+        const response = await fetch(
+          `/api/marketplace/requests?limit=${REQUEST_LIMIT}&page=1`
+        );
         const payload = await response.json();
         if (!response.ok || !payload?.success) {
           throw new Error(payload?.error || 'Failed to load requests');
         }
-        setRequests((payload.requests || []).slice(0, MAX_CAROUSEL_ITEMS));
+        setRequests((payload.requests || []).slice(0, REQUEST_LIMIT));
       } catch (err) {
         console.error('Error fetching requests:', err);
         toast.error('Failed to load requests');
@@ -56,103 +74,16 @@ export default function PropertyRequestsMarketplace() {
     };
 
     fetchRequests();
-
     const refreshInterval = setInterval(fetchRequests, 60000);
-
-    // Cleanup subscriptions
-    return () => {
-      clearInterval(refreshInterval);
-    };
+    return () => clearInterval(refreshInterval);
   }, []);
-
-  // Fetch advertisements
-  useEffect(() => {
-    const fetchAdvertisements = async () => {
-      try {
-        setLoadingAds(true);
-        const response = await fetch(`/api/advertisements/list?limit=${MAX_CAROUSEL_ITEMS}&page=1`);
-        const payload = await response.json();
-        if (!response.ok || !payload?.success) {
-          throw new Error(payload?.error || 'Failed to load advertisements');
-        }
-        setAdvertisements((payload.advertisements || []).slice(0, 6));
-      } catch (err) {
-        console.error('Error fetching advertisements:', err);
-      } finally {
-        setLoadingAds(false);
-      }
-    };
-    fetchAdvertisements();
-  }, []);
-
-  // Extract budget from description text using regex
-  const extractBudgetFromText = (text) => {
-    if (!text) return { min: null, max: null };
-    
-    const lowerText = text.toLowerCase();
-    
-    // Pattern 1: Range like "50k-100k" or "$50k - $100k" or "JMD 50,000 - 100,000"
-    const rangePattern = /(?:jmd|[$]|budget|price)?\s*(\d+(?:,\d{3})*(?:\.\d+)?)\s*(?:k|thousand|million|m)?\s*(?:-|to)\s*(\d+(?:,\d{3})*(?:\.\d+)?)\s*(k|thousand|million|m)?/i;
-    const rangeMatch = text.match(rangePattern);
-    
-    if (rangeMatch) {
-      let min = parseFloat(rangeMatch[1].replace(/,/g, ''));
-      let max = parseFloat(rangeMatch[2].replace(/,/g, ''));
-      const unit = rangeMatch[3] || rangeMatch[1].match(/k|thousand|million|m/i)?.[0];
-      
-      if (unit?.match(/k|thousand/i)) {
-        min *= 1000;
-        max *= 1000;
-      } else if (unit?.match(/m|million/i)) {
-        min *= 1000000;
-        max *= 1000000;
-      } else if (min < 1000) {
-        min *= 1000;
-        max *= 1000;
-      }
-      
-      return { min, max };
-    }
-    
-    // Pattern 2: Single value like "50k" or "$50,000" or "JMD 50k"
-    const singlePattern = /(?:jmd|[$]|budget|price)\s*(\d+(?:,\d{3})*(?:\.\d+)?)\s*(k|thousand|million|m)?/i;
-    const singleMatch = text.match(singlePattern);
-    
-    if (singleMatch) {
-      let value = parseFloat(singleMatch[1].replace(/,/g, ''));
-      const unit = singleMatch[2];
-      
-      if (unit?.match(/k|thousand/i)) {
-        value *= 1000;
-      } else if (unit?.match(/m|million/i)) {
-        value *= 1000000;
-      } else if (value < 1000) {
-        value *= 1000;
-      }
-      
-      return { min: value, max: null };
-    }
-    
-    // Pattern 3: Just numbers like "50000-100000"
-    const numberPattern = /(\d{4,})(?:\s*-\s*|\s+to\s+)(\d{4,})/i;
-    const numberMatch = text.match(numberPattern);
-    
-    if (numberMatch) {
-      return { 
-        min: parseFloat(numberMatch[1]),
-        max: parseFloat(numberMatch[2])
-      };
-    }
-    
-    return { min: null, max: null };
-  };
 
   const formatBudget = (min, max) => {
     const minVal = min ? parseFloat(min) : null;
     const maxVal = max ? parseFloat(max) : null;
-    
+
     if (!minVal && !maxVal) return 'Budget flexible';
-    
+
     const formatValue = (val) => {
       if (val >= 1000000) {
         const millions = val / 1000000;
@@ -160,21 +91,14 @@ export default function PropertyRequestsMarketplace() {
       }
       return `$${val.toLocaleString()}`;
     };
-    
-    // If min and max are the same or very close, show as single value
+
     if (minVal && maxVal && Math.abs(minVal - maxVal) < 1000) {
       return `Up to JMD ${formatValue(minVal)}`;
     }
-    
-    // If both exist and different, show range
     if (minVal && maxVal) {
       return `JMD ${formatValue(minVal)} - ${formatValue(maxVal)}`;
     }
-    
-    // If only min exists
     if (minVal) return `JMD ${formatValue(minVal)}+`;
-    
-    // If only max exists
     return `Up to JMD ${formatValue(maxVal)}`;
   };
 
@@ -184,257 +108,251 @@ export default function PropertyRequestsMarketplace() {
   };
 
   const formatLocation = (location, area, parish) => {
-    if (area && parish && area !== parish) {
-      return `${area}, ${parish}`;
-    }
-    if (parish && area) {
-      return `${parish} (${area})`;
-    }
-    if (parish) {
-      return `${parish} (Area flexible)`;
-    }
+    if (area && parish && area !== parish) return `${area}, ${parish}`;
+    if (parish && area) return `${parish} (${area})`;
+    if (parish) return `${parish} (Area flexible)`;
     return location || 'Location flexible';
-  };
-
-  const getBudgetTier = (min, max) => {
-    const value = max || min || 0;
-    if (value >= 90000) return 'premium';
-    if (value >= 60000) return 'mid';
-    return 'standard';
   };
 
   const getUrgencyBadge = (createdAt) => {
     const now = new Date();
     const created = new Date(createdAt);
     const hoursDiff = Math.floor((now - created) / (1000 * 60 * 60));
-    
     if (hoursDiff < 24) return 'Posted today';
     if (hoursDiff < 48) return 'Active now';
     return null;
   };
 
-  const getTimeAgo = (date) => {
-    const now = new Date();
-    const created = new Date(date);
-    const diffHours = Math.floor((now - created) / (1000 * 60 * 60));
-    const diffDays = Math.floor(diffHours / 24);
-
-    if (diffDays > 0) return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
-    if (diffHours > 0) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
-    return 'Just now';
+  const renderRequestIcon = (type) => {
+    if (type === 'buy') return <Home size={16} className="text-gray-700" />;
+    if (type === 'rent') return <Building2 size={16} className="text-gray-700" />;
+    return <Building size={16} className="text-gray-700" />;
   };
 
-  // Group similar requests (same type, parish, bedrooms)
-  const getSimilarCount = (currentRequest, allRequests) => {
-    return allRequests.filter(r => 
-      r.id !== currentRequest.id &&
-      r.request_type === currentRequest.request_type &&
-      r.parish === currentRequest.parish &&
-      r.bedrooms === currentRequest.bedrooms
-    ).length;
+  const renderRequestTitle = (request) => {
+    const label =
+      request.request_type === 'buy'
+        ? 'Purchase'
+        : request.request_type === 'rent'
+        ? 'Rental'
+        : 'Property';
+    const bedrooms = formatBedrooms(request.bedrooms);
+    const bedroomLabel =
+      bedrooms === 'Flexible'
+        ? 'Flexible Bedrooms'
+        : `${bedrooms} Bedroom${request.bedrooms > 1 ? 's' : ''}`;
+    return `${label} • ${bedroomLabel}`;
   };
 
   return (
-    <div className="min-h-screen ">
-  
-      {/* Bottom spacing from hero */}
-      <div className="h-20"></div>
-
-      {/* Live Requests Section */}
-      <div className="container mx-auto mb-8">
-        <div className="text-center mb-12">
-          <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
+    <div className="min-h-screen bg-white">
+      {/* Hero */}
+      <section className="container mx-auto px-4 pt-20 pb-12 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-3xl text-center">
+          <h1 className="text-4xl font-bold tracking-tight text-gray-900 sm:text-5xl">
             What Clients Are Looking For
           </h1>
-          <p className="text-gray-600 text-base mb-8 leading-relaxed">
-            Browse the latest property needs shared by clients across Jamaica. Find the right match and connect with clients who are ready to move.
+          <p className="mt-5 text-base leading-relaxed text-gray-600">
+            Browse the latest property needs shared by clients across Jamaica.
+            Find the right match and connect with clients who are ready to move.
           </p>
-          
-          {/* Action Links */}
-          <div className="flex flex-wrap justify-center gap-8 mb-12">
+
+          <div className="mt-10 flex flex-wrap items-center justify-center gap-3">
+            {QUICK_LINKS.map(({ href, label }) => (
+              <Link
+                key={href}
+                href={href}
+                className="group inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-5 py-2.5 text-sm font-semibold text-gray-800 shadow-sm transition hover:border-gray-900 hover:bg-gray-900 hover:text-white"
+              >
+                {label}
+                <ArrowRight
+                  size={16}
+                  className="transition-transform group-hover:translate-x-0.5"
+                />
+              </Link>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Available Properties */}
+      {!loadingFeatured && featuredProperties.length > 0 && (
+        <section className="container mx-auto px-4 py-16 sm:px-6 lg:px-8">
+          <header className="mb-10 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <h2 className="text-3xl font-bold tracking-tight text-gray-900">
+                Available Properties
+              </h2>
+              <p className="mt-2 text-sm text-gray-600">
+                A quick look at fresh listings. Browse the full catalogue on our
+                listings page.
+              </p>
+            </div>
             <Link
               href="/listing"
-              className="flex items-center gap-2 text-sm text-gray-900 font-semibold hover:text-gray-700 transition-colors delay-50 border-b-2 border-accent hover:border-gray-700 pb-2"
+              className="inline-flex items-center gap-2 self-start rounded-full bg-accent px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-gray-800 sm:self-auto"
             >
-              View Properties
-              <ArrowRight className="text-accent" size={20} />
+              View all properties
+              <ArrowRight size={16} />
             </Link>
-            <Link
-              href="/request"
-              className="flex items-center gap-2 text-sm text-gray-900 font-semibold hover:text-gray-700 transition-colors delay-50 border-b-2 border-accent hover:border-gray-700 pb-2"
-            >
-              Submit a Request
-              <ArrowRight className="text-accent" size={20} />
-            </Link>
-            <Link
-              href="/agent/signup"
-              className="flex items-center gap-2 text-sm text-gray-900 font-semibold hover:text-gray-700 transition-colors delay-50 border-b-2 border-accent hover:border-gray-700 pb-2"
-            >
-              Sign up as agent
-              <ArrowRight className="text-accent" size={16} />
-            </Link>
-            <Link
-              href="/advertise"
-              className="flex items-center gap-2 text-sm text-gray-900 font-semibold hover:text-gray-700 transition-colors delay-50 border-b-2 border-accent hover:border-gray-700 pb-2"
-            >
-              Advertise with Us
-              <ArrowRight className="text-accent" size={16} />
-            </Link>  
+          </header>
+
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {featuredProperties.map((prop, idx) => (
+              <Link
+                key={prop.id}
+                href="/listing"
+                className="group block h-[22rem] rounded-2xl transition focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
+                aria-label="Browse more properties on the listings page"
+              >
+                <div className="h-full w-full transition-transform duration-200 group-hover:-translate-y-1">
+                  <Suspense
+                    fallback={
+                      <div className="h-full w-full rounded-xl bg-gray-100" />
+                    }
+                  >
+                    <PropertyCard property={prop} index={idx} />
+                  </Suspense>
+                </div>
+              </Link>
+            ))}
           </div>
 
-     
-
-          {/* Live Typing Indicator - Reserved Space */}
-          {/* <div className="h-12 flex items-center justify-center">
-            <div className="text-sm text-gray-500">Live request data refreshes every minute for stability.</div>
-          </div> */}
-
-          {/* <AutoPlayYouTube url="https://youtu.be/9GL8tJnH5Y8" /> */}
-        </div>
-
-
-      {/* Featured Properties Preview */}
-      {!loadingFeatured && featuredProperties.length > 0 && (
-        <section className=" mt-12">
-          <div className="container mx-auto">
-            <div className="flex flex-row items-center justify-between gap-2 mb-8">
-              <div className="flex items-center gap-2 min-w-0"> 
-                <h2 className="text-3xl font-bold text-gray-900 whitespace-nowrap">Available Properties</h2>
-              </div>
-              <Link href="/listing" className="inline-flex items-center gap-2 rounded-full bg-accent px-5 py-3 text-sm font-semibold text-white transition hover:bg-gray-800">
-                
-                <ArrowRight size={18}  />
-              </Link>
-            </div>
-            <div className="relative overflow-hidden">
-              <div className=" overflow-x-auto pb-4 px-2 flex gap-4 snap-x   snap-mandatory scrollbar-hide">
-                {featuredProperties.map((prop, idx) => (
-                  <div key={prop.id} className="w-[min(82vw,320px)] flex-shrink-0 snap-start sm:w-[300px]">
-                    <div className="h-[21rem]">
-                      <Suspense fallback={<div className="bg-white   p-2 h-full" />}>
-                        <PropertyCard property={prop} index={idx} />
-                      </Suspense>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
+          <div className="mt-10 flex justify-center">
+            <Link
+              href="/listing"
+              className="group inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-6 py-3 text-sm font-semibold text-gray-800 shadow-sm transition hover:border-gray-900 hover:bg-gray-900 hover:text-white"
+            >
+              See more properties
+              <ArrowRight
+                size={16}
+                className="transition-transform group-hover:translate-x-0.5"
+              />
+            </Link>
           </div>
         </section>
       )}
 
+      {/* Client Requests */}
+      <section className="container mx-auto px-4 py-16 sm:px-6 lg:px-8">
+        <header className="mb-10 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <h2 className="text-3xl font-bold tracking-tight text-gray-900">
+              Tell Us Your Needs Too
+            </h2>
+            <p className="mt-2 text-sm text-gray-600">
+              Live demand from buyers and renters across the island. Submit your
+              own request to reach agents directly.
+            </p>
+          </div>
+          <Link
+            href="/request"
+            className="inline-flex items-center gap-2 self-start rounded-full bg-accent px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-gray-800 sm:self-auto"
+          >
+            Submit a request
+            <ArrowRight size={16} />
+          </Link>
+        </header>
 
         {loading ? (
-          <div className="text-center py-12">
-            <p className="text-gray-600 mt-2">Loading requests...</p>
-            
-            </div>
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div
+                key={i}
+                className="h-48 animate-pulse rounded-2xl border border-gray-100 bg-gray-50"
+              />
+            ))}
+          </div>
         ) : requests.length === 0 ? (
-          <div className="text-center py-12">
-            <p className="text-gray-600 text-lg">No requests available</p>
+          <div className="rounded-2xl border border-dashed border-gray-200 py-16 text-center">
+            <p className="text-gray-600">No requests available right now.</p>
           </div>
         ) : (
-          <>
-          <section className=" mt-12">
-            <div className="container mx-auto">
-              <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-8">
-                <div>
-                  <h2 className="text-3xl font-bold text-gray-900">Tell Us Your Needs too</h2>
-                </div>
-                 <Link href="/request" className="inline-flex items-center gap-2 rounded-full bg-accent px-5 py-3 text-sm font-semibold text-white transition hover:bg-gray-800">
-                Submit here
-                <ArrowRight size={18}  />
-              </Link>
-              </div>
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {requests.map((request) => {
+              const urgencyBadge = getUrgencyBadge(request.created_at);
+              return (
+                <Link
+                  key={`${request.type}-${request.id}`}
+                  href="/request"
+                  className="group block h-full rounded-2xl focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
+                  aria-label="Go to the request page to submit your own property request"
+                >
+                  <article className="flex h-full flex-col rounded-2xl border border-gray-200 bg-white p-6 shadow-sm transition group-hover:-translate-y-1 group-hover:border-gray-300 group-hover:shadow-md">
+                    <div className="flex items-start justify-between gap-3">
+                      <h3 className="flex items-center gap-2 text-base font-semibold leading-snug text-gray-900">
+                        {renderRequestIcon(request.request_type)}
+                        <span>{renderRequestTitle(request)}</span>
+                      </h3>
+                      {urgencyBadge && (
+                        <span className="shrink-0 rounded-full bg-accent px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-white">
+                          {urgencyBadge}
+                        </span>
+                      )}
+                    </div>
 
-              <div className="-mx-4 overflow-x-auto pb-4  px-4 flex gap-4 snap-x snap-mandatory scrollbar-hide">
-                {requests.map((request) => {
-                const tier = getBudgetTier(request.budget_min, request.budget_max);
-                const urgencyBadge = getUrgencyBadge(request.created_at);
-                const similarCount = getSimilarCount(request, requests);
+                    <p className="mt-2 flex items-center gap-1.5 text-xs font-medium text-gray-500">
+                      <CheckCircle size={12} className="text-green-600" />
+                      Verified{' '}
+                      {request.request_type === 'buy' ? 'buyer' : 'renter'}
+                    </p>
 
-                return (
-                  <div key={`${request.type}-${request.id}`} className="min-w-[300px] flex-shrink-0 snap-start scrollbar-hide">
-                    <div className="h-60  rounded-xl border border-gray-200 p-6 transition-all relative flex flex-col shadow-sm">
-            
+                    <div className="mt-5 flex items-start gap-3">
+                      <MapPin
+                        className="mt-0.5 flex-shrink-0 text-red-500"
+                        size={16}
+                      />
+                      <p className="text-sm font-medium leading-relaxed text-gray-700">
+                        {formatLocation(
+                          request.location,
+                          request.area,
+                          request.parish
+                        )}
+                      </p>
+                    </div>
 
+                    <div className="mt-3 flex flex-1 items-start gap-3">
+                      <DollarSign
+                        className="mt-0.5 flex-shrink-0 text-gray-600"
+                        size={16}
+                      />
+                      <p className="text-sm font-medium text-gray-700">
+                        {formatBudget(request.budget_min, request.budget_max)}
+                      </p>
+                    </div>
 
-               
-
-                {/* Title */}
-                <h3 className="text-base font-semibold text-gray-900 mb-2 leading-tight flex items-center gap-2">
-                  {request.request_type === 'buy' ? <Home size={16} className="text-gray-700" /> : request.request_type === 'rent' ? <Building2 size={16} className="text-gray-700" /> : <Building size={16} className="text-gray-700" />}
-                  <span>{request.request_type === 'buy' ? 'Purchase' : request.request_type === 'rent' ? 'Rental' : 'Property'} • {formatBedrooms(request.bedrooms)}{formatBedrooms(request.bedrooms) === 'Flexible' ? ' Bedrooms' : ' Bedroom' + (request.bedrooms > 1 ? 's' : '')}</span>
-                </h3>
-                <p className="text-xs text-gray-500 mb-4 font-medium flex items-center gap-2">
-                  <CheckCircle size={12} className="text-green-600" /> Verified {request.request_type === 'buy' ? 'buyer' : 'renter'}
-                </p>
-
-                {/* Location */}
-                <div className="flex items-start gap-3 mb-4">
-                  <MapPin className="text-red-500 flex-shrink-0" size={16} />
-                  <p className="text-sm text-gray-700 font-medium leading-relaxed">
-                    {formatLocation(request.location, request.area, request.parish)}
-                  </p>
-                </div>
-
-                {urgencyBadge && (
-                  <div className="absolute top-3 right-3 bg-accent text-white text-[10px] font-semibold px-2 py-1 rounded-full">
-                    {urgencyBadge}
-                  </div>
-                )}
-
-                {/* Budget */}
-                <div className="flex items-start gap-3 mb-5 flex-grow">
-                  <DollarSign className="text-gray-600 flex-shrink-0" size={16} />
-                  <p className="text-sm text-gray-700 font-medium">
-                    {formatBudget(request.budget_min, request.budget_max)}
-                  </p>
-                </div>
-
-               
-              </div>
-              </div>
-            );
-          })}
-              </div>
-            </div>
-          </section>
-
-          {/* <section className="bg-white rounded-xl py-12 px-4 mt-8">
-            <div className="container mx-auto">
-              <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between mb-8">
-                <div>
-                  <p className="text-sm uppercase tracking-[0.18em] text-accent font-semibold">Free Market Data</p>
-                  <h2 className="text-3xl font-bold text-gray-900 mt-2">Latest free demand metrics</h2>
-                  <p className="text-gray-600 mt-3 max-w-2xl">All market metrics are available for free right here. No premium lock, no hidden report fees.</p>
-                </div>
-                <Link href="/listing" className="inline-flex items-center gap-2 rounded-full bg-gray-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-gray-800">
-                  Explore free market data
+                    <div className="mt-5 flex items-center gap-1.5 text-xs font-semibold text-accent">
+                      Submit your request
+                      <ArrowRight
+                        size={14}
+                        className="transition-transform group-hover:translate-x-0.5"
+                      />
+                    </div>
+                  </article>
                 </Link>
-              </div>
-
-              <div className="mt-8">
-                <ParishRequestAnalytics />
-              </div>
-            </div>
-          </section> */}
-
-       
-          </>
+              );
+            })}
+          </div>
         )}
-      </div>
 
-      {/* How It Works Section */}
-      
+        <div className="mt-10 flex justify-center">
+          <Link
+            href="/request"
+            className="group inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-6 py-3 text-sm font-semibold text-gray-800 shadow-sm transition hover:border-gray-900 hover:bg-gray-900 hover:text-white"
+          >
+            Request a property
+            <ArrowRight
+              size={16}
+              className="transition-transform group-hover:translate-x-0.5"
+            />
+          </Link>
+        </div>
+      </section>
 
-      {/* Request Popup Modal */}
       <RequestAgentPopup
         isOpen={showPopup}
         onClose={() => setShowPopup(false)}
-        prefilledData={{
-          requestType: 'agent-inquiry'
-        }}
+        prefilledData={{ requestType: 'agent-inquiry' }}
       />
     </div>
   );

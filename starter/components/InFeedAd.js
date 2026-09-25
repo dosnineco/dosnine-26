@@ -79,7 +79,7 @@ export default function InFeedAd() {
         Sponsored
       </span>
 
-      <div className="relative flex h-48 w-full flex-shrink-0 items-center justify-center overflow-hidden bg-gray-100 p-3 sm:h-52 lg:h-56">
+      <div className="relative flex h-48 w-full flex-shrink-0 items-center justify-center overflow-hidden bg-white p-3 sm:h-52 lg:h-56">
         {imageUrl ? (
           <img
             src={imageUrl}
@@ -96,18 +96,19 @@ export default function InFeedAd() {
 
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden p-3">
         <div className="flex-1">
-          <div className="mb-1 min-w-0 truncate text-xs font-medium text-gray-500">{ad.company_name}</div>
-          <div className="h-12 min-w-0 overflow-hidden break-words text-lg font-semibold leading-6 line-clamp-2">
+          <div className="mb-2 min-w-0 overflow-hidden break-words text-md font-semibold leading-6 line-clamp-2">
             {ad.title || ad.headline || 'Discover more'}
           </div>
-          <div className="mt-1 h-10 min-w-0 overflow-hidden break-words text-sm leading-5 text-gray-500 line-clamp-2">
+          <div className="min-w-0 overflow-hidden break-words text-sm leading-5 text-gray-500 line-clamp-2">
             {ad.description || 'Learn more about this business.'}
           </div>
+          <div className="mt-1 min-w-0 truncate text-xs font-bold text-gray-500">{ad.company_name}</div>
+
         </div>
 
-        <div className="mt-auto pt-2 border-t">
+        {/* <div className="mt-auto pt-2 border-t">
           <span className="text-accent font-semibold text-sm">Learn more →</span>
-        </div>
+        </div> */}
       </div>
     </Link>
   )
