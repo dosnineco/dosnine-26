@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
 import { useUser } from '@clerk/nextjs';
-import AdminLayout from '../../components/AdminLayout';
 import toast from 'react-hot-toast';
 import { FiEdit2, FiTrash2, FiRefreshCw, FiX } from 'react-icons/fi';
 import { Users as UsersIcon, ShieldCheck, Flag, Ban, IdCard, Download, Settings } from 'lucide-react';
@@ -337,7 +336,6 @@ export default function AdminUsersPage() {
       <Head>
         <title>Users — Admin Dashboard</title>
       </Head>
-      <AdminLayout />
 
       <div className="min-h-screen bg-gray-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">

@@ -3,7 +3,6 @@ import Head from 'next/head';
 import { useRouter } from 'next/router';
 import { useUser } from '@clerk/nextjs';
 import toast from 'react-hot-toast';
-import AdminLayout from '../../components/AdminLayout';
 import { FiMail } from 'react-icons/fi';
 import { supabase } from '@/lib/supabase';
 import { useEditor, EditorContent } from '@tiptap/react';
@@ -510,7 +509,6 @@ export default function AdminNewsletterPage() {
 
       <main className="min-h-screen bg-gray-50 py-8">
         <div className="container mx-auto px-4 max-w-7xl">
-          <AdminLayout />
 
 <div className="bg-white rounded-3xl border border-gray-200 p-8 mt-6">
               <div className="mb-8">

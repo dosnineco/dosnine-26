@@ -2,7 +2,6 @@ import { useRouter } from 'next/router';
 import { useUser } from '@clerk/nextjs';
 import { useState, useEffect, useMemo } from 'react';
 import Head from 'next/head';
-import AdminLayout from '../../components/AdminLayout';
 
 export default function AdminVisitorEmails() {
   const router = useRouter();
@@ -158,7 +157,6 @@ export default function AdminVisitorEmails() {
 
       <main className="min-h-screen bg-gray-50 py-8">
         <div className="container mx-auto px-4">
-          <AdminLayout />
 
           <div className="mt-8 grid gap-4 lg:grid-cols-4">
             <div className="bg-white rounded-lg shadow p-6 border border-gray-200">

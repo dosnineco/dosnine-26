@@ -5,7 +5,6 @@ import { useUser } from '@clerk/nextjs';
 import toast from 'react-hot-toast';
 import { FiStar, FiTrash2, FiEye, FiGrid, FiUsers, FiZap, FiDollarSign, FiClock, FiTrendingUp, FiMail, FiPackage } from 'react-icons/fi';
 import { formatJMD, formatMoney } from '../../lib/formatMoney';
-import AdminLayout from '../../components/AdminLayout';
 
 export default function AdminDashboard() {
   const { user } = useUser();
@@ -174,7 +173,6 @@ export default function AdminDashboard() {
       
       <div className="container mx-auto px-4 py-6 max-w-7xl">
  
-      <AdminLayout />
 
 
       {loading ? (

@@ -2,8 +2,47 @@ import { useEffect, useState } from 'react';
 import Head from 'next/head';
 import { useAuth, useUser } from '@clerk/nextjs';
 import toast from 'react-hot-toast';
-import { CheckCircle, XCircle, Clock } from 'lucide-react';
-import AdminLayout from '../../components/AdminLayout';
+import {
+  CheckCircle2,
+  XCircle,
+  Clock,
+  User,
+  Mail,
+  MapPin,
+  DollarSign,
+  Calendar,
+  Briefcase,
+  Home,
+  BedDouble,
+  Bath,
+  AlertCircle,
+  RefreshCw,
+} from 'lucide-react';
+
+const formatJMD = (value) => `J$${Number(value || 0).toLocaleString()}`;
+
+const STATUS_STYLES = {
+  pending: {
+    label: 'Pending',
+    icon: Clock,
+    badge: 'bg-amber-100 text-amber-800 border-amber-200',
+    strip: 'bg-amber-400',
+  },
+  approved: {
+    label: 'Approved',
+    icon: CheckCircle2,
+    badge: 'bg-emerald-100 text-emerald-800 border-emerald-200',
+    strip: 'bg-emerald-500',
+  },
+  rejected: {
+    label: 'Rejected',
+    icon: XCircle,
+    badge: 'bg-red-100 text-red-800 border-red-200',
+    strip: 'bg-red-500',
+  },
+};
+
+const getStatusStyle = (status) => STATUS_STYLES[status] || STATUS_STYLES.pending;
 
 export default function AgentApplicationsPage() {
   const { user } = useUser();
@@ -22,7 +61,7 @@ export default function AgentApplicationsPage() {
 
   const checkAdminAccess = async () => {
     if (!user) return;
-    
+
     try {
       const response = await fetch('/api/admin/verify-admin');
       const payload = await response.json();
@@ -127,140 +166,281 @@ export default function AgentApplicationsPage() {
     }
   };
 
-  const filteredApplications = applications.filter(app => {
+  const counts = {
+    all: applications.length,
+    pending: applications.filter((a) => a.status === 'pending').length,
+    approved: applications.filter((a) => a.status === 'approved').length,
+    rejected: applications.filter((a) => a.status === 'rejected').length,
+  };
+
+  const filteredApplications = applications.filter((app) => {
     if (filterStatus === 'all') return true;
     return app.status === filterStatus;
   });
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="">Loading...</div>
+      <div className="space-y-5">
+        <div className="h-24 animate-pulse rounded-2xl border border-slate-100 bg-slate-50" />
+        <div className="h-40 animate-pulse rounded-2xl border border-slate-100 bg-slate-50" />
+        <div className="h-40 animate-pulse rounded-2xl border border-slate-100 bg-slate-50" />
       </div>
     );
   }
 
   if (!isAdmin) {
-    return <div className="min-h-screen bg-gray-50 p-6">Access denied</div>;
+    return (
+      <div className="flex items-center justify-center py-24">
+        <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center">
+          <XCircle className="mx-auto h-10 w-10 text-red-500" />
+          <h1 className="mt-4 text-xl font-semibold text-slate-900">Access denied</h1>
+          <p className="mt-2 text-sm text-slate-600">
+            Admin access is required to view applications.
+          </p>
+        </div>
+      </div>
+    );
   }
-
-  const statusConfig = {
-    pending: { icon: Clock, color: 'text-yellow-600', bg: 'bg-gray-50', border: 'border-yellow-500' },
-    approved: { icon: CheckCircle, color: 'text-green-600', bg: 'bg-gray-50', border: 'border-green-500' },
-    rejected: { icon: XCircle, color: 'text-red-600', bg: 'bg-gray-50', border: 'border-red-500' }
-  };
 
   return (
     <>
       <Head>
-        <title>Agent Applications - Admin</title>
+        <title>Agent Applications — Admin</title>
       </Head>
 
-      <AdminLayout />
-      <div className="min-h-screen bg-gray-50">
-        <div className="max-w-7xl mx-auto px-6 py-8">
-
-          {/* Filter */}
-          <div className="mb-6 flex gap-2">
-            {['all', 'pending', 'approved', 'rejected'].map(status => (
-              <button
-                key={status}
-                onClick={() => setFilterStatus(status)}
-                className={`px-4 py-2 rounded-lg font-medium transition ${
-                  filterStatus === status
-                    ? 'bg-accent text-white'
-                    : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
-                }`}
-              >
-                {status.charAt(0).toUpperCase() + status.slice(1)} ({filteredApplications.filter(a => status === 'all' || a.status === status).length})
-              </button>
-            ))}
+      <div className="space-y-5">
+        {/* Header */}
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-accent">
+              Applications
+            </p>
+            <h1 className="mt-2 text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
+              Agent Request Applications
+            </h1>
+            <p className="mt-1 text-sm text-slate-600">
+              Review agent applications to client requests and approve or reject.
+            </p>
           </div>
+          <button
+            type="button"
+            onClick={fetchApplications}
+            className="inline-flex shrink-0 items-center gap-2 self-start rounded-full border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
+          >
+            <RefreshCw size={14} />
+            Refresh
+          </button>
+        </div>
 
-          {/* Applications List */}
-          {filteredApplications.length === 0 ? (
-            <div className="bg-white rounded-lg p-12 text-center border border-gray-200">
-              <p className="text-gray-600">No applications found</p>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {filteredApplications.map(app => {
-                const request = requests[app.request_id];
-                const agent = agents[app.agent_id];
-                const statusInfo = statusConfig[app.status];
-                const StatusIcon = statusInfo.icon;
+        {/* Filter pills */}
+        <div className="flex flex-wrap gap-2">
+          {[
+            { key: 'all', label: 'All', count: counts.all, tone: 'slate' },
+            { key: 'pending', label: 'Pending', count: counts.pending, tone: 'amber' },
+            { key: 'approved', label: 'Approved', count: counts.approved, tone: 'emerald' },
+            { key: 'rejected', label: 'Rejected', count: counts.rejected, tone: 'red' },
+          ].map(({ key, label, count, tone }) => {
+            const selected = filterStatus === key;
+            const classes = {
+              slate: selected
+                ? 'border-slate-900 bg-slate-900 text-white'
+                : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300',
+              amber: selected
+                ? 'border-amber-500 bg-amber-500 text-white'
+                : 'border-amber-200 bg-white text-amber-700 hover:border-amber-300',
+              emerald: selected
+                ? 'border-emerald-500 bg-emerald-500 text-white'
+                : 'border-emerald-200 bg-white text-emerald-700 hover:border-emerald-300',
+              red: selected
+                ? 'border-red-500 bg-red-500 text-white'
+                : 'border-red-200 bg-white text-red-700 hover:border-red-300',
+            }[tone];
 
-                return (
-                  <div
-                    key={app.id}
-                    className={`rounded-lg border-l-4 p-4 ${statusInfo.bg} ${statusInfo.border}`}
-                  >
-                    <div className="flex items-start justify-between gap-4 flex-wrap">
-                      <div className="flex-1 min-w-[250px]">
-                        
+            return (
+              <button
+                key={key}
+                type="button"
+                onClick={() => setFilterStatus(key)}
+                className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold transition ${classes}`}
+              >
+                {label}
+                <span
+                  className={`rounded-full px-1.5 text-[10px] font-bold ${
+                    selected ? 'bg-white/25 text-white' : 'bg-slate-100 text-slate-700'
+                  }`}
+                >
+                  {count}
+                </span>
+              </button>
+            );
+          })}
+        </div>
 
-                        <div className="space-y-2 mb-4">
-                          <div>
-                          <div className="flex items-center gap-3 mb-3">
-                        <span className={`p-2 m-2  rounded-full text-sm font-medium ${statusInfo.color} bg-white border ${statusInfo.border}`}>
-                            Request {app.status.charAt(0).toUpperCase() + app.status.slice(1)}
+        {/* Results */}
+        {filteredApplications.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-slate-200 bg-white py-16 text-center">
+            <AlertCircle className="mx-auto h-10 w-10 text-slate-300" />
+            <p className="mt-3 text-sm font-semibold text-slate-700">
+              {applications.length === 0
+                ? 'No applications yet'
+                : 'No applications in this view'}
+            </p>
+            <p className="mt-1 text-sm text-slate-500">
+              {applications.length === 0
+                ? 'New agent applications will appear here.'
+                : 'Try switching the filter above.'}
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {filteredApplications.map((app) => {
+              const request = requests[app.request_id];
+              const agent = agents[app.agent_id];
+              const statusUi = getStatusStyle(app.status);
+              const StatusIcon = statusUi.icon;
+              const isUpdating = updateLoading === app.id;
+
+              return (
+                <article
+                  key={app.id}
+                  className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white  transition "
+                >
+                  {/* Status strip */}
+                  <div className={`absolute inset-y-0 left-0 w-1 ${statusUi.strip}`} />
+
+                  <div className="pl-5 pr-4 pt-4 pb-4 sm:pl-6 sm:pr-5 sm:pt-5 sm:pb-5">
+                    {/* Header */}
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <h3 className="text-base font-bold text-slate-900">
+                            {agent?.full_name || 'Unknown agent'}
+                          </h3>
+                          <span
+                            className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${statusUi.badge}`}
+                          >
+                            <StatusIcon size={11} />
+                            {statusUi.label}
                           </span>
                         </div>
-                            <p className="text-sm text-gray-600">
-                              {request?.request_type?.toUpperCase()} • {request?.property_type} • {request?.bedrooms}bd {request?.bathrooms}ba
-                            </p>
-                            <p className="text-sm text-gray-600">📍 {request?.location}</p>
-                            {request?.budget_min && (
-                              <p className="text-sm font-medium text-gray-700">
-                                💰 J${request.budget_min?.toLocaleString()} - J${request.budget_max?.toLocaleString()}
+                        {agent?.email && (
+                          <p className="mt-1 flex items-center gap-1.5 truncate text-sm text-slate-600">
+                            <Mail size={12} className="shrink-0 text-slate-400" />
+                            <span className="truncate">{agent.email}</span>
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Request details */}
+                    {request ? (
+                      <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="inline-flex items-center gap-1.5 rounded-full bg-white px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-700 ">
+                            <Home size={11} />
+                            {request.request_type || 'request'}
+                          </span>
+                          {request.property_type && (
+                            <span className="inline-flex items-center gap-1.5 rounded-full bg-white px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-700 ">
+                              {request.property_type}
+                            </span>
+                          )}
+                          {request.bedrooms != null && (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-white px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-700 ">
+                              <BedDouble size={11} />
+                              {request.bedrooms} bd
+                            </span>
+                          )}
+                          {request.bathrooms != null && (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-white px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-700 ">
+                              <Bath size={11} />
+                              {request.bathrooms} ba
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                          {request.location && (
+                            <div className="flex items-start gap-2">
+                              <MapPin size={13} className="mt-0.5 shrink-0 text-slate-400" />
+                              <p className="min-w-0 truncate text-sm text-slate-700">
+                                {request.location}
                               </p>
-                            )}
-                          </div>
-
-                          <div>
-                            <h4 className="font-semibold text-gray-900 mt-4">Agent</h4>
-                            <p className="text-sm text-gray-600">{agent?.full_name}</p>
-                            <p className="text-sm text-gray-600">{agent?.email}</p>
-                            <p className="text-sm text-gray-600">
-                              Plan: <span className="font-medium">{agent?.payment_status}</span>
-                            </p>
-                          </div>
-
-                          <div>
-                            <p className="text-xs text-gray-500">
-                              Applied: {new Date(app.applied_at).toLocaleString()}
-                              {app.reviewed_at && ` • Reviewed: ${new Date(app.reviewed_at).toLocaleString()}`}
-                            </p>
-                          </div>
+                            </div>
+                          )}
+                          {request.budget_min != null && (
+                            <div className="flex items-start gap-2">
+                              <DollarSign size={13} className="mt-0.5 shrink-0 text-slate-400" />
+                              <p className="min-w-0 truncate text-sm font-medium text-slate-700">
+                                {formatJMD(request.budget_min)} –{' '}
+                                {formatJMD(request.budget_max)}
+                              </p>
+                            </div>
+                          )}
                         </div>
                       </div>
+                    ) : (
+                      <div className="mt-4 rounded-xl border border-dashed border-slate-200 bg-slate-50 p-4 text-sm text-slate-500">
+                        Request details unavailable.
+                      </div>
+                    )}
 
-                      {/* Actions */}
-                      {app.status === 'pending' && (
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => handleUpdateStatus(app.id, 'approved')}
-                            disabled={updateLoading === app.id}
-                            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition disabled:opacity-50"
-                          >
-                            Approve
-                          </button>
-                          <button
-                            onClick={() => handleUpdateStatus(app.id, 'rejected')}
-                            disabled={updateLoading === app.id}
-                            className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition disabled:opacity-50"
-                          >
-                            Reject
-                          </button>
-                        </div>
+                    {/* Agent plan */}
+                    {agent?.payment_status && (
+                      <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
+                        <span className="inline-flex items-center gap-1.5 font-semibold uppercase tracking-wider text-slate-500">
+                          <Briefcase size={12} />
+                          Plan
+                        </span>
+                        <span className="rounded-full bg-accent/10 px-2.5 py-0.5 font-semibold capitalize text-accent">
+                          {agent.payment_status}
+                        </span>
+                      </div>
+                    )}
+
+                    {/* Timeline */}
+                    <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500">
+                      <span className="inline-flex items-center gap-1.5">
+                        <Calendar size={11} />
+                        Applied {new Date(app.applied_at).toLocaleString()}
+                      </span>
+                      {app.reviewed_at && (
+                        <span className="inline-flex items-center gap-1.5">
+                          <CheckCircle2 size={11} />
+                          Reviewed {new Date(app.reviewed_at).toLocaleString()}
+                        </span>
                       )}
                     </div>
+
+                    {/* Actions */}
+                    {app.status === 'pending' && (
+                      <div className="mt-4 flex flex-col gap-2 border-t border-slate-100 pt-4 sm:flex-row">
+                        <button
+                          type="button"
+                          onClick={() => handleUpdateStatus(app.id, 'approved')}
+                          disabled={isUpdating}
+                          className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-full bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-60"
+                        >
+                          <CheckCircle2 size={15} />
+                          {isUpdating ? 'Updating…' : 'Approve application'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleUpdateStatus(app.id, 'rejected')}
+                          disabled={isUpdating}
+                          className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-full border border-red-200 bg-white px-4 py-2.5 text-sm font-semibold text-red-700 transition hover:bg-red-50 disabled:opacity-60"
+                        >
+                          <XCircle size={15} />
+                          Reject
+                        </button>
+                      </div>
+                    )}
                   </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
+                </article>
+              );
+            })}
+          </div>
+        )}
       </div>
     </>
   );

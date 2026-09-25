@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Head from 'next/head';
 import { useAuth, useUser } from '@clerk/nextjs';
-import AdminLayout from '../../components/AdminLayout';
 
 const ENDPOINTS = [
   { key: 'verify-admin', label: 'Verify Admin', method: 'GET', url: '/api/admin/verify-admin', expected: [200] },
@@ -279,7 +278,6 @@ export default function AdminApiSmokePage() {
 
       <div className="min-h-screen bg-gray-50">
         <div className="max-w-7xl mx-auto px-4 py-6">
-          <AdminLayout />
 
           <div className="bg-white rounded-lg p-6 mb-6">
             <h1 className="text-2xl font-bold text-gray-900">Admin API Smoke Test</h1>

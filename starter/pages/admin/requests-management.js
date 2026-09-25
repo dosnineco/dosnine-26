@@ -3,7 +3,6 @@ import { useAuth, useUser } from '@clerk/nextjs';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
 import toast from 'react-hot-toast';
-import AdminLayout from '../../components/AdminLayout';
 
 export default function RequestsManagementPage() {
   const { isSignedIn, user } = useUser();
@@ -361,7 +360,6 @@ export default function RequestsManagementPage() {
       </Head>
 
       <div className="min-h-screen bg-gray-100 pb-8">
-        <AdminLayout />
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <div className="bg-white rounded-xl p-4 sm:p-6">
             <div className="mb-4">

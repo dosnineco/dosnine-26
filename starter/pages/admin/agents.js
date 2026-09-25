@@ -6,7 +6,6 @@ import Link from 'next/link';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 import { Shield, CheckCircle, XCircle, Clock, Eye, FileText, Phone, Mail, Calendar, Building2 } from 'lucide-react';
-import AdminLayout from '../../components/AdminLayout';
 
 export default function AdminAgents() {
   const { user } = useUser();
@@ -361,7 +360,6 @@ export default function AdminAgents() {
       </Head>
 
       <div className="min-h-screen bg-gray-50">
-        <AdminLayout />
     
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">

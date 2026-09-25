@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import Head from 'next/head';
 import { useUser } from '@clerk/nextjs';
 import toast from 'react-hot-toast';
-import AdminLayout from '../../components/AdminLayout';
 import { formatJMD } from '../../lib/formatMoney';
 
 const metricCard = (label, value, note = null) => (
@@ -87,7 +86,6 @@ export default function AdminMarketIntelligence() {
 
       <main className="min-h-screen bg-gray-50 py-8">
         <div className="container mx-auto px-4">
-          <AdminLayout />
 
           <div className="mt-8">
             <div className="rounded-3xl border border-gray-200 bg-white p-8 shadow-sm">

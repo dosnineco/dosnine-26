@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState, useRef } from 'react'
 import Head from 'next/head'
 import { useUser } from '@clerk/nextjs'
 import toast from 'react-hot-toast'
-import AdminLayout from '../../components/AdminLayout'
 import ImageEditModal from '../../components/ImageEditModal'
 import HtvInvoice from '../../components/HtvInvoice'
 import { ChevronDown, ChevronUp, Sparkles, Edit, Trash2, FileText, Download, Camera, Loader, X, Eye } from 'lucide-react'
@@ -734,7 +733,6 @@ export default function AdminDashboard() {
       </Head>
 
       <div className="min-h-screen bg-white text-black">
-        <AdminLayout />
 
         <div className="mx-auto w-full max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
           <div className="mb-10 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">

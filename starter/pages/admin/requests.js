@@ -2,11 +2,46 @@ import { useEffect, useState } from 'react';
 import Head from 'next/head';
 import { useAuth, useUser } from '@clerk/nextjs';
 import toast from 'react-hot-toast';
-import { FiTrash2 } from 'react-icons/fi';
-import { MessageCircle, Phone as PhoneIcon } from 'lucide-react';
+import {
+  MessageCircle,
+  Phone as PhoneIcon,
+  Trash2,
+  Filter,
+  Search,
+  X,
+  MapPin,
+  DollarSign,
+  Calendar,
+  User,
+  Mail,
+  CheckCircle2,
+  Clock,
+  AlertCircle,
+  Zap,
+  UserCog,
+  RefreshCw,
+  ChevronDown,
+} from 'lucide-react';
 import AutoAssignModal from '../../components/AutoAssignModal';
 import BudgetRejectionEmailer from '../../components/BudgetRejectionEmailer';
-import AdminLayout from '@/components/AdminLayout';
+
+const inputClass =
+  'w-full rounded-lg border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-accent focus:ring-2 focus:ring-accent/20';
+const labelClass =
+  'block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1.5';
+
+const STATUS_STYLES = {
+  open: { badge: 'bg-amber-100 text-amber-800 border-amber-200', dot: 'bg-amber-500' },
+  assigned: { badge: 'bg-blue-100 text-blue-800 border-blue-200', dot: 'bg-blue-500' },
+  in_progress: { badge: 'bg-blue-100 text-blue-800 border-blue-200', dot: 'bg-blue-500' },
+  completed: { badge: 'bg-emerald-100 text-emerald-800 border-emerald-200', dot: 'bg-emerald-500' },
+  cancelled: { badge: 'bg-slate-100 text-slate-700 border-slate-200', dot: 'bg-slate-400' },
+};
+
+const getStatusStyle = (status) =>
+  STATUS_STYLES[status] || STATUS_STYLES.cancelled;
+
+const formatJMD = (value) => `J$${Number(value || 0).toLocaleString()}`;
 
 export default function AdminRequestsPage() {
   const { user } = useUser();
@@ -25,6 +60,7 @@ export default function AdminRequestsPage() {
   const [filterLocation, setFilterLocation] = useState('');
   const [filterBudgetMin, setFilterBudgetMin] = useState('');
   const [filterBudgetMax, setFilterBudgetMax] = useState('');
+  const [showFilters, setShowFilters] = useState(false);
   const [showAutoAssign, setShowAutoAssign] = useState(false);
   const [autoAssignAgentId, setAutoAssignAgentId] = useState('');
   const [autoAssignCount, setAutoAssignCount] = useState(5);
@@ -40,7 +76,7 @@ export default function AdminRequestsPage() {
 
   const checkAdminAccess = async () => {
     if (!user) return;
-    
+
     try {
       const response = await fetch('/api/admin/verify-admin');
       const userData = await response.json();
@@ -51,9 +87,7 @@ export default function AdminRequestsPage() {
         return;
       }
 
-      // SECURITY FIX: Verify admin has valid data (not NULL)
       if (!userData.email || !userData.name) {
-        console.error('❌ SECURITY: Admin user has NULL data');
         setIsAdmin(false);
         setLoading(false);
         return;
@@ -85,13 +119,8 @@ export default function AdminRequestsPage() {
 
   const authedPost = async (url, payload) => {
     const token = await getToken();
-    const headers = {
-      'Content-Type': 'application/json',
-    };
-
-    if (token) {
-      headers.Authorization = `Bearer ${token}`;
-    }
+    const headers = { 'Content-Type': 'application/json' };
+    if (token) headers.Authorization = `Bearer ${token}`;
 
     return fetch(url, {
       method: 'POST',
@@ -101,7 +130,6 @@ export default function AdminRequestsPage() {
     });
   };
 
-  // Helpers: plan/eligibility checks
   const isActivePaid = (agent) => {
     const paid = ['7-day', '30-day', '90-day'].includes(agent.payment_status);
     if (!paid) return false;
@@ -109,42 +137,24 @@ export default function AdminRequestsPage() {
     return new Date(agent.access_expiry) > new Date();
   };
 
-  const locationMatchesServiceArea = (agentAreas, requestLocation) => {
-    // If agent has no service areas configured, allow them (they can handle any location)
-    if (!agentAreas || agentAreas.trim() === '') return true;
-    if (!requestLocation) return true; // If no location specified, allow
-    
-    // Normalize strings: lowercase and remove periods for consistent matching
-    const normalize = (str) => String(str).toLowerCase().replace(/\./g, '').trim();
-    const a = normalize(agentAreas);
-    const r = normalize(requestLocation);
-    
-    return a.includes(r) || r.includes(a);
-  };
-
   const canAgentHandleRequest = (agent, request) => {
-    // Check payment status and budget restrictions only
     const type = request.request_type;
     const budget = Number(request.budget_max || request.budget_min || 0);
 
-    // Free: only rentals up to 80k, no buy/sell
     if (agent.payment_status === 'free') {
       if (type !== 'rent') return false;
       return budget <= 80000;
     }
 
-    // Paid but expired: not eligible
     if (!isActivePaid(agent)) return false;
 
-    // 7-day restrictions
     if (agent.payment_status === '7-day') {
-      if (type === 'sell') return false; // No sales leads
+      if (type === 'sell') return false;
       if (type === 'rent') return budget <= 100000;
-      if (type === 'buy') return budget <= 10000000; // <= J$10M buys
+      if (type === 'buy') return budget <= 10000000;
       return false;
     }
 
-    // 30-day & 90-day: full access while active
     return ['30-day', '90-day'].includes(agent.payment_status);
   };
 
@@ -165,11 +175,13 @@ export default function AdminRequestsPage() {
     if (!agent?.email) return;
 
     const agentContentRows = assignedRequests
-      .map((req) => `
+      .map(
+        (req) => `
         <li>
           ${req.request_type} ${req.property_type} in ${req.location} - ${req.client_name} (${req.client_email})
         </li>
-      `)
+      `
+      )
       .join('');
 
     await sendEmail({
@@ -182,7 +194,10 @@ export default function AdminRequestsPage() {
         <p>Please follow up with these clients promptly.</p>
       `,
       textContent: `Hi ${agent.full_name || 'Agent'},\n\nThe following requests have just been assigned to you:\n${assignedRequests
-        .map((req) => `- ${req.request_type} ${req.property_type} in ${req.location} - ${req.client_name} (${req.client_email})`)
+        .map(
+          (req) =>
+            `- ${req.request_type} ${req.property_type} in ${req.location} - ${req.client_name} (${req.client_email})`
+        )
         .join('\n')}\n\nPlease follow up with these clients promptly.`,
     });
 
@@ -197,7 +212,9 @@ export default function AdminRequestsPage() {
           <p>Agent Email: ${agent.email}</p>
           <p>They will contact you shortly.</p>
         `,
-        textContent: `Hi ${request.client_name},\n\nYour request has been assigned to ${agent.full_name || 'one of our agents'} (${agent.email}). They will contact you shortly.`,
+        textContent: `Hi ${request.client_name},\n\nYour request has been assigned to ${
+          agent.full_name || 'one of our agents'
+        } (${agent.email}). They will contact you shortly.`,
       });
     }
   };
@@ -205,29 +222,32 @@ export default function AdminRequestsPage() {
   const handleManualAssign = async (requestId, agentId) => {
     setAssignLoading(true);
     try {
-      const request = requests.find(r => r.id === requestId);
-      const agent = agents.find(a => a.id === agentId);
+      const request = requests.find((r) => r.id === requestId);
+      const agent = agents.find((a) => a.id === agentId);
       if (agent && request && !canAgentHandleRequest(agent, request)) {
         throw new Error('Agent plan does not allow this request');
       }
       const now = new Date().toISOString();
 
-      // Only update assignment-related fields - never touch required fields
       const updatePayload = {
         assigned_agent_id: agentId || null,
         status: agentId ? 'assigned' : 'open',
-        assigned_at: agentId ? now : null
+        assigned_at: agentId ? now : null,
       };
 
-      const response = await authedPost('/api/admin/requests', { action: 'manualAssign', requestId, agentId, updatePayload, now });
+      const response = await authedPost('/api/admin/requests', {
+        action: 'manualAssign',
+        requestId,
+        agentId,
+        updatePayload,
+        now,
+      });
       const payload = await response.json();
       if (!response.ok || !payload?.success) {
         throw new Error(payload?.error || 'Database update failed');
       }
 
       toast.success(agentId ? 'Request assigned!' : 'Request unassigned!');
-      
-      // Refresh data after a short delay
       setTimeout(() => fetchData(), 200);
     } catch (err) {
       toast.error(`Error: ${err.message}`);
@@ -243,7 +263,7 @@ export default function AdminRequestsPage() {
     }
 
     const limit = Math.max(1, Number(autoAssignCount) || 0);
-    const selectedAgent = agents.find(a => a.id === autoAssignAgentId);
+    const selectedAgent = agents.find((a) => a.id === autoAssignAgentId);
     if (!selectedAgent) {
       toast.error('Selected agent not found');
       return;
@@ -253,7 +273,6 @@ export default function AdminRequestsPage() {
       .filter((r) => r.status === 'open')
       .filter((r) => (autoIncludeBuys ? true : r.request_type !== 'buy'))
       .filter((r) => {
-        // Budget filter: check if request budget falls within the selected range
         const budgetMax = Number(r.budget_max || r.budget_min || 0);
         return budgetMax >= autoBudgetMin && budgetMax <= autoBudgetMax;
       })
@@ -267,11 +286,14 @@ export default function AdminRequestsPage() {
     }
 
     setAutoAssignLoading(true);
-    const now = new Date().toISOString();
     const ids = candidates.map((r) => r.id);
 
     try {
-      const response = await authedPost('/api/admin/requests', { action: 'autoAssign', ids, agentId: autoAssignAgentId });
+      const response = await authedPost('/api/admin/requests', {
+        action: 'autoAssign',
+        ids,
+        agentId: autoAssignAgentId,
+      });
       const payload = await response.json();
       if (!response.ok || !payload?.success) throw new Error(payload?.error || 'Failed to auto-assign');
 
@@ -284,8 +306,6 @@ export default function AdminRequestsPage() {
       setAutoIncludeBuys(false);
       setAutoBudgetMin(10000);
       setAutoBudgetMax(100000000);
-      setAutoAssignCount(5);
-      setAutoIncludeBuys(false);
       setTimeout(() => fetchData(), 200);
     } catch (err) {
       console.error('Auto-assign error:', err);
@@ -302,7 +322,11 @@ export default function AdminRequestsPage() {
     }
 
     try {
-      const response = await authedPost('/api/admin/requests', { action: 'comment', requestId, comment: commentText });
+      const response = await authedPost('/api/admin/requests', {
+        action: 'comment',
+        requestId,
+        comment: commentText,
+      });
       const payload = await response.json();
       if (!response.ok || !payload?.success) throw new Error(payload?.error || 'Failed to save comment');
 
@@ -318,9 +342,14 @@ export default function AdminRequestsPage() {
 
   const handleContactedToggle = async (requestId, currentStatus) => {
     try {
-      const response = await authedPost('/api/admin/requests', { action: 'toggleContacted', requestId, currentStatus });
+      const response = await authedPost('/api/admin/requests', {
+        action: 'toggleContacted',
+        requestId,
+        currentStatus,
+      });
       const payload = await response.json();
-      if (!response.ok || !payload?.success) throw new Error(payload?.error || 'Failed to update contacted status');
+      if (!response.ok || !payload?.success)
+        throw new Error(payload?.error || 'Failed to update contacted status');
 
       toast.success(`Request marked as ${!currentStatus ? 'contacted' : 'not contacted'}!`);
       setTimeout(() => fetchData(), 200);
@@ -331,12 +360,13 @@ export default function AdminRequestsPage() {
   };
 
   const handleReactivateCase = async (requestId) => {
-    if (!confirm('Are you sure you want to reactivate this completed case?')) {
-      return;
-    }
+    if (!confirm('Are you sure you want to reactivate this completed case?')) return;
 
     try {
-      const response = await authedPost('/api/admin/requests', { action: 'reactivate', requestId });
+      const response = await authedPost('/api/admin/requests', {
+        action: 'reactivate',
+        requestId,
+      });
       const payload = await response.json();
       if (!response.ok || !payload?.success) throw new Error(payload?.error || 'Failed to reactivate case');
 
@@ -349,12 +379,13 @@ export default function AdminRequestsPage() {
   };
 
   const handleDeleteRequest = async (requestId) => {
-    if (!confirm('Are you sure you want to permanently delete this request?')) {
-      return;
-    }
+    if (!confirm('Are you sure you want to permanently delete this request?')) return;
 
     try {
-      const response = await authedPost('/api/admin/requests', { action: 'delete', requestId });
+      const response = await authedPost('/api/admin/requests', {
+        action: 'delete',
+        requestId,
+      });
       const payload = await response.json();
       if (!response.ok || !payload?.success) throw new Error(payload?.error || 'Failed to delete request');
 
@@ -366,425 +397,339 @@ export default function AdminRequestsPage() {
     }
   };
 
-  // Format phone number for WhatsApp - ensure 11 digits with 1876 prefix
   const formatWhatsAppNumber = (phone) => {
     if (!phone) return '';
-    
-    // Remove all non-numeric characters
     let cleaned = phone.replace(/\D/g, '');
-    
-    // If starts with 1876, it's already correct format
-    if (cleaned.startsWith('1876') && cleaned.length === 11) {
-      return cleaned;
-    }
-    
-    // If starts with 876, add 1 prefix
-    if (cleaned.startsWith('876')) {
-      return '1' + cleaned;
-    }
-    
-    // If starts with 1 and is 11 digits, assume it's correct
-    if (cleaned.startsWith('1') && cleaned.length === 11) {
-      return cleaned;
-    }
-    
-    // If 10 digits starting with 876
-    if (cleaned.length === 10 && cleaned.startsWith('876')) {
-      return '1' + cleaned;
-    }
-    
-    // If 7 digits, add 1876 prefix
-    if (cleaned.length === 7) {
-      return '1876' + cleaned;
-    }
-    
-    // If none of the above, try to make it 1876 + last 7 digits
-    if (cleaned.length >= 7) {
-      return '1876' + cleaned.slice(-7);
-    }
-    
-    // If less than 7 digits, just return what we have
+    if (cleaned.startsWith('1876') && cleaned.length === 11) return cleaned;
+    if (cleaned.startsWith('876')) return '1' + cleaned;
+    if (cleaned.startsWith('1') && cleaned.length === 11) return cleaned;
+    if (cleaned.length === 10 && cleaned.startsWith('876')) return '1' + cleaned;
+    if (cleaned.length === 7) return '1876' + cleaned;
+    if (cleaned.length >= 7) return '1876' + cleaned.slice(-7);
     return cleaned;
   };
 
+  const openComment = (request) => {
+    setSelectedRequest(request);
+    setShowCommentModal(true);
+    setCommentText(request.comment || '');
+  };
+
+  const activeFilterCount = [
+    filterType !== 'all',
+    filterUrgency !== 'all',
+    filterStatus !== 'all',
+    Boolean(filterLocation),
+    Boolean(filterBudgetMin),
+    Boolean(filterBudgetMax),
+  ].filter(Boolean).length;
+
+  const clearFilters = () => {
+    setFilterType('all');
+    setFilterUrgency('all');
+    setFilterStatus('all');
+    setFilterLocation('');
+    setFilterBudgetMin('');
+    setFilterBudgetMax('');
+  };
+
+  const filteredRequests = requests.filter((request) => {
+    const typeMatch = filterType === 'all' || request.request_type === filterType;
+    const urgencyMatch = filterUrgency === 'all' || request.urgency === filterUrgency;
+    const locationMatch =
+      !filterLocation.trim() ||
+      String(request.location || '')
+        .toLowerCase()
+        .includes(filterLocation.trim().toLowerCase());
+    const requestBudgetMin = Number(request.budget_min ?? request.budget_max ?? 0);
+    const requestBudgetMax = Number(request.budget_max ?? request.budget_min ?? 0);
+    const budgetMinMatch = !filterBudgetMin || requestBudgetMax >= Number(filterBudgetMin);
+    const budgetMaxMatch = !filterBudgetMax || requestBudgetMin <= Number(filterBudgetMax);
+    const statusMatch =
+      filterStatus === 'all'
+        ? true
+        : filterStatus === 'assigned'
+        ? request.status === 'assigned' || request.status === 'in_progress'
+        : request.status === filterStatus;
+    return typeMatch && urgencyMatch && locationMatch && budgetMinMatch && budgetMaxMatch && statusMatch;
+  });
+
   if (!isAdmin && !loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold text-gray-800 mb-2">Access Denied</h1>
-          <p className="text-gray-600">Admin access required</p>
+      <div className="flex items-center justify-center py-24">
+        <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center">
+          <AlertCircle className="mx-auto h-10 w-10 text-red-500" />
+          <h1 className="mt-4 text-xl font-semibold text-slate-900">Access denied</h1>
+          <p className="mt-2 text-sm text-slate-600">Admin access is required to view this page.</p>
         </div>
       </div>
     );
   }
 
+  const openCount = requests.filter((r) => r.status === 'open').length;
+  const assignedCount = requests.filter(
+    (r) => r.status === 'assigned' || r.status === 'in_progress'
+  ).length;
+  const completedCount = requests.filter((r) => r.status === 'completed').length;
+
   return (
     <>
       <Head>
-        <title>Service Requests — Admin Dashboard</title>
+        <title>Service Requests — Admin</title>
       </Head>
-      
-      <div className="min-h-screen bg-gray-50">
-        <div className="container mx-auto px-4 py-6 max-w-7xl">
-          <AdminLayout />
-          {/* Header */}
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-4">
-       
-              <div>
-                <h1 className="text-3xl font-bold text-gray-900">Service Requests</h1>
-              </div>
-            </div>
-            <div className="flex gap-2">
+
+      <div className="space-y-5">
+        {/* Header */}
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-accent">
+              Service Requests
+            </p>
+            <h1 className="mt-2 text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
+              Client Requests
+            </h1>
+            <p className="mt-1 text-sm text-slate-600">
+              Assign requests, track contact status, and keep agents moving.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => setShowAutoAssign(true)}
+              className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
+            >
+              <Zap size={15} />
+              Auto assign
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowBudgetRejectionEmailer(true)}
+              className="inline-flex items-center gap-2 rounded-full border border-red-200 bg-white px-4 py-2.5 text-sm font-semibold text-red-700 transition hover:bg-red-50"
+            >
+              <Mail size={15} />
+              Budget emails
+            </button>
+          </div>
+        </div>
+
+        {/* Status strip */}
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <StatusTile
+            label="Total"
+            value={requests.length}
+            tone="slate"
+            active={filterStatus === 'all'}
+            onClick={() => setFilterStatus('all')}
+          />
+          <StatusTile
+            label="Open"
+            value={openCount}
+            tone="amber"
+            active={filterStatus === 'open'}
+            onClick={() => setFilterStatus('open')}
+          />
+          <StatusTile
+            label="Assigned"
+            value={assignedCount}
+            tone="blue"
+            active={filterStatus === 'assigned'}
+            onClick={() => setFilterStatus('assigned')}
+          />
+          <StatusTile
+            label="Completed"
+            value={completedCount}
+            tone="emerald"
+            active={filterStatus === 'completed'}
+            onClick={() => setFilterStatus('completed')}
+          />
+        </div>
+
+        {/* Filters bar */}
+        <div className="rounded-2xl border border-slate-200 bg-white p-3 sm:p-4">
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setShowFilters((v) => !v)}
+              className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold transition ${
+                showFilters || activeFilterCount > 0
+                  ? 'border-accent bg-accent/10 text-accent'
+                  : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50'
+              }`}
+            >
+              <Filter size={14} />
+              Filters
+              {activeFilterCount > 0 && (
+                <span className="inline-flex h-5 min-w-[20px] items-center justify-center rounded-full bg-accent px-1.5 text-[10px] font-bold text-white">
+                  {activeFilterCount}
+                </span>
+              )}
+              <ChevronDown
+                size={14}
+                className={`transition-transform ${showFilters ? 'rotate-180' : ''}`}
+              />
+            </button>
+
+            {activeFilterCount > 0 && (
               <button
-                onClick={() => setShowAutoAssign(true)}
-                className="px-4 py-2 bg-gray-200 text-black text-sm rounded-lg hover:bg-gray-200 hover:text-black hover: font-semibold"
+                type="button"
+                onClick={clearFilters}
+                className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 transition hover:text-slate-700"
               >
-                AutoAssign
+                <X size={12} />
+                Clear all
               </button>
-              <button
-                onClick={() => setShowBudgetRejectionEmailer(true)}
-                className="px-4 py-2 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700 font-semibold"
-              >
-                Send
-              </button>
-            </div>
+            )}
+
+            <button
+              type="button"
+              onClick={fetchData}
+              className="ml-auto inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3.5 py-2 text-sm font-semibold text-slate-600 transition hover:border-slate-300 hover:bg-slate-50"
+              aria-label="Refresh"
+            >
+              <RefreshCw size={14} />
+              <span className="hidden sm:inline">Refresh</span>
+            </button>
           </div>
 
-          {loading ? (
-            <div className="text-center py-12 text-gray-500">Loading...</div>
-          ) : (
-            <>
-              {/* Filters */}
-              <div className="bg-white rounded-lg border border-gray-200 p-4 mb-6 space-y-3">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Type</span>
+          {/* Expanded filters */}
+          {showFilters && (
+            <div className="mt-4 space-y-4 border-t border-slate-100 pt-4">
+              {/* Type */}
+              <div>
+                <p className={labelClass}>Type</p>
+                <div className="flex flex-wrap gap-2">
                   {['all', 'buy', 'sell', 'rent'].map((type) => (
                     <button
                       key={type}
+                      type="button"
                       onClick={() => setFilterType(type)}
-                      className={`px-3 py-1.5 rounded-full text-xs md:text-sm font-medium transition whitespace-nowrap border ${
+                      className={`rounded-full border px-3.5 py-1.5 text-xs font-semibold capitalize transition ${
                         filterType === type
-                          ? 'bg-accent text-white border-accent'
-                          : 'bg-white text-gray-700 border-gray-200 hover:border-accent hover:text-accent'
+                          ? 'border-accent bg-accent text-white'
+                          : 'border-slate-200 bg-white text-slate-600 hover:border-accent hover:text-accent'
                       }`}
                     >
-                      {type.charAt(0).toUpperCase() + type.slice(1)}
+                      {type}
                     </button>
                   ))}
                 </div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Urgency</span>
+              </div>
+
+              {/* Urgency */}
+              <div>
+                <p className={labelClass}>Urgency</p>
+                <div className="flex flex-wrap gap-2">
                   {['all', 'normal', 'urgent'].map((urgency) => (
                     <button
                       key={urgency}
+                      type="button"
                       onClick={() => setFilterUrgency(urgency)}
-                      className={`px-3 py-1.5 rounded-full text-xs md:text-sm font-medium transition whitespace-nowrap border ${
+                      className={`rounded-full border px-3.5 py-1.5 text-xs font-semibold capitalize transition ${
                         filterUrgency === urgency
-                          ? 'bg-accent text-white border-accent'
-                          : 'bg-white text-gray-700 border-gray-200 hover:border-accent hover:text-accent'
+                          ? 'border-accent bg-accent text-white'
+                          : 'border-slate-200 bg-white text-slate-600 hover:border-accent hover:text-accent'
                       }`}
                     >
-                      {urgency.charAt(0).toUpperCase() + urgency.slice(1)}
+                      {urgency}
                     </button>
                   ))}
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-2">
-                  <label className="text-sm text-gray-600">
-                    <span className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Location</span>
+              </div>
+
+              {/* Text + budget */}
+              <div className="grid gap-3 sm:grid-cols-3">
+                <div>
+                  <label className={labelClass}>Location</label>
+                  <div className="relative">
+                    <Search
+                      size={14}
+                      className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+                    />
                     <input
                       type="search"
                       value={filterLocation}
                       onChange={(e) => setFilterLocation(e.target.value)}
                       placeholder="Search location"
-                      className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-accent focus:border-accent outline-none"
+                      className={`${inputClass} pl-9`}
                     />
-                  </label>
-                  <label className="text-sm text-gray-600">
-                    <span className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Budget from</span>
-                    <input
-                      type="number"
-                      min="0"
-                      value={filterBudgetMin}
-                      onChange={(e) => setFilterBudgetMin(e.target.value)}
-                      placeholder="Minimum budget"
-                      className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-accent focus:border-accent outline-none"
-                    />
-                  </label>
-                  <label className="text-sm text-gray-600">
-                    <span className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Budget to</span>
-                    <input
-                      type="number"
-                      min="0"
-                      value={filterBudgetMax}
-                      onChange={(e) => setFilterBudgetMax(e.target.value)}
-                      placeholder="Maximum budget"
-                      className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-accent focus:border-accent outline-none"
-                    />
-                  </label>
+                  </div>
+                </div>
+                <div>
+                  <label className={labelClass}>Budget from</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={filterBudgetMin}
+                    onChange={(e) => setFilterBudgetMin(e.target.value)}
+                    placeholder="Minimum"
+                    className={inputClass}
+                  />
+                </div>
+                <div>
+                  <label className={labelClass}>Budget to</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={filterBudgetMax}
+                    onChange={(e) => setFilterBudgetMax(e.target.value)}
+                    placeholder="Maximum"
+                    className={inputClass}
+                  />
                 </div>
               </div>
-
-              {/* Stats Overview */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                <button
-                  type="button"
-                  onClick={() => setFilterStatus('all')}
-                  aria-pressed={filterStatus === 'all'}
-                  className={`bg-white rounded-lg shadow p-4 hover:shadow-md transition cursor-pointer w-full ${
-                    filterStatus === 'all' ? 'ring-2 ring-blue-500' : ''
-                  }`}
-                >
-                  <p className="text-sm text-gray-600 mb-1">Total Requests</p>
-                  <p className="text-2xl font-bold text-gray-900">{requests.length}</p>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setFilterStatus('open')}
-                  aria-pressed={filterStatus === 'open'}
-                  className={`bg-white rounded-lg shadow p-4 hover:shadow-md transition cursor-pointer w-full ${
-                    filterStatus === 'open' ? 'ring-2 ring-blue-500' : ''
-                  }`}
-                >
-                  <p className="text-sm text-gray-600 mb-1">Open</p>
-                  <p className="text-2xl font-bold text-orange-600">{requests.filter(r => r.status === 'open').length}</p>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setFilterStatus('assigned')}
-                  aria-pressed={filterStatus === 'assigned'}
-                  className={`bg-white rounded-lg shadow p-4 hover:shadow-md transition cursor-pointer w-full ${
-                    filterStatus === 'assigned' ? 'ring-2 ring-blue-500' : ''
-                  }`}
-                >
-                  <p className="text-sm text-gray-600 mb-1">Assigned</p>
-                  <p className="text-2xl font-bold text-blue-600">{requests.filter(r => r.status === 'assigned' || r.status === 'in_progress').length}</p>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setFilterStatus('completed')}
-                  aria-pressed={filterStatus === 'completed'}
-                  className={`bg-white rounded-lg shadow p-4 hover:shadow-md transition cursor-pointer w-full ${
-                    filterStatus === 'completed' ? 'ring-2 ring-blue-500' : ''
-                  }`}
-                >
-                  <p className="text-sm text-gray-600 mb-1">Completed</p>
-                  <p className="text-2xl font-bold text-green-600">{requests.filter(r => r.status === 'completed').length}</p>
-                </button>
-              </div>
-
-              {/* Request List */}
-              <div className="space-y-3">
-                {requests.length === 0 ? (
-                  <div className="text-center py-12 bg-white rounded-lg border border-gray-200">
-                    <p className="text-gray-600">No service requests yet</p>
-                  </div>
-                ) : (
-                  requests.filter(request => {
-                    const typeMatch = filterType === 'all' || request.request_type === filterType;
-                    const urgencyMatch = filterUrgency === 'all' || request.urgency === filterUrgency;
-                    const locationMatch = !filterLocation.trim()
-                      || String(request.location || '').toLowerCase().includes(filterLocation.trim().toLowerCase());
-                    const requestBudgetMin = Number(request.budget_min ?? request.budget_max ?? 0);
-                    const requestBudgetMax = Number(request.budget_max ?? request.budget_min ?? 0);
-                    const budgetMinMatch = !filterBudgetMin || requestBudgetMax >= Number(filterBudgetMin);
-                    const budgetMaxMatch = !filterBudgetMax || requestBudgetMin <= Number(filterBudgetMax);
-                    const statusMatch =
-                      filterStatus === 'all'
-                        ? true
-                        : filterStatus === 'assigned'
-                          ? (request.status === 'assigned' || request.status === 'in_progress')
-                          : request.status === filterStatus;
-                    return typeMatch && urgencyMatch && locationMatch && budgetMinMatch && budgetMaxMatch && statusMatch;
-                  }).map((request) => (
-                    <div key={request.id} className="bg-white rounded-lg shadow-sm p-4 hover:shadow-md transition">
-                      <div className="flex justify-between items-start gap-4 mb-3">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-3 mb-2 flex-wrap">
-                            <h3 className="font-bold text-gray-800 text-lg">
-                              {request.request_type.toUpperCase()} - {request.property_type}
-                            </h3>
-                            <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                              request.status === 'open' ? 'bg-orange-100 text-orange-800' :
-                              request.status === 'assigned' || request.status === 'in_progress' ? 'bg-blue-100 text-blue-800' :
-                              request.status === 'completed' ? 'bg-green-100 text-green-800' :
-                              'bg-gray-100 text-gray-800'
-                            }`}>
-                              {request.status}
-                            </span>
-                            {request.urgency === 'urgent' && (
-                              <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                                Urgent
-                              </span>
-                            )}
-                            <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium flex items-center gap-1 ${
-                              request.is_contacted 
-                                ? 'bg-green-100 text-green-800' 
-                                : 'bg-gray-100 text-gray-600'
-                            }`}>
-                              <PhoneIcon size={12} />
-                              {request.is_contacted ? 'contacted' : 'not contacted'}
-                            </span>
-                          </div>
-                          
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm text-gray-600 mb-3">
-                            <div>
-                              <span className="font-medium">Client:</span> {request.client_name}
-                            </div>
-                            <div>
-                              <span className="font-medium">Location:</span> {request.location}
-                            </div>
-                            {request.budget_min && (
-                              <div>
-                                <span className="font-medium">Budget:</span> ${request.budget_min?.toLocaleString()} - ${request.budget_max?.toLocaleString()}
-                              </div>
-                            )}
-                            <div>
-                              <span className="font-medium">Date:</span> {new Date(request.created_at).toLocaleDateString()}
-                            </div>
-                          </div>
-
-                          {request.description && (
-                            <p className="text-sm text-gray-700 mb-3 bg-gray-50 p-2 rounded">{request.description}</p>
-                          )}
-
-                          <div className="flex flex-wrap items-center gap-3 text-sm mb-3">
-                            <span className="text-gray-600">📧 {request.client_email}</span>
-                            <a 
-                              href={`https://wa.me/${formatWhatsAppNumber(request.client_phone)}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-green-600 hover:text-green-700 hover:underline font-medium"
-                            >
-                              {request.client_phone}
-                            </a>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Agent Assignment */}
-                      <div className="border-t pt-3 mt-3 bg-gray-50 -mx-4 px-4 -mb-4 pb-4 rounded-b-lg">
-                        {request.agent ? (
-                          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-                            <div className="flex-1">
-                              <p className="text-xs font-semibold text-gray-500 uppercase mb-1">Assigned Agent</p>
-                              <p className="font-bold text-gray-900 text-lg">{request.agent.full_name}</p>
-                              <p className="text-sm text-gray-600">{request.agent.email}</p>
-                            </div>
-                            <div className="flex gap-2 flex-wrap">
-                              {request.status === 'completed' && (
-                                <button
-                                  onClick={() => handleReactivateCase(request.id)}
-                                  className="px-4 py-2 bg-accent text-white rounded-lg hover:bg-[var(--accent-color-hover)] text-sm font-medium"
-                                  disabled={assignLoading}
-                                >
-                                  Reactivate Case
-                                </button>
-                              )}
-                              {request.status !== 'completed' && request.status !== 'cancelled' && (
-                                <>
-                                  <button
-                                    onClick={() => handleManualAssign(request.id, null)}
-                                    className="px-4 py-2 bg-gray-100 text-gray-600 rounded-lg hover:bg-accent hover:text-black text-sm font-medium transition"
-                                    disabled={assignLoading}
-                                  >
-                                    Unassign
-                                  </button>
-                                  <select
-                                    onChange={(e) => e.target.value && handleManualAssign(request.id, e.target.value)}
-                                    className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-accent outline-none text-sm"
-                                    disabled={assignLoading}
-                                    defaultValue=""
-                                  >
-                                    <option value="">Reassign to...</option>
-                                    {agents.filter(a => a.id !== request.agent_id && canAgentHandleRequest(a, request)).map((agent) => (
-                                      <option key={agent.id} value={agent.id}>
-                                        {agent.full_name}
-                                      </option>
-                                    ))}
-                                  </select>
-                                  <button
-                                    onClick={() => {
-                                      setSelectedRequest(request);
-                                      setShowCommentModal(true);
-                                      setCommentText(request.comment || '');
-                                    }}
-                                    className="p-2 bg-gray-100 text-gray-600 rounded-lg hover:bg-accent hover:text-black transition"
-                                    title="Comment"
-                                  >
-                                    <MessageCircle size={16} />
-                                  </button>
-                                  <button
-                                    onClick={() => handleContactedToggle(request.id, request.is_contacted)}
-                                    className="p-2 rounded-lg bg-gray-100 text-gray-600 hover:bg-accent hover:text-black transition"
-                                    title={request.is_contacted ? 'Contacted' : 'Not contacted'}
-                                  >
-                                    <PhoneIcon size={16} />
-                                  </button>
-                                </>
-                              )}
-                              <button
-                                onClick={() => handleDeleteRequest(request.id)}
-                                className="p-2 bg-gray-100 text-gray-600 rounded-lg hover:bg-red-600 hover:text-black transition"
-                                title="Delete"
-                              >
-                                <FiTrash2 size={16} />
-                              </button>
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="flex flex-col gap-3">
-                            <select
-                              onChange={(e) => e.target.value && handleManualAssign(request.id, e.target.value)}
-                              className="w-full md:w-auto px-3 py-2 border-2 border-orange-300 rounded-lg focus:ring-2 focus:ring-accent outline-none bg-white text-sm"
-                              disabled={assignLoading}
-                              defaultValue=""
-                            >
-                              <option value="">Select an agent...</option>
-                              {agents.filter(agent => canAgentHandleRequest(agent, request)).map((agent) => (
-                                <option key={agent.id} value={agent.id}>
-                                  {agent.full_name} - {agent.email}
-                                  {!agent.last_request_assigned_at && ' (Never assigned)'}
-                                </option>
-                              ))}
-                            </select>
-                            <div className="grid grid-cols-4 md:flex md:flex-row gap-2">
-                              <button
-                                onClick={() => {
-                                  setSelectedRequest(request);
-                                  setShowCommentModal(true);
-                                  setCommentText(request.comment || '');
-                                }}
-                                className="flex items-center justify-center p-2 bg-gray-100 text-gray-600 rounded-lg hover:bg-blue-100 hover:text-blue-600 transition duration-200"
-                                title="Comment"
-                              >
-                                <MessageCircle size={18} />
-                              </button>
-                              <button
-                                onClick={() => handleContactedToggle(request.id, request.is_contacted)}
-                                className="flex items-center justify-center p-2 bg-gray-100 text-gray-600 rounded-lg hover:bg-green-100 hover:text-green-600 transition duration-200"
-                                title={request.is_contacted ? 'Contacted' : 'Not contacted'}
-                              >
-                                <PhoneIcon size={18} />
-                              </button>
-                              <button
-                                onClick={() => handleDeleteRequest(request.id)}
-                                className="flex items-center justify-center p-2 bg-gray-100 text-gray-600 rounded-lg hover:bg-red-100 hover:text-red-600 transition duration-200"
-                                title="Delete"
-                              >
-                                <FiTrash2 size={18} />
-                              </button>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            </>
+            </div>
           )}
         </div>
+
+        {/* Results count */}
+        {!loading && (
+          <p className="text-sm text-slate-500">
+            Showing <strong className="text-slate-900">{filteredRequests.length}</strong> of{' '}
+            {requests.length} request{requests.length === 1 ? '' : 's'}
+          </p>
+        )}
+
+        {/* Requests list */}
+        {loading ? (
+          <div className="space-y-3">
+            {[1, 2, 3].map((i) => (
+              <div
+                key={i}
+                className="h-48 animate-pulse rounded-2xl border border-slate-100 bg-slate-50"
+              />
+            ))}
+          </div>
+        ) : filteredRequests.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-slate-200 bg-white py-16 text-center">
+            <AlertCircle className="mx-auto h-10 w-10 text-slate-300" />
+            <p className="mt-3 text-sm font-semibold text-slate-700">
+              {requests.length === 0 ? 'No service requests yet' : 'No requests match your filters'}
+            </p>
+            <p className="mt-1 text-sm text-slate-500">
+              {requests.length === 0
+                ? 'New client submissions will appear here.'
+                : 'Try clearing the filters above.'}
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {filteredRequests.map((request) => (
+              <RequestCard
+                key={request.id}
+                request={request}
+                agents={agents}
+                assignLoading={assignLoading}
+                onManualAssign={handleManualAssign}
+                onComment={() => openComment(request)}
+                onContactedToggle={() => handleContactedToggle(request.id, request.is_contacted)}
+                onReactivate={() => handleReactivateCase(request.id)}
+                onDelete={() => handleDeleteRequest(request.id)}
+                canAgentHandleRequest={canAgentHandleRequest}
+                formatWhatsAppNumber={formatWhatsAppNumber}
+              />
+            ))}
+          </div>
+        )}
       </div>
 
       <AutoAssignModal
@@ -822,46 +767,64 @@ export default function AdminRequestsPage() {
         adminClerkId={user?.id}
       />
 
-      {/* Comment Modal */}
+      {/* Comment modal */}
       {showCommentModal && selectedRequest && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b sticky top-0 bg-white">
-              <div className="flex items-center justify-between">
-                <h2 className="text-xl font-bold text-gray-900">Add Comment</h2>
-                <button
-                  onClick={() => {
-                    setShowCommentModal(false);
-                    setCommentText('');
-                  }}
-                  className="text-gray-400 hover:text-gray-600"
-                >
-                  ✕
-                </button>
-              </div>
-            </div>
-
-            <div className="p-6 space-y-4">
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-0 sm:items-center sm:p-4"
+          onClick={() => {
+            setShowCommentModal(false);
+            setCommentText('');
+          }}
+        >
+          <div
+            className="w-full max-h-[90vh] overflow-y-auto rounded-t-2xl bg-white sm:max-w-2xl sm:rounded-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-100 bg-white p-5">
               <div>
-                <h3 className="font-semibold text-gray-900 mb-2">Request</h3>
-                <p className="text-gray-700">
-                  {selectedRequest.request_type?.toUpperCase() || 'Request'} - {selectedRequest.property_type}
+                <h2 className="text-lg font-bold text-slate-900">Add comment</h2>
+                <p className="mt-0.5 text-sm text-slate-600">
+                  {selectedRequest.request_type?.toUpperCase() || 'Request'} ·{' '}
+                  {selectedRequest.property_type}
                 </p>
               </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowCommentModal(false);
+                  setCommentText('');
+                }}
+                className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 transition hover:bg-slate-100 hover:text-slate-900"
+                aria-label="Close"
+              >
+                <X size={18} />
+              </button>
+            </div>
 
-              <div>
-                <h3 className="font-semibold text-gray-900 mb-2">Client: {selectedRequest.client_name}</h3>
-                <p className="text-sm text-gray-600">{selectedRequest.client_email}</p>
+            <div className="space-y-4 p-5">
+              <div className="rounded-lg bg-slate-50 p-3.5">
+                <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                  Client
+                </p>
+                <p className="mt-1 text-sm font-medium text-slate-900">
+                  {selectedRequest.client_name}
+                </p>
+                <p className="text-xs text-slate-500">{selectedRequest.client_email}</p>
               </div>
 
               {selectedRequest.comment && (
                 <div>
-                  <h3 className="font-semibold text-gray-900 mb-2">Existing Agent Notes</h3>
-                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
-                    <p className="text-sm text-gray-700 mb-2">{selectedRequest.comment}</p>
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-500">
+                    Existing notes
+                  </p>
+                  <div className="rounded-lg border border-blue-200 bg-blue-50 p-3.5">
+                    <p className="whitespace-pre-line text-sm text-slate-700">
+                      {selectedRequest.comment}
+                    </p>
                     {selectedRequest.comment_updated_at && (
-                      <p className="text-xs text-gray-500">
-                        Last updated: {new Date(selectedRequest.comment_updated_at).toLocaleDateString()} at {new Date(selectedRequest.comment_updated_at).toLocaleTimeString()}
+                      <p className="mt-2 text-xs text-slate-500">
+                        Updated{' '}
+                        {new Date(selectedRequest.comment_updated_at).toLocaleString()}
                       </p>
                     )}
                   </div>
@@ -869,40 +832,314 @@ export default function AdminRequestsPage() {
               )}
 
               <div>
-                <label className="block text-sm font-semibold text-gray-900 mb-2">
-                  Your Comment
-                </label>
+                <label className={labelClass}>Your comment</label>
                 <textarea
                   value={commentText}
                   onChange={(e) => setCommentText(e.target.value)}
-                  placeholder="Add any notes or comments about this request..."
-                  rows="6"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-accent focus:border-transparent resize-none"
+                  placeholder="Add notes about this request…"
+                  rows="5"
+                  className={`${inputClass} resize-none`}
                 />
               </div>
+            </div>
 
-              <div className="pt-4 border-t flex gap-3">
-                <button
-                  onClick={() => handleCommentSubmit(selectedRequest.id)}
-                  disabled={!commentText.trim()}
-                  className="flex-1 px-4 py-2 bg-accent text-white rounded-lg hover:bg-[var(--accent-color-hover)] hover:text-black disabled:opacity-50 font-medium"
-                >
-                  Save Comment
-                </button>
-                <button
-                  onClick={() => {
-                    setShowCommentModal(false);
-                    setCommentText('');
-                  }}
-                  className="flex-1 px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 font-medium"
-                >
-                  Cancel
-                </button>
-              </div>
+            <div className="sticky bottom-0 flex gap-3 border-t border-slate-100 bg-white p-5">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowCommentModal(false);
+                  setCommentText('');
+                }}
+                className="flex-1 rounded-full border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => handleCommentSubmit(selectedRequest.id)}
+                disabled={!commentText.trim()}
+                className="flex-1 rounded-full bg-accent px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-accent/90 disabled:opacity-50"
+              >
+                Save comment
+              </button>
             </div>
           </div>
         </div>
       )}
     </>
+  );
+}
+
+/* -------------------- sub components -------------------- */
+
+const TONE = {
+  slate: { bg: 'bg-slate-100', text: 'text-slate-800', ring: 'ring-slate-400' },
+  amber: { bg: 'bg-amber-100', text: 'text-amber-800', ring: 'ring-amber-400' },
+  blue: { bg: 'bg-blue-100', text: 'text-blue-800', ring: 'ring-blue-400' },
+  emerald: { bg: 'bg-emerald-100', text: 'text-emerald-800', ring: 'ring-emerald-400' },
+};
+
+function StatusTile({ label, value, tone = 'slate', active, onClick }) {
+  const t = TONE[tone] || TONE.slate;
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`rounded-2xl border border-slate-200 bg-white p-4 text-left transition ${
+        active ? `ring-2 ${t.ring}` : 'hover:border-slate-300'
+      }`}
+    >
+      <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">{label}</p>
+      <p className={`mt-2 text-2xl font-bold ${active ? t.text : 'text-slate-900'}`}>
+        {value}
+      </p>
+    </button>
+  );
+}
+
+function RequestCard({
+  request,
+  agents,
+  assignLoading,
+  onManualAssign,
+  onComment,
+  onContactedToggle,
+  onReactivate,
+  onDelete,
+  canAgentHandleRequest,
+  formatWhatsAppNumber,
+}) {
+  const statusStyle = getStatusStyle(request.status);
+
+  return (
+    <article className="overflow-hidden rounded-2xl border border-slate-200 bg-white transition ">
+      {/* Top section */}
+      <div className="p-4 sm:p-5">
+        {/* Title row */}
+        <div className="flex flex-wrap items-center gap-2">
+          <h3 className="text-base font-bold uppercase tracking-tight text-slate-900">
+            {request.request_type} · {request.property_type}
+          </h3>
+          <span
+            className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${statusStyle.badge}`}
+          >
+            <span className={`h-1.5 w-1.5 rounded-full ${statusStyle.dot}`} />
+            {request.status}
+          </span>
+          {request.urgency === 'urgent' && (
+            <span className="inline-flex items-center gap-1 rounded-full border border-red-200 bg-red-100 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-red-800">
+              <AlertCircle size={10} />
+              Urgent
+            </span>
+          )}
+          <button
+            type="button"
+            onClick={onContactedToggle}
+            className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider transition ${
+              request.is_contacted
+                ? 'border-emerald-200 bg-emerald-100 text-emerald-800 hover:bg-emerald-200'
+                : 'border-slate-200 bg-slate-100 text-slate-600 hover:bg-slate-200'
+            }`}
+          >
+            <PhoneIcon size={10} />
+            {request.is_contacted ? 'Contacted' : 'Not contacted'}
+          </button>
+        </div>
+
+        {/* Meta grid */}
+        <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <MetaItem icon={User} label="Client" value={request.client_name} />
+          <MetaItem icon={MapPin} label="Location" value={request.location} />
+          {request.budget_min && (
+            <MetaItem
+              icon={DollarSign}
+              label="Budget"
+              value={`${formatJMD(request.budget_min)} – ${formatJMD(request.budget_max)}`}
+            />
+          )}
+          <MetaItem
+            icon={Calendar}
+            label="Created"
+            value={new Date(request.created_at).toLocaleDateString()}
+          />
+        </div>
+
+        {/* Description */}
+        {request.description && (
+          <p className="mt-3 rounded-lg bg-slate-50 p-3 text-sm leading-relaxed text-slate-700">
+            {request.description}
+          </p>
+        )}
+
+        {/* Contact row */}
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <a
+            href={`mailto:${request.client_email}`}
+            className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-200"
+          >
+            <Mail size={12} />
+            <span className="max-w-[180px] truncate">{request.client_email}</span>
+          </a>
+          <a
+            href={`https://wa.me/${formatWhatsAppNumber(request.client_phone)}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-100"
+          >
+            <PhoneIcon size={12} />
+            {request.client_phone}
+          </a>
+        </div>
+      </div>
+
+      {/* Action bar */}
+      <div className="border-t border-slate-100 bg-slate-50/70 px-4 py-3 sm:px-5">
+        {request.agent ? (
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <div className="min-w-0">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+                Assigned agent
+              </p>
+              <p className="mt-0.5 truncate text-sm font-bold text-slate-900">
+                {request.agent.full_name}
+              </p>
+              <p className="truncate text-xs text-slate-500">{request.agent.email}</p>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              {request.status === 'completed' && (
+                <button
+                  type="button"
+                  onClick={onReactivate}
+                  disabled={assignLoading}
+                  className="inline-flex items-center gap-1.5 rounded-full bg-accent px-3.5 py-2 text-xs font-semibold text-white transition hover:bg-accent/90 disabled:opacity-50"
+                >
+                  <RefreshCw size={13} />
+                  Reactivate
+                </button>
+              )}
+
+              {request.status !== 'completed' && request.status !== 'cancelled' && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => onManualAssign(request.id, null)}
+                    disabled={assignLoading}
+                    className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 disabled:opacity-50"
+                  >
+                    Unassign
+                  </button>
+
+                  <div className="relative">
+                    <select
+                      onChange={(e) =>
+                        e.target.value && onManualAssign(request.id, e.target.value)
+                      }
+                      className="appearance-none rounded-full border border-slate-200 bg-white py-2 pl-3.5 pr-8 text-xs font-semibold text-slate-700 transition hover:border-slate-300 focus:border-accent focus:outline-none"
+                      disabled={assignLoading}
+                      defaultValue=""
+                    >
+                      <option value="">Reassign to…</option>
+                      {agents
+                        .filter(
+                          (a) =>
+                            a.id !== request.agent_id && canAgentHandleRequest(a, request)
+                        )
+                        .map((agent) => (
+                          <option key={agent.id} value={agent.id}>
+                            {agent.full_name}
+                          </option>
+                        ))}
+                    </select>
+                    <ChevronDown
+                      size={13}
+                      className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400"
+                    />
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={onComment}
+                    className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 transition hover:border-accent hover:text-accent"
+                    title="Comment"
+                  >
+                    <MessageCircle size={14} />
+                  </button>
+                </>
+              )}
+
+              <button
+                type="button"
+                onClick={onDelete}
+                className="ml-auto inline-flex h-9 w-9 items-center justify-center rounded-full border border-red-100 bg-white text-red-600 transition hover:bg-red-50"
+                title="Delete"
+              >
+                <Trash2 size={14} />
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <div className="relative flex-1">
+              <select
+                onChange={(e) => e.target.value && onManualAssign(request.id, e.target.value)}
+                className="w-full appearance-none rounded-full border border-amber-300 bg-white py-2.5 pl-3.5 pr-9 text-sm font-medium text-slate-700 transition hover:border-amber-400 focus:border-accent focus:outline-none"
+                disabled={assignLoading}
+                defaultValue=""
+              >
+                <option value="">Select an agent to assign…</option>
+                {agents
+                  .filter((agent) => canAgentHandleRequest(agent, request))
+                  .map((agent) => (
+                    <option key={agent.id} value={agent.id}>
+                      {agent.full_name} — {agent.email}
+                      {!agent.last_request_assigned_at ? ' (Never assigned)' : ''}
+                    </option>
+                  ))}
+              </select>
+              <ChevronDown
+                size={14}
+                className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400"
+              />
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={onComment}
+                className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 transition hover:border-accent hover:text-accent"
+                title="Comment"
+              >
+                <MessageCircle size={14} />
+              </button>
+              <button
+                type="button"
+                onClick={onDelete}
+                className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-red-100 bg-white text-red-600 transition hover:bg-red-50"
+                title="Delete"
+              >
+                <Trash2 size={14} />
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    </article>
+  );
+}
+
+function MetaItem({ icon: Icon, label, value }) {
+  return (
+    <div className="flex items-start gap-2.5">
+      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-slate-100 text-slate-500">
+        <Icon size={13} />
+      </span>
+      <div className="min-w-0">
+        <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+          {label}
+        </p>
+        <p className="mt-0.5 truncate text-sm font-medium text-slate-800">{value}</p>
+      </div>
+    </div>
   );
 }

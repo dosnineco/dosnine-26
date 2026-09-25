@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { useUser } from '@clerk/nextjs';
 import Head from 'next/head';
 import Link from 'next/link';
-import AdminLayout from '../../components/AdminLayout';
 import { useRoleProtection } from '../../lib/useRoleProtection';
 import { canAccessAdmin } from '../../lib/rbac';
 import { Users, TrendingUp, Clock, CheckCircle } from 'lucide-react';
@@ -69,7 +68,6 @@ export default function AllocationDashboard() {
 
       <div className="min-h-screen bg-gray-50">
         <div className="max-w-7xl mx-auto px-4 py-8">
-          <AdminLayout />
 
           {/* Stats Cards */}
           {agentStats.length === 1 && (

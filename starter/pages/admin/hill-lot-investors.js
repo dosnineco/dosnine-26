@@ -2,7 +2,6 @@ import Head from 'next/head';
 import { useEffect, useMemo, useState } from 'react';
 import { useUser } from '@clerk/nextjs';
 import toast from 'react-hot-toast';
-import AdminLayout from '../../components/AdminLayout';
 
 const RATE_MAP = {
   'USD 30K': 0.04,
@@ -89,7 +88,6 @@ export default function HillLotInvestorsPage() {
         <title>Hill Lot Investors — Admin</title>
       </Head>
       <div className="min-h-screen bg-slate-50">
-        <AdminLayout />
         <div className="container mx-auto max-w-7xl px-4 py-8">
           <div className="mb-6 flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
             <div>
