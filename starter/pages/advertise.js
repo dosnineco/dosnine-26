@@ -610,8 +610,10 @@ export default function AdvertisePage() {
 
                           <a
                             href={`${selectedPlan.gumroadUrl}?wanted=true&email=${encodeURIComponent(
-                              emailForNote
-                            )}&utm_source=dosnine&utm_content=${selectedPlan.id}&utm_campaign=advertise`}
+  emailForNote
+)}&submission_id=${encodeURIComponent(submissionId || '')}&utm_source=dosnine&utm_content=${selectedPlan.id}&utm_campaign=advertise`}
+
+
                             className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-full bg-accent px-5 py-3.5 text-md font-semibold text-white transition hover:bg-accent/90"
                             data-gumroad-single-product="true"
                             rel="noreferrer"
@@ -625,24 +627,7 @@ export default function AdvertisePage() {
                           </p>
                         </div>
 
-                        {/* Profile creation notice */}
-                        <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-5">
-                          <div className="flex items-start gap-3">
-                            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-emerald-100">
-                              <BadgeCheck className="h-5 w-5 text-emerald-700" />
-                            </div>
-                            <div className="min-w-0">
-                              <p className="text-sm font-semibold text-emerald-900">
-                                Your business profile is created automatically
-                              </p>
-                              <p className="mt-1 text-xs leading-5 text-emerald-800">
-                                Once your payment goes through, we&apos;ll build your Dosnine
-                                business profile, verify your details, and email you login
-                                credentials. No extra setup required.
-                              </p>
-                            </div>
-                          </div>
-                        </div>
+                       
                       </div>
                     )}
 
@@ -734,24 +719,7 @@ export default function AdvertisePage() {
                           : 'Send Proof on WhatsApp'}
                       </a>
 
-                      <div className="mt-5 space-y-2 border-t border-slate-200 pt-4">
-                        {paidSuccess ? (
-                          <div className="flex items-start gap-2 text-xs text-slate-600">
-                            <BadgeCheck className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-600" />
-                            <span>
-                              We&apos;ll email your Dosnine login details once your profile is
-                              created.
-                            </span>
-                          </div>
-                        ) : (
-                          <div className="flex items-start gap-2 text-xs text-slate-600">
-                            <ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-600" />
-                            <span>
-                              Your payment is processed securely. We never see your card details.
-                            </span>
-                          </div>
-                        )}
-                      </div>
+                    
 
                       <div className="mt-5 flex flex-col items-center gap-2 border-t border-slate-200 pt-4 text-center">
                         <button

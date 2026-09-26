@@ -9,6 +9,7 @@ import { formatPropertyMoney } from '../../lib/formatMoney';
 import { normalizeParish } from '../../lib/normalizeParish';
 import PropertyAgentRequest from '../../components/PropertyAgentRequest';
 import InFeedAd from '../../components/InFeedAd';
+import PropertyPopupAd from '../../components/PropertyPopupAd';
 
 export async function getServerSideProps(context) {
   const slugParam = context.params?.slug;
@@ -805,6 +806,8 @@ export default function PropertyPage({ property, similarProperties, isVerifiedAg
 
         <div className="mt-12 flex flex-col items-start gap-6">
           <InFeedAd />
+        <PropertyPopupAd propertyId={property.id} />
+
           <a
             href={isLand
               ? `/search/land-for-sale-${property.parish.toLowerCase().replace(/ /g, '-')}`
