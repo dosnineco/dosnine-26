@@ -232,12 +232,18 @@ function buildAdvertisementHtml({ advertisement, siteUrl }) {
         <tr>
           <td style="padding:22px 24px 24px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
             <p style="margin:0 0 8px;font-size:11px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:#94a3b8;">
-              Sponsored
+              Sponsored${
+                category ? ` &nbsp;·&nbsp; <span style="color:#64748b;">${category}</span>` : ''
+              }
             </p>
             <h3 style="margin:0 0 6px;font-size:22px;line-height:1.3;font-weight:700;color:${BRAND.text};">
               ${title}
             </h3>
-            
+            ${
+              companyName
+                ? `<p style="margin:0 0 14px;font-size:14px;font-weight:600;color:${BRAND.muted};">${companyName}</p>`
+                : ''
+            }
             ${
               description
                 ? `<p style="margin:0 0 20px;font-size:15px;line-height:1.6;color:${BRAND.muted};">${description}</p>`
