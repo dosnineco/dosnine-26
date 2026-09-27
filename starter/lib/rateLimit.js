@@ -1,5 +1,18 @@
+/* ----------------------------------------------------------
+ * Rate limiter with Upstash Redis fallback.
+ *
+ * - If UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN are
+ *   set, uses a distributed sliding-window limiter so the limit
+ *   is enforced across every serverless instance.
+ * - Otherwise falls back to a per-instance in-memory limiter,
+ *   which still stops naive single-client abuse.
+ *
+ * The limiter does NOT send the response itself — callers get a
+ * plain result object and decide how to respond.
+ * ---------------------------------------------------------- */
+
 const buckets = new Map();
-let upstashLimiterCache = new Map();
+const upstashLimiterCache = new Map();
 
 function getClientIp(req) {
   const forwardedFor = req.headers['x-forwarded-for'];
@@ -17,17 +30,14 @@ function getClientIp(req) {
 
 function cleanupExpired(now) {
   for (const [key, value] of buckets.entries()) {
-    if (value.resetAt <= now) {
-      buckets.delete(key);
-    }
+    if (value.resetAt <= now) buckets.delete(key);
   }
 }
 
-export function enforceRateLimit(req, res, {
-  keyPrefix,
-  maxRequests,
-  windowMs,
-}) {
+/* ----------------------------------------------------------
+ * In-memory fallback
+ * ---------------------------------------------------------- */
+export function enforceRateLimit(req, res, { keyPrefix, maxRequests, windowMs }) {
   const now = Date.now();
   cleanupExpired(now);
 
@@ -36,30 +46,34 @@ export function enforceRateLimit(req, res, {
   const existing = buckets.get(key);
 
   if (!existing || existing.resetAt <= now) {
-    buckets.set(key, {
-      count: 1,
-      resetAt: now + windowMs,
-    });
+    buckets.set(key, { count: 1, resetAt: now + windowMs });
+    res.setHeader('X-RateLimit-Limit', String(maxRequests));
+    res.setHeader('X-RateLimit-Remaining', String(Math.max(maxRequests - 1, 0)));
     return { allowed: true };
   }
 
   if (existing.count >= maxRequests) {
-    const retryAfterSeconds = Math.ceil((existing.resetAt - now) / 1000);
-    res.setHeader('Retry-After', String(Math.max(retryAfterSeconds, 1)));
-    return {
-      allowed: false,
-      retryAfterSeconds: Math.max(retryAfterSeconds, 1),
-    };
+    const retryAfterSeconds = Math.max(Math.ceil((existing.resetAt - now) / 1000), 1);
+    res.setHeader('Retry-After', String(retryAfterSeconds));
+    res.setHeader('X-RateLimit-Limit', String(maxRequests));
+    res.setHeader('X-RateLimit-Remaining', '0');
+    return { allowed: false, retryAfterSeconds };
   }
 
   existing.count += 1;
   buckets.set(key, existing);
-
+  res.setHeader('X-RateLimit-Limit', String(maxRequests));
+  res.setHeader('X-RateLimit-Remaining', String(Math.max(maxRequests - existing.count, 0)));
   return { allowed: true };
 }
 
+/* ----------------------------------------------------------
+ * Upstash-backed limiter (opt-in)
+ * ---------------------------------------------------------- */
 function hasUpstashConfig() {
-  return Boolean(process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN);
+  return Boolean(
+    process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN
+  );
 }
 
 async function getUpstashLimiter(maxRequests, windowMs) {
@@ -82,7 +96,10 @@ async function getUpstashLimiter(maxRequests, windowMs) {
 
   const limiter = new Ratelimit({
     redis,
-    limiter: Ratelimit.slidingWindow(maxRequests, `${Math.ceil(windowMs / 1000)} s`),
+    limiter: Ratelimit.slidingWindow(
+      maxRequests,
+      `${Math.ceil(windowMs / 1000)} s`
+    ),
     analytics: true,
     prefix: 'dosnine:api:ratelimit',
   });
@@ -91,12 +108,16 @@ async function getUpstashLimiter(maxRequests, windowMs) {
   return limiter;
 }
 
-export async function enforceRateLimitDistributed(req, res, {
-  keyPrefix,
-  maxRequests,
-  windowMs,
-  identifier,
-}) {
+/**
+ * Prefer the distributed limiter when Upstash is configured,
+ * otherwise fall back to the in-memory one. Same return shape
+ * either way.
+ */
+export async function enforceRateLimitDistributed(
+  req,
+  res,
+  { keyPrefix, maxRequests, windowMs, identifier }
+) {
   try {
     const limiter = await getUpstashLimiter(maxRequests, windowMs);
 
@@ -109,16 +130,25 @@ export async function enforceRateLimitDistributed(req, res, {
     const result = await limiter.limit(key);
 
     res.setHeader('X-RateLimit-Limit', String(maxRequests));
-    res.setHeader('X-RateLimit-Remaining', String(Math.max(result.remaining, 0)));
+    res.setHeader(
+      'X-RateLimit-Remaining',
+      String(Math.max(result.remaining, 0))
+    );
 
     if (!result.success) {
-      const resetSeconds = Math.max(Math.ceil((result.reset - Date.now()) / 1000), 1);
+      const resetSeconds = Math.max(
+        Math.ceil((result.reset - Date.now()) / 1000),
+        1
+      );
       res.setHeader('Retry-After', String(resetSeconds));
       return { allowed: false, retryAfterSeconds: resetSeconds };
     }
 
     return { allowed: true };
-  } catch {
+  } catch (err) {
+    console.error('Distributed rate limiter failed, using fallback:', err);
     return enforceRateLimit(req, res, { keyPrefix, maxRequests, windowMs });
   }
 }
+
+export { getClientIp };

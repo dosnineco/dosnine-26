@@ -1,102 +1,169 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Head from 'next/head';
 import { useAuth, useUser } from '@clerk/nextjs';
+import {
+  ShieldCheck,
+  ShieldAlert,
+  ShieldX,
+  Play,
+  RefreshCw,
+  Trash2,
+  Search,
+  Lock,
+  Unlock,
+  AlertTriangle,
+  CheckCircle2,
+  XCircle,
+  Clock,
+  ArrowRight,
+  Copy,
+  Check,
+} from 'lucide-react';
+
+/* ============================================================
+ * ENDPOINTS UNDER TEST
+ * ============================================================
+ * `idParam` marks routes that take an ID in the body — used for
+ * IDOR probes (send a random UUID and check for a leak).
+ * `sensitiveFields` lists keys that should NEVER appear in an
+ * unauthenticated response, if one ever succeeds.
+ * ============================================================ */
 
 const ENDPOINTS = [
   { key: 'verify-admin', label: 'Verify Admin', method: 'GET', url: '/api/admin/verify-admin', expected: [200] },
-  { key: 'admin-requests', label: 'Admin Requests', method: 'GET', url: '/api/admin/requests', expected: [200] },
-  { key: 'admin-requests-mgmt', label: 'Admin Requests Management', method: 'GET', url: '/api/admin/requests-management', expected: [200] },
-  { key: 'admin-agents-list', label: 'Admin Agents List', method: 'GET', url: '/api/admin/agents/list?status=all', expected: [200] },
-  { key: 'admin-users', label: 'Admin Users', method: 'GET', url: '/api/admin/users', expected: [200] },
-  { key: 'admin-dashboard', label: 'Admin Dashboard Data', method: 'GET', url: '/api/admin/dashboard-data?tab=emails', expected: [200] },
+  { key: 'admin-requests', label: 'Admin Requests', method: 'GET', url: '/api/admin/requests', expected: [200], sensitiveFields: ['client_email', 'client_phone'] },
+  { key: 'admin-requests-mgmt', label: 'Admin Requests Management', method: 'GET', url: '/api/admin/requests-management', expected: [200], sensitiveFields: ['client_email', 'client_phone'] },
+  { key: 'admin-agents-list', label: 'Admin Agents List', method: 'GET', url: '/api/admin/agents/list?status=all', expected: [200], sensitiveFields: ['email', 'phone'] },
+  { key: 'admin-users', label: 'Admin Users', method: 'GET', url: '/api/admin/users', expected: [200], sensitiveFields: ['email', 'phone', 'clerk_user_id'] },
+  { key: 'admin-dashboard', label: 'Admin Dashboard Data', method: 'GET', url: '/api/admin/dashboard-data?tab=emails', expected: [200], sensitiveFields: ['client_email', 'email'] },
   { key: 'admin-alloc', label: 'Admin Allocation Stats', method: 'GET', url: '/api/admin/allocation-stats', expected: [200] },
-  { key: 'admin-visitor-emails', label: 'Admin Visitor Emails', method: 'GET', url: '/api/admin/visitor-emails', expected: [200] },
+  { key: 'admin-visitor-emails', label: 'Admin Visitor Emails', method: 'GET', url: '/api/admin/visitor-emails', expected: [200], sensitiveFields: ['client_email', 'email'] },
   { key: 'admin-properties', label: 'Admin Properties', method: 'GET', url: '/api/admin/properties', expected: [200] },
   { key: 'admin-htv-orders', label: 'Admin HTV Orders', method: 'GET', url: '/api/admin/htv-orders', expected: [200] },
-  { key: 'agent-apps', label: 'Agent Applications', method: 'GET', url: '/api/admin/agent-applications', expected: [200] },
-  {
-    key: 'admin-requests-post-reachable',
-    label: 'Admin Requests POST Reachability',
-    method: 'POST',
-    url: '/api/admin/requests',
-    body: { action: 'invalid' },
-    expected: [400],
-  },
-  {
-    key: 'admin-requests-mgmt-post-reachable',
-    label: 'Admin Requests Mgmt POST Reachability',
-    method: 'POST',
-    url: '/api/admin/requests-management',
-    body: { action: 'invalid', ids: [] },
-    expected: [400],
-  },
-  {
-    key: 'admin-update-status-reachable',
-    label: 'Admin Agent Update Status Reachability',
-    method: 'POST',
-    url: '/api/admin/agents/update-status',
-    body: { status: 'approved' },
-    expected: [400],
-  },
+  { key: 'agent-apps', label: 'Agent Applications', method: 'GET', url: '/api/admin/agent-applications', expected: [200], sensitiveFields: ['email', 'phone'] },
+  { key: 'admin-requests-post', label: 'Admin Requests POST', method: 'POST', url: '/api/admin/requests', body: { action: 'invalid' }, expected: [400], idParam: 'requestId' },
+  { key: 'admin-requests-mgmt-post', label: 'Admin Requests Mgmt POST', method: 'POST', url: '/api/admin/requests-management', body: { action: 'invalid', ids: [] }, expected: [400], idParam: 'ids' },
+  { key: 'admin-update-status', label: 'Agent Update Status', method: 'POST', url: '/api/admin/agents/update-status', body: { status: 'approved' }, expected: [400], idParam: 'agentId' },
 ];
 
-function methodColor(method) {
+/* ============================================================
+ * SECURITY HEADERS THAT SHOULD BE PRESENT ON EVERY RESPONSE
+ * ============================================================ */
+
+const EXPECTED_SECURITY_HEADERS = [
+  { name: 'x-content-type-options', expected: 'nosniff', severity: 'medium' },
+  { name: 'x-frame-options', expected: null, severity: 'medium' }, // SAMEORIGIN or DENY
+  { name: 'strict-transport-security', expected: null, severity: 'high' },
+  { name: 'referrer-policy', expected: null, severity: 'low' },
+];
+
+/* ============================================================
+ * HELPERS
+ * ============================================================ */
+
+const methodColor = (method) => {
   if (method === 'GET') return 'text-blue-700';
-  if (method === 'POST') return 'text-green-700';
-  if (method === 'PATCH') return 'text-yellow-700';
+  if (method === 'POST') return 'text-emerald-700';
+  if (method === 'PATCH') return 'text-amber-700';
+  if (method === 'PUT') return 'text-amber-700';
   if (method === 'DELETE') return 'text-red-700';
-  return 'text-gray-700';
-}
+  return 'text-slate-700';
+};
+
+const severityStyles = {
+  critical: { bg: 'bg-red-100', text: 'text-red-800', border: 'border-red-200', icon: ShieldX },
+  high: { bg: 'bg-red-50', text: 'text-red-700', border: 'border-red-200', icon: ShieldAlert },
+  medium: { bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200', icon: AlertTriangle },
+  low: { bg: 'bg-slate-100', text: 'text-slate-600', border: 'border-slate-200', icon: ShieldCheck },
+  pass: { bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200', icon: CheckCircle2 },
+};
+
+const randomUuid = () =>
+  'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+
+/* Payloads designed to trip weak validation */
+const INJECTION_PAYLOADS = [
+  "' OR '1'='1",
+  '"; DROP TABLE users;--',
+  '../../etc/passwd',
+  '<script>alert(1)</script>',
+];
+
+const looksLikeStackTrace = (text) => {
+  if (!text || typeof text !== 'string') return false;
+  const signals = [
+    'at Object.',
+    'at async',
+    'node_modules',
+    'PostgrestError',
+    'relation "',
+    'column "',
+    'stack',
+    'SQLSTATE',
+    'PGRST',
+  ];
+  return signals.some((s) => text.toLowerCase().includes(s.toLowerCase()));
+};
+
+const looksLikeEmailList = (text) => {
+  if (!text || typeof text !== 'string') return false;
+  // crude but effective: at least 2 emails in the payload
+  const matches = text.match(/[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/gi);
+  return matches && matches.length >= 2;
+};
+
+/* ============================================================
+ * MAIN COMPONENT
+ * ============================================================ */
 
 export default function AdminApiSmokePage() {
   const { user } = useUser();
   const { getToken } = useAuth();
+
   const [isAdmin, setIsAdmin] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [authLoading, setAuthLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState('smoke'); // 'smoke' | 'security'
+
   const [runningAll, setRunningAll] = useState(false);
+  const [runningSecurity, setRunningSecurity] = useState(false);
+  const [runningSingle, setRunningSingle] = useState(null);
   const [results, setResults] = useState({});
   const [logs, setLogs] = useState([]);
-  const [assignRequestId, setAssignRequestId] = useState('');
-  const [assignAgentId, setAssignAgentId] = useState('');
-  const [assignResult, setAssignResult] = useState(null);
+  const [securityReport, setSecurityReport] = useState(null);
+  const [copied, setCopied] = useState('');
+
   const originalFetchRef = useRef(null);
 
-  const calledMap = useMemo(() => {
-    const map = {};
-    logs.forEach((log) => {
-      const path = (() => {
-        try {
-          const base = typeof window !== 'undefined' ? window.location.origin : 'http://localhost';
-          return new URL(log.url, base).pathname;
-        } catch {
-          return log.url;
-        }
-      })();
-      map[path] = (map[path] || 0) + 1;
-    });
-    return map;
-  }, [logs]);
-
+  /* ----------------------------------------------------------
+   * Admin gate
+   * ---------------------------------------------------------- */
   useEffect(() => {
     const checkAdmin = async () => {
-      if (!user) return;
+      if (!user) {
+        setAuthLoading(false);
+        return;
+      }
       try {
         const response = await fetch('/api/admin/verify-admin');
         const payload = await response.json();
-        if (response.ok && payload?.isAdmin) {
-          setIsAdmin(true);
-        } else {
-          setIsAdmin(false);
-        }
+        setIsAdmin(Boolean(response.ok && payload?.isAdmin));
       } catch {
         setIsAdmin(false);
       } finally {
-        setLoading(false);
+        setAuthLoading(false);
       }
     };
     checkAdmin();
   }, [user]);
 
+  /* ----------------------------------------------------------
+   * Instrument window.fetch so we log every request the app
+   * makes while this page is mounted.
+   * ---------------------------------------------------------- */
   useEffect(() => {
     if (!isAdmin || typeof window === 'undefined') return;
     if (originalFetchRef.current) return;
@@ -111,36 +178,40 @@ export default function AdminApiSmokePage() {
       try {
         const response = await originalFetchRef.current(input, init);
         const durationMs = Date.now() - startedAt;
-        setLogs((prev) => [
-          {
-            id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-            method,
-            url,
-            status: response.status,
-            ok: response.ok,
-            durationMs,
-            ts: new Date().toISOString(),
-            source: 'live',
-          },
-          ...prev,
-        ].slice(0, 200));
+        setLogs((prev) =>
+          [
+            {
+              id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+              method,
+              url,
+              status: response.status,
+              ok: response.ok,
+              durationMs,
+              ts: new Date().toISOString(),
+              source: 'live',
+            },
+            ...prev,
+          ].slice(0, 200)
+        );
         return response;
       } catch (error) {
         const durationMs = Date.now() - startedAt;
-        setLogs((prev) => [
-          {
-            id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-            method,
-            url,
-            status: 'network-error',
-            ok: false,
-            durationMs,
-            ts: new Date().toISOString(),
-            source: 'live',
-            error: error?.message || 'Network error',
-          },
-          ...prev,
-        ].slice(0, 200));
+        setLogs((prev) =>
+          [
+            {
+              id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+              method,
+              url,
+              status: 'network-error',
+              ok: false,
+              durationMs,
+              ts: new Date().toISOString(),
+              source: 'live',
+              error: error?.message || 'Network error',
+            },
+            ...prev,
+          ].slice(0, 200)
+        );
         throw error;
       }
     };
@@ -153,27 +224,54 @@ export default function AdminApiSmokePage() {
     };
   }, [isAdmin]);
 
-  const instrumentedFetch = async ({ method, url, body, source = 'smoke' }) => {
+  const calledMap = useMemo(() => {
+    const map = {};
+    logs.forEach((log) => {
+      const path = (() => {
+        try {
+          const base =
+            typeof window !== 'undefined' ? window.location.origin : 'http://localhost';
+          return new URL(log.url, base).pathname;
+        } catch {
+          return log.url;
+        }
+      })();
+      map[path] = (map[path] || 0) + 1;
+    });
+    return map;
+  }, [logs]);
+
+  /* ----------------------------------------------------------
+   * Core instrumented fetch — returns a full record
+   * ---------------------------------------------------------- */
+  const instrumentedFetch = async ({
+    method = 'GET',
+    url,
+    body,
+    headers: extraHeaders,
+    omitAuth = false,
+    omitCredentials = false,
+    source = 'smoke',
+  }) => {
     const startedAt = Date.now();
-    const token = await getToken();
+    const token = omitAuth ? null : await getToken();
+
     const options = {
       method,
-      credentials: 'include',
+      credentials: omitCredentials ? 'omit' : 'include',
       headers: {
         'Content-Type': 'application/json',
+        ...(extraHeaders || {}),
       },
     };
 
-    if (token) {
-      options.headers.Authorization = `Bearer ${token}`;
-    }
+    if (token) options.headers.Authorization = `Bearer ${token}`;
+    if (body && method !== 'GET') options.body = JSON.stringify(body);
 
-    if (body && method !== 'GET') {
-      options.body = JSON.stringify(body);
-    }
+    const fetchFn = originalFetchRef.current || fetch;
 
     try {
-      const response = await (originalFetchRef.current || fetch)(url, options);
+      const response = await fetchFn(url, options);
       const text = await response.text();
       let parsed = null;
       try {
@@ -181,6 +279,12 @@ export default function AdminApiSmokePage() {
       } catch {
         parsed = text || null;
       }
+
+      // Capture response headers for the header audit
+      const headers = {};
+      response.headers.forEach((value, key) => {
+        headers[key.toLowerCase()] = value;
+      });
 
       const record = {
         id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
@@ -192,6 +296,8 @@ export default function AdminApiSmokePage() {
         ts: new Date().toISOString(),
         source,
         payload: parsed,
+        rawText: typeof parsed === 'string' ? parsed : text,
+        headers,
       };
 
       setLogs((prev) => [record, ...prev].slice(0, 200));
@@ -207,34 +313,41 @@ export default function AdminApiSmokePage() {
         ts: new Date().toISOString(),
         source,
         error: error?.message || 'Network error',
+        rawText: '',
+        headers: {},
       };
       setLogs((prev) => [record, ...prev].slice(0, 200));
       return record;
     }
   };
 
+  /* ============================================================
+   * SMOKE TESTS
+   * ============================================================ */
+
   const runSingle = async (endpoint) => {
-    const record = await instrumentedFetch({
-      method: endpoint.method,
-      url: endpoint.url,
-      body: endpoint.body,
-      source: 'smoke',
-    });
+    setRunningSingle(endpoint.key);
+    try {
+      const record = await instrumentedFetch({
+        method: endpoint.method,
+        url: endpoint.url,
+        body: endpoint.body,
+        source: 'smoke',
+      });
 
-    const expected = endpoint.expected || [200];
-    const success = expected.includes(record.status);
+      const expected = endpoint.expected || [200];
+      const success = expected.includes(record.status);
 
-    setResults((prev) => ({
-      ...prev,
-      [endpoint.key]: {
-        ...record,
-        success,
-        expected,
-      },
-    }));
+      setResults((prev) => ({
+        ...prev,
+        [endpoint.key]: { ...record, success, expected },
+      }));
+    } finally {
+      setRunningSingle(null);
+    }
   };
 
-  const runAll = async () => {
+  const runAllSmoke = async () => {
     setRunningAll(true);
     for (const endpoint of ENDPOINTS) {
       await runSingle(endpoint);
@@ -242,29 +355,411 @@ export default function AdminApiSmokePage() {
     setRunningAll(false);
   };
 
-  const runAssignCaseTest = async () => {
-    setAssignResult(null);
-    const record = await instrumentedFetch({
-      method: 'POST',
-      url: '/api/admin/requests',
-      body: {
-        action: 'manualAssign',
-        requestId: assignRequestId,
-        agentId: assignAgentId,
-      },
-      source: 'assign-test',
-    });
-    setAssignResult(record);
+  /* ============================================================
+   * SECURITY SCAN
+   * ============================================================
+   * Runs a battery of defensive probes. Each finding gets a
+   * severity so you can prioritize. All probes target the SAME
+   * host the page is running on.
+   * ============================================================ */
+
+  const runSecurityScan = async () => {
+    setRunningSecurity(true);
+    setSecurityReport(null);
+
+    const findings = [];
+    let probed = 0;
+
+    const record = (severity, category, title, detail, evidence) => {
+      findings.push({
+        id: `${category}-${findings.length}-${Math.random().toString(36).slice(2, 6)}`,
+        severity,
+        category,
+        title,
+        detail,
+        evidence,
+      });
+    };
+
+    try {
+      /* ----------------------------------------------------------
+       * 1. UNAUTHENTICATED ACCESS
+       * Every admin route must return 401 or 403 when called
+       * without an Authorization header.
+       * ---------------------------------------------------------- */
+      for (const endpoint of ENDPOINTS) {
+        probed += 1;
+        const unauth = await instrumentedFetch({
+          method: endpoint.method,
+          url: endpoint.url,
+          body: endpoint.body,
+          omitAuth: true,
+          omitCredentials: true,
+          source: 'sec-unauth',
+        });
+
+        const isBlocked = [401, 403, 404, 405].includes(unauth.status);
+
+        if (!isBlocked) {
+          // Also check whether the response leaked sensitive data
+          const leakedSensitive = endpoint.sensitiveFields?.some((field) =>
+            String(unauth.rawText || '').toLowerCase().includes(field.toLowerCase())
+          );
+
+          if (leakedSensitive || looksLikeEmailList(unauth.rawText)) {
+            record(
+              'critical',
+              'auth',
+              `Unauthenticated access leaks data at ${endpoint.url}`,
+              `Called without credentials and received ${unauth.status}. Response appears to contain sensitive fields.`,
+              `Status: ${unauth.status} · Payload size: ${(unauth.rawText || '').length} chars`
+            );
+          } else if (unauth.status === 200) {
+            record(
+              'high',
+              'auth',
+              `Endpoint returns 200 unauthenticated: ${endpoint.url}`,
+              `The route responded successfully without any credentials. It should require an admin session.`,
+              `Status: ${unauth.status}`
+            );
+          } else if (unauth.status >= 200 && unauth.status < 500 && unauth.status !== 404) {
+            record(
+              'medium',
+              'auth',
+              `Endpoint responds to unauthenticated requests: ${endpoint.url}`,
+              `Returned status ${unauth.status} instead of 401/403. Even a 400 may confirm the endpoint exists.`,
+              `Status: ${unauth.status}`
+            );
+          }
+        }
+
+        if (looksLikeStackTrace(unauth.rawText)) {
+          record(
+            'high',
+            'info-leak',
+            `Stack trace exposed at ${endpoint.url}`,
+            `The unauthenticated response contains stack-trace-like strings, which reveal internal paths or library names.`,
+            `Snippet: ${String(unauth.rawText).slice(0, 140)}`
+          );
+        }
+      }
+
+      /* ----------------------------------------------------------
+       * 2. METHOD TAMPERING
+       * GET-only routes should reject write methods.
+       * ---------------------------------------------------------- */
+      const getOnly = ENDPOINTS.filter((e) => e.method === 'GET');
+      for (const endpoint of getOnly.slice(0, 5)) {
+        probed += 1;
+        const tamper = await instrumentedFetch({
+          method: 'DELETE',
+          url: endpoint.url,
+          source: 'sec-method',
+        });
+
+        if (tamper.status >= 200 && tamper.status < 300) {
+          record(
+            'critical',
+            'method',
+            `DELETE accepted on GET-only route: ${endpoint.url}`,
+            `The endpoint responded ${tamper.status} to a DELETE request. Method restrictions may be missing.`,
+            `Status: ${tamper.status}`
+          );
+        } else if (tamper.status === 500) {
+          record(
+            'medium',
+            'method',
+            `DELETE triggers 500 on ${endpoint.url}`,
+            `An unexpected method caused a server error rather than a 405. This often indicates unhandled input paths.`,
+            `Status: ${tamper.status}`
+          );
+        }
+      }
+
+      /* ----------------------------------------------------------
+       * 3. INPUT VALIDATION / INJECTION PROBES
+       * Send malformed and injection payloads to POST endpoints.
+       * A healthy API responds 400 without reflecting the payload.
+       * ---------------------------------------------------------- */
+      const postEndpoints = ENDPOINTS.filter((e) => e.method === 'POST');
+      for (const endpoint of postEndpoints) {
+        for (const payload of INJECTION_PAYLOADS) {
+          probed += 1;
+          const testBody = { ...(endpoint.body || {}), action: payload };
+
+          const probe = await instrumentedFetch({
+            method: 'POST',
+            url: endpoint.url,
+            body: testBody,
+            source: 'sec-injection',
+          });
+
+          const reflected = String(probe.rawText || '').includes(payload);
+          const errored = probe.status >= 500;
+
+          if (errored && looksLikeStackTrace(probe.rawText)) {
+            record(
+              'high',
+              'injection',
+              `Server error + stack trace on ${endpoint.url}`,
+              `Sending payload "${payload.slice(0, 30)}…" produced a 5xx with a stack trace. This suggests unhandled input.`,
+              `Status: ${probe.status}`
+            );
+            break; // don't spam one endpoint
+          }
+
+          if (reflected) {
+            record(
+              'medium',
+              'xss',
+              `Payload reflected in response on ${endpoint.url}`,
+              `The payload "${payload.slice(0, 30)}…" appeared verbatim in the response. Sanitize echoed input before rendering.`,
+              `Status: ${probe.status}`
+            );
+            break;
+          }
+        }
+      }
+
+      /* ----------------------------------------------------------
+       * 4. IDOR PROBE
+       * Send a random UUID as the ID field. If the endpoint
+       * returns 200 with data, that's a leak.
+       * ---------------------------------------------------------- */
+      const idorEndpoints = ENDPOINTS.filter((e) => e.idParam);
+      for (const endpoint of idorEndpoints) {
+        probed += 1;
+        const fakeId = randomUuid();
+        const idField = endpoint.idParam;
+        const testBody =
+          idField === 'ids'
+            ? { action: 'assign', ids: [fakeId], agentId: fakeId }
+            : { action: 'assign', [idField]: fakeId };
+
+        const probe = await instrumentedFetch({
+          method: endpoint.method,
+          url: endpoint.url,
+          body: testBody,
+          source: 'sec-idor',
+        });
+
+        if (probe.status >= 200 && probe.status < 300) {
+          record(
+            'high',
+            'idor',
+            `Random UUID accepted on ${endpoint.url}`,
+            `Sending a non-existent ID returned ${probe.status}. The endpoint may not verify that the ID belongs to a real resource.`,
+            `Fake ID: ${fakeId.slice(0, 8)}…`
+          );
+        }
+      }
+
+      /* ----------------------------------------------------------
+       * 5. SECURITY HEADER AUDIT
+       * Only run once against a lightweight endpoint.
+       * ---------------------------------------------------------- */
+      probed += 1;
+      const headerProbe = await instrumentedFetch({
+        method: 'GET',
+        url: '/api/admin/verify-admin',
+        source: 'sec-headers',
+      });
+
+      for (const { name, expected, severity } of EXPECTED_SECURITY_HEADERS) {
+        const value = headerProbe.headers?.[name];
+        if (!value) {
+          record(
+            severity,
+            'headers',
+            `Missing header: ${name}`,
+            `The response does not set "${name}". Add it at the edge/middleware layer to harden the app.`,
+            `Value: (empty)`
+          );
+        } else if (expected && !value.toLowerCase().includes(expected.toLowerCase())) {
+          record(
+            severity,
+            'headers',
+            `Weak value for ${name}`,
+            `Expected "${expected}" but got "${value}".`,
+            `Value: ${value}`
+          );
+        }
+      }
+
+      /* ----------------------------------------------------------
+       * 6. RATE LIMIT DETECTION
+       * Fire 15 rapid requests at one endpoint and see if any
+       * return 429. No 429 = no visible rate limit.
+       * ---------------------------------------------------------- */
+      probed += 1;
+      const burstUrl = '/api/admin/verify-admin';
+      const burstStatuses = [];
+      for (let i = 0; i < 15; i += 1) {
+        const r = await instrumentedFetch({
+          method: 'GET',
+          url: burstUrl,
+          source: 'sec-ratelimit',
+        });
+        burstStatuses.push(r.status);
+      }
+      const sawRateLimit = burstStatuses.some((s) => s === 429);
+      if (!sawRateLimit) {
+        record(
+          'medium',
+          'rate-limit',
+          'No rate limit detected',
+          `15 rapid requests to ${burstUrl} produced no 429 responses. Consider adding rate limiting at the edge to slow brute-force attempts.`,
+          `Statuses: ${[...new Set(burstStatuses)].join(', ')}`
+        );
+      }
+
+      /* ----------------------------------------------------------
+       * 7. CORS MISCONFIGURATION
+       * Send an Origin header and check if the endpoint echoes
+       * it back with permissive credentials.
+       * ---------------------------------------------------------- */
+      probed += 1;
+      const corsProbe = await instrumentedFetch({
+        method: 'GET',
+        url: '/api/admin/verify-admin',
+        headers: { Origin: 'https://evil.example.com' },
+        source: 'sec-cors',
+      });
+      const acao = corsProbe.headers?.['access-control-allow-origin'];
+      const acac = corsProbe.headers?.['access-control-allow-credentials'];
+      if (acao === '*' && acac === 'true') {
+        record(
+          'critical',
+          'cors',
+          'CORS allows any origin with credentials',
+          `The response sets "Access-Control-Allow-Origin: *" together with "Access-Control-Allow-Credentials: true". Browsers will usually block this, but the configuration is unsafe and may indicate a deeper misconfig.`,
+          `ACAO: ${acao} · ACAC: ${acac}`
+        );
+      } else if (acao === 'https://evil.example.com') {
+        record(
+          'high',
+          'cors',
+          'CORS reflects arbitrary Origin',
+          `The response echoed back the attacker-controlled origin "${acao}". Lock this to your production domain.`,
+          `ACAO: ${acao}`
+        );
+      }
+
+      /* ----------------------------------------------------------
+       * 8. CACHE-CONTROL ON SENSITIVE GETS
+       * ---------------------------------------------------------- */
+      const sampleSensitive = ENDPOINTS.find((e) => e.key === 'admin-users');
+      if (sampleSensitive) {
+        probed += 1;
+        const cacheProbe = await instrumentedFetch({
+          method: 'GET',
+          url: sampleSensitive.url,
+          source: 'sec-cache',
+        });
+        const cc = cacheProbe.headers?.['cache-control'];
+        if (!cc || /public|max-age=(?!0)/i.test(cc)) {
+          record(
+            'low',
+            'cache',
+            'Sensitive response may be cacheable',
+            `"${sampleSensitive.url}" did not set a restrictive Cache-Control header. Add "no-store, private" to prevent shared caches from retaining sensitive payloads.`,
+            `Cache-Control: ${cc || '(empty)'}`
+          );
+        }
+      }
+
+      // Sort by severity
+      const order = { critical: 0, high: 1, medium: 2, low: 3, pass: 4 };
+      findings.sort((a, b) => order[a.severity] - order[b.severity]);
+
+      setSecurityReport({
+        generatedAt: new Date().toISOString(),
+        probed,
+        findings,
+        summary: {
+          critical: findings.filter((f) => f.severity === 'critical').length,
+          high: findings.filter((f) => f.severity === 'high').length,
+          medium: findings.filter((f) => f.severity === 'medium').length,
+          low: findings.filter((f) => f.severity === 'low').length,
+        },
+      });
+    } catch (err) {
+      record(
+        'medium',
+        'scan',
+        'Scan interrupted',
+        `The scan encountered an error: ${err.message}`,
+        ''
+      );
+      setSecurityReport({
+        generatedAt: new Date().toISOString(),
+        probed,
+        findings,
+        summary: { critical: 0, high: 0, medium: 0, low: 0 },
+      });
+    } finally {
+      setRunningSecurity(false);
+    }
   };
 
-  const clearLogs = () => setLogs([]);
+  const copyReport = async () => {
+    if (!securityReport) return;
+    const text = [
+      `Dosnine Security Scan — ${new Date(securityReport.generatedAt).toLocaleString()}`,
+      `Probes run: ${securityReport.probed}`,
+      `Findings: ${securityReport.findings.length}`,
+      '',
+      ...securityReport.findings.map(
+        (f) =>
+          `[${f.severity.toUpperCase()}] ${f.category} — ${f.title}\n${f.detail}\n${f.evidence}\n`
+      ),
+    ].join('\n');
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied('report');
+      toast_custom('Report copied');
+      setTimeout(() => setCopied(''), 1500);
+    } catch {
+      /* ignore */
+    }
+  };
 
-  if (!isAdmin && !loading) {
+  const toast_custom = (msg) => {
+    // lightweight inline toast to avoid a dependency
+    // eslint-disable-next-line no-console
+    console.log(msg);
+  };
+
+  const clearEverything = () => {
+    setLogs([]);
+    setResults({});
+    setSecurityReport(null);
+  };
+
+  /* ============================================================
+   * RENDER
+   * ============================================================ */
+
+  if (authLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="flex items-center justify-center py-24">
         <div className="text-center">
-          <h1 className="text-2xl font-bold text-gray-900">Access denied</h1>
-          <p className="text-gray-600">Admin access required</p>
+          <div className="mx-auto h-10 w-10 animate-spin rounded-full border-b-2 border-accent" />
+          <p className="mt-4 text-sm text-slate-600">Checking access…</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isAdmin) {
+    return (
+      <div className="flex items-center justify-center py-24">
+        <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center">
+          <ShieldX className="mx-auto h-12 w-12 text-red-500" />
+          <h1 className="mt-4 text-xl font-semibold text-slate-900">Access denied</h1>
+          <p className="mt-2 text-sm text-slate-600">
+            Admin access is required to run this tool.
+          </p>
         </div>
       </div>
     );
@@ -273,151 +768,422 @@ export default function AdminApiSmokePage() {
   return (
     <>
       <Head>
-        <title>Admin API Smoke Test</title>
+        <title>Admin API Security & Smoke Tests</title>
       </Head>
 
-      <div className="min-h-screen bg-gray-50">
-        <div className="max-w-7xl mx-auto px-4 py-6">
-
-          <div className="bg-white rounded-lg p-6 mb-6">
-            <h1 className="text-2xl font-bold text-gray-900">Admin API Smoke Test</h1>
-            <p className="text-sm text-gray-600 mt-2">
-              Run endpoint checks and watch live request logs to find unauthorized, failing, or never-called APIs.
+      <div className="space-y-6">
+        {/* Header */}
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-accent">
+              Diagnostics
             </p>
-
-            <div className="flex gap-3 mt-4 flex-wrap">
-              <button
-                onClick={runAll}
-                disabled={runningAll}
-                className="px-4 py-2 rounded-lg bg-accent text-white hover:bg-accent/90 disabled:opacity-50"
-              >
-                {runningAll ? 'Running...' : 'Run All Smoke Tests'}
-              </button>
-              <button
-                onClick={clearLogs}
-                className="px-4 py-2 rounded-lg bg-gray-200 text-gray-800 hover:bg-gray-300"
-              >
-                Clear Logs
-              </button>
-            </div>
+            <h1 className="mt-2 text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
+              API Security & Smoke Tests
+            </h1>
+            <p className="mt-1 text-sm text-slate-600">
+              Run functional checks and defensive security probes against your admin APIs.
+            </p>
           </div>
+          <button
+            type="button"
+            onClick={clearEverything}
+            className="inline-flex shrink-0 items-center gap-2 self-start rounded-full border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
+          >
+            <Trash2 size={14} />
+            Clear all
+          </button>
+        </div>
 
-          <div className="bg-white rounded-lg p-6 mb-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Manual Assign Case Test</h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              <input
-                value={assignRequestId}
-                onChange={(event) => setAssignRequestId(event.target.value)}
-                placeholder="requestId"
-                className="bg-gray-50 rounded-lg py-3 px-4"
-              />
-              <input
-                value={assignAgentId}
-                onChange={(event) => setAssignAgentId(event.target.value)}
-                placeholder="agentId"
-                className="bg-gray-50 rounded-lg py-3 px-4"
-              />
-              <button
-                onClick={runAssignCaseTest}
-                disabled={!assignRequestId || !assignAgentId}
-                className="px-4 py-2 rounded-lg bg-accent text-white hover:bg-accent/90 disabled:opacity-50"
-              >
-                Test Assign Call
-              </button>
+        {/* Tabs */}
+        <div className="inline-flex w-full rounded-full bg-slate-100 p-1 sm:w-auto">
+          <button
+            type="button"
+            onClick={() => setActiveTab('smoke')}
+            className={`flex-1 rounded-full px-4 py-2.5 text-sm font-semibold transition sm:flex-none sm:px-5 ${
+              activeTab === 'smoke'
+                ? 'bg-white text-slate-900 shadow-sm'
+                : 'text-slate-500 hover:text-slate-700'
+            }`}
+          >
+            Smoke tests
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('security')}
+            className={`flex-1 rounded-full px-4 py-2.5 text-sm font-semibold transition sm:flex-none sm:px-5 ${
+              activeTab === 'security'
+                ? 'bg-white text-slate-900 shadow-sm'
+                : 'text-slate-500 hover:text-slate-700'
+            }`}
+          >
+            Security scan
+            {securityReport && securityReport.findings.length > 0 && (
+              <span className="ml-2 inline-flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-500 px-1.5 text-[10px] font-bold text-white">
+                {securityReport.findings.length}
+              </span>
+            )}
+          </button>
+        </div>
+
+        {/* ============================================================
+            SMOKE TAB
+            ============================================================ */}
+        {activeTab === 'smoke' && (
+          <>
+            <div className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <h2 className="text-base font-bold text-slate-900">Functional checks</h2>
+                  <p className="mt-1 text-sm text-slate-600">
+                    Verify every admin endpoint responds with the expected status code.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={runAllSmoke}
+                  disabled={runningAll}
+                  className="inline-flex shrink-0 items-center justify-center gap-2 rounded-full bg-accent px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-accent/90 disabled:opacity-60"
+                >
+                  <Play size={14} className={runningAll ? 'animate-pulse' : ''} />
+                  {runningAll ? 'Running…' : 'Run all'}
+                </button>
+              </div>
             </div>
-            {assignResult && (
-              <div className="mt-3 text-sm text-gray-700">
-                Last assign test: <span className="font-semibold">{String(assignResult.status)}</span>
-                {' '}- {assignResult.ok ? 'OK' : 'Failed'}
+
+            {/* Results grid */}
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {ENDPOINTS.map((endpoint) => {
+                const result = results[endpoint.key];
+                const isRunning = runningSingle === endpoint.key;
+
+                return (
+                  <article
+                    key={endpoint.key}
+                    className="flex flex-col rounded-2xl border border-slate-200 bg-white p-4"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <span
+                        className={`inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${methodColor(
+                          endpoint.method
+                        )}`}
+                      >
+                        {endpoint.method}
+                      </span>
+                      {result && (
+                        <span
+                          className={`inline-flex h-2.5 w-2.5 rounded-full ${
+                            result.success ? 'bg-emerald-500' : 'bg-red-500'
+                          }`}
+                          aria-label={result.success ? 'Pass' : 'Fail'}
+                        />
+                      )}
+                    </div>
+
+                    <h3 className="mt-2 text-sm font-semibold text-slate-900">
+                      {endpoint.label}
+                    </h3>
+                    <p className="mt-0.5 truncate font-mono text-[11px] text-slate-500">
+                      {endpoint.url}
+                    </p>
+
+                    <div className="mt-3 flex items-center justify-between gap-2 border-t border-slate-100 pt-3 text-xs">
+                      <div>
+                        {!result ? (
+                          <span className="text-slate-400">Not tested</span>
+                        ) : (
+                          <span
+                            className={
+                              result.success ? 'text-emerald-700' : 'text-red-700'
+                            }
+                          >
+                            {result.status} · {result.durationMs}ms
+                          </span>
+                        )}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => runSingle(endpoint)}
+                        disabled={isRunning}
+                        className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1.5 font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 disabled:opacity-50"
+                      >
+                        {isRunning ? (
+                          <RefreshCw size={11} className="animate-spin" />
+                        ) : (
+                          <Play size={11} />
+                        )}
+                        Run
+                      </button>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          </>
+        )}
+
+        {/* ============================================================
+            SECURITY TAB
+            ============================================================ */}
+        {activeTab === 'security' && (
+          <>
+            <div className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <h2 className="text-base font-bold text-slate-900">
+                    Defensive security scan
+                  </h2>
+                  <p className="mt-1 max-w-2xl text-sm text-slate-600">
+                    Runs unauthenticated access probes, method tampering, injection
+                    payloads, IDOR tests, header audits, and a rate-limit burst.
+                    All requests target the current host.
+                  </p>
+                </div>
+                <div className="flex shrink-0 flex-wrap gap-2">
+                  {securityReport && (
+                    <button
+                      type="button"
+                      onClick={copyReport}
+                      className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
+                    >
+                      {copied === 'report' ? <Check size={14} /> : <Copy size={14} />}
+                      Copy report
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={runSecurityScan}
+                    disabled={runningSecurity}
+                    className="inline-flex items-center justify-center gap-2 rounded-full bg-accent px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-accent/90 disabled:opacity-60"
+                  >
+                    <ShieldCheck size={14} />
+                    {runningSecurity ? 'Scanning…' : 'Run security scan'}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {runningSecurity && (
+              <div className="rounded-2xl border border-slate-200 bg-white p-6">
+                <div className="flex items-center gap-3">
+                  <RefreshCw size={16} className="animate-spin text-accent" />
+                  <div>
+                    <p className="text-sm font-semibold text-slate-900">
+                      Running probes…
+                    </p>
+                    <p className="mt-0.5 text-xs text-slate-500">
+                      Do not navigate away while the scan is in progress.
+                    </p>
+                  </div>
+                </div>
               </div>
             )}
+
+            {securityReport && (
+              <>
+                {/* Summary */}
+                <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+                  <SummaryCard
+                    label="Critical"
+                    value={securityReport.summary.critical}
+                    tone="critical"
+                  />
+                  <SummaryCard
+                    label="High"
+                    value={securityReport.summary.high}
+                    tone="high"
+                  />
+                  <SummaryCard
+                    label="Medium"
+                    value={securityReport.summary.medium}
+                    tone="medium"
+                  />
+                  <SummaryCard
+                    label="Low"
+                    value={securityReport.summary.low}
+                    tone="low"
+                  />
+                </div>
+
+                {securityReport.findings.length === 0 ? (
+                  <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-8 text-center">
+                    <ShieldCheck className="mx-auto h-10 w-10 text-emerald-600" />
+                    <p className="mt-3 text-sm font-semibold text-emerald-900">
+                      No findings across {securityReport.probed} probes
+                    </p>
+                    <p className="mt-1 text-sm text-emerald-700">
+                      Every check passed. Continue monitoring after each deployment.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {securityReport.findings.map((finding) => (
+                      <FindingCard key={finding.id} finding={finding} />
+                    ))}
+                  </div>
+                )}
+
+                <p className="text-center text-xs text-slate-400">
+                  Scan generated{' '}
+                  {new Date(securityReport.generatedAt).toLocaleString()} ·{' '}
+                  {securityReport.probed} probes run
+                </p>
+              </>
+            )}
+
+            {!securityReport && !runningSecurity && (
+              <div className="rounded-2xl border border-dashed border-slate-200 bg-white py-16 text-center">
+                <ShieldCheck className="mx-auto h-10 w-10 text-slate-300" />
+                <p className="mt-3 text-sm font-semibold text-slate-700">
+                  No scan run yet
+                </p>
+                <p className="mt-1 text-sm text-slate-500">
+                  Click <strong>Run security scan</strong> to begin.
+                </p>
+              </div>
+            )}
+          </>
+        )}
+
+        {/* ============================================================
+            LIVE REQUEST LOG (shown on both tabs)
+            ============================================================ */}
+        <div className="rounded-2xl border border-slate-200 bg-white">
+          <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
+            <div>
+              <h2 className="text-sm font-bold text-slate-900">Live request log</h2>
+              <p className="mt-0.5 text-xs text-slate-500">
+                Every fetch this tab makes, captured in order.
+              </p>
+            </div>
+            <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">
+              {logs.length} {logs.length === 1 ? 'request' : 'requests'}
+            </span>
           </div>
 
-          <div className="bg-white rounded-lg p-6 mb-6 overflow-x-auto">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Endpoint Matrix</h2>
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="bg-gray-100 text-gray-700">
-                  <th className="text-left px-3 py-2">Endpoint</th>
-                  <th className="text-left px-3 py-2">Method</th>
-                  <th className="text-left px-3 py-2">Expected</th>
-                  <th className="text-left px-3 py-2">Last Result</th>
-                  <th className="text-left px-3 py-2">Times Called</th>
-                  <th className="text-left px-3 py-2">Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {ENDPOINTS.map((endpoint) => {
-                  const result = results[endpoint.key];
-                  const path = endpoint.url.split('?')[0];
-                  const timesCalled = calledMap[path] || 0;
+          {logs.length === 0 ? (
+            <p className="px-5 py-8 text-center text-sm text-slate-500">
+              No requests logged yet.
+            </p>
+          ) : (
+            <div className="max-h-[28rem] overflow-y-auto">
+              <ul className="divide-y divide-slate-100">
+                {logs.map((log) => {
+                  const path = (() => {
+                    try {
+                      const base =
+                        typeof window !== 'undefined'
+                          ? window.location.origin
+                          : 'http://localhost';
+                      return new URL(log.url, base).pathname;
+                    } catch {
+                      return log.url;
+                    }
+                  })();
                   return (
-                    <tr key={endpoint.key} className="border-b border-gray-100">
-                      <td className="px-3 py-2 text-gray-900">{endpoint.url}</td>
-                      <td className={`px-3 py-2 font-medium ${methodColor(endpoint.method)}`}>{endpoint.method}</td>
-                      <td className="px-3 py-2 text-gray-600">{(endpoint.expected || [200]).join(', ')}</td>
-                      <td className="px-3 py-2">
-                        {!result ? (
-                          <span className="text-gray-400">Not tested</span>
-                        ) : result.success ? (
-                          <span className="text-green-700">{String(result.status)} success</span>
-                        ) : (
-                          <span className="text-red-700">{String(result.status)} failed</span>
-                        )}
-                      </td>
-                      <td className="px-3 py-2 text-gray-700">{timesCalled}</td>
-                      <td className="px-3 py-2">
-                        <button
-                          onClick={() => runSingle(endpoint)}
-                          className="px-3 py-1.5 rounded-lg bg-gray-200 hover:bg-gray-300 text-gray-800"
-                        >
-                          Run
-                        </button>
-                      </td>
-                    </tr>
+                    <li
+                      key={log.id}
+                      className="flex flex-wrap items-center gap-x-4 gap-y-1 px-5 py-3 text-xs"
+                    >
+                      <span className="font-mono text-slate-500">
+                        {new Date(log.ts).toLocaleTimeString()}
+                      </span>
+                      <span
+                        className={`font-mono font-semibold ${methodColor(
+                          log.method
+                        )}`}
+                      >
+                        {log.method}
+                      </span>
+                      <span className="min-w-0 flex-1 truncate font-mono text-slate-700">
+                        {path}
+                      </span>
+                      <span
+                        className={`font-mono font-semibold ${
+                          log.ok ? 'text-emerald-600' : 'text-red-600'
+                        }`}
+                      >
+                        {String(log.status)}
+                      </span>
+                      <span className="font-mono text-slate-400">
+                        {log.durationMs}ms
+                      </span>
+                      <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+                        {log.source}
+                      </span>
+                    </li>
                   );
                 })}
-              </tbody>
-            </table>
-          </div>
-
-          <div className="bg-white rounded-lg p-6 overflow-x-auto">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Live Request Log</h2>
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="bg-gray-100 text-gray-700">
-                  <th className="text-left px-3 py-2">Time</th>
-                  <th className="text-left px-3 py-2">Source</th>
-                  <th className="text-left px-3 py-2">Method</th>
-                  <th className="text-left px-3 py-2">URL</th>
-                  <th className="text-left px-3 py-2">Status</th>
-                  <th className="text-left px-3 py-2">Duration</th>
-                </tr>
-              </thead>
-              <tbody>
-                {logs.length === 0 ? (
-                  <tr>
-                    <td className="px-3 py-4 text-gray-500" colSpan={6}>
-                      No requests logged yet.
-                    </td>
-                  </tr>
-                ) : (
-                  logs.map((log) => (
-                    <tr key={log.id} className="border-b border-gray-100">
-                      <td className="px-3 py-2 text-gray-700">{new Date(log.ts).toLocaleTimeString()}</td>
-                      <td className="px-3 py-2 text-gray-600">{log.source}</td>
-                      <td className={`px-3 py-2 font-medium ${methodColor(log.method)}`}>{log.method}</td>
-                      <td className="px-3 py-2 text-gray-900">{log.url}</td>
-                      <td className={`px-3 py-2 ${log.ok ? 'text-green-700' : 'text-red-700'}`}>{String(log.status)}</td>
-                      <td className="px-3 py-2 text-gray-600">{log.durationMs}ms</td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
+              </ul>
+            </div>
+          )}
         </div>
       </div>
     </>
+  );
+}
+
+/* ============================================================
+ * SUB-COMPONENTS
+ * ============================================================ */
+
+function SummaryCard({ label, value, tone }) {
+  const styles = severityStyles[tone] || severityStyles.low;
+  const Icon = styles.icon;
+  return (
+    <div
+      className={`rounded-2xl border p-4 ${styles.border} ${
+        value > 0 ? styles.bg : 'bg-white'
+      }`}
+    >
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+          {label}
+        </p>
+        <Icon size={16} className={value > 0 ? styles.text : 'text-slate-300'} />
+      </div>
+      <p className={`mt-2 text-2xl font-bold ${value > 0 ? styles.text : 'text-slate-400'}`}>
+        {value}
+      </p>
+    </div>
+  );
+}
+
+function FindingCard({ finding }) {
+  const styles = severityStyles[finding.severity] || severityStyles.low;
+  const Icon = styles.icon;
+
+  return (
+    <article
+      className={`relative overflow-hidden rounded-2xl border bg-white ${
+        styles.border
+      }`}
+    >
+      <div className={`absolute inset-y-0 left-0 w-1 ${styles.bg}`} />
+      <div className="pl-5 pr-4 py-4 sm:pl-6 sm:pr-5">
+        <div className="flex flex-wrap items-center gap-2">
+          <span
+            className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${styles.bg} ${styles.text} ${styles.border}`}
+          >
+            <Icon size={11} />
+            {finding.severity}
+          </span>
+          <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-600">
+            {finding.category}
+          </span>
+        </div>
+
+        <h3 className="mt-3 text-sm font-bold text-slate-900">{finding.title}</h3>
+        <p className="mt-1 text-sm leading-relaxed text-slate-600">
+          {finding.detail}
+        </p>
+
+        {finding.evidence ? (
+          <p className="mt-2 break-all rounded-lg bg-slate-50 px-3 py-2 font-mono text-[11px] text-slate-600">
+            {finding.evidence}
+          </p>
+        ) : null}
+      </div>
+    </article>
   );
 }

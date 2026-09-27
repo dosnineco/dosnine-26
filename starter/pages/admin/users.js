@@ -1,68 +1,150 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
 import { useUser } from '@clerk/nextjs';
 import toast from 'react-hot-toast';
-import { FiEdit2, FiTrash2, FiRefreshCw, FiX } from 'react-icons/fi';
-import { Users as UsersIcon, ShieldCheck, Flag, Ban, IdCard, Download, Settings } from 'lucide-react';
+import {
+  Users as UsersIcon,
+  ShieldCheck,
+  ShieldX,
+  Flag,
+  Ban,
+  IdCard,
+  Download,
+  Settings,
+  Search,
+  X,
+  RefreshCw,
+  ChevronDown,
+  CheckCircle2,
+  AlertCircle,
+  Clock,
+  Trash2,
+  DollarSign,
+  Mail,
+  Phone,
+  Calendar,
+  UserCheck,
+  UserX,
+  Copy,
+  Check,
+} from 'lucide-react';
+
+/* ----------------------------------------------------------
+ * Tokens
+ * ---------------------------------------------------------- */
+const inputClass =
+  'w-full rounded-lg border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-accent focus:ring-2 focus:ring-accent/20';
+const labelClass =
+  'block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1.5';
+
+const ROLE_STYLES = {
+  admin: { label: 'Admin', badge: 'bg-slate-900 text-white border-slate-900' },
+  landlord: { label: 'Homeowner', badge: 'bg-violet-100 text-violet-800 border-violet-200' },
+  tenant: { label: 'Tenant', badge: 'bg-slate-100 text-slate-700 border-slate-200' },
+};
+
+const STATUS_STYLES = {
+  active: { label: 'Active', badge: 'bg-emerald-100 text-emerald-800 border-emerald-200', dot: 'bg-emerald-500' },
+  flagged: { label: 'Flagged', badge: 'bg-amber-100 text-amber-800 border-amber-200', dot: 'bg-amber-500' },
+  deactivated: { label: 'Deactivated', badge: 'bg-red-100 text-red-800 border-red-200', dot: 'bg-red-500' },
+};
+
+const ID_VERIFICATION_STYLES = {
+  approved: { label: 'Verified', badge: 'bg-emerald-100 text-emerald-800 border-emerald-200' },
+  pending: { label: 'Pending', badge: 'bg-amber-100 text-amber-800 border-amber-200' },
+  rejected: { label: 'Rejected', badge: 'bg-red-100 text-red-800 border-red-200' },
+  unverified: { label: 'Unverified', badge: 'bg-slate-100 text-slate-600 border-slate-200' },
+};
+
+const getRoleStyle = (role) => ROLE_STYLES[role] || ROLE_STYLES.tenant;
+const getStatusStyle = (status) =>
+  STATUS_STYLES[status || 'active'] || STATUS_STYLES.active;
+const getIdVerificationStyle = (status) =>
+  ID_VERIFICATION_STYLES[status || 'unverified'] || ID_VERIFICATION_STYLES.unverified;
+
+const getInitials = (name) => {
+  if (!name) return '?';
+  return name
+    .split(' ')
+    .map((part) => part[0])
+    .filter(Boolean)
+    .slice(0, 2)
+    .join('')
+    .toUpperCase();
+};
+
+/* ============================================================
+ * Page
+ * ============================================================ */
 
 export default function AdminUsersPage() {
   const { user } = useUser();
+
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
-  const [showModal, setShowModal] = useState(false);
-  const [editingUser, setEditingUser] = useState(null);
-  const [filterStatus, setFilterStatus] = useState('all');
+  const [refreshing, setRefreshing] = useState(false);
+
+  const [searchQuery, setSearchQuery] = useState('');
   const [filterRole, setFilterRole] = useState('all');
+  const [filterStatus, setFilterStatus] = useState('all');
+  const [showFilters, setShowFilters] = useState(false);
+
+  const [manageUser, setManageUser] = useState(null);
   const [docsUser, setDocsUser] = useState(null);
   const [documentUrls, setDocumentUrls] = useState({});
   const [loadingDocs, setLoadingDocs] = useState(false);
-  const [formData, setFormData] = useState({
-    full_name: '',
-    email: '',
-    phone: '',
-    role: 'tenant'
-  });
+  const [copied, setCopied] = useState('');
+  const [pendingActionId, setPendingActionId] = useState(null);
 
-  useEffect(() => {
-    checkAdminAccess();
-  }, [user]);
-
+  /* ----------------------------------------------------------
+   * Auth
+   * ---------------------------------------------------------- */
   const buildAuthHeaders = () => {
     const headers = {};
     if (user?.id) headers['x-clerk-user-id'] = user.id;
-    const primaryEmail = user?.emailAddresses?.[0]?.emailAddress || user?.primaryEmailAddress?.emailAddress || '';
+    const primaryEmail =
+      user?.emailAddresses?.[0]?.emailAddress ||
+      user?.primaryEmailAddress?.emailAddress ||
+      '';
     if (primaryEmail) headers['x-clerk-user-email'] = primaryEmail;
-    const fullName = [user?.firstName, user?.lastName].filter(Boolean).join(' ').trim();
+    const fullName = [user?.firstName, user?.lastName]
+      .filter(Boolean)
+      .join(' ')
+      .trim();
     if (fullName) headers['x-clerk-user-name'] = fullName;
     return headers;
   };
 
-  const checkAdminAccess = async () => {
-    if (!user) return;
-    
-    try {
-      const response = await fetch('/api/admin/verify-admin', {
-        headers: buildAuthHeaders(),
-        credentials: 'include',
-      });
-      const payload = await response.json();
+  useEffect(() => {
+    const checkAdminAccess = async () => {
+      if (!user) return;
+      try {
+        const response = await fetch('/api/admin/verify-admin', {
+          headers: buildAuthHeaders(),
+          credentials: 'include',
+        });
+        const payload = await response.json();
 
-      if (response.ok && payload?.isAdmin) {
-        setIsAdmin(true);
-        fetchUsers();
-      } else {
-        setIsAdmin(false);
+        if (response.ok && payload?.isAdmin) {
+          setIsAdmin(true);
+          await fetchUsers();
+        } else {
+          setIsAdmin(false);
+          setLoading(false);
+        }
+      } catch {
         setLoading(false);
       }
-    } catch (err) {
-      setLoading(false);
-    }
-  };
+    };
+    checkAdminAccess();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
 
   const fetchUsers = async () => {
     try {
+      setRefreshing(true);
       const response = await fetch('/api/admin/users', {
         headers: buildAuthHeaders(),
         credentials: 'include',
@@ -75,67 +157,71 @@ export default function AdminUsersPage() {
 
       setUsers(payload.users || []);
     } catch (err) {
-      toast.error('Failed to load users');
+      toast.error(err.message || 'Failed to load users');
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
 
-  const handleOpenModal = (userToEdit) => {
-    if (!userToEdit) return;
+  /* ----------------------------------------------------------
+   * User actions
+   * ---------------------------------------------------------- */
+  const isPremiumActive = (u) =>
+    Boolean(u.premium_service_request) &&
+    u.premium_service_request_expires &&
+    new Date(u.premium_service_request_expires) > new Date();
 
-    setEditingUser(userToEdit);
-    setFormData({
-      full_name: userToEdit.full_name || '',
-      email: userToEdit.email || '',
-      phone: userToEdit.phone || '',
-      role: userToEdit.role || 'tenant'
+  const runUserPatch = async (payload, successMsg) => {
+    const response = await fetch('/api/admin/users', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', ...buildAuthHeaders() },
+      credentials: 'include',
+      body: JSON.stringify(payload),
     });
-    setShowModal(true);
-  };
-
-  const handleCloseModal = () => {
-    setShowModal(false);
-    setEditingUser(null);
-    setFormData({
-      full_name: '',
-      email: '',
-      phone: '',
-      role: 'tenant'
-    });
+    const result = await response.json();
+    if (!response.ok || !result?.success) {
+      throw new Error(result?.error || 'Update failed');
+    }
+    toast.success(successMsg);
+    await fetchUsers();
   };
 
   const setUserStatus = async (userId, status) => {
+    setPendingActionId(userId);
     try {
-      const response = await fetch('/api/admin/users', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json', ...buildAuthHeaders() },
-        credentials: 'include',
-        body: JSON.stringify({ id: userId, account_status: status }),
-      });
-      const payload = await response.json();
-      if (!response.ok || !payload?.success) throw new Error(payload?.error || 'Failed to update status');
-      toast.success(`User ${status}`);
-      await fetchUsers();
+      await runUserPatch(
+        { id: userId, account_status: status },
+        `User ${status}`
+      );
+      setManageUser((current) =>
+        current && current.id === userId
+          ? { ...current, account_status: status }
+          : current
+      );
     } catch (err) {
       toast.error(err.message || 'Failed to update status');
+    } finally {
+      setPendingActionId(null);
     }
   };
 
   const setIdVerificationStatus = async (userId, status) => {
+    setPendingActionId(userId);
     try {
-      const response = await fetch('/api/admin/users', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json', ...buildAuthHeaders() },
-        credentials: 'include',
-        body: JSON.stringify({ id: userId, id_verification_status: status }),
-      });
-      const payload = await response.json();
-      if (!response.ok || !payload?.success) throw new Error(payload?.error || 'Failed to update ID verification');
-      toast.success(`ID verification ${status}`);
-      await fetchUsers();
+      await runUserPatch(
+        { id: userId, id_verification_status: status },
+        `ID verification ${status}`
+      );
+      setManageUser((current) =>
+        current && current.id === userId
+          ? { ...current, id_verification_status: status }
+          : current
+      );
     } catch (err) {
       toast.error(err.message || 'Failed to update ID verification');
+    } finally {
+      setPendingActionId(null);
     }
   };
 
@@ -143,102 +229,78 @@ export default function AdminUsersPage() {
     const expirationDate = new Date();
     expirationDate.setDate(expirationDate.getDate() + 30);
 
+    setPendingActionId(userToUpdate.id);
     try {
-      const response = await fetch('/api/admin/users', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json', ...buildAuthHeaders() },
-        credentials: 'include',
-        body: JSON.stringify({
+      await runUserPatch(
+        {
           id: userToUpdate.id,
           premium_service_request: enabled,
-          premium_service_request_expires: enabled ? expirationDate.toISOString() : null,
-        }),
-      });
-      const payload = await response.json();
-      if (!response.ok || !payload?.success) throw new Error(payload?.error || 'Failed to update payment status');
-      toast.success(enabled ? 'User marked as paid for 30 days' : 'Paid status removed');
-      await fetchUsers();
-      setEditingUser((currentUser) => currentUser ? {
-        ...currentUser,
-        premium_service_request: enabled,
-        premium_service_request_expires: enabled ? expirationDate.toISOString() : null,
-      } : currentUser);
+          premium_service_request_expires: enabled
+            ? expirationDate.toISOString()
+            : null,
+        },
+        enabled ? 'Marked as paid for 30 days' : 'Paid status removed'
+      );
+
+      setManageUser((current) =>
+        current && current.id === userToUpdate.id
+          ? {
+              ...current,
+              premium_service_request: enabled,
+              premium_service_request_expires: enabled
+                ? expirationDate.toISOString()
+                : null,
+            }
+          : current
+      );
     } catch (err) {
       toast.error(err.message || 'Failed to update payment status');
+    } finally {
+      setPendingActionId(null);
     }
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-
-    // SECURITY FIX: Validate all required fields
+  const handleSaveUser = async (formData) => {
     const trimmedName = formData.full_name?.trim() || '';
     const trimmedEmail = formData.email?.trim() || '';
 
     if (!trimmedName) {
-      toast.error('User name is required and cannot be empty');
+      toast.error('Name is required');
+      return;
+    }
+    if (!trimmedEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
+      toast.error('A valid email is required');
       return;
     }
 
-    if (!trimmedEmail) {
-      toast.error('Email address is required and cannot be empty');
-      return;
-    }
-
-    // Validate email format
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(trimmedEmail)) {
-      toast.error('Please enter a valid email address');
-      return;
-    }
-
+    setPendingActionId(formData.id);
     try {
-      if (editingUser) {
-        const response = await fetch('/api/admin/users', {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json', ...buildAuthHeaders() },
-          credentials: 'include',
-          body: JSON.stringify({
-            id: editingUser.id,
-            full_name: trimmedName,
-            email: trimmedEmail,
-            phone: formData.phone?.trim() || null,
-            role: formData.role,
-          }),
-        });
-        const payload = await response.json();
-
-        if (!response.ok || !payload?.success) {
-          throw new Error(payload?.error || 'Failed to update user');
-        }
-
-        toast.success('User updated successfully!');
-      } else {
-        // SECURITY FIX: Creating users manually should not be allowed
-        // Users should only be created through Clerk authentication
-        toast.error('❌ Manual user creation is disabled for security. Users must sign up through authentication.');
-        return;
-      }
-
-      handleCloseModal();
-      await fetchUsers();
+      await runUserPatch(
+        {
+          id: formData.id,
+          full_name: trimmedName,
+          email: trimmedEmail,
+          phone: formData.phone?.trim() || null,
+          role: formData.role,
+        },
+        'User updated'
+      );
+      setManageUser(null);
     } catch (err) {
-      console.error('User save error:', err);
-      
-      // Check for specific database errors
       if (err.message?.includes('duplicate') || err.message?.includes('email')) {
-        toast.error('❌ Email already exists. Please use a different email address.');
-      } else if (err.message?.includes('not-null')) {
-        toast.error('❌ Name and email cannot be empty');
+        toast.error('Email already exists');
       } else {
         toast.error(err.message || 'Failed to save user');
       }
+    } finally {
+      setPendingActionId(null);
     }
   };
 
   const handleDelete = async (userId, userName) => {
-    if (!confirm(`⚠️ DELETE user "${userName}"?\n\nThis action cannot be undone!`)) return;
+    if (!confirm(`Delete user "${userName}"? This cannot be undone.`)) return;
 
+    setPendingActionId(userId);
     try {
       const response = await fetch('/api/admin/users', {
         method: 'DELETE',
@@ -247,65 +309,56 @@ export default function AdminUsersPage() {
         body: JSON.stringify({ id: userId }),
       });
       const payload = await response.json();
-
       if (!response.ok || !payload?.success) {
         throw new Error(payload?.error || 'Failed to delete user');
       }
-
-      toast.success('User deleted successfully!');
+      toast.success('User deleted');
+      setManageUser(null);
       await fetchUsers();
     } catch (err) {
-      toast.error(err?.message || 'Failed to delete user');
+      toast.error(err.message || 'Failed to delete user');
+    } finally {
+      setPendingActionId(null);
     }
   };
 
-  const filteredUsers = users.filter((u) => {
-    const statusMatch = filterStatus === 'all' || (u.account_status || 'active') === filterStatus;
-    const roleMatch = filterRole === 'all' || (u.role || 'tenant') === filterRole;
-    return statusMatch && roleMatch;
-  });
-
-  function isPremiumActive(u) {
-    return Boolean(u.premium_service_request) && u.premium_service_request_expires && new Date(u.premium_service_request_expires) > new Date();
-  }
-
-  const viewIdDocuments = (u) => {
-    setDocsUser(u);
-    loadIdDocumentUrls(u);
-  };
-
+  /* ----------------------------------------------------------
+   * ID documents
+   * ---------------------------------------------------------- */
   const resolveDocumentUrl = async (rawPath) => {
     let path = rawPath;
     if (path.includes('agent-documents/')) {
       path = path.split('agent-documents/')[1].split('?')[0];
     }
-    const response = await fetch(`/api/admin/agents/get-document?path=${encodeURIComponent(path)}`, {
-      headers: buildAuthHeaders(),
-      credentials: 'include',
-    });
+    const response = await fetch(
+      `/api/admin/agents/get-document?path=${encodeURIComponent(path)}`,
+      { headers: buildAuthHeaders(), credentials: 'include' }
+    );
     const payload = await response.json();
-    if (!response.ok || !payload?.signedUrl) throw new Error(payload?.error || 'Failed to load document');
+    if (!response.ok || !payload?.signedUrl) {
+      throw new Error(payload?.error || 'Failed to load document');
+    }
     return payload.signedUrl;
   };
 
-  const loadIdDocumentUrls = async (u) => {
+  const viewIdDocuments = async (u) => {
+    setDocsUser(u);
     if (!u.verification_front_url && !u.verification_back_url) return;
 
     setLoadingDocs(true);
     const urls = {};
-
     try {
       if (u.verification_front_url) {
         try {
           urls.front = await resolveDocumentUrl(u.verification_front_url);
-        } catch (err) {
+        } catch {
           urls.front = u.verification_front_url;
         }
       }
       if (u.verification_back_url) {
         try {
           urls.back = await resolveDocumentUrl(u.verification_back_url);
-        } catch (err) {
+        } catch {
           urls.back = u.verification_back_url;
         }
       }
@@ -320,504 +373,941 @@ export default function AdminUsersPage() {
     setDocumentUrls({});
   };
 
+  /* ----------------------------------------------------------
+   * Copy helper
+   * ---------------------------------------------------------- */
+  const copyToClipboard = async (value, key) => {
+    if (!value) return;
+    try {
+      await navigator.clipboard.writeText(String(value));
+      setCopied(key);
+      toast.success('Copied');
+      setTimeout(() => setCopied(''), 1500);
+    } catch {
+      toast.error('Unable to copy');
+    }
+  };
+
+  /* ----------------------------------------------------------
+   * Derived
+   * ---------------------------------------------------------- */
+  const summary = useMemo(() => {
+    const total = users.length;
+    const admins = users.filter((u) => u.role === 'admin').length;
+    const homeowners = users.filter((u) => u.role === 'landlord').length;
+    const tenants = users.filter((u) => u.role === 'tenant').length;
+    const paid = users.filter(isPremiumActive).length;
+    return { total, admins, homeowners, tenants, paid };
+  }, [users]);
+
+  const filteredUsers = useMemo(() => {
+    let result = [...users];
+
+    if (filterRole !== 'all') {
+      result = result.filter((u) => (u.role || 'tenant') === filterRole);
+    }
+    if (filterStatus !== 'all') {
+      result = result.filter(
+        (u) => (u.account_status || 'active') === filterStatus
+      );
+    }
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      result = result.filter(
+        (u) =>
+          u.full_name?.toLowerCase().includes(q) ||
+          u.email?.toLowerCase().includes(q) ||
+          u.phone?.includes(q)
+      );
+    }
+
+    return result;
+  }, [users, filterRole, filterStatus, searchQuery]);
+
+  const activeFilterCount = [
+    filterRole !== 'all',
+    filterStatus !== 'all',
+    Boolean(searchQuery.trim()),
+  ].filter(Boolean).length;
+
+  const clearFilters = () => {
+    setSearchQuery('');
+    setFilterRole('all');
+    setFilterStatus('all');
+  };
+
+  /* ----------------------------------------------------------
+   * Access states
+   * ---------------------------------------------------------- */
   if (!isAdmin && !loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold text-gray-800 mb-2">Access Denied</h1>
-          <p className="text-gray-600">Admin access required</p>
+      <div className="flex items-center justify-center py-24">
+        <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center">
+          <ShieldX className="mx-auto h-12 w-12 text-red-500" />
+          <h1 className="mt-4 text-xl font-semibold text-slate-900">Access denied</h1>
+          <p className="mt-2 text-sm text-slate-600">
+            Admin access is required to view users.
+          </p>
         </div>
       </div>
     );
   }
 
+  /* ----------------------------------------------------------
+   * Render
+   * ---------------------------------------------------------- */
   return (
     <>
       <Head>
-        <title>Users — Admin Dashboard</title>
+        <title>Users — Admin</title>
       </Head>
 
-      <div className="min-h-screen bg-gray-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          {/* Stats */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-            <div className="bg-white rounded-lg border p-5">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-500">Total Users</p>
-                  <p className="text-2xl font-bold text-gray-900">{users.length}</p>
-                </div>
-                <UsersIcon className="w-8 h-8 text-gray-400" />
-              </div>
+      <div className="space-y-6">
+        {/* Header */}
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-accent">
+              Users
+            </p>
+            <h1 className="mt-2 text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
+              User Management
+            </h1>
+            <p className="mt-1 text-sm text-slate-600">
+              Manage roles, account status, ID verification, and premium access.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={fetchUsers}
+            disabled={refreshing}
+            className="inline-flex shrink-0 items-center gap-2 self-start rounded-full border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 disabled:opacity-60"
+          >
+            <RefreshCw size={14} className={refreshing ? 'animate-spin' : ''} />
+            Refresh
+          </button>
+        </div>
+
+        {/* Stats */}
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+          <StatCard
+            label="Total users"
+            value={summary.total}
+            icon={UsersIcon}
+            tone="accent"
+            onClick={() => {
+              setFilterRole('all');
+              setFilterStatus('all');
+            }}
+          />
+          <StatCard
+            label="Admins"
+            value={summary.admins}
+            icon={ShieldCheck}
+            tone="slate"
+            onClick={() => setFilterRole('admin')}
+          />
+          <StatCard
+            label="Homeowners"
+            value={summary.homeowners}
+            icon={UsersIcon}
+            tone="violet"
+            onClick={() => setFilterRole('landlord')}
+          />
+          <StatCard
+            label="Tenants"
+            value={summary.tenants}
+            icon={UsersIcon}
+            tone="blue"
+            onClick={() => setFilterRole('tenant')}
+          />
+          <StatCard
+            label="Paid J$6,000"
+            value={summary.paid}
+            icon={DollarSign}
+            tone="emerald"
+          />
+        </div>
+
+        {/* Search + Filters */}
+        <div className="rounded-2xl border border-slate-200 bg-white p-3 sm:p-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <div className="relative flex-1">
+              <Search
+                size={15}
+                className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+              />
+              <input
+                type="search"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search name, email, phone…"
+                className={`${inputClass} pl-9`}
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-1 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+                  aria-label="Clear search"
+                >
+                  <X size={12} />
+                </button>
+              )}
             </div>
 
-            <div className="bg-white rounded-lg border p-5">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-500">Admins</p>
-                  <p className="text-2xl font-bold text-gray-900">{users.filter(u => u.role === 'admin').length}</p>
-                </div>
-                <ShieldCheck className="w-8 h-8 text-gray-400" />
-              </div>
-            </div>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setShowFilters((v) => !v)}
+                className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold transition ${
+                  showFilters || activeFilterCount > 0
+                    ? 'border-accent bg-accent/10 text-accent'
+                    : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50'
+                }`}
+              >
+                <UsersIcon size={14} />
+                Filters
+                {activeFilterCount > 0 && (
+                  <span className="inline-flex h-5 min-w-[20px] items-center justify-center rounded-full bg-accent px-1.5 text-[10px] font-bold text-white">
+                    {activeFilterCount}
+                  </span>
+                )}
+                <ChevronDown
+                  size={14}
+                  className={`transition-transform ${showFilters ? 'rotate-180' : ''}`}
+                />
+              </button>
 
-            <button
-              type="button"
-              onClick={() => setFilterRole('landlord')}
-              className="bg-white rounded-lg border p-5 text-left hover:border-accent transition"
-            >
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-500">Homeowners</p>
-                  <p className="text-2xl font-bold text-gray-900">{users.filter(u => u.role === 'landlord').length}</p>
-                </div>
-                <UsersIcon className="w-8 h-8 text-gray-400" />
-              </div>
-            </button>
-
-            <div className="bg-white rounded-lg border p-5">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-500">Tenants</p>
-                  <p className="text-2xl font-bold text-gray-900">{users.filter(u => u.role === 'tenant').length}</p>
-                </div>
-                <UsersIcon className="w-8 h-8 text-gray-400" />
-              </div>
-            </div>
-
-            <div className="bg-green-50 rounded-lg border border-green-200 p-5">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-green-700 font-medium">Paid J$6,000 Fee</p>
-                  <p className="text-2xl font-bold text-green-900">
-                    {users.filter(u => isPremiumActive(u)).length}
-                  </p>
-                </div>
-                <ShieldCheck className="w-8 h-8 text-green-600" />
-              </div>
+              {activeFilterCount > 0 && (
+                <button
+                  type="button"
+                  onClick={clearFilters}
+                  className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 transition hover:text-slate-700"
+                >
+                  <X size={12} />
+                  Clear
+                </button>
+              )}
             </div>
           </div>
 
-          {/* Filters */}
-          <div className="bg-white rounded-lg border p-3 mb-6 flex items-center justify-between flex-wrap gap-3">
-            <div className="flex flex-col gap-2">
-              <div className="flex items-center gap-3 flex-wrap">
-                <span className="text-sm font-medium text-gray-700">Role:</span>
-                {[
-                  { value: 'all', label: 'All' },
-                  { value: 'landlord', label: 'Homeowners' },
-                  { value: 'tenant', label: 'Tenants' },
-                  { value: 'admin', label: 'Admins' },
-                ].map(({ value, label }) => (
-                  <button
-                    key={value}
-                    onClick={() => setFilterRole(value)}
-                    className={`px-3 py-1.5 rounded-md text-sm font-medium transition ${
-                      filterRole === value
-                        ? 'bg-gray-900 text-white'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                    }`}
-                  >
-                    {label}
-                  </button>
-                ))}
+          {showFilters && (
+            <div className="mt-4 space-y-3 border-t border-slate-100 pt-4">
+              <div>
+                <p className={labelClass}>Role</p>
+                <div className="flex flex-wrap gap-2">
+                  {[
+                    { value: 'all', label: 'All' },
+                    { value: 'landlord', label: 'Homeowners' },
+                    { value: 'tenant', label: 'Tenants' },
+                    { value: 'admin', label: 'Admins' },
+                  ].map(({ value, label }) => (
+                    <button
+                      key={value}
+                      type="button"
+                      onClick={() => setFilterRole(value)}
+                      className={`rounded-full border px-3.5 py-1.5 text-xs font-semibold transition ${
+                        filterRole === value
+                          ? 'border-accent bg-accent text-white'
+                          : 'border-slate-200 bg-white text-slate-600 hover:border-accent hover:text-accent'
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
               </div>
-              <div className="flex items-center gap-3 flex-wrap">
-                <span className="text-sm font-medium text-gray-700">Status:</span>
-                {['all', 'active', 'flagged', 'deactivated'].map((status) => (
-                  <button
-                    key={status}
-                    onClick={() => setFilterStatus(status)}
-                    className={`px-3 py-1.5 rounded-md text-sm font-medium transition capitalize ${
-                      filterStatus === status
-                        ? 'bg-gray-900 text-white'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                    }`}
-                  >
-                    {status}
-                  </button>
-                ))}
+
+              <div>
+                <p className={labelClass}>Account status</p>
+                <div className="flex flex-wrap gap-2">
+                  {['all', 'active', 'flagged', 'deactivated'].map((status) => (
+                    <button
+                      key={status}
+                      type="button"
+                      onClick={() => setFilterStatus(status)}
+                      className={`rounded-full border px-3.5 py-1.5 text-xs font-semibold capitalize transition ${
+                        filterStatus === status
+                          ? 'border-accent bg-accent text-white'
+                          : 'border-slate-200 bg-white text-slate-600 hover:border-accent hover:text-accent'
+                      }`}
+                    >
+                      {status}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
-            <button
-              onClick={fetchUsers}
-              className="flex items-center gap-2 px-4 py-2 btn-accent text-white rounded-lg transition-colors"
-            >
-              <FiRefreshCw size={18} />
-              Refresh
-            </button>
-          </div>
+          )}
+        </div>
 
-          {/* Users Table */}
-          <div className="bg-white rounded-lg border overflow-hidden">
-            {loading ? (
-              <div className="text-center py-12">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto mb-4"></div>
-                <p className="text-gray-600">Loading users...</p>
-              </div>
-            ) : filteredUsers.length === 0 ? (
-              <div className="text-center py-12">
-                <UsersIcon className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                <p className="text-gray-500">No users found</p>
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-100">
-                    <tr>
-                      <th className="px-5 py-3 text-left text-xs font-semibold text-gray-700 uppercase">User</th>
-                      <th className="px-5 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Role</th>
-                      <th className="px-5 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Account Status</th>
-                      <th className="px-5 py-3 text-left text-xs font-semibold text-gray-700 uppercase">ID Verification</th>
-                      <th className="px-5 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Payment</th>
-                      <th className="px-5 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Joined</th>
-                      <th className="px-5 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {filteredUsers.map((u) => (
-                      <tr key={u.id} className="hover:bg-gray-50">
-                        <td className="px-5 py-4">
-                          <p className="font-medium text-gray-900">{u.full_name || 'No name'}</p>
-                          <p className="text-sm text-gray-500">{u.email}</p>
-                          {u.phone && <p className="text-sm text-gray-500">{u.phone}</p>}
-                        </td>
-                        <td className="px-5 py-4">
-                          <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                            u.role === 'admin' ? 'bg-gray-800 text-white' :
-                            u.role === 'landlord' ? 'bg-gray-200 text-gray-800' :
-                            'bg-gray-100 text-gray-600'
-                          }`}>
-                            {u.role}
-                          </span>
-                        </td>
-                        <td className="px-5 py-4">
-                          <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                            (u.account_status || 'active') === 'deactivated' ? 'bg-red-100 text-red-800' :
-                            (u.account_status || 'active') === 'flagged' ? 'bg-yellow-100 text-yellow-800' :
-                            'bg-green-100 text-green-800'
-                          }`}>
-                            {(u.account_status || 'active').replace(/_/g, ' ')}
-                          </span>
-                        </td>
-                        <td className="px-5 py-4 text-sm text-gray-700 capitalize">
-                          {(u.id_verification_status || 'unverified').replace(/_/g, ' ')}
-                        </td>
-                        <td className="px-5 py-4">
-                          {isPremiumActive(u) ? (
-                            <div>
-                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                                Paid J$6,000
-                              </span>
-                              <p className="text-xs text-gray-500 mt-1">
-                                Expires {new Date(u.premium_service_request_expires).toLocaleDateString()}
-                              </p>
-                            </div>
-                          ) : (
-                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
-                              Not paid
-                            </span>
-                          )}
-                        </td>
-                        <td className="px-5 py-4 text-sm text-gray-500">
-                          {new Date(u.created_at).toLocaleDateString()}
-                        </td>
-                        <td className="px-5 py-4">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <button
-                              onClick={() => setPremiumStatus(u, !isPremiumActive(u))}
-                              className={`px-3 py-1.5 rounded-md text-xs font-semibold ${
-                                isPremiumActive(u)
-                                  ? 'bg-red-100 text-red-700 hover:bg-red-200'
-                                  : 'bg-green-100 text-green-700 hover:bg-green-200'
-                              }`}
-                            >
-                              {isPremiumActive(u) ? 'Remove paid' : 'Mark paid'}
-                            </button>
-                            <button
-                              onClick={() => handleOpenModal(u)}
-                              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-semibold bg-gray-900 text-white hover:bg-black"
-                            >
-                              <Settings className="w-3.5 h-3.5" />
-                              Manage
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+        {/* Results */}
+        {!loading && (
+          <p className="text-sm text-slate-500">
+            Showing{' '}
+            <strong className="text-slate-900">{filteredUsers.length}</strong> of{' '}
+            {users.length} user{users.length === 1 ? '' : 's'}
+          </p>
+        )}
+
+        {/* User list */}
+        {loading ? (
+          <div className="space-y-3">
+            {[1, 2, 3, 4].map((i) => (
+              <div
+                key={i}
+                className="h-32 animate-pulse rounded-2xl border border-slate-100 bg-slate-50"
+              />
+            ))}
+          </div>
+        ) : filteredUsers.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-slate-200 bg-white py-16 text-center">
+            <AlertCircle className="mx-auto h-10 w-10 text-slate-300" />
+            <p className="mt-3 text-sm font-semibold text-slate-700">
+              {users.length === 0
+                ? 'No users yet'
+                : 'No users match your filters'}
+            </p>
+            <p className="mt-1 text-sm text-slate-500">
+              {users.length === 0
+                ? 'New sign-ups will appear here.'
+                : 'Try clearing the filters above.'}
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {filteredUsers.map((u) => (
+              <UserCard
+                key={u.id}
+                user={u}
+                isPremiumActive={isPremiumActive(u)}
+                pending={pendingActionId === u.id}
+                onCopy={copyToClipboard}
+                copied={copied}
+                onTogglePremium={() => setPremiumStatus(u, !isPremiumActive(u))}
+                onManage={() => setManageUser(u)}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Manage user modal */}
+      {manageUser && (
+        <ManageUserModal
+          user={manageUser}
+          isPremiumActive={isPremiumActive(manageUser)}
+          pending={pendingActionId === manageUser.id}
+          onClose={() => setManageUser(null)}
+          onSetStatus={(status) => setUserStatus(manageUser.id, status)}
+          onSetIdVerification={(status) =>
+            setIdVerificationStatus(manageUser.id, status)
+          }
+          onTogglePremium={() =>
+            setPremiumStatus(manageUser, !isPremiumActive(manageUser))
+          }
+          onViewDocuments={() => viewIdDocuments(manageUser)}
+          onSave={handleSaveUser}
+          onDelete={() => handleDelete(manageUser.id, manageUser.full_name)}
+        />
+      )}
+
+      {/* ID documents modal */}
+      {docsUser && (
+        <IdDocumentsModal
+          user={docsUser}
+          urls={documentUrls}
+          loading={loadingDocs}
+          onClose={closeDocsModal}
+          onApprove={() => {
+            setIdVerificationStatus(docsUser.id, 'approved');
+            closeDocsModal();
+          }}
+          onReject={() => {
+            setIdVerificationStatus(docsUser.id, 'rejected');
+            closeDocsModal();
+          }}
+        />
+      )}
+    </>
+  );
+}
+
+/* ============================================================
+ * Sub-components
+ * ============================================================ */
+
+const TONE_STYLES = {
+  accent: { bg: 'bg-accent/10', text: 'text-accent' },
+  emerald: { bg: 'bg-emerald-50', text: 'text-emerald-600' },
+  blue: { bg: 'bg-blue-50', text: 'text-blue-600' },
+  violet: { bg: 'bg-violet-50', text: 'text-violet-600' },
+  slate: { bg: 'bg-slate-100', text: 'text-slate-600' },
+  red: { bg: 'bg-red-50', text: 'text-red-600' },
+};
+
+function StatCard({ label, value, icon: Icon, tone = 'accent', onClick }) {
+  const style = TONE_STYLES[tone] || TONE_STYLES.accent;
+  const Wrapper = onClick ? 'button' : 'div';
+  return (
+    <Wrapper
+      type={onClick ? 'button' : undefined}
+      onClick={onClick}
+      className={`rounded-2xl border border-slate-200 bg-white p-4 text-left transition ${
+        onClick ? 'hover:border-slate-300 hover:bg-slate-50' : ''
+      }`}
+    >
+      <div className="flex items-start justify-between gap-2">
+        <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+          {label}
+        </p>
+        <span
+          className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${style.bg} ${style.text}`}
+        >
+          <Icon size={14} />
+        </span>
+      </div>
+      <p className="mt-2 text-2xl font-bold tracking-tight text-slate-900">
+        {value}
+      </p>
+    </Wrapper>
+  );
+}
+
+function UserCard({
+  user,
+  isPremiumActive,
+  pending,
+  onCopy,
+  copied,
+  onTogglePremium,
+  onManage,
+}) {
+  const role = getRoleStyle(user.role);
+  const status = getStatusStyle(user.account_status);
+  const idVerification = getIdVerificationStyle(user.id_verification_status);
+
+  return (
+    <article className="overflow-hidden rounded-2xl border border-slate-200 bg-white transition hover:border-slate-300">
+      <div className="flex flex-col gap-4 p-4 sm:flex-row sm:p-5">
+        {/* Avatar */}
+        <div className="flex shrink-0 items-start gap-3 sm:flex-col sm:items-center">
+          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-slate-900 text-sm font-bold text-white">
+            {getInitials(user.full_name)}
+          </div>
+        </div>
+
+        {/* Content */}
+        <div className="min-w-0 flex-1">
+          {/* Name + badges */}
+          <div className="flex flex-wrap items-center gap-2">
+            <h3 className="truncate text-base font-bold text-slate-900">
+              {user.full_name || 'Unnamed user'}
+            </h3>
+            <span
+              className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${role.badge}`}
+            >
+              {role.label}
+            </span>
+            <span
+              className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${status.badge}`}
+            >
+              <span className={`h-1.5 w-1.5 rounded-full ${status.dot}`} />
+              {status.label}
+            </span>
+            {isPremiumActive && (
+              <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-100 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-emerald-800">
+                <DollarSign size={10} />
+                Paid
+              </span>
             )}
+          </div>
+
+          {/* Contact */}
+          <div className="mt-3 grid grid-cols-1 gap-2 text-sm text-slate-600 sm:grid-cols-2">
+            {user.email && (
+              <button
+                type="button"
+                onClick={() => onCopy(user.email, `${user.id}-email`)}
+                className="group inline-flex items-start gap-2 text-left transition hover:text-accent"
+              >
+                <Mail size={13} className="mt-0.5 shrink-0 text-slate-400" />
+                <span className="min-w-0 truncate">{user.email}</span>
+                {copied === `${user.id}-email` ? (
+                  <Check size={11} className="mt-1 shrink-0 text-emerald-600" />
+                ) : (
+                  <Copy
+                    size={11}
+                    className="mt-1 shrink-0 text-slate-300 opacity-0 transition group-hover:opacity-100"
+                  />
+                )}
+              </button>
+            )}
+            {user.phone && (
+              <a
+                href={`tel:${user.phone}`}
+                className="inline-flex items-start gap-2 transition hover:text-accent"
+              >
+                <Phone size={13} className="mt-0.5 shrink-0 text-slate-400" />
+                <span className="min-w-0 truncate">{user.phone}</span>
+              </a>
+            )}
+          </div>
+
+          {/* Meta grid */}
+          <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <MetaBox
+              label="ID verification"
+              value={idVerification.label}
+              tone={
+                user.id_verification_status === 'approved'
+                  ? 'emerald'
+                  : user.id_verification_status === 'pending'
+                  ? 'amber'
+                  : 'slate'
+              }
+            />
+            <MetaBox
+              label="Payment"
+              value={
+                isPremiumActive && user.premium_service_request_expires
+                  ? `Paid · expires ${new Date(
+                      user.premium_service_request_expires
+                    ).toLocaleDateString()}`
+                  : 'Not paid'
+              }
+              tone={isPremiumActive ? 'emerald' : 'slate'}
+            />
+            <MetaBox
+              label="Joined"
+              value={
+                user.created_at
+                  ? new Date(user.created_at).toLocaleDateString('en-US', {
+                      month: 'short',
+                      day: 'numeric',
+                      year: 'numeric',
+                    })
+                  : '—'
+              }
+            />
           </div>
         </div>
       </div>
 
-      {/* ID Documents Modal */}
-      {docsUser && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[70] p-4">
-          <div className="bg-white rounded-lg max-w-3xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b sticky top-0 bg-white flex items-center justify-between">
-              <div>
-                <h2 className="text-xl font-bold text-gray-900">ID Uploads</h2>
-                <p className="text-sm text-gray-500">{docsUser.full_name || docsUser.email}</p>
-              </div>
-              <button onClick={closeDocsModal} className="text-gray-400 hover:text-gray-600">
-                <FiX size={24} />
-              </button>
-            </div>
+      {/* Actions */}
+      <div className="flex flex-wrap items-center gap-2 border-t border-slate-100 bg-slate-50/60 px-4 py-3 sm:px-5">
+        <button
+          type="button"
+          onClick={onTogglePremium}
+          disabled={pending}
+          className={`inline-flex items-center gap-1.5 rounded-full border bg-white px-3.5 py-2 text-xs font-semibold transition disabled:opacity-50 ${
+            isPremiumActive
+              ? 'border-red-200 text-red-700 hover:bg-red-50'
+              : 'border-emerald-200 text-emerald-700 hover:bg-emerald-50'
+          }`}
+        >
+          <DollarSign size={13} />
+          {isPremiumActive ? 'Remove paid' : 'Mark paid'}
+        </button>
 
-            <div className="p-6">
-              {loadingDocs ? (
-                <div className="text-center py-8">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-accent mx-auto"></div>
-                  <p className="text-sm text-gray-500 mt-2">Loading documents...</p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {[
-                    { key: 'front', label: 'Front of ID' },
-                    { key: 'back', label: 'Back of ID' },
-                  ].map(({ key, label }) => {
-                    const url = documentUrls[key];
-                    if (!url) return null;
-                    return (
-                      <div key={key}>
-                        <p className="text-sm font-medium text-gray-700 mb-2">{label}</p>
-                        <div className="border rounded-lg overflow-hidden bg-gray-50">
-                          <img src={url} alt={label} className="w-full h-auto object-contain" />
-                        </div>
-                        <a
-                          href={url}
-                          download
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="mt-2 inline-flex items-center gap-2 text-sm font-medium text-accent hover:text-accent/80"
-                        >
-                          <Download className="w-4 h-4" />
-                          Download
-                        </a>
-                      </div>
-                    );
-                  })}
-                  {!documentUrls.front && !documentUrls.back && (
-                    <div className="col-span-2 text-center py-8 text-gray-500">
-                      <IdCard className="w-12 h-12 mx-auto mb-2 text-gray-400" />
-                      <p>No ID documents uploaded</p>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
+        <button
+          type="button"
+          onClick={onManage}
+          disabled={pending}
+          className="ml-auto inline-flex items-center gap-1.5 rounded-full bg-slate-900 px-3.5 py-2 text-xs font-semibold text-white transition hover:bg-slate-800 disabled:opacity-50"
+        >
+          <Settings size={13} />
+          Manage
+        </button>
+      </div>
+    </article>
+  );
+}
 
-            {docsUser.id_verification_status === 'pending' && (
-              <div className="flex items-center gap-3 p-6 border-t">
-                <button
-                  onClick={() => {
-                    setIdVerificationStatus(docsUser.id, 'approved');
-                    closeDocsModal();
-                  }}
-                  className="flex-1 px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center justify-center gap-2 font-medium"
-                >
-                  <ShieldCheck className="w-5 h-5" />
-                  Approve ID
-                </button>
-                <button
-                  onClick={() => {
-                    setIdVerificationStatus(docsUser.id, 'rejected');
-                    closeDocsModal();
-                  }}
-                  className="flex-1 px-4 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 flex items-center justify-center gap-2 font-medium"
-                >
-                  <Ban className="w-5 h-5" />
-                  Reject ID
-                </button>
-              </div>
-            )}
+function MetaBox({ label, value, tone = 'slate' }) {
+  const toneClass = {
+    emerald: 'text-emerald-700',
+    amber: 'text-amber-700',
+    slate: 'text-slate-700',
+  }[tone];
+
+  return (
+    <div className="rounded-lg border border-slate-100 bg-slate-50 p-2.5">
+      <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+        {label}
+      </p>
+      <p className={`mt-1 truncate text-sm font-semibold ${toneClass}`}>
+        {value}
+      </p>
+    </div>
+  );
+}
+
+/* ============================================================
+ * Manage user modal
+ * ============================================================ */
+
+function ManageUserModal({
+  user,
+  isPremiumActive,
+  pending,
+  onClose,
+  onSetStatus,
+  onSetIdVerification,
+  onTogglePremium,
+  onViewDocuments,
+  onSave,
+  onDelete,
+}) {
+  const [form, setForm] = useState({
+    id: user.id,
+    full_name: user.full_name || '',
+    email: user.email || '',
+    phone: user.phone || '',
+    role: user.role || 'tenant',
+  });
+
+  const currentStatus = user.account_status || 'active';
+  const currentIdVerification = user.id_verification_status || 'unverified';
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    onSave(form);
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-0 sm:items-center sm:p-4"
+      onClick={onClose}
+    >
+      <div
+        className="max-h-[92vh] w-full overflow-y-auto rounded-t-2xl bg-white sm:max-w-lg sm:rounded-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="sticky top-0 z-10 flex items-start justify-between border-b border-slate-100 bg-white px-5 py-4">
+          <div className="min-w-0">
+            <h2 className="text-lg font-bold text-slate-900">Manage user</h2>
+            <p className="mt-0.5 truncate text-sm text-slate-600">
+              {user.full_name || user.email}
+            </p>
           </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-slate-500 transition hover:bg-slate-100 hover:text-slate-900"
+            aria-label="Close"
+          >
+            <X size={18} />
+          </button>
         </div>
-      )}
 
-      {/* Modal */}
-      {showModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-2xl font-bold text-gray-900">
-                Manage User
-              </h2>
-              <button
-                onClick={handleCloseModal}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                <FiX size={24} />
-              </button>
-            </div>
-
-            {editingUser && (
-              <div className="mb-5 space-y-4 border-b pb-5">
-                <div>
-                  <p className="text-xs font-semibold text-gray-500 uppercase mb-2">Account Status</p>
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <button
-                      onClick={() => setUserStatus(editingUser.id, 'active')}
-                      className="px-3 py-1.5 rounded-md text-xs font-medium bg-green-100 text-green-700 hover:bg-green-200"
-                    >
-                      Activate
-                    </button>
-                    <button
-                      onClick={() => setUserStatus(editingUser.id, 'flagged')}
-                      className="px-3 py-1.5 rounded-md text-xs font-medium bg-yellow-100 text-yellow-700 hover:bg-yellow-200"
-                    >
-                      Flag
-                    </button>
-                    <button
-                      onClick={() => setUserStatus(editingUser.id, 'deactivated')}
-                      className="px-3 py-1.5 rounded-md text-xs font-medium bg-red-100 text-red-700 hover:bg-red-200"
-                    >
-                      Deactivate
-                    </button>
-                  </div>
-                </div>
-
-                <div>
-                  <p className="text-xs font-semibold text-gray-500 uppercase mb-2">Payment</p>
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <button
-                      onClick={() => setPremiumStatus(editingUser, !isPremiumActive(editingUser))}
-                      className={`px-3 py-1.5 rounded-md text-xs font-medium ${
-                        isPremiumActive(editingUser)
-                          ? 'bg-red-100 text-red-700 hover:bg-red-200'
-                          : 'bg-green-100 text-green-700 hover:bg-green-200'
-                      }`}
-                    >
-                      {isPremiumActive(editingUser) ? 'Remove paid status' : 'Mark paid for 30 days'}
-                    </button>
-                    {isPremiumActive(editingUser) && (
-                      <span className="text-xs text-gray-500">
-                        Expires {new Date(editingUser.premium_service_request_expires).toLocaleDateString()}
-                      </span>
-                    )}
-                  </div>
-                </div>
-
-                <div>
-                  <p className="text-xs font-semibold text-gray-500 uppercase mb-2">
-                    ID Verification ({(editingUser.id_verification_status || 'unverified').replace(/_/g, ' ')})
-                  </p>
-                  <div className="flex items-center gap-2 flex-wrap">
-                    {(editingUser.verification_front_url || editingUser.verification_back_url) && (
-                      <button
-                        onClick={() => viewIdDocuments(editingUser)}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-accent/10 text-accent hover:bg-accent/20"
-                      >
-                        <IdCard className="w-3.5 h-3.5" />
-                        View ID
-                      </button>
-                    )}
-                    <button
-                      onClick={() => setIdVerificationStatus(editingUser.id, 'approved')}
-                      className="px-3 py-1.5 rounded-md text-xs font-medium bg-green-100 text-green-700 hover:bg-green-200"
-                    >
-                      Approve
-                    </button>
-                    <button
-                      onClick={() => setIdVerificationStatus(editingUser.id, 'rejected')}
-                      className="px-3 py-1.5 rounded-md text-xs font-medium bg-red-100 text-red-700 hover:bg-red-200"
-                    >
-                      Reject
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Full Name *
-                </label>
-                <input
-                  type="text"
-                  value={formData.full_name}
-                  onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-accent focus:border-transparent"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Email *
-                </label>
-                <input
-                  type="email"
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-accent focus:border-transparent"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Phone
-                </label>
-                <input
-                  type="tel"
-                  value={formData.phone}
-                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-accent focus:border-transparent"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Role *
-                </label>
-                <select
-                  value={formData.role}
-                  onChange={(e) => setFormData({ ...formData, role: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-accent focus:border-transparent"
-                  required
-                >
-                  <option value="tenant">Tenant</option>
-                  <option value="landlord">Landlord</option>
-                  <option value="admin">Admin</option>
-                </select>
-              </div>
-
-              <div className="flex gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={handleCloseModal}
-                  className="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 font-medium"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="flex-1 px-4 py-2 btn-accent text-white rounded-lg font-medium"
-                >
-                  Update
-                </button>
-              </div>
-
+        <div className="space-y-5 px-5 py-5">
+          {/* Account status */}
+          <section>
+            <p className={labelClass}>Account status</p>
+            <div className="flex flex-wrap gap-2">
               <button
                 type="button"
-                onClick={() => {
-                  handleCloseModal();
-                  handleDelete(editingUser.id, editingUser.full_name);
-                }}
-                className="w-full flex items-center justify-center gap-2 px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg font-medium"
+                onClick={() => onSetStatus('active')}
+                disabled={pending || currentStatus === 'active'}
+                className={`inline-flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-xs font-semibold transition disabled:opacity-50 ${
+                  currentStatus === 'active'
+                    ? 'border-emerald-500 bg-emerald-500 text-white'
+                    : 'border-slate-200 bg-white text-emerald-700 hover:bg-emerald-50'
+                }`}
               >
-                <FiTrash2 size={16} />
-                Delete User
+                <UserCheck size={12} />
+                Activate
               </button>
-            </form>
+              <button
+                type="button"
+                onClick={() => onSetStatus('flagged')}
+                disabled={pending || currentStatus === 'flagged'}
+                className={`inline-flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-xs font-semibold transition disabled:opacity-50 ${
+                  currentStatus === 'flagged'
+                    ? 'border-amber-500 bg-amber-500 text-white'
+                    : 'border-slate-200 bg-white text-amber-700 hover:bg-amber-50'
+                }`}
+              >
+                <Flag size={12} />
+                Flag
+              </button>
+              <button
+                type="button"
+                onClick={() => onSetStatus('deactivated')}
+                disabled={pending || currentStatus === 'deactivated'}
+                className={`inline-flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-xs font-semibold transition disabled:opacity-50 ${
+                  currentStatus === 'deactivated'
+                    ? 'border-red-500 bg-red-500 text-white'
+                    : 'border-slate-200 bg-white text-red-700 hover:bg-red-50'
+                }`}
+              >
+                <UserX size={12} />
+                Deactivate
+              </button>
+            </div>
+          </section>
+
+          {/* Payment */}
+          <section>
+            <p className={labelClass}>Premium payment</p>
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={onTogglePremium}
+                disabled={pending}
+                className={`inline-flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-xs font-semibold transition disabled:opacity-50 ${
+                  isPremiumActive
+                    ? 'border-red-200 bg-white text-red-700 hover:bg-red-50'
+                    : 'border-emerald-200 bg-white text-emerald-700 hover:bg-emerald-50'
+                }`}
+              >
+                <DollarSign size={12} />
+                {isPremiumActive ? 'Remove paid status' : 'Mark paid for 30 days'}
+              </button>
+              {isPremiumActive && user.premium_service_request_expires && (
+                <span className="text-xs text-slate-500">
+                  Expires{' '}
+                  {new Date(
+                    user.premium_service_request_expires
+                  ).toLocaleDateString()}
+                </span>
+              )}
+            </div>
+          </section>
+
+          {/* ID verification */}
+          <section>
+            <p className={labelClass}>
+              ID verification ·{' '}
+              <span className="text-slate-500 normal-case">
+                {currentIdVerification.replace(/_/g, ' ')}
+              </span>
+            </p>
+            <div className="flex flex-wrap items-center gap-2">
+              {(user.verification_front_url || user.verification_back_url) && (
+                <button
+                  type="button"
+                  onClick={onViewDocuments}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-accent/30 bg-accent/10 px-3.5 py-1.5 text-xs font-semibold text-accent transition hover:bg-accent/20"
+                >
+                  <IdCard size={12} />
+                  View ID
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => onSetIdVerification('approved')}
+                disabled={pending || currentIdVerification === 'approved'}
+                className={`inline-flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-xs font-semibold transition disabled:opacity-50 ${
+                  currentIdVerification === 'approved'
+                    ? 'border-emerald-500 bg-emerald-500 text-white'
+                    : 'border-slate-200 bg-white text-emerald-700 hover:bg-emerald-50'
+                }`}
+              >
+                <CheckCircle2 size={12} />
+                Approve
+              </button>
+              <button
+                type="button"
+                onClick={() => onSetIdVerification('rejected')}
+                disabled={pending || currentIdVerification === 'rejected'}
+                className={`inline-flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-xs font-semibold transition disabled:opacity-50 ${
+                  currentIdVerification === 'rejected'
+                    ? 'border-red-500 bg-red-500 text-white'
+                    : 'border-slate-200 bg-white text-red-700 hover:bg-red-50'
+                }`}
+              >
+                <Ban size={12} />
+                Reject
+              </button>
+            </div>
+          </section>
+
+          {/* Edit form */}
+          <form onSubmit={handleSubmit} className="space-y-3 border-t border-slate-100 pt-5">
+            <div>
+              <label className={labelClass}>Full name *</label>
+              <input
+                type="text"
+                value={form.full_name}
+                onChange={(e) => setForm({ ...form, full_name: e.target.value })}
+                className={inputClass}
+                required
+              />
+            </div>
+
+            <div>
+              <label className={labelClass}>Email *</label>
+              <input
+                type="email"
+                value={form.email}
+                onChange={(e) => setForm({ ...form, email: e.target.value })}
+                className={inputClass}
+                required
+              />
+            </div>
+
+            <div>
+              <label className={labelClass}>Phone</label>
+              <input
+                type="tel"
+                value={form.phone}
+                onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                className={inputClass}
+              />
+            </div>
+
+            <div>
+              <label className={labelClass}>Role</label>
+              <select
+                value={form.role}
+                onChange={(e) => setForm({ ...form, role: e.target.value })}
+                className={inputClass}
+              >
+                <option value="tenant">Tenant</option>
+                <option value="landlord">Homeowner</option>
+                <option value="admin">Admin</option>
+              </select>
+            </div>
+
+            <div className="flex gap-3 pt-2">
+              <button
+                type="button"
+                onClick={onClose}
+                className="flex-1 rounded-full border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={pending}
+                className="flex-1 rounded-full bg-accent px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-accent/90 disabled:opacity-50"
+              >
+                {pending ? 'Saving…' : 'Save changes'}
+              </button>
+            </div>
+          </form>
+
+          {/* Danger zone */}
+          <div className="border-t border-slate-100 pt-4">
+            <button
+              type="button"
+              onClick={onDelete}
+              disabled={pending}
+              className="inline-flex w-full items-center justify-center gap-2 rounded-full border border-red-200 bg-white px-4 py-2.5 text-sm font-semibold text-red-700 transition hover:bg-red-50 disabled:opacity-50"
+            >
+              <Trash2 size={14} />
+              Delete user
+            </button>
           </div>
         </div>
-      )}
-    </>
+      </div>
+    </div>
+  );
+}
+
+/* ============================================================
+ * ID documents modal
+ * ============================================================ */
+
+function IdDocumentsModal({ user, urls, loading, onClose, onApprove, onReject }) {
+  const hasAny = urls.front || urls.back;
+
+  return (
+    <div
+      className="fixed inset-0 z-[70] flex items-end justify-center bg-black/50 p-0 sm:items-center sm:p-4"
+      onClick={onClose}
+    >
+      <div
+        className="max-h-[92vh] w-full overflow-y-auto rounded-t-2xl bg-white sm:max-w-3xl sm:rounded-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="sticky top-0 z-10 flex items-start justify-between border-b border-slate-100 bg-white px-5 py-4">
+          <div className="min-w-0">
+            <h2 className="text-lg font-bold text-slate-900">ID Uploads</h2>
+            <p className="mt-0.5 truncate text-sm text-slate-600">
+              {user.full_name || user.email}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-slate-500 transition hover:bg-slate-100 hover:text-slate-900"
+            aria-label="Close"
+          >
+            <X size={18} />
+          </button>
+        </div>
+
+        <div className="px-5 py-5">
+          {loading ? (
+            <div className="space-y-3">
+              <div className="h-64 animate-pulse rounded-2xl border border-slate-100 bg-slate-50" />
+              <div className="h-64 animate-pulse rounded-2xl border border-slate-100 bg-slate-50" />
+            </div>
+          ) : hasAny ? (
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              {[
+                { key: 'front', label: 'Front of ID' },
+                { key: 'back', label: 'Back of ID' },
+              ]
+                .filter(({ key }) => urls[key])
+                .map(({ key, label }) => (
+                  <div key={key}>
+                    <p className={labelClass}>{label}</p>
+                    <div className="overflow-hidden rounded-xl border border-slate-200 bg-slate-50">
+                      <img
+                        src={urls[key]}
+                        alt={label}
+                        className="h-auto w-full object-contain"
+                      />
+                    </div>
+                    <a
+                      href={urls[key]}
+                      download
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="mt-2 inline-flex items-center gap-1.5 text-xs font-semibold text-accent transition hover:text-accent/80"
+                    >
+                      <Download size={12} />
+                      Download
+                    </a>
+                  </div>
+                ))}
+            </div>
+          ) : (
+            <div className="py-12 text-center">
+              <IdCard className="mx-auto h-10 w-10 text-slate-300" />
+              <p className="mt-3 text-sm font-semibold text-slate-700">
+                No ID documents uploaded
+              </p>
+            </div>
+          )}
+        </div>
+
+        {user.id_verification_status === 'pending' && !loading && (
+          <div className="sticky bottom-0 flex gap-3 border-t border-slate-100 bg-white px-5 py-4">
+            <button
+              type="button"
+              onClick={onApprove}
+              className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-full bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-700"
+            >
+              <CheckCircle2 size={14} />
+              Approve ID
+            </button>
+            <button
+              type="button"
+              onClick={onReject}
+              className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-full border border-red-200 bg-white px-4 py-2.5 text-sm font-semibold text-red-700 transition hover:bg-red-50"
+            >
+              <Ban size={14} />
+              Reject ID
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
   );
 }

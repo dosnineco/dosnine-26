@@ -82,6 +82,40 @@ const inputClass =
   'w-full rounded-lg border border-slate-200 bg-white px-3.5 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-accent focus:ring-2 focus:ring-accent/20'
 const labelClass = 'block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1.5'
 
+/* ----------------------------------------------------------
+ * Plan durations (days). Keep in sync with the plans on
+ * the public Advertise page.
+ * ---------------------------------------------------------- */
+const PLAN_DURATIONS = {
+  '7-day': 7,
+  '14-day': 14,
+  '30-day': 30,
+  '90-day': 90,
+}
+
+const DEFAULT_DURATION_DAYS = 14
+
+const getDurationDays = (submission) => {
+  const fromField = Number(submission?.duration_days)
+  if (Number.isFinite(fromField) && fromField > 0) return fromField
+
+  const planId = submission?.plan_id && String(submission.plan_id)
+  if (planId && PLAN_DURATIONS[planId]) return PLAN_DURATIONS[planId]
+
+  return DEFAULT_DURATION_DAYS
+}
+
+const computeExpiresAt = (durationDays) => {
+  const days = Number(durationDays)
+  if (!Number.isFinite(days) || days <= 0) return null
+  return new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString()
+}
+
+const isAdExpired = (ad) => {
+  if (!ad?.expires_at) return false
+  return new Date(ad.expires_at).getTime() < Date.now()
+}
+
 export default function AdminAdvertisements() {
   const { user } = useUser()
   const { getToken } = useAuth()
@@ -101,18 +135,8 @@ export default function AdminAdvertisements() {
   const isPendingStatus = (status) =>
     ['pending', 'pending_payment'].includes(getSubmissionStatus(status))
   const normalizeValue = (value) => String(value || '').trim().toLowerCase()
-  const getDurationDays = (submission) => {
-    const fromField = Number(submission?.duration_days)
-    if (Number.isFinite(fromField) && fromField > 0) return fromField
-    if (submission?.plan_id === '30-day') return 30
-    return 7
-  }
 
-  const getExpiryIso = (submission) => {
-    const expires = new Date()
-    expires.setDate(expires.getDate() + getDurationDays(submission))
-    return expires.toISOString()
-  }
+  const getExpiryIso = (submission) => computeExpiresAt(getDurationDays(submission))
 
   const findExistingAdByCompanyEmail = async (companyName, email) => {
     const normalizedCompany = normalizeValue(companyName)
@@ -136,7 +160,7 @@ export default function AdminAdvertisements() {
     all: submissions.length,
   }
 
-  const activeAdsCount = ads.filter((ad) => ad.is_active).length
+  const activeAdsCount = ads.filter((ad) => ad.is_active && !isAdExpired(ad)).length
 
   const updateSubmissionInState = (id, nextStatus) => {
     setSubmissions((prev) =>
@@ -158,6 +182,7 @@ export default function AdminAdvertisements() {
     image_urls: [],
     is_featured: false,
     is_active: true,
+    duration_days: DEFAULT_DURATION_DAYS,
   })
 
   useEffect(() => {
@@ -207,6 +232,49 @@ export default function AdminAdvertisements() {
     }
   }
 
+  /* ----------------------------------------------------------
+   * Upload a batch of image files to Supabase Storage.
+   * Paths are unique (timestamp + random suffix), so upsert
+   * is not needed — the INSERT policy alone is enough.
+   * ---------------------------------------------------------- */
+  const uploadImageFiles = async (files) => {
+    const uploaded = []
+
+    for (const file of files) {
+      const compressedImage = await compressImageToWebP(file)
+      const filePath = `ads/${Date.now()}-${Math.random().toString(36).slice(2, 9)}.webp`
+
+      const { error: uploadError } = await supabase.storage
+        .from('property-images')
+        .upload(filePath, compressedImage, {
+          cacheControl: '3600',
+          contentType: 'image/webp',
+        })
+
+      if (uploadError) {
+        throw new Error(uploadError.message || 'Image upload failed.')
+      }
+
+      const publicData = supabase.storage.from('property-images').getPublicUrl(filePath)
+      const publicUrl = publicData?.data?.publicUrl || publicData?.data?.publicURL || ''
+      if (publicUrl) uploaded.push(publicUrl)
+    }
+
+    return uploaded
+  }
+
+  /* ----------------------------------------------------------
+   * Build the DB payload from form state, stripping the
+   * client-only `duration_days` and computing expires_at.
+   * ---------------------------------------------------------- */
+  const buildAdPayload = () => {
+    const { duration_days, ...rest } = form
+    return {
+      ...rest,
+      expires_at: computeExpiresAt(duration_days),
+    }
+  }
+
   const handleCreate = async () => {
     if (!user?.id) return toast.error('Not authenticated')
     setLoading(true)
@@ -216,26 +284,10 @@ export default function AdminAdvertisements() {
 
       if (imageFiles.length > 0) {
         setUploadingImage(true)
-        for (const file of imageFiles) {
-          const compressedImage = await compressImageToWebP(file)
-          const filePath = `ads/${Date.now()}-${Math.random().toString(36).slice(2, 9)}.webp`
-
-          const { error: uploadError } = await supabase.storage
-            .from('property-images')
-            .upload(filePath, compressedImage, {
-              cacheControl: '3600',
-              upsert: true,
-              contentType: 'image/webp',
-            })
-
-          if (uploadError) throw uploadError
-          const publicData = supabase.storage.from('property-images').getPublicUrl(filePath)
-          const publicUrl = publicData?.data?.publicUrl || publicData?.data?.publicURL || ''
-          if (publicUrl) imageUrls.push(publicUrl)
-        }
+        const uploaded = await uploadImageFiles(imageFiles)
+        imageUrls = normalizeImageUrls([...imageUrls, ...uploaded])
       }
 
-      imageUrls = normalizeImageUrls(imageUrls)
       const imageUrl = imageUrls[0] || null
 
       const existingAd = await findExistingAdByCompanyEmail(form.company_name, form.email)
@@ -244,9 +296,11 @@ export default function AdminAdvertisements() {
         return
       }
 
+      const payload = buildAdPayload()
+
       const { error } = await supabase.from('advertisements').insert([
         {
-          ...form,
+          ...payload,
           image_url: imageUrl,
           image_urls: imageUrls,
           created_by_clerk_id: user.id,
@@ -283,31 +337,17 @@ export default function AdminAdvertisements() {
 
       if (imageFiles.length > 0) {
         setUploadingImage(true)
-        for (const file of imageFiles) {
-          const compressedImage = await compressImageToWebP(file)
-          const filePath = `ads/${Date.now()}-${Math.random().toString(36).slice(2, 9)}.webp`
-          const { error: uploadError } = await supabase.storage
-            .from('property-images')
-            .upload(filePath, compressedImage, {
-              cacheControl: '3600',
-              upsert: true,
-              contentType: 'image/webp',
-            })
-          if (uploadError) throw uploadError
-
-          const publicData = supabase.storage.from('property-images').getPublicUrl(filePath)
-          const publicUrl = publicData?.data?.publicUrl || publicData?.data?.publicURL || ''
-          if (publicUrl) imageUrls.push(publicUrl)
-        }
+        const uploaded = await uploadImageFiles(imageFiles)
+        imageUrls = normalizeImageUrls([...imageUrls, ...uploaded])
       }
 
-      imageUrls = normalizeImageUrls(imageUrls)
       const imageUrl = imageUrls[0] || null
+      const payload = buildAdPayload()
 
       const { error } = await supabase
         .from('advertisements')
         .update({
-          ...form,
+          ...payload,
           image_url: imageUrl,
           image_urls: imageUrls,
         })
@@ -534,7 +574,47 @@ export default function AdminAdvertisements() {
     }
   }
 
+  const startEdit = (ad) => {
+    setEditingAd(ad)
+    setImageFiles([])
+    imagePreviews.forEach((url) => URL.revokeObjectURL(url))
+    setImagePreviews([])
 
+    const normalizedImageUrls = normalizeImageUrls(ad.image_urls)
+    const fallbackImageUrls =
+      normalizedImageUrls.length > 0
+        ? normalizedImageUrls
+        : ad.image_url
+        ? [ad.image_url]
+        : []
+
+    // Derive remaining days from expires_at so the select reflects reality.
+    let remainingDays = DEFAULT_DURATION_DAYS
+    if (ad.expires_at) {
+      const diffMs = new Date(ad.expires_at).getTime() - Date.now()
+      const diffDays = Math.round(diffMs / (24 * 60 * 60 * 1000))
+      remainingDays = diffDays > 0 ? diffDays : 0
+    }
+
+    setForm({
+      title: ad.title || '',
+      company_name: ad.company_name || '',
+      category: ad.category || 'contractor',
+      description: ad.description || '',
+      email: ad.email || '',
+      phone: ad.phone || '',
+      website: ad.website || '',
+      image_url: fallbackImageUrls[0] || '',
+      image_urls: fallbackImageUrls,
+      is_featured: Boolean(ad.is_featured),
+      is_active: Boolean(ad.is_active),
+      duration_days: remainingDays || DEFAULT_DURATION_DAYS,
+    })
+
+    if (activeTab !== 'ads') setActiveTab('ads')
+    setShowForm(true)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
 
   const resetForm = () => {
     setImageFiles([])
@@ -552,6 +632,7 @@ export default function AdminAdvertisements() {
       image_urls: [],
       is_featured: false,
       is_active: true,
+      duration_days: DEFAULT_DURATION_DAYS,
     })
     setEditingAd(null)
   }
@@ -578,8 +659,7 @@ export default function AdminAdvertisements() {
         </div>
         <button
           type="button"
-                   onClick={() => {
-            // Always jump to the Ads tab so the form is visible
+          onClick={() => {
             if (activeTab !== 'ads') setActiveTab('ads')
             if (showForm && editingAd) resetForm()
             setShowForm((v) => !v)
@@ -749,6 +829,32 @@ export default function AdminAdvertisements() {
                     value={form.website}
                     onChange={(e) => setForm({ ...form, website: e.target.value })}
                   />
+                </div>
+
+                {/* Duration / Expiry */}
+                <div className="sm:col-span-2">
+                  <label className={labelClass}>Duration</label>
+                  <select
+                    className={inputClass}
+                    value={form.duration_days}
+                    onChange={(e) =>
+                      setForm({ ...form, duration_days: Number(e.target.value) })
+                    }
+                  >
+                    <option value={7}>7 days</option>
+                    <option value={14}>14 days</option>
+                    <option value={30}>30 days</option>
+                    <option value={90}>90 days</option>
+                    <option value={0}>Never expires</option>
+                  </select>
+                  <p className="mt-1.5 text-xs text-slate-500">
+                    {Number(form.duration_days) > 0
+                      ? `Will expire on ${new Date(
+                          Date.now() +
+                            Number(form.duration_days) * 24 * 60 * 60 * 1000
+                        ).toLocaleDateString()}`
+                      : 'This ad will remain active until manually deactivated.'}
+                  </p>
                 </div>
               </div>
 
@@ -930,17 +1036,18 @@ export default function AdminAdvertisements() {
                 {ads.map((ad) => {
                   const primaryImage =
                     normalizeImageUrls(ad.image_urls)[0] || ad.image_url || null
+                  const expired = isAdExpired(ad)
+
                   return (
                     <article
                       key={ad.id}
                       className={`overflow-hidden rounded-2xl border bg-white shadow-sm transition hover:shadow-md ${
-                        ad.is_active
+                        ad.is_active && !expired
                           ? 'border-slate-200'
                           : 'border-slate-200 bg-slate-50/60 opacity-90'
                       }`}
                     >
                       <div className="flex flex-col gap-4 p-4 sm:flex-row sm:p-5">
-                        {/* Thumbnail */}
                         <div className="h-32 w-full shrink-0 overflow-hidden rounded-xl bg-slate-100 sm:h-24 sm:w-32">
                           {primaryImage ? (
                             <img
@@ -955,7 +1062,6 @@ export default function AdminAdvertisements() {
                           )}
                         </div>
 
-                        {/* Details */}
                         <div className="min-w-0 flex-1">
                           <div className="flex flex-wrap items-center gap-2">
                             <h3 className="text-base font-bold text-slate-900">
@@ -973,6 +1079,12 @@ export default function AdminAdvertisements() {
                                 Inactive
                               </span>
                             )}
+                            {ad.is_active && expired && (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-red-800">
+                                <Clock size={10} />
+                                Expired
+                              </span>
+                            )}
                           </div>
 
                           {ad.title && (
@@ -986,7 +1098,6 @@ export default function AdminAdvertisements() {
                             <span>{ad.phone}</span>
                           </p>
 
-                          {/* Stats */}
                           <div className="mt-3 flex flex-wrap items-center gap-4 text-xs">
                             <span className="inline-flex items-center gap-1.5 font-medium text-slate-600">
                               <Eye size={13} className="text-slate-400" />
@@ -996,6 +1107,22 @@ export default function AdminAdvertisements() {
                               <MousePointerClick size={13} className="text-slate-400" />
                               {ad.clicks || 0} clicks
                             </span>
+                            {ad.expires_at ? (
+                              <span
+                                className={`inline-flex items-center gap-1.5 font-medium ${
+                                  expired ? 'text-red-600' : 'text-slate-500'
+                                }`}
+                              >
+                                <Clock size={13} className={expired ? 'text-red-500' : 'text-slate-400'} />
+                                {expired ? 'Expired' : 'Expires'}{' '}
+                                {new Date(ad.expires_at).toLocaleDateString()}
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1.5 font-medium text-slate-500">
+                                <Clock size={13} className="text-slate-400" />
+                                Never expires
+                              </span>
+                            )}
                           </div>
 
                           {ad.description && (
@@ -1006,7 +1133,6 @@ export default function AdminAdvertisements() {
                         </div>
                       </div>
 
-                      {/* Actions */}
                       <div className="flex flex-wrap items-center gap-2 border-t border-slate-100 bg-slate-50/60 px-4 py-3 sm:px-5">
                         <Link
                           href={`/ads/${ad.id}`}
@@ -1062,7 +1188,6 @@ export default function AdminAdvertisements() {
 
       {activeTab === 'submissions' && (
         <section>
-          {/* Filters */}
           <div className="mb-4 flex flex-wrap gap-2">
             {[
               { key: 'pending', label: 'Pending', count: statusCounts.pending, tone: 'amber' },
@@ -1140,11 +1265,9 @@ export default function AdminAdvertisements() {
                     key={sub.id}
                     className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"
                   >
-                    {/* Status strip */}
                     <div className={`absolute inset-y-0 left-0 w-1 ${statusUi.strip}`} />
 
                     <div className="pl-5 pr-4 pt-4 pb-4 sm:pl-6 sm:pr-5 sm:pt-5 sm:pb-5">
-                      {/* Header */}
                       <div className="flex flex-wrap items-start justify-between gap-3">
                         <div className="min-w-0 flex-1">
                           <h3 className="text-base font-bold text-slate-900">
@@ -1173,7 +1296,6 @@ export default function AdminAdvertisements() {
                         </div>
                       </div>
 
-                      {/* Linked ad indicator */}
                       {getSubmissionStatus(sub.status) === 'approved' && matchingAd && (
                         <div className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
                           <CheckCircle2 size={12} />
@@ -1181,7 +1303,6 @@ export default function AdminAdvertisements() {
                         </div>
                       )}
 
-                      {/* Details */}
                       <dl className="mt-4 grid grid-cols-1 gap-x-6 gap-y-2 text-sm sm:grid-cols-2">
                         <div className="flex items-start gap-2">
                           <dt className="w-16 shrink-0 text-xs font-semibold uppercase tracking-wider text-slate-500">
@@ -1224,7 +1345,6 @@ export default function AdminAdvertisements() {
                         Submitted {new Date(sub.submitted_at).toLocaleString()}
                       </p>
 
-                      {/* Actions */}
                       <div className="mt-4 flex flex-wrap gap-2 border-t border-slate-100 pt-4">
                         {isPendingStatus(sub.status) && (
                           <>
