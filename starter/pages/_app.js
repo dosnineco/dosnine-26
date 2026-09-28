@@ -56,6 +56,50 @@ const PUBLIC_ROUTES = [
 // Pages that should not have header/footer
 const NO_LAYOUT_PAGES = ['/ads/request-agent', '/course', '/logo', '/ads-course', '/hill-lot'];
 
+/* ============================================================
+ * Header sizing
+ * ============================================================ */
+const HEADER_HEIGHT_CLASS = 'pt-16';
+
+/* Pages that already handle the header offset themselves via a
+ * full-bleed hero or their own top padding. */
+const PAGES_WITH_OWN_HEADER_OFFSET = ['/'];
+
+/* ============================================================
+ * Sponsored banner exclusions
+ * ============================================================ */
+const NO_SPONSORED_BANNER_ROUTES = [
+  '/',
+  '/post-property',
+  '/listing/new',
+  '/agent/signup',
+  '/agent/register',
+  '/market',
+  '/htv',
+  '/dosnine-htv',
+  '/resources',
+  '/tools',
+  '/blog',
+  '/privacy-policy',
+  '/terms-of-service',
+  '/refund-policy',
+  '/about',
+];
+
+const NO_SPONSORED_BANNER_PREFIXES = [
+  '/dashboard',
+  '/agent/dashboard',
+  '/landlord',
+  '/tenant',
+];
+
+const shouldHideSponsoredBanner = (pathname) => {
+  if (NO_SPONSORED_BANNER_ROUTES.includes(pathname)) return true;
+  return NO_SPONSORED_BANNER_PREFIXES.some(
+    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`)
+  );
+};
+
 const isPublicRoute = (pathname) => {
   return PUBLIC_ROUTES.some((route) => {
     if (route === pathname) return true;
@@ -139,11 +183,20 @@ function AppContent({ Component, pageProps }) {
   const isAdminRoute = router.pathname.startsWith('/admin');
   const hideLayout = NO_LAYOUT_PAGES.includes(router.pathname) || isAdminRoute;
   const isCurrentPagePublic = isPublicRoute(router.pathname);
+
   const showAdvertisements =
     isCurrentPagePublic &&
     !hideLayout &&
     !isAdminRoute &&
-    router.pathname !== '/ads/[id]';
+    router.pathname !== '/ads/[id]' &&
+    !shouldHideSponsoredBanner(router.pathname);
+
+  /* ----------------------------------------------------------
+   * Header offset — applied to a wrapper around the banner
+   * AND the page content, so both clear the fixed header.
+   * ---------------------------------------------------------- */
+  const needsHeaderOffset =
+    !hideLayout && !PAGES_WITH_OWN_HEADER_OFFSET.includes(router.pathname);
 
   const getLayout = Component.getLayout || ((page) => page);
 
@@ -221,9 +274,8 @@ function AppContent({ Component, pageProps }) {
   }, [isSignedIn, isSynced, profileData, isCurrentPagePublic, router, user]);
 
   /**
-   * Render the current page inside the appropriate wrapper:
-   *   - /admin/* → AdminLayout (with its own sidebar + main)
-   *   - everything else → plain <main>
+   * Render the page content only — the wrapper handles the
+   * fixed-header offset for both the banner and the page.
    */
   const renderPage = () => {
     const page = <Component {...pageProps} />;
@@ -265,6 +317,18 @@ function AppContent({ Component, pageProps }) {
     );
   }
 
+  /* ----------------------------------------------------------
+   * Public page branch — the wrapper handles the header offset
+   * for both the sponsored banner and the page content, so the
+   * banner no longer sits behind the fixed header.
+   * ---------------------------------------------------------- */
+  const renderPublicContent = () => (
+    <div className={needsHeaderOffset ? HEADER_HEIGHT_CLASS : ''}>
+      {showAdvertisements && <SponsoredAdBanner compact />}
+      {renderPage()}
+    </div>
+  );
+
   // Default layout
   return (
     <>
@@ -275,10 +339,9 @@ function AppContent({ Component, pageProps }) {
       <SiteProtection />
       <Toaster position="top-center" />
       {!hideLayout && <Header />}
-      {showAdvertisements && <SponsoredAdBanner compact />}
 
       {isCurrentPagePublic ? (
-        renderPage()
+        renderPublicContent()
       ) : (
         <>
           {isSignedIn ? (
@@ -313,7 +376,11 @@ function AppContent({ Component, pageProps }) {
                       );
                     }
 
-                    return renderPage();
+                    return (
+                      <div className={needsHeaderOffset ? HEADER_HEIGHT_CLASS : ''}>
+                        {renderPage()}
+                      </div>
+                    );
                   })()}
                 </SignedIn>
               )}

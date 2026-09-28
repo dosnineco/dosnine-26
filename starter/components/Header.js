@@ -1,252 +1,292 @@
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
-import { UserButton, useUser, SignInButton, SignUpButton } from '@clerk/nextjs';
-import { FiHome, FiGrid, FiPlusCircle, FiMenu, FiSettings, FiUser } from 'react-icons/fi';
-import { useState, useEffect } from 'react';
-import axios from 'axios';
+import { useUser, UserButton } from '@clerk/clerk-react';
+import {
+  Menu,
+  X,
+  Home,
+  Building2,
+  Search,
+  User,
+  LogIn,
+  LayoutDashboard,
+} from 'lucide-react';
+
+/* Routes where the header should be transparent over a dark hero */
+const TRANSPARENT_HEADER_ROUTES = ['/'];
 
 export default function Header() {
   const router = useRouter();
-  const { isSignedIn, user } = useUser();
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [isVerifiedAgent, setIsVerifiedAgent] = useState(false);
-  const [isIdentityVerified, setIsIdentityVerified] = useState(false);
+  const { isSignedIn } = useUser();
 
-  const [isAgent, setIsAgent] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
 
+  const isTransparentEligible = TRANSPARENT_HEADER_ROUTES.includes(
+    router.pathname
+  );
+  const isTransparent = isTransparentEligible && !scrolled && !mobileOpen;
+
+  /* ----------------------------------------------------------
+   * Scroll listener
+   * ---------------------------------------------------------- */
   useEffect(() => {
-    const checkAdmin = async () => {
-      if (!user) {
-        setIsAdmin(false);
-        setIsAgent(false);
-        setIsVerifiedAgent(false);
-        return;
-      }
+    const onScroll = () => setScrolled(window.scrollY > 40);
+    onScroll();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
 
-      try {
-        const { data } = await axios.get('/api/user/profile');
-        const agent = data?.agent;
+  /* Close the mobile menu on navigation */
+  useEffect(() => {
+    setMobileOpen(false);
+  }, [router.pathname]);
 
-        setIsAdmin(data?.role === 'admin');
-        setIsAgent(Boolean(agent));
-        setIsIdentityVerified(Boolean(data?.identity_verified || data?.id_verification_status === 'approved' || data?.account_status === 'active'));
-        setIsVerifiedAgent(
-          agent?.verification_status === 'approved' &&
-          ['free', '7-day', '30-day', '90-day'].includes(agent?.payment_status)
-        );
-      } catch (error) {
-        console.error('Header profile check failed:', error);
-        setIsAdmin(false);
-        setIsAgent(false);
-        setIsVerifiedAgent(false);
-      }
+  /* Lock body scroll while the drawer is open */
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    document.body.style.overflow = mobileOpen ? 'hidden' : '';
+    return () => {
+      document.body.style.overflow = '';
     };
-    checkAdmin();
-  }, [user]);
+  }, [mobileOpen]);
+
+  const navItems = [
+    { href: '/listing', label: 'Properties', icon: Building2 },
+    { href: '/request', label: 'Requests', icon: Search },
+    { href: '/agent/signup', label: 'Become an Agent', icon: Home },
+    { href: '/advertise', label: 'Advertise', icon: User },
+  ];
+
+  /* ----------------------------------------------------------
+   * Style tokens — flip based on isTransparent
+   * ---------------------------------------------------------- */
+  const shellClasses = isTransparent
+    ? 'bg-transparent'
+    : 'bg-white border-b border-gray-100';
+
+  const navLinkClasses = isTransparent
+    ? 'text-white/90 hover:text-white hover:bg-white/10'
+    : 'text-gray-700 hover:text-gray-900 hover:bg-gray-50';
+
+  const logoTextClasses = isTransparent ? 'text-white' : 'text-gray-900';
+  const logoSubClasses = isTransparent ? 'text-white/70' : 'text-gray-500';
+
+  const menuButtonClasses = isTransparent
+    ? 'bg-white/20 text-white ring-1 ring-white/40 backdrop-blur-sm hover:bg-white/30'
+    : 'bg-gray-100 text-gray-900 hover:bg-gray-200';
+
+  /* ----------------------------------------------------------
+   * Clerk UserButton appearance — adapts to transparent state
+   * ---------------------------------------------------------- */
+  const userButtonAppearance = {
+    elements: {
+      avatarBox: isTransparent
+        ? 'h-9 w-9 ring-2 ring-white/60 ring-offset-0'
+        : 'h-9 w-9 ring-2 ring-gray-200 ring-offset-0',
+      userButtonPopoverCard:
+        'rounded-xl border border-slate-200 shadow-none',
+      userButtonPopoverActionButton:
+        'text-slate-700 hover:bg-slate-100 rounded-lg',
+      userButtonPopoverFooter: 'hidden',
+    },
+  };
 
   return (
-    <header className="bg-white border-b border-gray-200 sticky top-0 z-50 ">
-      <nav className="container mx-auto px-4 py-3 flex items-center justify-between">
-        <Link href="/" className="text-xl font-bold text-gray-800 hover:text-gray-600 transition flex items-center gap-2">
-          <img src="/logo.png" alt="Dosnine" className="h-8 w-auto object-contain" />
-        </Link>
+    <>
+      <header
+        className={`fixed inset-x-0 top-0 z-40 transition-colors duration-300 ${shellClasses}`}
+      >
+        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
+          {/* ---------- Logo ---------- */}
+          <Link
+            href="/"
+            className="flex items-baseline gap-2 transition-opacity hover:opacity-90"
+          >
+            <span className={`text-lg font-bold tracking-tight ${logoTextClasses}`}>
+              Dosnine
+            </span>
+            <span
+              className={`text-[10px] font-semibold uppercase tracking-[0.22em] ${logoSubClasses}`}
+            >
+              Limited
+            </span>
+          </Link>
 
-        {/* Desktop Navigation */}
-        <div className="hidden md:flex items-center gap-3">
-          {isSignedIn ? (
-            <>
-              <Link 
-                href="/listing" 
-                className={`px-3 py-2 rounded-lg hover:bg-gray-100 transition text-sm ${router.pathname === '/listing' ? ' text-gray-900 font-medium' : 'text-gray-600 hover:bg-gray-100'}`}
+          {/* ---------- Desktop nav ---------- */}
+          <nav className="hidden items-center gap-1 lg:flex">
+            {navItems.map(({ href, label }) => (
+              <Link
+                key={href}
+                href={href}
+                className={`rounded-full px-4 py-2 text-sm font-semibold transition ${navLinkClasses}`}
               >
-                Browse Properties
+                {label}
               </Link>
-              {isVerifiedAgent ? (
-                <Link 
-                  href="/agent/dashboard" 
-                  className={`px-3 py-2 rounded-lg transition text-sm ${router.pathname === '/agent/dashboard' ? 'bg-gray-50 text-gray-900 font-medium' : 'text-gray-600 hover:bg-gray-100'}`}
+            ))}
+          </nav>
+
+          {/* ---------- Desktop auth ---------- */}
+          <div className="hidden items-center gap-2 lg:flex">
+            {isSignedIn ? (
+              <>
+                <Link
+                  href="/dashboard"
+                  className={`inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-semibold transition ${navLinkClasses}`}
                 >
+                  <LayoutDashboard size={14} />
                   Dashboard
                 </Link>
-              ) : (
-                <Link 
-                  href={isIdentityVerified ? '/agent/dashboard' : '/verify'} 
-                  className={`px-3 py-2 rounded-lg transition text-sm ${router.pathname === '/dashboard' || router.pathname === '/verify' ? 'bg-accent text-white' : 'text-gray-600 hover:bg-gray-100'}`}
+
+                <div className="ml-1">
+                  <UserButton afterSignOutUrl="/" appearance={userButtonAppearance} />
+                </div>
+              </>
+            ) : (
+              <>
+                <Link
+                  href="/sign-in"
+                  className={`inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-semibold transition ${
+                    isTransparent
+                      ? 'text-white/90 hover:bg-white/10 hover:text-white'
+                      : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
+                  }`}
                 >
-                  {isIdentityVerified ? 'Dashboard' : 'Verify ID'}
+                  <LogIn size={14} />
+                  Sign in
                 </Link>
-              )}
-              {isAdmin && (
-                <Link 
-                  href="/admin/dashboard" 
-                  className={`px-3 py-2 rounded-lg transition text-sm ${router.pathname === '/admin/dashboard' ? 'bg-gray-200 text-gray-900 font-medium' : 'text-gray-600 hover:bg-gray-100'}`}
+                <Link
+                  href="/sign-up"
+                  className="inline-flex items-center gap-1.5 rounded-full bg-accent px-4 py-2 text-sm font-semibold text-white transition hover:bg-accent/90"
                 >
-                  Admin
+                  Get started
                 </Link>
-              )}
-              <UserButton afterSignOutUrl="/" />
-            </>
-          ) : (
-            <>
-              <Link 
-                href="/listing" 
-                className={`px-3 py-2 rounded-lg transition text-sm ${router.pathname === '/' ? ' text-gray-900 font-medium' : 'text-gray-600 hover:bg-gray-100'}`}
-              >
-                Browse
-              </Link>
-              <SignInButton mode="modal">
-                <button className="px-3 py-2 rounded-lg transition text-sm text-gray-600 hover:bg-gray-100">
-                  Sign In
-                </button>
-              </SignInButton>
-              <SignUpButton mode="modal">
-                <button className="px-3 py-2 rounded-lg transition text-sm text-gray-600 hover:bg-gray-100">
-                  Sign Up
-                </button>
-              </SignUpButton>
-            </>
-          )}
+              </>
+            )}
+          </div>
+
+          {/* ---------- Mobile menu toggle ---------- */}
+          <button
+            type="button"
+            onClick={() => setMobileOpen((v) => !v)}
+            aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
+            aria-expanded={mobileOpen}
+            className={`inline-flex h-10 w-10 items-center justify-center rounded-xl transition lg:hidden ${menuButtonClasses}`}
+          >
+            {mobileOpen ? (
+              <X size={22} strokeWidth={2.5} />
+            ) : (
+              <Menu size={22} strokeWidth={2.5} />
+            )}
+          </button>
+        </div>
+      </header>
+
+      {/* ---------- Mobile drawer overlay ---------- */}
+      <div
+        onClick={() => setMobileOpen(false)}
+        className={`fixed inset-0 z-30 bg-slate-900/50 transition-opacity duration-300 lg:hidden ${
+          mobileOpen ? 'opacity-100' : 'pointer-events-none opacity-0'
+        }`}
+        aria-hidden={!mobileOpen}
+      />
+
+      {/* ---------- Mobile drawer ---------- */}
+      <aside
+        className={`fixed inset-y-0 right-0 z-40 flex w-72 max-w-[85vw] flex-col border-l border-slate-200 bg-white transition-transform duration-300 ease-out lg:hidden ${
+          mobileOpen ? 'translate-x-0' : 'translate-x-full'
+        }`}
+        aria-hidden={!mobileOpen}
+      >
+        {/* Drawer header — closes menu */}
+        <div className="flex items-center justify-between border-b border-slate-100 px-4 py-4">
+          <span className="text-sm font-semibold uppercase tracking-wider text-slate-500">
+            Menu
+          </span>
+          <button
+            type="button"
+            onClick={() => setMobileOpen(false)}
+            className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 transition hover:bg-slate-100 hover:text-slate-900"
+            aria-label="Close menu"
+          >
+            <X size={18} />
+          </button>
         </div>
 
-        {/* Mobile Menu Button - Show for all users */}
-        <button 
-          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-          className="md:hidden p-2 text-gray-600 hover:bg-gray-100 rounded-lg"
-        >
-          <FiMenu size={24} />
-        </button>
-      </nav>
-
-      {/* Mobile Menu Overlay */}
-      {mobileMenuOpen && (
-        <>
-          {/* Backdrop */}
-          <div 
-            className="fixed inset-0 bg-black bg-opacity-50 z-40 md:hidden"
-            onClick={() => setMobileMenuOpen(false)}
-          />
-          
-          {/* Menu Panel */}
-          <div className="fixed top-0 right-0 bottom-0 w-full bg-white shadow-2xl z-50 md:hidden overflow-y-auto">
-            <div className="flex flex-col h-full">
-              {/* Close Button */}
-              <div className="flex items-center justify-between p-4 border-b border-gray-200">
-                <span className="font-bold text-gray-800">Menu</span>
-                <button 
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg"
-                >
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
+        {/* Signed-in account card — avatar + info + Clerk menu */}
+        {isSignedIn && (
+          <div className="border-b border-slate-100 bg-slate-50 px-4 py-4">
+            <div className="flex items-center gap-3">
+              <UserButton
+                afterSignOutUrl="/"
+                appearance={{
+                  elements: {
+                    avatarBox: 'h-11 w-11 ring-2 ring-white ring-offset-0',
+                    userButtonPopoverCard:
+                      'rounded-xl border border-slate-200 shadow-none',
+                    userButtonPopoverActionButton:
+                      'text-slate-700 hover:bg-slate-100 rounded-lg',
+                    userButtonPopoverFooter: 'hidden',
+                  },
+                }}
+              />
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-semibold text-slate-900">
+                  Your account
+                </p>
+                <p className="truncate text-xs text-slate-500">
+                  Tap the avatar to manage
+                </p>
               </div>
-
-              {/* Menu Items */}
-              <div className="flex-1 flex flex-col p-4 gap-2">
-                <Link 
-                  href="/listing" 
-                  onClick={() => setMobileMenuOpen(false)}
-                  className={`px-4 py-3 rounded-lg font-medium ${router.pathname === '/listing' ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50'}`}
-                >
-                  Browse Properties
-                </Link>
-                
-                   <Link 
-                  href="/agent/signup" 
-                  onClick={() => setMobileMenuOpen(false)}
-                  className={`px-4 py-3 rounded-lg font-medium ${router.pathname === '/tools' ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50'}`}
-                >
-                  Become an Agent
-                </Link>
-                
-                {/* Public Links - Show for everyone */}
-                <Link 
-                  href="/properties/new" 
-                  onClick={() => setMobileMenuOpen(false)}
-                  className={`px-4 py-3 rounded-lg font-medium ${router.pathname === '/properties/new' ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50'}`}
-                >
-                  Post a Property
-                </Link>
-                
-                <Link 
-                  href="/request" 
-                  onClick={() => setMobileMenuOpen(false)}
-                  className={`px-4 py-3 rounded-lg font-medium ${router.pathname === '/request' ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50'}`}
-                >
-                  Request an Agent
-                </Link>
-
-                {/* Divider for authenticated users */}
-                {isSignedIn && (
-                  <>
-                    <div className="border-t border-gray-200 my-2"></div>
-                    
-                    {isVerifiedAgent ? (
-                      <Link 
-                        href="/agent/dashboard" 
-                        onClick={() => setMobileMenuOpen(false)}
-                        className={`px-4 py-3 rounded-lg font-medium ${router.pathname === '/agent/dashboard' ? 'bg-accent text-white' : 'text-gray-700 hover:bg-gray-50'}`}
-                      >
-                        Dashboard
-                      </Link>
-                    ) : (
-                      <Link 
-                        href={isIdentityVerified ? '/agent/dashboard' : '/verify'} 
-                        onClick={() => setMobileMenuOpen(false)}
-                        className={`px-4 py-3 rounded-lg font-medium ${router.pathname === '/dashboard' || router.pathname === '/verify' ? 'bg-accent text-white' : 'text-gray-700 hover:bg-gray-50'}`}
-                      >
-                        {isIdentityVerified ? 'Dashboard' : 'Verify ID'}
-                      </Link>
-                    )}
-                    
-                    {isAdmin && (
-                      <Link 
-                        href="/admin/dashboard" 
-                        onClick={() => setMobileMenuOpen(false)}
-                        className={`px-4 py-3 rounded-lg font-medium ${router.pathname === '/admin/dashboard' ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-50'}`}
-                      >
-                        Admin
-                      </Link>
-                    )}
-                  </>
-                )}
-              </div>
-
-              {/* User Section at Bottom */}
-              {isSignedIn ? (
-                <div className="border-t border-gray-200 p-4">
-                  <div className="flex items-center justify-center">
-                    <UserButton afterSignOutUrl="/" />
-                  </div>
-                </div>
-              ) : (
-                <div className="border-t border-gray-200 p-4">
-                  <div className="flex gap-2">
-                    <SignInButton mode="modal">
-                      <button
-                        onClick={() => setMobileMenuOpen(false)}
-                        className="w-full px-4 py-3 bg-accent text-white rounded-lg text-center font-medium hover:bg-accent/90 transition block"
-                      >
-                        Sign In
-                      </button>
-                    </SignInButton>
-                    <SignUpButton mode="modal">
-                      <button
-                        onClick={() => setMobileMenuOpen(false)}
-                        className="w-full px-4 py-3 border border-accent text-accent rounded-lg text-center font-medium hover:bg-accent/10 transition block"
-                      >
-                        Sign Up
-                      </button>
-                    </SignUpButton>
-                  </div>
-                </div>
-              )}
             </div>
           </div>
-        </>
-      )}
-    </header>
+        )}
+
+        <nav className="flex-1 overflow-y-auto px-3 py-4">
+          <ul className="space-y-1">
+            {navItems.map(({ href, label, icon: Icon }) => (
+              <li key={href}>
+                <Link
+                  href={href}
+                  className="flex items-center gap-3 rounded-lg px-3 py-3 text-sm font-medium text-slate-700 transition hover:bg-slate-100"
+                >
+                  <Icon size={16} className="shrink-0 text-slate-400" />
+                  <span className="flex-1 truncate">{label}</span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+
+          <div className="mt-4 border-t border-slate-100 pt-4">
+            {isSignedIn ? (
+              <Link
+                href="/dashboard"
+                className="flex items-center gap-3 rounded-lg px-3 py-3 text-sm font-semibold text-slate-900 transition hover:bg-slate-100"
+              >
+                <LayoutDashboard size={16} className="text-slate-400" />
+                Go to dashboard
+              </Link>
+            ) : (
+              <div className="space-y-2 px-1">
+                <Link
+                  href="/sign-in"
+                  className="flex w-full items-center justify-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                >
+                  <LogIn size={14} />
+                  Sign in
+                </Link>
+                <Link
+                  href="/sign-up"
+                  className="flex w-full items-center justify-center rounded-full bg-accent px-4 py-3 text-sm font-semibold text-white transition hover:bg-accent/90"
+                >
+                  Get started
+                </Link>
+              </div>
+            )}
+          </div>
+        </nav>
+      </aside>
+    </>
   );
 }

@@ -14,16 +14,8 @@ import Link from 'next/link';
 
 const PropertyCard = lazy(() => import('./PropertyCard'));
 
-// Fewer cards on the page — the rest live on /listing and /request
 const FEATURED_LIMIT = 8;
 const REQUEST_LIMIT = 8;
-
-const QUICK_LINKS = [
-  { href: '/listing', label: 'View Properties' },
-  { href: '/request', label: 'Submit a Request' },
-  { href: '/agent/signup', label: 'Sign up as agent' },
-  { href: '/advertise', label: 'Advertise with Us' },
-];
 
 export default function PropertyRequestsMarketplace() {
   const [requests, setRequests] = useState([]);
@@ -146,35 +138,6 @@ export default function PropertyRequestsMarketplace() {
 
   return (
     <div className="min-h-screen bg-white">
-      {/* Hero */}
-      <section className="container mx-auto px-4 pt-20 pb-12 sm:px-6 lg:px-8">
-        <div className="mx-auto max-w-3xl text-center">
-          <h1 className="text-4xl font-bold tracking-tight text-gray-900 sm:text-5xl">
-            What Clients Are Looking For
-          </h1>
-          <p className="mt-5 text-base leading-relaxed text-gray-600">
-            Browse the latest property needs shared by clients across Jamaica.
-            Find the right match and connect with clients who are ready to move.
-          </p>
-
-          <div className="mt-10 flex flex-wrap items-center justify-center gap-3">
-            {QUICK_LINKS.map(({ href, label }) => (
-              <Link
-                key={href}
-                href={href}
-                className="group inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-5 py-2.5 text-sm font-semibold text-gray-800 shadow-sm transition hover:border-gray-900 hover:bg-gray-900 hover:text-white"
-              >
-                {label}
-                <ArrowRight
-                  size={16}
-                  className="transition-transform group-hover:translate-x-0.5"
-                />
-              </Link>
-            ))}
-          </div>
-        </div>
-      </section>
-
       {/* Available Properties */}
       {!loadingFeatured && featuredProperties.length > 0 && (
         <section className="container mx-auto px-4 py-16 sm:px-6 lg:px-8">
