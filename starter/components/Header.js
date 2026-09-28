@@ -11,6 +11,7 @@ import {
   User,
   LogIn,
   LayoutDashboard,
+  ShieldCheck,
 } from 'lucide-react';
 
 /* Routes where the header should be transparent over a dark hero */
@@ -18,10 +19,11 @@ const TRANSPARENT_HEADER_ROUTES = ['/'];
 
 export default function Header() {
   const router = useRouter();
-  const { isSignedIn } = useUser();
+  const { isSignedIn, user, isLoaded } = useUser();
 
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   const isTransparentEligible = TRANSPARENT_HEADER_ROUTES.includes(
     router.pathname
@@ -52,6 +54,42 @@ export default function Header() {
     };
   }, [mobileOpen]);
 
+  /* ----------------------------------------------------------
+   * Admin role check — runs when the user signs in or changes
+   * ---------------------------------------------------------- */
+  useEffect(() => {
+    let cancelled = false;
+
+    const checkAdmin = async () => {
+      if (!isLoaded || !isSignedIn || !user) {
+        if (!cancelled) setIsAdmin(false);
+        return;
+      }
+
+      try {
+        const response = await fetch('/api/user/profile', {
+          credentials: 'include',
+        });
+        if (!response.ok) {
+          if (!cancelled) setIsAdmin(false);
+          return;
+        }
+        const profile = await response.json();
+        if (!cancelled) {
+          setIsAdmin(profile?.role === 'admin');
+        }
+      } catch {
+        if (!cancelled) setIsAdmin(false);
+      }
+    };
+
+    checkAdmin();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isLoaded, isSignedIn, user?.id]);
+
   const navItems = [
     { href: '/listing', label: 'Properties', icon: Building2 },
     { href: '/request', label: 'Requests', icon: Search },
@@ -77,6 +115,11 @@ export default function Header() {
     ? 'bg-white/20 text-white ring-1 ring-white/40 backdrop-blur-sm hover:bg-white/30'
     : 'bg-gray-100 text-gray-900 hover:bg-gray-200';
 
+  /* Admin link style — uses the accent palette to stand out */
+  const adminLinkClasses = isTransparent
+    ? 'bg-white/15 text-white ring-1 ring-white/30 backdrop-blur-sm hover:bg-white/25'
+    : 'bg-accent/10 text-accent hover:bg-accent/15';
+
   /* ----------------------------------------------------------
    * Clerk UserButton appearance — adapts to transparent state
    * ---------------------------------------------------------- */
@@ -85,8 +128,7 @@ export default function Header() {
       avatarBox: isTransparent
         ? 'h-9 w-9 ring-2 ring-white/60 ring-offset-0'
         : 'h-9 w-9 ring-2 ring-gray-200 ring-offset-0',
-      userButtonPopoverCard:
-        'rounded-xl border border-slate-200 shadow-none',
+      userButtonPopoverCard: 'rounded-xl border border-slate-200 shadow-none',
       userButtonPopoverActionButton:
         'text-slate-700 hover:bg-slate-100 rounded-lg',
       userButtonPopoverFooter: 'hidden',
@@ -131,6 +173,18 @@ export default function Header() {
           <div className="hidden items-center gap-2 lg:flex">
             {isSignedIn ? (
               <>
+                {/* Admin-only entry */}
+                {isAdmin && (
+                  <Link
+                    href="/admin"
+                    className={`inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-semibold transition ${adminLinkClasses}`}
+                    title="Admin dashboard"
+                  >
+                    <ShieldCheck size={14} />
+                    Admin
+                  </Link>
+                )}
+
                 <Link
                   href="/dashboard"
                   className={`inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-semibold transition ${navLinkClasses}`}
@@ -140,7 +194,10 @@ export default function Header() {
                 </Link>
 
                 <div className="ml-1">
-                  <UserButton afterSignOutUrl="/" appearance={userButtonAppearance} />
+                  <UserButton
+                    afterSignOutUrl="/"
+                    appearance={userButtonAppearance}
+                  />
                 </div>
               </>
             ) : (
@@ -199,7 +256,6 @@ export default function Header() {
         }`}
         aria-hidden={!mobileOpen}
       >
-        {/* Drawer header — closes menu */}
         <div className="flex items-center justify-between border-b border-slate-100 px-4 py-4">
           <span className="text-sm font-semibold uppercase tracking-wider text-slate-500">
             Menu
@@ -214,7 +270,7 @@ export default function Header() {
           </button>
         </div>
 
-        {/* Signed-in account card — avatar + info + Clerk menu */}
+        {/* Signed-in account card */}
         {isSignedIn && (
           <div className="border-b border-slate-100 bg-slate-50 px-4 py-4">
             <div className="flex items-center gap-3">
@@ -260,13 +316,30 @@ export default function Header() {
 
           <div className="mt-4 border-t border-slate-100 pt-4">
             {isSignedIn ? (
-              <Link
-                href="/dashboard"
-                className="flex items-center gap-3 rounded-lg px-3 py-3 text-sm font-semibold text-slate-900 transition hover:bg-slate-100"
-              >
-                <LayoutDashboard size={16} className="text-slate-400" />
-                Go to dashboard
-              </Link>
+              <ul className="space-y-1">
+                {/* Admin-only entry */}
+                {isAdmin && (
+                  <li>
+                    <Link
+                      href="/admin"
+                      className="flex items-center gap-3 rounded-lg bg-accent/10 px-3 py-3 text-sm font-semibold text-accent transition hover:bg-accent/15"
+                    >
+                      <ShieldCheck size={16} className="shrink-0" />
+                      Admin dashboard
+                    </Link>
+                  </li>
+                )}
+
+                <li>
+                  <Link
+                    href="/dashboard"
+                    className="flex items-center gap-3 rounded-lg px-3 py-3 text-sm font-semibold text-slate-900 transition hover:bg-slate-100"
+                  >
+                    <LayoutDashboard size={16} className="text-slate-400" />
+                    Go to dashboard
+                  </Link>
+                </li>
+              </ul>
             ) : (
               <div className="space-y-2 px-1">
                 <Link
