@@ -138,7 +138,188 @@ export default function PropertyRequestsMarketplace() {
 
   return (
     <div className="min-h-screen bg-white">
-      {/* Available Properties */}
+     
+
+     {/* ============================================================
+    CLIENT REQUESTS — people looking for properties
+    ============================================================ */}
+<section className="border-t border-slate-100 bg-slate-50/50">
+  <div className="container mx-auto px-4 py-16 sm:px-6 sm:py-20 lg:px-8">
+    {/* ============================================================
+        Section header — reinforces "these are people, not listings"
+        ============================================================ */}
+    <header className="mb-10 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+      <div>
+        <p className="text-xs font-semibold uppercase tracking-[0.22em] text-accent">
+          Real Requests
+        </p>
+        <h2 className="mt-2 text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">
+          People who need a property
+        </h2>
+        <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600 sm:text-base">
+          These are{' '}
+          <strong className="font-semibold text-slate-900">
+            not properties for sale
+          </strong>
+          . They are real requests from buyers and renters looking for a home.
+          Tap any request to answer it.
+        </p>
+      </div>
+      <Link
+        href="/request"
+        className="inline-flex shrink-0 items-center gap-2 self-start rounded-full bg-accent px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-accent/90 sm:self-auto"
+      >
+        Submit your request
+        <ArrowRight size={15} />
+      </Link>
+    </header>
+
+    {/* ============================================================
+        States
+        ============================================================ */}
+    {loading ? (
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div
+            key={i}
+            className="h-64 animate-pulse rounded-2xl border border-slate-100 bg-white"
+          />
+        ))}
+      </div>
+    ) : requests.length === 0 ? (
+      <div className="rounded-2xl border border-dashed border-slate-200 bg-white py-16 text-center">
+        <p className="text-sm font-semibold text-slate-700">
+          Nobody is looking right now
+        </p>
+        <p className="mt-1 text-sm text-slate-500">
+          Be the first to post what you need — agents will reach out.
+        </p>
+        <Link
+          href="/request"
+          className="mt-6 inline-flex items-center gap-2 rounded-full bg-accent px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-accent/90"
+        >
+          Submit your request
+          <ArrowRight size={15} />
+        </Link>
+      </div>
+    ) : (
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        {requests.map((request) => {
+          const urgencyBadge = getUrgencyBadge(request.created_at);
+          const isBuy = request.request_type === 'buy';
+          const bedrooms = formatBedrooms(request.bedrooms);
+          const propertyType =
+            request.property_type?.replace('_', ' ') || 'property';
+
+          /* Headline written as a sentence about a person */
+          const headline =
+            bedrooms === 'Flexible'
+              ? `Looking for a ${propertyType}`
+              : `Looking for a ${bedrooms}-bedroom ${propertyType}`;
+
+          /* Location written as "in <place>" */
+          const locationText = formatLocation(
+            request.location,
+            request.area,
+            request.parish
+          );
+
+          /* Optional first name if the API returns it */
+          const firstName = request.client_name
+            ? String(request.client_name).trim().split(' ')[0]
+            : null;
+
+          return (
+            <Link
+              key={`${request.type}-${request.id}`}
+              href="/request"
+              aria-label={`${firstName || 'Someone'} is looking for a property. Tap to answer.`}
+              className="group block h-full rounded-2xl focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
+            >
+              <article className="flex h-full flex-col rounded-2xl border border-slate-200 bg-white p-5 transition duration-200 group-hover:-translate-y-1 group-hover:border-accent/40">
+                {/* ============================================================
+                    TOP — Person + "Looking for" tag
+                    ============================================================ */}
+                <div className="flex items-center gap-3">
+                  {/* Avatar circle — reads as a person, not a property */}
+                  <span
+                    className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white ${
+                      isBuy ? 'bg-blue-500' : 'bg-violet-500'
+                    }`}
+                    aria-hidden="true"
+                  >
+                    {firstName ? firstName.slice(0, 1).toUpperCase() : 'DLtd'}
+                  </span>
+
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-semibold text-slate-900">
+                      {firstName || 'A verified client'}
+                    </p>
+                    <p className="text-[11px] font-medium uppercase tracking-wider text-slate-500">
+                      {isBuy ? 'Buyer' : 'Renter'}
+                    </p>
+                  </div>
+
+                  {urgencyBadge && (
+                    <span className="shrink-0 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-emerald-700">
+                      {urgencyBadge}
+                    </span>
+                  )}
+                </div>
+
+                {/* ============================================================
+                    HEADLINE — "Looking for a 3-bedroom house"
+                    ============================================================ */}
+                <h3 className="mt-4 text-base font-bold leading-snug text-slate-900">
+                  {headline}
+                </h3>
+
+                {/* Location sentence */}
+                <p className="mt-1.5 flex items-start gap-1.5 text-sm leading-snug text-slate-600">
+                  <MapPin
+                    size={14}
+                    className="mt-0.5 shrink-0 text-slate-400"
+                  />
+                  <span className="line-clamp-2">in {locationText}</span>
+                </p>
+
+                {/* ============================================================
+                    BUDGET — labeled as "Their budget" (possessive)
+                    ============================================================ */}
+                <div className="mt-4 rounded-xl border border-slate-100 bg-slate-50 px-3 py-2.5">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+                    Their budget
+                  </p>
+                  <p className="mt-0.5 truncate text-sm font-bold text-slate-900">
+                    {formatBudget(request.budget_min, request.budget_max)}
+                  </p>
+                </div>
+
+               
+              </article>
+            </Link>
+          );
+        })}
+      </div>
+    )}
+
+    {/* Footer CTA */}
+    <div className="mt-10 flex justify-center">
+      <Link
+        href="/request"
+        className="group inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-6 py-3 text-sm font-semibold text-slate-800 transition hover:border-slate-900 hover:bg-slate-900 hover:text-white"
+      >
+        Post what you are looking for
+        <ArrowRight
+          size={15}
+          className="transition-transform group-hover:translate-x-0.5"
+        />
+      </Link>
+    </div>
+  </div>
+</section>
+
+ {/* Available Properties */}
       {!loadingFeatured && featuredProperties.length > 0 && (
         <section className="container mx-auto px-4 py-16 sm:px-6 lg:px-8">
           <header className="mb-10 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
@@ -195,122 +376,6 @@ export default function PropertyRequestsMarketplace() {
           </div>
         </section>
       )}
-
-      {/* Client Requests */}
-      <section className="container mx-auto px-4 py-16 sm:px-6 lg:px-8">
-        <header className="mb-10 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <h2 className="text-3xl font-bold tracking-tight text-gray-900">
-              Tell Us Your Needs Too
-            </h2>
-            <p className="mt-2 text-sm text-gray-600">
-              Live demand from buyers and renters across the island. Submit your
-              own request to reach agents directly.
-            </p>
-          </div>
-          <Link
-            href="/request"
-            className="inline-flex items-center gap-2 self-start rounded-full bg-accent px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-gray-800 sm:self-auto"
-          >
-            Submit a request
-            <ArrowRight size={16} />
-          </Link>
-        </header>
-
-        {loading ? (
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <div
-                key={i}
-                className="h-48 animate-pulse rounded-2xl border border-gray-100 bg-gray-50"
-              />
-            ))}
-          </div>
-        ) : requests.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-gray-200 py-16 text-center">
-            <p className="text-gray-600">No requests available right now.</p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {requests.map((request) => {
-              const urgencyBadge = getUrgencyBadge(request.created_at);
-              return (
-                <Link
-                  key={`${request.type}-${request.id}`}
-                  href="/request"
-                  className="group block h-full rounded-2xl focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
-                  aria-label="Go to the request page to submit your own property request"
-                >
-                  <article className="flex h-full flex-col rounded-2xl border border-gray-200 bg-white p-6 shadow-sm transition group-hover:-translate-y-1 group-hover:border-gray-300 group-hover:shadow-md">
-                    <div className="flex items-start justify-between gap-3">
-                      <h3 className="flex items-center gap-2 text-base font-semibold leading-snug text-gray-900">
-                        {renderRequestIcon(request.request_type)}
-                        <span>{renderRequestTitle(request)}</span>
-                      </h3>
-                      {urgencyBadge && (
-                        <span className="shrink-0 rounded-full bg-accent px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-white">
-                          {urgencyBadge}
-                        </span>
-                      )}
-                    </div>
-
-                    <p className="mt-2 flex items-center gap-1.5 text-xs font-medium text-gray-500">
-                      <CheckCircle size={12} className="text-green-600" />
-                      Verified{' '}
-                      {request.request_type === 'buy' ? 'buyer' : 'renter'}
-                    </p>
-
-                    <div className="mt-5 flex items-start gap-3">
-                      <MapPin
-                        className="mt-0.5 flex-shrink-0 text-red-500"
-                        size={16}
-                      />
-                      <p className="text-sm font-medium leading-relaxed text-gray-700">
-                        {formatLocation(
-                          request.location,
-                          request.area,
-                          request.parish
-                        )}
-                      </p>
-                    </div>
-
-                    <div className="mt-3 flex flex-1 items-start gap-3">
-                      <DollarSign
-                        className="mt-0.5 flex-shrink-0 text-gray-600"
-                        size={16}
-                      />
-                      <p className="text-sm font-medium text-gray-700">
-                        {formatBudget(request.budget_min, request.budget_max)}
-                      </p>
-                    </div>
-
-                    <div className="mt-5 flex items-center gap-1.5 text-xs font-semibold text-accent">
-                      Submit your request
-                      <ArrowRight
-                        size={14}
-                        className="transition-transform group-hover:translate-x-0.5"
-                      />
-                    </div>
-                  </article>
-                </Link>
-              );
-            })}
-          </div>
-        )}
-
-        <div className="mt-10 flex justify-center">
-          <Link
-            href="/request"
-            className="group inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-6 py-3 text-sm font-semibold text-gray-800 shadow-sm transition hover:border-gray-900 hover:bg-gray-900 hover:text-white"
-          >
-            Request a property
-            <ArrowRight
-              size={16}
-              className="transition-transform group-hover:translate-x-0.5"
-            />
-          </Link>
-        </div>
-      </section>
 
       <RequestAgentPopup
         isOpen={showPopup}

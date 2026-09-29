@@ -1,7 +1,12 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
-import { useUser, UserButton } from '@clerk/clerk-react';
+import {
+  useUser,
+  UserButton,
+  SignInButton,
+  SignUpButton,
+} from '@clerk/clerk-react';
 import {
   Menu,
   X,
@@ -11,7 +16,6 @@ import {
   User,
   LogIn,
   LayoutDashboard,
-  ShieldCheck,
 } from 'lucide-react';
 
 /* Routes where the header should be transparent over a dark hero */
@@ -55,7 +59,7 @@ export default function Header() {
   }, [mobileOpen]);
 
   /* ----------------------------------------------------------
-   * Admin role check — runs when the user signs in or changes
+   * Admin role check
    * ---------------------------------------------------------- */
   useEffect(() => {
     let cancelled = false;
@@ -98,7 +102,7 @@ export default function Header() {
   ];
 
   /* ----------------------------------------------------------
-   * Style tokens — flip based on isTransparent
+   * Style tokens
    * ---------------------------------------------------------- */
   const shellClasses = isTransparent
     ? 'bg-transparent'
@@ -115,13 +119,16 @@ export default function Header() {
     ? 'bg-white/20 text-white ring-1 ring-white/40 backdrop-blur-sm hover:bg-white/30'
     : 'bg-gray-100 text-gray-900 hover:bg-gray-200';
 
-  /* Admin link style — uses the accent palette to stand out */
   const adminLinkClasses = isTransparent
     ? 'bg-white/15 text-white ring-1 ring-white/30 backdrop-blur-sm hover:bg-white/25'
     : 'bg-accent/10 text-accent hover:bg-accent/15';
 
+  const signInButtonClasses = isTransparent
+    ? 'text-white/90 hover:bg-white/10 hover:text-white'
+    : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900';
+
   /* ----------------------------------------------------------
-   * Clerk UserButton appearance — adapts to transparent state
+   * Clerk UserButton appearance
    * ---------------------------------------------------------- */
   const userButtonAppearance = {
     elements: {
@@ -173,14 +180,12 @@ export default function Header() {
           <div className="hidden items-center gap-2 lg:flex">
             {isSignedIn ? (
               <>
-                {/* Admin-only entry */}
                 {isAdmin && (
                   <Link
                     href="/admin"
                     className={`inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-semibold transition ${adminLinkClasses}`}
                     title="Admin dashboard"
                   >
-                    <ShieldCheck size={14} />
                     Admin
                   </Link>
                 )}
@@ -202,23 +207,26 @@ export default function Header() {
               </>
             ) : (
               <>
-                <Link
-                  href="/sign-in"
-                  className={`inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-semibold transition ${
-                    isTransparent
-                      ? 'text-white/90 hover:bg-white/10 hover:text-white'
-                      : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
-                  }`}
-                >
-                  <LogIn size={14} />
-                  Sign in
-                </Link>
-                <Link
-                  href="/sign-up"
-                  className="inline-flex items-center gap-1.5 rounded-full bg-accent px-4 py-2 text-sm font-semibold text-white transition hover:bg-accent/90"
-                >
-                  Get started
-                </Link>
+                {/* Sign in — opens Clerk modal */}
+                <SignInButton mode="modal">
+                  <button
+                    type="button"
+                    className={`inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-semibold transition ${signInButtonClasses}`}
+                  >
+                    <LogIn size={14} />
+                    Sign in
+                  </button>
+                </SignInButton>
+
+                {/* Sign up — opens Clerk modal */}
+                <SignUpButton mode="modal">
+                  <button
+                    type="button"
+                    className="inline-flex items-center gap-1.5 rounded-full bg-accent px-4 py-2 text-sm font-semibold text-white transition hover:bg-accent/90"
+                  >
+                    Get started
+                  </button>
+                </SignUpButton>
               </>
             )}
           </div>
@@ -317,14 +325,12 @@ export default function Header() {
           <div className="mt-4 border-t border-slate-100 pt-4">
             {isSignedIn ? (
               <ul className="space-y-1">
-                {/* Admin-only entry */}
                 {isAdmin && (
                   <li>
                     <Link
                       href="/admin"
                       className="flex items-center gap-3 rounded-lg bg-accent/10 px-3 py-3 text-sm font-semibold text-accent transition hover:bg-accent/15"
                     >
-                      <ShieldCheck size={16} className="shrink-0" />
                       Admin dashboard
                     </Link>
                   </li>
@@ -342,19 +348,26 @@ export default function Header() {
               </ul>
             ) : (
               <div className="space-y-2 px-1">
-                <Link
-                  href="/sign-in"
-                  className="flex w-full items-center justify-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
-                >
-                  <LogIn size={14} />
-                  Sign in
-                </Link>
-                <Link
-                  href="/sign-up"
-                  className="flex w-full items-center justify-center rounded-full bg-accent px-4 py-3 text-sm font-semibold text-white transition hover:bg-accent/90"
-                >
-                  Get started
-                </Link>
+                {/* Sign in — opens Clerk modal */}
+                <SignInButton mode="modal">
+                  <button
+                    type="button"
+                    className="flex w-full items-center justify-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                  >
+                    <LogIn size={14} />
+                    Sign in
+                  </button>
+                </SignInButton>
+
+                {/* Sign up — opens Clerk modal */}
+                <SignUpButton mode="modal">
+                  <button
+                    type="button"
+                    className="flex w-full items-center justify-center rounded-full bg-accent px-4 py-3 text-sm font-semibold text-white transition hover:bg-accent/90"
+                  >
+                    Get started
+                  </button>
+                </SignUpButton>
               </div>
             )}
           </div>

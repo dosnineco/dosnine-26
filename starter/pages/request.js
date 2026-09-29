@@ -337,7 +337,7 @@ export default function RequestAgentPage() {
 
         {/* Header */}
         <div className="bg-accent p-10 text-white">
-          <h1 className="text-3xl font-bold mb-2">Connect with an Agent</h1>
+          <h1 className="text-3xl font-bold mb-2">What are you looking for?</h1>
           <p className="opacity-90 mb-6">
             Get matched with verified real estate professionals
           </p>
