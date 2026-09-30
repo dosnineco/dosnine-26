@@ -201,7 +201,6 @@ export default function AdminLayout({ children }) {
       label: 'Market Intelligence',
       icon: FiTrendingUp,
     },
-    { href: '/admin/investors', label: 'Investors', icon: FiDollarSign },
     { href: '/admin/users', label: 'Users', icon: FiUsers },
     { href: '/admin/properties', label: 'Properties', icon: FiUsers },
     { href: '/admin/api-smoke', label: 'API Smoke', icon: FiGrid },

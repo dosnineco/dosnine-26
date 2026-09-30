@@ -18,25 +18,7 @@ import VisitorEmailPopup from '../components/VisitorEmailPopup';
 const HERO_IMAGE =
   'https://etikxypnxjsonefwnzkr.supabase.co/storage/v1/object/public/property-images/hero.jpg';
 
-const HERO_STATS = [
-  { value: '500+', label: 'Active requests', icon: Search },
-  { value: '200+', label: 'Verified agents', icon: Users },
-  { value: '57K', label: 'Monthly visitors', icon: TrendingUp },
-];
 
-const INVEST_STATS = [
-  { value: '2–6%', label: 'Annual returns', icon: TrendingUp },
-  { value: 'Annual', label: 'Payout schedule', icon: Clock },
-  { value: 'Secured', label: 'By property title', icon: ShieldCheck },
-  { value: '48 hrs', label: 'Response time', icon: Building2 },
-];
-
-const INVEST_TRUST = [
-  'Reviewed by independent legal counsel',
-  'Secured against property title',
-  'Transparent quarterly reporting',
-  'Contracted in writing before funds deploy',
-];
 
 export default function PropertyRequestsPage() {
   return (
@@ -157,119 +139,6 @@ export default function PropertyRequestsPage() {
           ============================================================ */}
       <PropertyRequestsMarketplace />
 
-      {/* ============================================================
-          INVEST CTA
-          ============================================================ */}
-      <section className="relative overflow-hidden bg-slate-900 py-20 text-white sm:py-28">
-        {/* Accent glow */}
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute left-1/2 -top-40 h-[420px] w-[min(820px,100%)] -translate-x-1/2 rounded-full bg-accent/10 blur-3xl"
-        />
-
-        {/* Subtle grid texture */}
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-0 opacity-[0.04]"
-          style={{
-            backgroundImage:
-              'linear-gradient(to right, white 1px, transparent 1px), linear-gradient(to bottom, white 1px, transparent 1px)',
-            backgroundSize: '64px 64px',
-          }}
-        />
-
-        <div className="relative mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
-          {/* Eyebrow */}
-          <div className="flex items-center gap-3 text-xs font-semibold uppercase tracking-[0.22em] text-accent">
-            <span className="h-px w-8 bg-accent" />
-            Invest in Dosnine Limited
-          </div>
-
-          {/* Headline + supporting copy */}
-          <div className="mt-6 grid gap-6 lg:grid-cols-12 lg:items-end lg:gap-12">
-            <div className="lg:col-span-7">
-              <h2 className="text-3xl font-bold leading-[1.05] tracking-tight text-white sm:text-5xl lg:text-6xl">
-                Own a piece of
-                <br className="hidden sm:block" /> Jamaica&apos;s{' '}
-                <span className="text-accent">rental growth.</span>
-              </h2>
-            </div>
-            <div className="lg:col-span-5 lg:pb-2">
-              <p className="text-base leading-7 text-slate-300 sm:text-lg">
-                Fund property purchases and rental construction with Dosnine
-                Limited. Secured placements, returns from 2% to 6%, fully
-                contracted and reviewed by independent counsel.
-              </p>
-            </div>
-          </div>
-
-          {/* Stats bar */}
-          <div className="mt-12 grid grid-cols-2 gap-px overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03] lg:grid-cols-4">
-            {INVEST_STATS.map(({ value, label, icon: Icon }) => (
-              <div
-                key={label}
-                className="border-b border-white/10 bg-slate-900/40 p-5 last:border-b-0 sm:p-6 lg:border-b-0 lg:border-r lg:last:border-r-0"
-              >
-                <div className="flex items-center justify-between gap-2">
-                  <p className="text-2xl font-bold tracking-tight text-white sm:text-4xl">
-                    {value}
-                  </p>
-                  <Icon
-                    size={18}
-                    strokeWidth={1.5}
-                    className="shrink-0 text-accent"
-                  />
-                </div>
-                <p className="mt-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400 sm:text-[11px]">
-                  {label}
-                </p>
-              </div>
-            ))}
-          </div>
-
-          {/* Trust checklist */}
-          <ul className="mt-8 grid gap-2.5 sm:grid-cols-2">
-            {INVEST_TRUST.map((item) => (
-              <li
-                key={item}
-                className="flex items-start gap-2.5 text-sm text-slate-300"
-              >
-                <Check
-                  size={15}
-                  strokeWidth={2.5}
-                  className="mt-0.5 shrink-0 text-accent"
-                />
-                <span>{item}</span>
-              </li>
-            ))}
-          </ul>
-
-          {/* CTA row */}
-          <div className="mt-10 flex flex-col gap-4 sm:flex-row sm:items-center sm:gap-5">
-            <Link
-              href="/invest"
-              className="group inline-flex items-center justify-center gap-2 rounded-full bg-accent px-7 py-3.5 text-sm font-semibold text-white transition hover:bg-accent/90"
-            >
-              Show my interest
-              <ArrowRight
-                size={16}
-                className="transition-transform group-hover:translate-x-0.5"
-              />
-            </Link>
-
-            <Link
-              href="/invest#how"
-              className="inline-flex items-center justify-center gap-2 rounded-full border border-white/20 bg-transparent px-7 py-3.5 text-sm font-semibold text-white transition hover:border-white/40 hover:bg-white/5"
-            >
-              How it works
-            </Link>
-
-            <p className="text-xs text-slate-400 sm:ml-2">
-              No obligation · 48-hour response · Confidential
-            </p>
-          </div>
-        </div>
-      </section>
     </>
   );
 }

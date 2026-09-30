@@ -5,7 +5,6 @@ import Link from 'next/link';
 import { SignInButton, SignUpButton, useAuth, useUser } from '@clerk/nextjs';
 import {
   ArrowRight,
-  BadgeCheck,
   Check,
   CheckCircle2,
   Copy,
@@ -27,7 +26,6 @@ const plans = [
     price: 17999,
     badge: 'Most Popular',
     popular: true,
-    gumroadUrl: 'https://dosnine.gumroad.com/l/ad-professional-14day',
   },
   {
     id: '30-day',
@@ -35,7 +33,6 @@ const plans = [
     duration: '30 Days',
     price: 52499,
     badge: 'Elite',
-    gumroadUrl: 'https://dosnine.gumroad.com/l/ad-elite-30day',
   },
 ];
 
@@ -43,8 +40,9 @@ const bankDetails = [
   {
     bank: 'Scotiabank Jamaica',
     accountName: 'Tahjay Thompson',
+    accountType: 'Savings',
     accountNumber: '010860258',
-    branch: '50575',
+    branch: 'University (50575)',
   },
 ];
 
@@ -78,7 +76,7 @@ const SPOTS_LEFT = 4;
 const SPOTS_TOTAL = 20;
 
 const STORAGE_KEY = 'dosnine:ad-submission';
-const STORAGE_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
+const STORAGE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
 const normalizeWebsite = (value) => {
   const trimmed = String(value || '').trim();
@@ -134,7 +132,11 @@ const clearPersistedSubmission = () => {
 
 /* -------------------- Image processing -------------------- */
 
-const cropAndCompressAdImage = async (file, outputSize = 1200, maxBytes = MAX_IMAGE_SIZE_KB * 1024) => {
+const cropAndCompressAdImage = async (
+  file,
+  outputSize = 1200,
+  maxBytes = MAX_IMAGE_SIZE_KB * 1024
+) => {
   const image = await new Promise((resolve, reject) => {
     const objectUrl = URL.createObjectURL(file);
     const img = new Image();
@@ -213,8 +215,6 @@ export default function AdvertisePage() {
   const [fieldErrors, setFieldErrors] = useState({});
   const [imageFiles, setImageFiles] = useState([]);
   const [imagePreviews, setImagePreviews] = useState([]);
-  const [paymentMethod, setPaymentMethod] = useState('gumroad');
-  const [paidSuccess, setPaidSuccess] = useState(false);
   const [restoredFromStorage, setRestoredFromStorage] = useState(false);
   const [form, setForm] = useState({
     company_name: '',
@@ -238,12 +238,8 @@ export default function AdvertisePage() {
   );
 
   const totalAmount = selectedPlan.price;
-  const emailForNote = (form.email || 'YOUR_EMAIL').trim();
   const whatsappText = encodeURIComponent(
-    `Hello Dosnine Team, I submitted an ad request (${selectedPlan.name}). Amount sent: ${formatMoney(totalAmount)}. Submission: ${submissionId || 'pending'}. I am sending payment proof now.`
-  );
-  const gumroadWhatsappText = encodeURIComponent(
-    `Hello Dosnine Team, I just paid for the ${selectedPlan.name} ad plan (${selectedPlan.duration}) via Gumroad. Email: ${emailForNote}. Amount: ${formatMoney(totalAmount)}. Submission: ${submissionId || 'pending'}. Please review and publish my ad.`
+    `Hello Dosnine Team, I just sent payment for the ${selectedPlan.name} ad plan (${selectedPlan.duration}). Amount: ${formatMoney(totalAmount)}. Submission: ${submissionId || 'pending'}. Sending proof now so you can review and publish my ad.`
   );
 
   /* -------------------- Restore on mount -------------------- */
@@ -258,19 +254,6 @@ export default function AdvertisePage() {
       setRestoredFromStorage(true);
       toast.success('Welcome back — pick up where you left off.');
     }
-  }, []);
-
-  /* -------------------- Gumroad in-page overlay -------------------- */
-  useEffect(() => {
-    const handleMessage = (event) => {
-      if (event?.data === 'purchase') {
-        setPaidSuccess(true);
-        clearPersistedSubmission();
-        toast.success('Payment received — we will confirm your ad shortly.');
-      }
-    };
-    window.addEventListener('message', handleMessage);
-    return () => window.removeEventListener('message', handleMessage);
   }, []);
 
   useEffect(() => {
@@ -322,7 +305,6 @@ export default function AdvertisePage() {
     clearPersistedSubmission();
     setSubmissionId('');
     setStep(1);
-    setPaidSuccess(false);
     setRestoredFromStorage(false);
     setForm((prev) => ({
       ...prev,
@@ -441,7 +423,7 @@ export default function AdvertisePage() {
 
       setStep(2);
       window.scrollTo({ top: 0, behavior: 'smooth' });
-      toast.success('Ad request submitted. Complete payment to activate.');
+      toast.success('Ad request submitted. Complete your bank transfer to activate.');
     } catch (error) {
       const message = error?.message || 'Unable to submit ad request.';
       setSubmitError(message);
@@ -460,44 +442,37 @@ export default function AdvertisePage() {
           name="description"
           content="Advertise your business to active property buyers, renters, investors and homeowners across Jamaica."
         />
-        <script src="https://gumroad.com/js/gumroad.js" defer />
       </Head>
 
       <div className="min-h-screen bg-white">
         {step === 2 ? (
-          /* ---------- PAYMENT STEP ---------- */
-          <div className="mx-auto max-w-5xl px-4 py-12 sm:px-6 sm:py-16 lg:px-8">
-            <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+          /* ---------- PAYMENT STEP — single column ---------- */
+          <div className="mx-auto max-w-3xl px-4 py-12 sm:px-6 sm:py-16 lg:px-8">
+            <div className="overflow-hidden  bg-white shadow-sm">
               {/* Hero banner */}
               <div className="bg-gradient-to-br from-emerald-600 via-emerald-600 to-teal-600 p-6 sm:p-8 lg:p-10">
                 <div className="flex items-start gap-4">
                   <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-white/15 backdrop-blur">
-                    {paidSuccess ? (
-                      <CheckCircle2 className="h-6 w-6 text-white" />
-                    ) : (
-                      <ShieldCheck className="h-6 w-6 text-white" />
-                    )}
+                    <ShieldCheck className="h-6 w-6 text-white" />
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-emerald-100">
-                      {paidSuccess ? 'Payment received' : 'Secure payment'}
+                      Complete payment
                     </p>
                     <h1 className="mt-2 text-2xl font-semibold leading-tight text-white sm:text-3xl">
-                      {paidSuccess
-                        ? 'Thanks — we are setting up your profile'
-                        : 'Complete payment to activate your ad'}
+                      Send your bank transfer to activate your ad
                     </h1>
                     <p className="mt-2 max-w-2xl text-sm leading-6 text-emerald-50">
-                      {paidSuccess
-                        ? 'Your payment went through. We are creating your Dosnine business profile and will email your login details shortly.'
-                        : 'Your ad request has been received. Pay online with card, PayPal, or Apple Pay — your ad goes live once payment is confirmed.'}
+                      Your ad request has been received. Transfer the amount below,
+                      then forward your receipt on WhatsApp — your ad goes live once
+                      payment is confirmed.
                     </p>
                   </div>
                 </div>
               </div>
 
               {/* Restored-from-storage notice */}
-              {restoredFromStorage && !paidSuccess ? (
+              {restoredFromStorage ? (
                 <div className="border-b border-amber-100 bg-amber-50 px-6 py-4 sm:px-8 lg:px-10">
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <p className="flex items-start gap-2 text-sm text-amber-900">
@@ -516,228 +491,142 @@ export default function AdvertisePage() {
               ) : null}
 
               {/* Body */}
-              <div className="p-6 sm:p-8 lg:p-10">
-                <div className="grid grid-cols-1 gap-8 lg:grid-cols-[1fr_340px]">
-                  {/* LEFT: plan + payment */}
-                  <div className="min-w-0 space-y-6">
-                    {/* Plan summary */}
-                    <div>
-                      <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400">
-                        Your selected plan
-                      </h2>
-                      <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-5">
-                        <div className="flex flex-wrap items-start justify-between gap-4">
-                          <div className="min-w-0">
-                            <p className="text-xl font-semibold text-slate-900">
-                              {selectedPlan.name}
-                            </p>
-                            <p className="mt-1 text-sm text-slate-600">
-                              {selectedPlan.duration} of premium placement
-                            </p>
-                          </div>
-                          <div className="text-right">
-                            <p className="text-2xl font-semibold tracking-tight text-slate-900">
-                              {formatMoney(totalAmount)}
-                            </p>
-                            <p className="mt-1 text-xs text-slate-500">One-time payment</p>
-                          </div>
-                        </div>
-
-                        <div className="mt-4 flex items-center justify-between gap-3 border-t border-slate-200 pt-3">
-                          <span className="text-xs font-medium uppercase tracking-wider text-slate-500">
-                            Submission ID
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => copyToClipboard(submissionId || '', 'submission-id')}
-                            className="inline-flex max-w-[60%] items-center gap-1.5 truncate font-mono text-xs font-semibold text-slate-900 transition hover:text-accent"
-                            disabled={!submissionId}
-                          >
-                            <span className="truncate">{submissionId || 'Pending'}</span>
-                            {submissionId ? (
-                              copied === 'submission-id' ? (
-                                <Check size={12} className="shrink-0" />
-                              ) : (
-                                <Copy size={12} className="shrink-0" />
-                              )
-                            ) : null}
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Payment method tabs */}
-                    {!paidSuccess ? (
-                      <div className="flex rounded-full bg-slate-100 p-1" role="group">
-                        <button
-                          type="button"
-                          onClick={() => setPaymentMethod('gumroad')}
-                          aria-pressed={paymentMethod === 'gumroad'}
-                          className={`flex-1 rounded-full px-4 py-2.5 text-sm font-semibold transition ${
-                            paymentMethod === 'gumroad'
-                              ? 'bg-white text-slate-900 shadow-sm'
-                              : 'text-slate-500 hover:text-slate-700'
-                          }`}
-                        >
-                          Pay Online
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setPaymentMethod('bank')}
-                          aria-pressed={paymentMethod === 'bank'}
-                          className={`flex-1 rounded-full px-4 py-2.5 text-sm font-semibold transition ${
-                            paymentMethod === 'bank'
-                              ? 'bg-white text-slate-900 shadow-sm'
-                              : 'text-slate-500 hover:text-slate-700'
-                          }`}
-                        >
-                          Bank Transfer
-                        </button>
-                      </div>
-                    ) : null}
-
-                    {/* Gumroad payment */}
-                    {!paidSuccess && paymentMethod === 'gumroad' && (
-                      <div className="space-y-4">
-                        <div className="rounded-xl border border-slate-200 bg-white p-5">
-                          <h3 className="text-base font-semibold text-slate-900">
-                            Pay securely online
-                          </h3>
-                          <p className="mt-2 text-sm leading-6 text-slate-600">
-                            Pay <strong>{formatMoney(totalAmount)}</strong> using card, PayPal, or
-                            Apple Pay. Checkout opens right here — you never leave Dosnine.
-                          </p>
-
-                          <a
-                            href={`${selectedPlan.gumroadUrl}?wanted=true&email=${encodeURIComponent(
-  emailForNote
-)}&submission_id=${encodeURIComponent(submissionId || '')}&utm_source=dosnine&utm_content=${selectedPlan.id}&utm_campaign=advertise`}
-
-
-                            className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-full bg-accent px-5 py-3.5 text-md font-semibold text-white transition hover:bg-accent/90"
-                            data-gumroad-single-product="true"
-                            rel="noreferrer"
-                          >
-                            Pay
-                          </a>
-
-                          <p className="mt-3 text-xs text-slate-500">
-                            A secure overlay opens on this page. If it doesn&apos;t, the link opens
-                            in a new tab.
-                          </p>
-                        </div>
-
-                       
-                      </div>
-                    )}
-
-                    {/* Bank transfer */}
-                    {!paidSuccess && paymentMethod === 'bank' && (
-                      <div className="rounded-xl border border-slate-200 bg-white p-5">
-                        <h3 className="text-base font-semibold text-slate-900">
-                          Bank transfer details
-                        </h3>
-                        <p className="mt-2 text-sm text-slate-600">
-                          Transfer {formatMoney(totalAmount)} and send us the receipt on WhatsApp.
+              <div className="space-y-6 p-6 sm:p-8 lg:p-10">
+                {/* Plan summary */}
+                <div>
+                  <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                    Your selected plan
+                  </h2>
+                  <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-5">
+                    <div className="flex flex-wrap items-start justify-between gap-4">
+                      <div className="min-w-0">
+                        <p className="text-xl font-semibold text-slate-900">
+                          {selectedPlan.name}
                         </p>
-                        <div className="mt-4 space-y-3">
-                          {bankDetails.map((bank) => (
-                            <div
-                              key={bank.bank}
-                              className="rounded-lg border border-slate-200 bg-slate-50 p-4"
-                            >
-                              <p className="text-sm font-semibold text-slate-900">{bank.bank}</p>
-                              <div className="mt-3 divide-y divide-slate-200">
-                                {Object.entries(bank)
-                                  .filter(([key]) => key !== 'bank')
-                                  .map(([key, value]) => (
-                                    <div
-                                      key={key}
-                                      className="flex items-center justify-between gap-3 py-2 first:pt-0 last:pb-0"
-                                    >
-                                      <span className="text-xs capitalize text-slate-500">
-                                        {key.replace(/([A-Z])/g, ' $1')}
-                                      </span>
-                                      <button
-                                        type="button"
-                                        onClick={() =>
-                                          copyToClipboard(value, `${bank.bank}-${key}`)
-                                        }
-                                        className="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-900 transition hover:text-accent"
-                                      >
-                                        <span className="truncate">{value}</span>
-                                        {copied === `${bank.bank}-${key}` ? (
-                                          <Check size={14} className="shrink-0" />
-                                        ) : (
-                                          <Copy size={14} className="shrink-0" />
-                                        )}
-                                      </button>
-                                    </div>
-                                  ))}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
+                        <p className="mt-1 text-sm text-slate-600">
+                          {selectedPlan.duration} of premium placement
+                        </p>
                       </div>
-                    )}
-                  </div>
-
-                  {/* RIGHT: confirmation */}
-                  <aside className="lg:sticky lg:top-6 lg:self-start">
-                    <div className="rounded-xl border border-slate-200 bg-slate-50 p-5">
-                      <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-accent">
-                        {paidSuccess ? 'Next step' : 'Confirmation'}
-                      </p>
-                      <h3 className="mt-2 text-lg font-semibold leading-snug text-slate-900">
-                        {paidSuccess
-                          ? 'Send us a quick WhatsApp'
-                          : 'Send proof and we will activate your ad'}
-                      </h3>
-                      <p className="mt-2 text-sm leading-6 text-slate-600">
-                        {paidSuccess
-                          ? 'Include your submission ID so we can match your payment and publish faster.'
-                          : paymentMethod === 'gumroad'
-                          ? 'Forward the Gumroad receipt on WhatsApp so we can confirm and publish.'
-                          : 'Once we verify your bank transfer, your ad goes through review and publishing.'}
-                      </p>
-
-                      <a
-                        href={`https://wa.me/18763369045?text=${
-                          paymentMethod === 'gumroad' && !paidSuccess
-                            ? gumroadWhatsappText
-                            : whatsappText
-                        }`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-full bg-accent px-5 py-3 text-sm font-semibold text-white transition hover:bg-accent/90"
-                      >
-                        <MessageCircle className="h-4 w-4" />
-                        {paidSuccess
-                          ? 'Confirm on WhatsApp'
-                          : paymentMethod === 'gumroad'
-                          ? 'Send Receipt on WhatsApp'
-                          : 'Send Proof on WhatsApp'}
-                      </a>
-
-                    
-
-                      <div className="mt-5 flex flex-col items-center gap-2 border-t border-slate-200 pt-4 text-center">
-                        <button
-                          type="button"
-                          onClick={handleStartOver}
-                          className="text-xs font-semibold text-slate-500 underline-offset-2 transition hover:text-slate-700 hover:underline"
-                        >
-                          Submit a different ad
-                        </button>
-                        <Link
-                          href="/"
-                          className="text-xs font-semibold text-slate-500 underline-offset-2 transition hover:text-slate-700 hover:underline"
-                        >
-                          Return to home
-                        </Link>
+                      <div className="text-right">
+                        <p className="text-2xl font-semibold tracking-tight text-slate-900">
+                          {formatMoney(totalAmount)}
+                        </p>
+                        <p className="mt-1 text-xs text-slate-500">One-time payment</p>
                       </div>
                     </div>
-                  </aside>
+
+                    <div className="mt-4 flex items-center justify-between gap-3 border-t border-slate-200 pt-3">
+                      <span className="text-xs font-medium uppercase tracking-wider text-slate-500">
+                        Submission ID
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => copyToClipboard(submissionId || '', 'submission-id')}
+                        className="inline-flex max-w-[60%] items-center gap-1.5 truncate font-mono text-xs font-semibold text-slate-900 transition hover:text-accent"
+                        disabled={!submissionId}
+                      >
+                        <span className="truncate">{submissionId || 'Pending'}</span>
+                        {submissionId ? (
+                          copied === 'submission-id' ? (
+                            <Check size={12} className="shrink-0" />
+                          ) : (
+                            <Copy size={12} className="shrink-0" />
+                          )
+                        ) : null}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Bank transfer details */}
+                <div className="rounded-xl border border-slate-200 bg-white p-5 sm:p-6">
+                  <h3 className="text-base font-semibold text-slate-900">
+                    Bank transfer details
+                  </h3>
+                  <p className="mt-2 text-sm text-slate-600">
+                    Transfer <strong>{formatMoney(totalAmount)}</strong> to the account
+                    below, then send us the receipt on WhatsApp.
+                  </p>
+
+                  <div className="mt-4 space-y-3">
+                    {bankDetails.map((bank) => (
+                      <div
+                        key={bank.accountNumber}
+                        className="rounded-lg border border-slate-200 bg-slate-50 p-4"
+                      >
+                        <p className="text-sm font-semibold text-slate-900">
+                          {bank.bank}
+                        </p>
+                        <div className="mt-3 divide-y divide-slate-200">
+                          {[
+                            ['Account name', bank.accountName],
+                            ['Account type', bank.accountType],
+                            ['Account number', bank.accountNumber],
+                            ['Branch', bank.branch],
+                            ['Amount', formatMoney(totalAmount)],
+                          ].map(([label, value]) => {
+                            const key = `bank-${label}`;
+                            return (
+                              <div
+                                key={label}
+                                className="flex items-center justify-between gap-3 py-2.5 first:pt-0 last:pb-0"
+                              >
+                                <span className="text-xs uppercase tracking-wider text-slate-500">
+                                  {label}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => copyToClipboard(value, key)}
+                                  className="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-900 transition hover:text-accent"
+                                >
+                                  <span className="truncate">{value}</span>
+                                  {copied === key ? (
+                                    <Check size={14} className="shrink-0 text-emerald-600" />
+                                  ) : (
+                                    <Copy size={14} className="shrink-0 text-slate-400" />
+                                  )}
+                                </button>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Confirmation — single column, stacked */}
+                <div className="rounded-xl border border-accent/30 bg-accent/5 p-5 sm:p-6">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-accent">
+                    Confirmation
+                  </p>
+                  <h3 className="mt-2 text-lg font-semibold leading-snug text-slate-900">
+                    Send proof and we will activate your ad
+                  </h3>
+                  <p className="mt-2 text-sm leading-6 text-slate-600">
+                    Once we verify your bank transfer, your ad goes through review
+                    and publishing.
+                  </p>
+
+                  <a
+                    href={`https://wa.me/18763369045?text=${whatsappText}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-full bg-accent px-5 py-3.5 text-sm font-semibold text-white transition hover:bg-accent/90"
+                  >
+                    <MessageCircle className="h-4 w-4" />
+                    Send Proof on WhatsApp
+                  </a>
+
+                  <div className="mt-5 flex justify-center border-t border-slate-200 pt-4">
+                    <button
+                      type="button"
+                      onClick={handleStartOver}
+                      className="text-xs font-semibold text-slate-500 underline-offset-2 transition hover:text-slate-700 hover:underline"
+                    >
+                      Submit a different ad
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -1015,7 +904,9 @@ export default function AdvertisePage() {
                         <input
                           type="text"
                           value={form.title}
-                          onChange={(event) => setForm((prev) => ({ ...prev, title: event.target.value }))}
+                          onChange={(event) =>
+                            setForm((prev) => ({ ...prev, title: event.target.value }))
+                          }
                           className="w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-slate-900 outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/20"
                           placeholder="Optional"
                         />
@@ -1026,7 +917,9 @@ export default function AdvertisePage() {
                         </label>
                         <select
                           value={form.category}
-                          onChange={(event) => setForm((prev) => ({ ...prev, category: event.target.value }))}
+                          onChange={(event) =>
+                            setForm((prev) => ({ ...prev, category: event.target.value }))
+                          }
                           className="w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-slate-900 outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/20"
                         >
                           {categories.map((category) => (
@@ -1074,7 +967,9 @@ export default function AdvertisePage() {
                           <input
                             type="tel"
                             value={form.whatsapp}
-                            onChange={(event) => setForm((prev) => ({ ...prev, whatsapp: event.target.value }))}
+                            onChange={(event) =>
+                              setForm((prev) => ({ ...prev, whatsapp: event.target.value }))
+                            }
                             className="w-full rounded-lg border border-slate-200 bg-white py-3 pl-10 pr-4 text-slate-900 outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/20"
                             placeholder="876-123-4567"
                           />
@@ -1151,7 +1046,9 @@ export default function AdvertisePage() {
                         <input
                           type="text"
                           value={form.contact_name}
-                          onChange={(event) => setForm((prev) => ({ ...prev, contact_name: event.target.value }))}
+                          onChange={(event) =>
+                            setForm((prev) => ({ ...prev, contact_name: event.target.value }))
+                          }
                           className="w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-slate-900 outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/20"
                           placeholder="Optional"
                         />

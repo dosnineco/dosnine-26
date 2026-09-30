@@ -78,12 +78,11 @@ const NO_SPONSORED_BANNER_ROUTES = [
   '/htv',
   '/dosnine-htv',
   '/resources',
-  '/tools',
-  '/blog',
   '/privacy-policy',
   '/terms-of-service',
   '/refund-policy',
   '/about',
+  '/advertise',
 ];
 
 const NO_SPONSORED_BANNER_PREFIXES = [
