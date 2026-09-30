@@ -2,7 +2,7 @@ import clsx from 'clsx';
 import Link from 'next/link';
 import { formatPropertyMoney } from '../lib/formatMoney';
 import LazyImage from './LazyImage';
-import { MapPin, BedDouble, Bath, Eye, Star } from 'lucide-react';
+import { MapPin, BedDouble, Bath, Ruler, Star } from 'lucide-react';
 
 export default function PropertyCard({ property, isOwner = false, index = 0 }) {
   const img =
@@ -10,7 +10,6 @@ export default function PropertyCard({ property, isOwner = false, index = 0 }) {
     property.property_images?.[0]?.image_url ||
     '/placeholder.png';
 
-  const viewCount = Number(property.views || property.impressions || 0);
   const status = String(property.status || '').toLowerCase().trim();
   const isComingSoon = status === 'coming_soon';
 
@@ -37,6 +36,10 @@ export default function PropertyCard({ property, isOwner = false, index = 0 }) {
     ? 'For Rent'
     : 'For Sale';
 
+  const locationText = [property.town, property.parish]
+    .filter(Boolean)
+    .join(', ');
+
   return (
     <Link
       href={`/property/${property.slug || property.id}`}
@@ -48,10 +51,8 @@ export default function PropertyCard({ property, isOwner = false, index = 0 }) {
         'focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2'
       )}
     >
-      {/* ============================================================
-          IMAGE
-          ============================================================ */}
-      <div className="relative aspect-[4/3] w-full shrink-0 overflow-hidden bg-slate-100">
+      {/* IMAGE */}
+      <div className="relative h-40 w-full shrink-0 overflow-hidden bg-slate-100 sm:h-44">
         <LazyImage
           src={img}
           alt={property.title || 'Property'}
@@ -81,58 +82,60 @@ export default function PropertyCard({ property, isOwner = false, index = 0 }) {
         )}
       </div>
 
-      {/* ============================================================
-          BODY
-          ============================================================ */}
+      {/* BODY */}
       <div className="flex flex-1 flex-col p-4">
         {/* Price */}
         <p className="text-lg font-bold leading-none tracking-tight text-slate-900">
           {formatPropertyMoney(property.price, property.currency)}
           {isRental && (
             <span className="ml-1 text-sm font-medium text-slate-500">
-              /month
+              /mo
             </span>
           )}
         </p>
 
         {/* Title */}
-        <h3 className="mt-2 line-clamp-2 text-sm font-semibold leading-snug text-slate-800">
+        <h3 className="mt-2 line-clamp-2 text-sm font-semibold leading-snug text-slate-900">
           {property.title || 'Untitled property'}
         </h3>
 
         {/* Location */}
-        <p className="mt-2 flex items-center gap-1.5 text-xs text-slate-500">
+        <p className="mt-1.5 flex items-center gap-1.5 text-xs text-slate-500">
           <MapPin size={12} className="shrink-0" />
-          <span className="truncate">
-            {property.town ? `${property.town}, ` : ''}
-            {property.parish || 'Location not set'}
-          </span>
+          <span className="truncate">{locationText || 'Location not set'}</span>
         </p>
 
         {/* Specs footer */}
-        <div className="mt-auto flex items-center justify-between gap-2 border-t border-slate-100 pt-3">
-          <div className="flex items-center gap-3 text-xs font-medium text-slate-600">
-            {isLand ? (
-              <span className="text-slate-600">Land</span>
-            ) : (
-              <>
-                {property.bedrooms != null && (
-                  <span className="inline-flex items-center gap-1">
-                    <BedDouble size={14} className="text-slate-400" />
-                    {property.bedrooms}
-                  </span>
-                )}
-                {property.bathrooms != null && (
-                  <span className="inline-flex items-center gap-1">
-                    <Bath size={14} className="text-slate-400" />
-                    {property.bathrooms}
-                  </span>
-                )}
-              </>
-            )}
-          </div>
-
-          
+        <div className="mt-auto flex items-center gap-3 border-t border-slate-100 pt-3 text-xs font-medium text-slate-600">
+          {isLand ? (
+            <span className="inline-flex items-center gap-1.5">
+              <Ruler size={13} className="text-slate-400" />
+              {property.square_feet
+                ? `${Number(property.square_feet).toLocaleString()} sqft`
+                : 'Land'}
+            </span>
+          ) : (
+            <>
+              {property.bedrooms != null && (
+                <span className="inline-flex items-center gap-1">
+                  <BedDouble size={13} className="text-slate-400" />
+                  {property.bedrooms} bd
+                </span>
+              )}
+              {property.bathrooms != null && (
+                <span className="inline-flex items-center gap-1">
+                  <Bath size={13} className="text-slate-400" />
+                  {property.bathrooms} ba
+                </span>
+              )}
+              {property.square_feet != null && property.square_feet !== '' && (
+                <span className="inline-flex items-center gap-1">
+                  <Ruler size={13} className="text-slate-400" />
+                  {Number(property.square_feet).toLocaleString()} sqft
+                </span>
+              )}
+            </>
+          )}
         </div>
       </div>
     </Link>

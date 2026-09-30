@@ -319,63 +319,65 @@ export default function PropertyRequestsMarketplace() {
   </div>
 </section>
 
- {/* Available Properties */}
-      {!loadingFeatured && featuredProperties.length > 0 && (
-        <section className="container mx-auto px-4 py-16 sm:px-6 lg:px-8">
-          <header className="mb-10 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-            <div>
-              <h2 className="text-3xl font-bold tracking-tight text-gray-900">
-                Available Properties
-              </h2>
-              <p className="mt-2 text-sm text-gray-600">
-                A quick look at fresh listings. Browse the full catalogue on our
-                listings page.
-              </p>
-            </div>
-            <Link
-              href="/listing"
-              className="inline-flex items-center gap-2 self-start rounded-full bg-accent px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-gray-800 sm:self-auto"
-            >
-              View all properties
-              <ArrowRight size={16} />
-            </Link>
-          </header>
+{/* ============================================================
+    AVAILABLE PROPERTIES
+    ============================================================ */}
+{!loadingFeatured && featuredProperties.length > 0 && (
+  <section className="border-b border-slate-100 bg-white">
+    <div className="container mx-auto px-4 py-16 sm:px-6 sm:py-20 lg:px-8">
+      {/* Section header */}
+      <header className="mb-10 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-accent">
+            Available Properties
+          </p>
+          <h2 className="mt-2 text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">
+            Fresh listings across Jamaica
+          </h2>
+          <p className="mt-2 max-w-xl text-sm leading-6 text-slate-600">
+            A quick look at what&apos;s new. Browse the full catalogue on our
+            listings page.
+          </p>
+        </div>
+        <Link
+          href="/listing"
+          className="inline-flex shrink-0 items-center gap-2 self-start rounded-full bg-accent px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-accent/90 sm:self-auto"
+        >
+          View all properties
+          <ArrowRight size={15} />
+        </Link>
+      </header>
 
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {featuredProperties.map((prop, idx) => (
-              <Link
-                key={prop.id}
-                href="/listing"
-                className="group block h-[22rem] rounded-2xl transition focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
-                aria-label="Browse more properties on the listings page"
-              >
-                <div className="h-full w-full transition-transform duration-200 group-hover:-translate-y-1">
-                  <Suspense
-                    fallback={
-                      <div className="h-full w-full rounded-xl bg-gray-100" />
-                    }
-                  >
-                    <PropertyCard property={prop} index={idx} />
-                  </Suspense>
-                </div>
-              </Link>
-            ))}
-          </div>
+      {/* Grid — no fixed heights, cards size naturally */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3 lg:gap-6 xl:grid-cols-4">
+        {featuredProperties.map((prop, idx) => (
+          <Suspense
+            key={prop.id}
+            fallback={
+              <div className="h-72 animate-pulse rounded-2xl border border-slate-100 bg-slate-50" />
+            }
+          >
+            <PropertyCard property={prop} index={idx} />
+          </Suspense>
+        ))}
+      </div>
 
-          <div className="mt-10 flex justify-center">
-            <Link
-              href="/listing"
-              className="group inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-6 py-3 text-sm font-semibold text-gray-800 shadow-sm transition hover:border-gray-900 hover:bg-gray-900 hover:text-white"
-            >
-              See more properties
-              <ArrowRight
-                size={16}
-                className="transition-transform group-hover:translate-x-0.5"
-              />
-            </Link>
-          </div>
-        </section>
-      )}
+      {/* Footer CTA */}
+      <div className="mt-10 flex justify-center">
+        <Link
+          href="/listing"
+          className="group inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-6 py-3 text-sm font-semibold text-slate-800 transition hover:border-slate-900 hover:bg-slate-900 hover:text-white"
+        >
+          See more properties
+          <ArrowRight
+            size={15}
+            className="transition-transform group-hover:translate-x-0.5"
+          />
+        </Link>
+      </div>
+    </div>
+  </section>
+)}
 
       <RequestAgentPopup
         isOpen={showPopup}
