@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
-import { useUser } from '@clerk/nextjs';
+import { useUser, useAuth } from '@clerk/nextjs';
+import { useRouter } from 'next/router';
 import toast from 'react-hot-toast';
+import axios from 'axios';
 import {
   Users as UsersIcon,
   ShieldCheck,
@@ -28,6 +30,11 @@ import {
   UserX,
   Copy,
   Check,
+  CheckCircle,
+  XCircle,
+  Eye,
+  FileText,
+  Building2,
 } from 'lucide-react';
 
 /* ----------------------------------------------------------
@@ -80,27 +87,14 @@ const getInitials = (name) => {
 
 export default function AdminUsersPage() {
   const { user } = useUser();
+  const { getToken, isLoaded: authLoaded, userId } = useAuth();
+  const router = useRouter();
 
-  const [users, setUsers] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
+  const [loadingAdmin, setLoadingAdmin] = useState(true);
+  const [activeTab, setActiveTab] = useState('users');
 
-  const [searchQuery, setSearchQuery] = useState('');
-  const [filterRole, setFilterRole] = useState('all');
-  const [filterStatus, setFilterStatus] = useState('all');
-  const [showFilters, setShowFilters] = useState(false);
-
-  const [manageUser, setManageUser] = useState(null);
-  const [docsUser, setDocsUser] = useState(null);
-  const [documentUrls, setDocumentUrls] = useState({});
-  const [loadingDocs, setLoadingDocs] = useState(false);
-  const [copied, setCopied] = useState('');
-  const [pendingActionId, setPendingActionId] = useState(null);
-
-  /* ----------------------------------------------------------
-   * Auth
-   * ---------------------------------------------------------- */
+  /* -------------------- Shared auth helpers -------------------- */
   const buildAuthHeaders = () => {
     const headers = {};
     if (user?.id) headers['x-clerk-user-id'] = user.id;
@@ -117,6 +111,63 @@ export default function AdminUsersPage() {
     return headers;
   };
 
+  const getAuthConfig = async () => {
+    if (!authLoaded || !userId) {
+      throw new Error('Session expired. Please sign in again.');
+    }
+    const token = await getToken();
+    return {
+      withCredentials: true,
+      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    };
+  };
+
+  const handleAuthFailure = (error) => {
+    if (
+      error?.response?.status === 401 ||
+      error?.message === 'Session expired. Please sign in again.'
+    ) {
+      toast.error('Session expired. Please sign in again.');
+      router.push('/sign-in');
+      return true;
+    }
+    return false;
+  };
+
+  /* ============================================================
+   * USERS TAB STATE
+   * ============================================================ */
+  const [users, setUsers] = useState([]);
+  const [loadingUsers, setLoadingUsers] = useState(true);
+  const [refreshingUsers, setRefreshingUsers] = useState(false);
+
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterRole, setFilterRole] = useState('all');
+  const [filterStatus, setFilterStatus] = useState('all');
+  const [showFilters, setShowFilters] = useState(false);
+
+  const [manageUser, setManageUser] = useState(null);
+  const [docsUser, setDocsUser] = useState(null);
+  const [userDocumentUrls, setUserDocumentUrls] = useState({});
+  const [loadingUserDocs, setLoadingUserDocs] = useState(false);
+  const [copied, setCopied] = useState('');
+  const [pendingUserId, setPendingUserId] = useState(null);
+
+  /* ============================================================
+   * AGENTS TAB STATE
+   * ============================================================ */
+  const [agents, setAgents] = useState([]);
+  const [loadingAgents, setLoadingAgents] = useState(true);
+  const [verifyingAgent, setVerifyingAgent] = useState(false);
+  const [selectedAgent, setSelectedAgent] = useState(null);
+  const [agentFilterStatus, setAgentFilterStatus] = useState('all');
+  const [agentDocumentUrls, setAgentDocumentUrls] = useState({});
+  const [loadingAgentDocs, setLoadingAgentDocs] = useState(false);
+  const [selectedPlans, setSelectedPlans] = useState({});
+
+  /* ----------------------------------------------------------
+   * Admin check (once)
+   * ---------------------------------------------------------- */
   useEffect(() => {
     const checkAdminAccess = async () => {
       if (!user) return;
@@ -129,22 +180,25 @@ export default function AdminUsersPage() {
 
         if (response.ok && payload?.isAdmin) {
           setIsAdmin(true);
-          await fetchUsers();
         } else {
           setIsAdmin(false);
-          setLoading(false);
         }
       } catch {
-        setLoading(false);
+        setIsAdmin(false);
+      } finally {
+        setLoadingAdmin(false);
       }
     };
     checkAdminAccess();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
-  const fetchUsers = async () => {
+  /* ----------------------------------------------------------
+   * Fetch users (only when on users tab)
+   * ---------------------------------------------------------- */
+  const fetchUsers = async ({ silent = false } = {}) => {
     try {
-      setRefreshing(true);
+      if (!silent) setRefreshingUsers(true);
       const response = await fetch('/api/admin/users', {
         headers: buildAuthHeaders(),
         credentials: 'include',
@@ -159,14 +213,65 @@ export default function AdminUsersPage() {
     } catch (err) {
       toast.error(err.message || 'Failed to load users');
     } finally {
-      setLoading(false);
-      setRefreshing(false);
+      setLoadingUsers(false);
+      setRefreshingUsers(false);
     }
   };
 
   /* ----------------------------------------------------------
-   * User actions
+   * Fetch agents (only when on agents tab)
    * ---------------------------------------------------------- */
+  const fetchAgents = async ({ silent = false } = {}) => {
+    if (!silent) setLoadingAgents(true);
+    try {
+      const authConfig = await getAuthConfig();
+      const response = await axios.get('/api/admin/agents/list', {
+        ...authConfig,
+        params: { status: agentFilterStatus },
+      });
+      setAgents(response.data.agents || []);
+    } catch (error) {
+      if (handleAuthFailure(error)) return;
+      toast.error(error.response?.data?.error || 'Failed to load agents');
+    } finally {
+      if (!silent) setLoadingAgents(false);
+    }
+  };
+
+  // Load data when tab becomes active
+  useEffect(() => {
+    if (!isAdmin) return;
+    if (activeTab === 'users' && loadingUsers) fetchUsers();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAdmin, activeTab]);
+
+  useEffect(() => {
+    if (!isAdmin) return;
+    if (activeTab === 'agents') fetchAgents();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAdmin, activeTab, agentFilterStatus]);
+
+  // Keep pending-agents badge fresh (only while on agents tab)
+  useEffect(() => {
+    if (!isAdmin || activeTab !== 'agents') return;
+    const timer = setInterval(() => fetchAgents({ silent: true }), 20000);
+    return () => clearInterval(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAdmin, activeTab, agentFilterStatus]);
+
+  // Keep selectedPlans in sync with agents list
+  useEffect(() => {
+    const validPlans = ['free', '7-day', '30-day', '90-day'];
+    const next = {};
+    agents.forEach((a) => {
+      next[a.id] = validPlans.includes(a.payment_status) ? a.payment_status : '7-day';
+    });
+    setSelectedPlans(next);
+  }, [agents]);
+
+  /* ============================================================
+   * USER ACTIONS (unchanged)
+   * ============================================================ */
   const isPremiumActive = (u) =>
     Boolean(u.premium_service_request) &&
     u.premium_service_request_expires &&
@@ -184,16 +289,13 @@ export default function AdminUsersPage() {
       throw new Error(result?.error || 'Update failed');
     }
     toast.success(successMsg);
-    await fetchUsers();
+    await fetchUsers({ silent: true });
   };
 
   const setUserStatus = async (userId, status) => {
-    setPendingActionId(userId);
+    setPendingUserId(userId);
     try {
-      await runUserPatch(
-        { id: userId, account_status: status },
-        `User ${status}`
-      );
+      await runUserPatch({ id: userId, account_status: status }, `User ${status}`);
       setManageUser((current) =>
         current && current.id === userId
           ? { ...current, account_status: status }
@@ -202,12 +304,12 @@ export default function AdminUsersPage() {
     } catch (err) {
       toast.error(err.message || 'Failed to update status');
     } finally {
-      setPendingActionId(null);
+      setPendingUserId(null);
     }
   };
 
   const setIdVerificationStatus = async (userId, status) => {
-    setPendingActionId(userId);
+    setPendingUserId(userId);
     try {
       await runUserPatch(
         { id: userId, id_verification_status: status },
@@ -221,7 +323,7 @@ export default function AdminUsersPage() {
     } catch (err) {
       toast.error(err.message || 'Failed to update ID verification');
     } finally {
-      setPendingActionId(null);
+      setPendingUserId(null);
     }
   };
 
@@ -229,7 +331,7 @@ export default function AdminUsersPage() {
     const expirationDate = new Date();
     expirationDate.setDate(expirationDate.getDate() + 30);
 
-    setPendingActionId(userToUpdate.id);
+    setPendingUserId(userToUpdate.id);
     try {
       await runUserPatch(
         {
@@ -256,7 +358,7 @@ export default function AdminUsersPage() {
     } catch (err) {
       toast.error(err.message || 'Failed to update payment status');
     } finally {
-      setPendingActionId(null);
+      setPendingUserId(null);
     }
   };
 
@@ -273,7 +375,7 @@ export default function AdminUsersPage() {
       return;
     }
 
-    setPendingActionId(formData.id);
+    setPendingUserId(formData.id);
     try {
       await runUserPatch(
         {
@@ -293,14 +395,14 @@ export default function AdminUsersPage() {
         toast.error(err.message || 'Failed to save user');
       }
     } finally {
-      setPendingActionId(null);
+      setPendingUserId(null);
     }
   };
 
-  const handleDelete = async (userId, userName) => {
+  const handleDeleteUser = async (userId, userName) => {
     if (!confirm(`Delete user "${userName}"? This cannot be undone.`)) return;
 
-    setPendingActionId(userId);
+    setPendingUserId(userId);
     try {
       const response = await fetch('/api/admin/users', {
         method: 'DELETE',
@@ -314,18 +416,15 @@ export default function AdminUsersPage() {
       }
       toast.success('User deleted');
       setManageUser(null);
-      await fetchUsers();
+      await fetchUsers({ silent: true });
     } catch (err) {
       toast.error(err.message || 'Failed to delete user');
     } finally {
-      setPendingActionId(null);
+      setPendingUserId(null);
     }
   };
 
-  /* ----------------------------------------------------------
-   * ID documents
-   * ---------------------------------------------------------- */
-  const resolveDocumentUrl = async (rawPath) => {
+  const resolveUserDocumentUrl = async (rawPath) => {
     let path = rawPath;
     if (path.includes('agent-documents/')) {
       path = path.split('agent-documents/')[1].split('?')[0];
@@ -341,41 +440,38 @@ export default function AdminUsersPage() {
     return payload.signedUrl;
   };
 
-  const viewIdDocuments = async (u) => {
+  const viewUserDocuments = async (u) => {
     setDocsUser(u);
     if (!u.verification_front_url && !u.verification_back_url) return;
 
-    setLoadingDocs(true);
+    setLoadingUserDocs(true);
     const urls = {};
     try {
       if (u.verification_front_url) {
         try {
-          urls.front = await resolveDocumentUrl(u.verification_front_url);
+          urls.front = await resolveUserDocumentUrl(u.verification_front_url);
         } catch {
           urls.front = u.verification_front_url;
         }
       }
       if (u.verification_back_url) {
         try {
-          urls.back = await resolveDocumentUrl(u.verification_back_url);
+          urls.back = await resolveUserDocumentUrl(u.verification_back_url);
         } catch {
           urls.back = u.verification_back_url;
         }
       }
-      setDocumentUrls(urls);
+      setUserDocumentUrls(urls);
     } finally {
-      setLoadingDocs(false);
+      setLoadingUserDocs(false);
     }
   };
 
-  const closeDocsModal = () => {
+  const closeUserDocs = () => {
     setDocsUser(null);
-    setDocumentUrls({});
+    setUserDocumentUrls({});
   };
 
-  /* ----------------------------------------------------------
-   * Copy helper
-   * ---------------------------------------------------------- */
   const copyToClipboard = async (value, key) => {
     if (!value) return;
     try {
@@ -388,9 +484,132 @@ export default function AdminUsersPage() {
     }
   };
 
-  /* ----------------------------------------------------------
-   * Derived
-   * ---------------------------------------------------------- */
+  /* ============================================================
+   * AGENT ACTIONS (unchanged)
+   * ============================================================ */
+  const updateAgentStatus = async (agentId, status, notes = '') => {
+    if (!confirm(`Are you sure you want to ${status} this agent?`)) return;
+
+    setVerifyingAgent(true);
+    try {
+      const authConfig = await getAuthConfig();
+      const response = await axios.post(
+        '/api/admin/agents/update-status',
+        { agentId, status, notes },
+        authConfig
+      );
+      toast.success(response.data.message);
+      fetchAgents({ silent: true });
+      setSelectedAgent(null);
+    } catch (error) {
+      if (handleAuthFailure(error)) return;
+      toast.error(error.response?.data?.error || 'Failed to update agent');
+    } finally {
+      setVerifyingAgent(false);
+    }
+  };
+
+  const setPaymentPlan = async (agentId, plan, agent) => {
+    const validPlans = ['free', '7-day', '30-day', '90-day'];
+    if (!validPlans.includes(plan)) {
+      toast.error('Invalid access plan');
+      return;
+    }
+    if (agent.verification_status !== 'approved') {
+      toast.error('Agent must be approved first');
+      return;
+    }
+
+    try {
+      const authConfig = await getAuthConfig();
+      let expiryDate = null;
+      const now = new Date();
+
+      if (plan === '7-day') expiryDate = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+      else if (plan === '30-day') expiryDate = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+      else if (plan === '90-day') expiryDate = new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000);
+
+      let paymentAmount = null;
+      if (plan === '7-day') paymentAmount = 1500;
+      else if (plan === '30-day') paymentAmount = 6000;
+      else if (plan === '90-day') paymentAmount = 15000;
+
+      const response = await axios.post(
+        '/api/admin/agents/payment-plan',
+        {
+          agentId,
+          plan,
+          paymentAmount,
+          accessExpiry: expiryDate ? expiryDate.toISOString() : null,
+        },
+        authConfig
+      );
+      if (!response.data?.success) {
+        throw new Error(response.data?.error || 'Failed to set access plan');
+      }
+
+      toast.success(`Access plan set to ${plan}`);
+      fetchAgents({ silent: true });
+    } catch (error) {
+      if (handleAuthFailure(error)) return;
+      toast.error(error.message || 'Failed to set access plan');
+    }
+  };
+
+  const viewAgentDocuments = (agent) => {
+    setSelectedAgent(agent);
+    loadAgentDocumentUrls(agent);
+  };
+
+  const loadAgentDocumentUrls = async (agent) => {
+    if (!agent.license_file_url && !agent.registration_file_url) return;
+
+    setLoadingAgentDocs(true);
+    const urls = {};
+    try {
+      if (agent.license_file_url) {
+        let path = agent.license_file_url;
+        if (path.includes('agent-documents/')) {
+          path = path.split('agent-documents/')[1].split('?')[0];
+        }
+        try {
+          const authConfig = await getAuthConfig();
+          const response = await axios.get('/api/admin/agents/get-document', {
+            ...authConfig,
+            params: { path },
+          });
+          urls.license = response.data.signedUrl;
+        } catch {
+          urls.license = agent.license_file_url;
+        }
+      }
+
+      if (agent.registration_file_url) {
+        let path = agent.registration_file_url;
+        if (path.includes('agent-documents/')) {
+          path = path.split('agent-documents/')[1].split('?')[0];
+        }
+        try {
+          const authConfig = await getAuthConfig();
+          const response = await axios.get('/api/admin/agents/get-document', {
+            ...authConfig,
+            params: { path },
+          });
+          urls.registration = response.data.signedUrl;
+        } catch {
+          urls.registration = agent.registration_file_url;
+        }
+      }
+
+      setAgentDocumentUrls(urls);
+    } finally {
+      setLoadingAgentDocs(false);
+    }
+  };
+
+  /* ============================================================
+   * DERIVED
+   * ============================================================ */
   const summary = useMemo(() => {
     const total = users.length;
     const admins = users.filter((u) => u.role === 'admin').length;
@@ -402,7 +621,6 @@ export default function AdminUsersPage() {
 
   const filteredUsers = useMemo(() => {
     let result = [...users];
-
     if (filterRole !== 'all') {
       result = result.filter((u) => (u.role || 'tenant') === filterRole);
     }
@@ -420,7 +638,6 @@ export default function AdminUsersPage() {
           u.phone?.includes(q)
       );
     }
-
     return result;
   }, [users, filterRole, filterStatus, searchQuery]);
 
@@ -436,30 +653,56 @@ export default function AdminUsersPage() {
     setFilterStatus('all');
   };
 
+  const agentStats = useMemo(() => {
+    return {
+      pending: agents.filter((a) => a.verification_status === 'pending').length,
+      approved: agents.filter((a) => a.verification_status === 'approved').length,
+      rejected: agents.filter((a) => a.verification_status === 'rejected').length,
+      total: agents.length,
+      totalProfit: agents
+        .filter((a) => a.payment_amount && a.payment_amount > 0)
+        .reduce((sum, a) => sum + (Number(a.payment_amount) || 0), 0),
+    };
+  }, [agents]);
+
+  const filteredAgents = useMemo(() => {
+    return agentFilterStatus === 'all'
+      ? agents
+      : agents.filter((a) => a.verification_status === agentFilterStatus);
+  }, [agents, agentFilterStatus]);
+
   /* ----------------------------------------------------------
    * Access states
    * ---------------------------------------------------------- */
-  if (!isAdmin && !loading) {
+  if (loadingAdmin) {
+    return (
+      <div className="flex items-center justify-center py-24">
+        <RefreshCw className="h-6 w-6 animate-spin text-slate-400" />
+      </div>
+    );
+  }
+
+  if (!isAdmin) {
     return (
       <div className="flex items-center justify-center py-24">
         <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center">
           <ShieldX className="mx-auto h-12 w-12 text-red-500" />
           <h1 className="mt-4 text-xl font-semibold text-slate-900">Access denied</h1>
           <p className="mt-2 text-sm text-slate-600">
-            Admin access is required to view users.
+            Admin access is required to view this page.
           </p>
         </div>
       </div>
     );
   }
 
-  /* ----------------------------------------------------------
+  /* ============================================================
    * Render
-   * ---------------------------------------------------------- */
+   * ============================================================ */
   return (
     <>
       <Head>
-        <title>Users — Admin</title>
+        <title>Users & Agents — Admin</title>
       </Head>
 
       <div className="space-y-6">
@@ -467,227 +710,566 @@ export default function AdminUsersPage() {
         <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.22em] text-accent">
-              Users
+              Admin
             </p>
             <h1 className="mt-2 text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
-              User Management
+              Users & Agents
             </h1>
             <p className="mt-1 text-sm text-slate-600">
-              Manage roles, account status, ID verification, and premium access.
+              Manage user accounts, roles, verification, and agent approvals.
             </p>
           </div>
-          <button
-            type="button"
-            onClick={fetchUsers}
-            disabled={refreshing}
-            className="inline-flex shrink-0 items-center gap-2 self-start rounded-full border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 disabled:opacity-60"
-          >
-            <RefreshCw size={14} className={refreshing ? 'animate-spin' : ''} />
-            Refresh
-          </button>
-        </div>
 
-        {/* Stats */}
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-          <StatCard
-            label="Total users"
-            value={summary.total}
-            icon={UsersIcon}
-            tone="accent"
-            onClick={() => {
-              setFilterRole('all');
-              setFilterStatus('all');
-            }}
-          />
-          <StatCard
-            label="Admins"
-            value={summary.admins}
-            icon={ShieldCheck}
-            tone="slate"
-            onClick={() => setFilterRole('admin')}
-          />
-          <StatCard
-            label="Homeowners"
-            value={summary.homeowners}
-            icon={UsersIcon}
-            tone="violet"
-            onClick={() => setFilterRole('landlord')}
-          />
-          <StatCard
-            label="Tenants"
-            value={summary.tenants}
-            icon={UsersIcon}
-            tone="blue"
-            onClick={() => setFilterRole('tenant')}
-          />
-          <StatCard
-            label="Paid J$6,000"
-            value={summary.paid}
-            icon={DollarSign}
-            tone="emerald"
-          />
-        </div>
-
-        {/* Search + Filters */}
-        <div className="rounded-2xl border border-slate-200 bg-white p-3 sm:p-4">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-            <div className="relative flex-1">
-              <Search
-                size={15}
-                className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
-              />
-              <input
-                type="search"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search name, email, phone…"
-                className={`${inputClass} pl-9`}
-              />
-              {searchQuery && (
-                <button
-                  type="button"
-                  onClick={() => setSearchQuery('')}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-1 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
-                  aria-label="Clear search"
-                >
-                  <X size={12} />
-                </button>
-              )}
-            </div>
-
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setShowFilters((v) => !v)}
-                className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold transition ${
-                  showFilters || activeFilterCount > 0
-                    ? 'border-accent bg-accent/10 text-accent'
-                    : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50'
-                }`}
-              >
-                <UsersIcon size={14} />
-                Filters
-                {activeFilterCount > 0 && (
-                  <span className="inline-flex h-5 min-w-[20px] items-center justify-center rounded-full bg-accent px-1.5 text-[10px] font-bold text-white">
-                    {activeFilterCount}
-                  </span>
-                )}
-                <ChevronDown
-                  size={14}
-                  className={`transition-transform ${showFilters ? 'rotate-180' : ''}`}
-                />
-              </button>
-
-              {activeFilterCount > 0 && (
-                <button
-                  type="button"
-                  onClick={clearFilters}
-                  className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 transition hover:text-slate-700"
-                >
-                  <X size={12} />
-                  Clear
-                </button>
-              )}
-            </div>
-          </div>
-
-          {showFilters && (
-            <div className="mt-4 space-y-3 border-t border-slate-100 pt-4">
-              <div>
-                <p className={labelClass}>Role</p>
-                <div className="flex flex-wrap gap-2">
-                  {[
-                    { value: 'all', label: 'All' },
-                    { value: 'landlord', label: 'Homeowners' },
-                    { value: 'tenant', label: 'Tenants' },
-                    { value: 'admin', label: 'Admins' },
-                  ].map(({ value, label }) => (
-                    <button
-                      key={value}
-                      type="button"
-                      onClick={() => setFilterRole(value)}
-                      className={`rounded-full border px-3.5 py-1.5 text-xs font-semibold transition ${
-                        filterRole === value
-                          ? 'border-accent bg-accent text-white'
-                          : 'border-slate-200 bg-white text-slate-600 hover:border-accent hover:text-accent'
-                      }`}
-                    >
-                      {label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <p className={labelClass}>Account status</p>
-                <div className="flex flex-wrap gap-2">
-                  {['all', 'active', 'flagged', 'deactivated'].map((status) => (
-                    <button
-                      key={status}
-                      type="button"
-                      onClick={() => setFilterStatus(status)}
-                      className={`rounded-full border px-3.5 py-1.5 text-xs font-semibold capitalize transition ${
-                        filterStatus === status
-                          ? 'border-accent bg-accent text-white'
-                          : 'border-slate-200 bg-white text-slate-600 hover:border-accent hover:text-accent'
-                      }`}
-                    >
-                      {status}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
+          {activeTab === 'users' ? (
+            <button
+              type="button"
+              onClick={() => fetchUsers()}
+              disabled={refreshingUsers}
+              className="inline-flex shrink-0 items-center gap-2 self-start rounded-full border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 disabled:opacity-60"
+            >
+              <RefreshCw size={14} className={refreshingUsers ? 'animate-spin' : ''} />
+              Refresh
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => fetchAgents()}
+              disabled={loadingAgents}
+              className="inline-flex shrink-0 items-center gap-2 self-start rounded-full border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 disabled:opacity-60"
+            >
+              <RefreshCw size={14} className={loadingAgents ? 'animate-spin' : ''} />
+              Refresh
+            </button>
           )}
         </div>
 
-        {/* Results */}
-        {!loading && (
-          <p className="text-sm text-slate-500">
-            Showing{' '}
-            <strong className="text-slate-900">{filteredUsers.length}</strong> of{' '}
-            {users.length} user{users.length === 1 ? '' : 's'}
-          </p>
+        {/* Tabs */}
+        <div className="inline-flex w-full rounded-full bg-slate-100 p-1 sm:w-auto">
+          <button
+            type="button"
+            onClick={() => setActiveTab('users')}
+            className={`flex-1 rounded-full px-4 py-2.5 text-sm font-semibold transition sm:flex-none sm:px-5 ${
+              activeTab === 'users'
+                ? 'bg-white text-slate-900 shadow-sm'
+                : 'text-slate-500 hover:text-slate-700'
+            }`}
+          >
+            Users
+            <span
+              className={`ml-2 rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                activeTab === 'users'
+                  ? 'bg-accent/10 text-accent'
+                  : 'bg-slate-200 text-slate-600'
+              }`}
+            >
+              {summary.total}
+            </span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('agents')}
+            className={`flex-1 rounded-full px-4 py-2.5 text-sm font-semibold transition sm:flex-none sm:px-5 ${
+              activeTab === 'agents'
+                ? 'bg-white text-slate-900 shadow-sm'
+                : 'text-slate-500 hover:text-slate-700'
+            }`}
+          >
+            Agents
+            {agentStats.pending > 0 ? (
+              <span className="ml-2 inline-flex h-5 min-w-[20px] items-center justify-center rounded-full bg-amber-400 px-1.5 text-[10px] font-bold text-amber-900">
+                {agentStats.pending}
+              </span>
+            ) : (
+              <span
+                className={`ml-2 rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                  activeTab === 'agents'
+                    ? 'bg-accent/10 text-accent'
+                    : 'bg-slate-200 text-slate-600'
+                }`}
+              >
+                {agentStats.total}
+              </span>
+            )}
+          </button>
+        </div>
+
+        {/* ============================================================
+            USERS TAB
+           ============================================================ */}
+        {activeTab === 'users' && (
+          <div className="space-y-6">
+            {/* Stats */}
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+              <StatCard
+                label="Total users"
+                value={summary.total}
+                icon={UsersIcon}
+                tone="accent"
+                onClick={() => {
+                  setFilterRole('all');
+                  setFilterStatus('all');
+                }}
+              />
+              <StatCard
+                label="Admins"
+                value={summary.admins}
+                icon={ShieldCheck}
+                tone="slate"
+                onClick={() => setFilterRole('admin')}
+              />
+              <StatCard
+                label="Homeowners"
+                value={summary.homeowners}
+                icon={UsersIcon}
+                tone="violet"
+                onClick={() => setFilterRole('landlord')}
+              />
+              <StatCard
+                label="Tenants"
+                value={summary.tenants}
+                icon={UsersIcon}
+                tone="blue"
+                onClick={() => setFilterRole('tenant')}
+              />
+              <StatCard
+                label="Paid J$6,000"
+                value={summary.paid}
+                icon={DollarSign}
+                tone="emerald"
+              />
+            </div>
+
+            {/* Search + Filters */}
+            <div className="rounded-2xl border border-slate-200 bg-white p-3 sm:p-4">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                <div className="relative flex-1">
+                  <Search
+                    size={15}
+                    className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+                  />
+                  <input
+                    type="search"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Search name, email, phone…"
+                    className={`${inputClass} pl-9`}
+                  />
+                  {searchQuery && (
+                    <button
+                      type="button"
+                      onClick={() => setSearchQuery('')}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-1 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+                      aria-label="Clear search"
+                    >
+                      <X size={12} />
+                    </button>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowFilters((v) => !v)}
+                    className={`inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold transition ${
+                      showFilters || activeFilterCount > 0
+                        ? 'border-accent bg-accent/10 text-accent'
+                        : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50'
+                    }`}
+                  >
+                    <UsersIcon size={14} />
+                    Filters
+                    {activeFilterCount > 0 && (
+                      <span className="inline-flex h-5 min-w-[20px] items-center justify-center rounded-full bg-accent px-1.5 text-[10px] font-bold text-white">
+                        {activeFilterCount}
+                      </span>
+                    )}
+                    <ChevronDown
+                      size={14}
+                      className={`transition-transform ${showFilters ? 'rotate-180' : ''}`}
+                    />
+                  </button>
+
+                  {activeFilterCount > 0 && (
+                    <button
+                      type="button"
+                      onClick={clearFilters}
+                      className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 transition hover:text-slate-700"
+                    >
+                      <X size={12} />
+                      Clear
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {showFilters && (
+                <div className="mt-4 space-y-3 border-t border-slate-100 pt-4">
+                  <div>
+                    <p className={labelClass}>Role</p>
+                    <div className="flex flex-wrap gap-2">
+                      {[
+                        { value: 'all', label: 'All' },
+                        { value: 'landlord', label: 'Homeowners' },
+                        { value: 'tenant', label: 'Tenants' },
+                        { value: 'admin', label: 'Admins' },
+                      ].map(({ value, label }) => (
+                        <button
+                          key={value}
+                          type="button"
+                          onClick={() => setFilterRole(value)}
+                          className={`rounded-full border px-3.5 py-1.5 text-xs font-semibold transition ${
+                            filterRole === value
+                              ? 'border-accent bg-accent text-white'
+                              : 'border-slate-200 bg-white text-slate-600 hover:border-accent hover:text-accent'
+                          }`}
+                        >
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <p className={labelClass}>Account status</p>
+                    <div className="flex flex-wrap gap-2">
+                      {['all', 'active', 'flagged', 'deactivated'].map((status) => (
+                        <button
+                          key={status}
+                          type="button"
+                          onClick={() => setFilterStatus(status)}
+                          className={`rounded-full border px-3.5 py-1.5 text-xs font-semibold capitalize transition ${
+                            filterStatus === status
+                              ? 'border-accent bg-accent text-white'
+                              : 'border-slate-200 bg-white text-slate-600 hover:border-accent hover:text-accent'
+                          }`}
+                        >
+                          {status}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Results */}
+            {!loadingUsers && (
+              <p className="text-sm text-slate-500">
+                Showing{' '}
+                <strong className="text-slate-900">{filteredUsers.length}</strong> of{' '}
+                {users.length} user{users.length === 1 ? '' : 's'}
+              </p>
+            )}
+
+            {/* User list */}
+            {loadingUsers ? (
+              <div className="space-y-3">
+                {[1, 2, 3, 4].map((i) => (
+                  <div
+                    key={i}
+                    className="h-32 animate-pulse rounded-2xl border border-slate-100 bg-slate-50"
+                  />
+                ))}
+              </div>
+            ) : filteredUsers.length === 0 ? (
+              <div className="rounded-2xl border border-dashed border-slate-200 bg-white py-16 text-center">
+                <AlertCircle className="mx-auto h-10 w-10 text-slate-300" />
+                <p className="mt-3 text-sm font-semibold text-slate-700">
+                  {users.length === 0
+                    ? 'No users yet'
+                    : 'No users match your filters'}
+                </p>
+                <p className="mt-1 text-sm text-slate-500">
+                  {users.length === 0
+                    ? 'New sign-ups will appear here.'
+                    : 'Try clearing the filters above.'}
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {filteredUsers.map((u) => (
+                  <UserCard
+                    key={u.id}
+                    user={u}
+                    isPremiumActive={isPremiumActive(u)}
+                    pending={pendingUserId === u.id}
+                    onCopy={copyToClipboard}
+                    copied={copied}
+                    onTogglePremium={() => setPremiumStatus(u, !isPremiumActive(u))}
+                    onManage={() => setManageUser(u)}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
         )}
 
-        {/* User list */}
-        {loading ? (
-          <div className="space-y-3">
-            {[1, 2, 3, 4].map((i) => (
-              <div
-                key={i}
-                className="h-32 animate-pulse rounded-2xl border border-slate-100 bg-slate-50"
+        {/* ============================================================
+            AGENTS TAB
+           ============================================================ */}
+        {activeTab === 'agents' && (
+          <div className="space-y-6">
+            {/* Stats */}
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+              <AgentStatCard
+                label="Total agents"
+                value={agentStats.total}
+                icon={Building2}
+                tone="accent"
               />
-            ))}
-          </div>
-        ) : filteredUsers.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-slate-200 bg-white py-16 text-center">
-            <AlertCircle className="mx-auto h-10 w-10 text-slate-300" />
-            <p className="mt-3 text-sm font-semibold text-slate-700">
-              {users.length === 0
-                ? 'No users yet'
-                : 'No users match your filters'}
-            </p>
-            <p className="mt-1 text-sm text-slate-500">
-              {users.length === 0
-                ? 'New sign-ups will appear here.'
-                : 'Try clearing the filters above.'}
-            </p>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {filteredUsers.map((u) => (
-              <UserCard
-                key={u.id}
-                user={u}
-                isPremiumActive={isPremiumActive(u)}
-                pending={pendingActionId === u.id}
-                onCopy={copyToClipboard}
-                copied={copied}
-                onTogglePremium={() => setPremiumStatus(u, !isPremiumActive(u))}
-                onManage={() => setManageUser(u)}
+              <AgentStatCard
+                label="Pending review"
+                value={agentStats.pending}
+                icon={Clock}
+                tone="amber"
               />
-            ))}
+              <AgentStatCard
+                label="Approved"
+                value={agentStats.approved}
+                icon={CheckCircle2}
+                tone="emerald"
+              />
+              <AgentStatCard
+                label="Rejected"
+                value={agentStats.rejected}
+                icon={XCircle}
+                tone="red"
+              />
+              <AgentStatCard
+                label="Total profit"
+                value={`J$${agentStats.totalProfit.toLocaleString()}`}
+                icon={DollarSign}
+                tone="emerald"
+              />
+            </div>
+
+            {/* Filter */}
+            <div className="rounded-2xl border border-slate-200 bg-white p-3 sm:p-4">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className={labelClass + ' mb-0 mr-2'}>Filter</span>
+                {['all', 'pending', 'approved', 'rejected'].map((status) => (
+                  <button
+                    key={status}
+                    type="button"
+                    onClick={() => setAgentFilterStatus(status)}
+                    className={`rounded-full border px-3.5 py-1.5 text-xs font-semibold capitalize transition ${
+                      agentFilterStatus === status
+                        ? 'border-accent bg-accent text-white'
+                        : 'border-slate-200 bg-white text-slate-600 hover:border-accent hover:text-accent'
+                    }`}
+                  >
+                    {status}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Agents table */}
+            <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+              {loadingAgents ? (
+                <div className="space-y-3 p-4">
+                  {[1, 2, 3].map((i) => (
+                    <div
+                      key={i}
+                      className="h-16 animate-pulse rounded-xl border border-slate-100 bg-slate-50"
+                    />
+                  ))}
+                </div>
+              ) : filteredAgents.length === 0 ? (
+                <div className="py-16 text-center">
+                  <Building2 className="mx-auto h-12 w-12 text-slate-300" />
+                  <p className="mt-3 text-sm font-semibold text-slate-700">
+                    No agents found
+                  </p>
+                  <p className="mt-1 text-sm text-slate-500">
+                    {agentFilterStatus !== 'all'
+                      ? `No ${agentFilterStatus} agents`
+                      : 'Create a test agent at /agent/signup'}
+                  </p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-slate-200">
+                    <thead className="bg-slate-50">
+                      <tr>
+                        <th className="px-5 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+                          Agent
+                        </th>
+                        <th className="px-5 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+                          Business
+                        </th>
+                        <th className="px-5 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+                          Experience
+                        </th>
+                        <th className="px-5 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+                          Status
+                        </th>
+                        <th className="px-5 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+                          Payment
+                        </th>
+                        <th className="px-5 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+                          Submitted
+                        </th>
+                        <th className="px-5 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+                          Actions
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 bg-white">
+                      {filteredAgents.map((agent) => (
+                        <tr key={agent.id} className="hover:bg-slate-50">
+                          <td className="px-5 py-4">
+                            <div>
+                              <p className="font-semibold text-slate-900">
+                                {agent.user?.full_name}
+                              </p>
+                              <p className="flex items-center gap-1 text-xs text-slate-500">
+                                <Mail className="h-3 w-3" />
+                                {agent.user?.email}
+                              </p>
+                              <p className="flex items-center gap-1 text-xs text-slate-500">
+                                <Phone className="h-3 w-3" />
+                                {agent.user?.phone}
+                              </p>
+                            </div>
+                          </td>
+                          <td className="px-5 py-4">
+                            <p className="text-sm font-medium text-slate-900">
+                              {agent.business_name}
+                            </p>
+                            <p className="text-xs text-slate-500">
+                              License: {agent.license_number || 'N/A'}
+                            </p>
+                          </td>
+                          <td className="px-5 py-4 text-sm text-slate-700">
+                            {agent.years_experience} years
+                          </td>
+                          <td className="px-5 py-4">
+                            <span
+                              className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
+                                agent.verification_status === 'approved'
+                                  ? 'border-emerald-200 bg-emerald-100 text-emerald-800'
+                                  : agent.verification_status === 'rejected'
+                                  ? 'border-red-200 bg-red-100 text-red-800'
+                                  : 'border-amber-200 bg-amber-100 text-amber-800'
+                              }`}
+                            >
+                              {agent.verification_status === 'approved' && (
+                                <CheckCircle2 className="h-3 w-3" />
+                              )}
+                              {agent.verification_status === 'rejected' && (
+                                <XCircle className="h-3 w-3" />
+                              )}
+                              {agent.verification_status === 'pending' && (
+                                <Clock className="h-3 w-3" />
+                              )}
+                              {agent.verification_status}
+                            </span>
+                          </td>
+                          <td className="px-5 py-4">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <select
+                                value={selectedPlans[agent.id] || '7-day'}
+                                onChange={(e) =>
+                                  setSelectedPlans((prev) => ({
+                                    ...prev,
+                                    [agent.id]: e.target.value,
+                                  }))
+                                }
+                                disabled={agent.verification_status !== 'approved'}
+                                className="rounded-md border border-slate-300 bg-white px-2 py-1 text-xs text-slate-900 disabled:bg-slate-100 disabled:text-slate-500"
+                                title={
+                                  agent.verification_status !== 'approved'
+                                    ? 'Agent must be approved first'
+                                    : 'Choose access plan'
+                                }
+                              >
+                                <option value="free">Free</option>
+                                <option value="7-day">7-Day</option>
+                                <option value="30-day">30-Day</option>
+                                <option value="90-day">90-Day</option>
+                              </select>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setPaymentPlan(
+                                    agent.id,
+                                    selectedPlans[agent.id] || '7-day',
+                                    agent
+                                  )
+                                }
+                                disabled={agent.verification_status !== 'approved'}
+                                className="inline-flex items-center gap-2 rounded-md bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-40"
+                                title={
+                                  agent.verification_status !== 'approved'
+                                    ? 'Agent must be approved first'
+                                    : 'Apply selected plan'
+                                }
+                              >
+                                Set Plan
+                              </button>
+                            </div>
+                            {agent.payment_amount && (
+                              <p className="mt-1 text-xs text-slate-500">
+                                J${agent.payment_amount?.toLocaleString()}
+                              </p>
+                            )}
+                          </td>
+                          <td className="px-5 py-4 text-sm text-slate-500">
+                            <div className="flex items-center gap-1">
+                              <Calendar className="h-3 w-3" />
+                              {agent.verification_submitted_at
+                                ? new Date(
+                                    agent.verification_submitted_at
+                                  ).toLocaleDateString()
+                                : '—'}
+                            </div>
+                          </td>
+                          <td className="px-5 py-4">
+                            <div className="flex items-center gap-1">
+                              <button
+                                type="button"
+                                onClick={() => viewAgentDocuments(agent)}
+                                className="rounded-lg p-2 text-slate-700 transition hover:bg-slate-100"
+                                title="View Details"
+                              >
+                                <Eye className="h-4 w-4" />
+                              </button>
+                              {agent.verification_status === 'pending' && (
+                                <>
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      updateAgentStatus(agent.id, 'approved')
+                                    }
+                                    disabled={verifyingAgent}
+                                    className="rounded-lg p-2 text-emerald-700 transition hover:bg-emerald-50 disabled:opacity-50"
+                                    title="Approve"
+                                  >
+                                    <CheckCircle2 className="h-4 w-4" />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      updateAgentStatus(agent.id, 'rejected')
+                                    }
+                                    disabled={verifyingAgent}
+                                    className="rounded-lg p-2 text-red-700 transition hover:bg-red-50 disabled:opacity-50"
+                                    title="Reject"
+                                  >
+                                    <XCircle className="h-4 w-4" />
+                                  </button>
+                                </>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
           </div>
         )}
       </div>
@@ -697,7 +1279,7 @@ export default function AdminUsersPage() {
         <ManageUserModal
           user={manageUser}
           isPremiumActive={isPremiumActive(manageUser)}
-          pending={pendingActionId === manageUser.id}
+          pending={pendingUserId === manageUser.id}
           onClose={() => setManageUser(null)}
           onSetStatus={(status) => setUserStatus(manageUser.id, status)}
           onSetIdVerification={(status) =>
@@ -706,26 +1288,51 @@ export default function AdminUsersPage() {
           onTogglePremium={() =>
             setPremiumStatus(manageUser, !isPremiumActive(manageUser))
           }
-          onViewDocuments={() => viewIdDocuments(manageUser)}
+          onViewDocuments={() => viewUserDocuments(manageUser)}
           onSave={handleSaveUser}
-          onDelete={() => handleDelete(manageUser.id, manageUser.full_name)}
+          onDelete={() => handleDeleteUser(manageUser.id, manageUser.full_name)}
         />
       )}
 
-      {/* ID documents modal */}
+      {/* ID documents modal (users) */}
       {docsUser && (
         <IdDocumentsModal
           user={docsUser}
-          urls={documentUrls}
-          loading={loadingDocs}
-          onClose={closeDocsModal}
+          urls={userDocumentUrls}
+          loading={loadingUserDocs}
+          onClose={closeUserDocs}
           onApprove={() => {
             setIdVerificationStatus(docsUser.id, 'approved');
-            closeDocsModal();
+            closeUserDocs();
           }}
           onReject={() => {
             setIdVerificationStatus(docsUser.id, 'rejected');
-            closeDocsModal();
+            closeUserDocs();
+          }}
+        />
+      )}
+
+      {/* Agent Details modal */}
+      {selectedAgent && (
+        <AgentDetailsModal
+          agent={selectedAgent}
+          documentUrls={agentDocumentUrls}
+          loadingDocs={loadingAgentDocs}
+          verifying={verifyingAgent}
+          onClose={() => {
+            setSelectedAgent(null);
+            setAgentDocumentUrls({});
+          }}
+          onApprove={() =>
+            updateAgentStatus(
+              selectedAgent.id,
+              'approved',
+              'Documents verified and approved'
+            )
+          }
+          onReject={() => {
+            const notes = prompt('Reason for rejection:');
+            if (notes) updateAgentStatus(selectedAgent.id, 'rejected', notes);
           }}
         />
       )}
@@ -734,7 +1341,7 @@ export default function AdminUsersPage() {
 }
 
 /* ============================================================
- * Sub-components
+ * Shared sub-components
  * ============================================================ */
 
 const TONE_STYLES = {
@@ -744,6 +1351,7 @@ const TONE_STYLES = {
   violet: { bg: 'bg-violet-50', text: 'text-violet-600' },
   slate: { bg: 'bg-slate-100', text: 'text-slate-600' },
   red: { bg: 'bg-red-50', text: 'text-red-600' },
+  amber: { bg: 'bg-amber-50', text: 'text-amber-600' },
 };
 
 function StatCard({ label, value, icon: Icon, tone = 'accent', onClick }) {
@@ -774,6 +1382,27 @@ function StatCard({ label, value, icon: Icon, tone = 'accent', onClick }) {
   );
 }
 
+function AgentStatCard({ label, value, icon: Icon, tone = 'accent' }) {
+  const style = TONE_STYLES[tone] || TONE_STYLES.accent;
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white p-4">
+      <div className="flex items-start justify-between gap-2">
+        <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+          {label}
+        </p>
+        <span
+          className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${style.bg} ${style.text}`}
+        >
+          <Icon size={14} />
+        </span>
+      </div>
+      <p className="mt-2 text-2xl font-bold tracking-tight text-slate-900">
+        {value}
+      </p>
+    </div>
+  );
+}
+
 function UserCard({
   user,
   isPremiumActive,
@@ -790,16 +1419,13 @@ function UserCard({
   return (
     <article className="overflow-hidden rounded-2xl border border-slate-200 bg-white transition hover:border-slate-300">
       <div className="flex flex-col gap-4 p-4 sm:flex-row sm:p-5">
-        {/* Avatar */}
         <div className="flex shrink-0 items-start gap-3 sm:flex-col sm:items-center">
           <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-slate-900 text-sm font-bold text-white">
             {getInitials(user.full_name)}
           </div>
         </div>
 
-        {/* Content */}
         <div className="min-w-0 flex-1">
-          {/* Name + badges */}
           <div className="flex flex-wrap items-center gap-2">
             <h3 className="truncate text-base font-bold text-slate-900">
               {user.full_name || 'Unnamed user'}
@@ -823,7 +1449,6 @@ function UserCard({
             )}
           </div>
 
-          {/* Contact */}
           <div className="mt-3 grid grid-cols-1 gap-2 text-sm text-slate-600 sm:grid-cols-2">
             {user.email && (
               <button
@@ -854,7 +1479,6 @@ function UserCard({
             )}
           </div>
 
-          {/* Meta grid */}
           <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
             <MetaBox
               label="ID verification"
@@ -894,7 +1518,6 @@ function UserCard({
         </div>
       </div>
 
-      {/* Actions */}
       <div className="flex flex-wrap items-center gap-2 border-t border-slate-100 bg-slate-50/60 px-4 py-3 sm:px-5">
         <button
           type="button"
@@ -984,7 +1607,6 @@ function ManageUserModal({
         className="max-h-[92vh] w-full overflow-y-auto rounded-t-2xl bg-white sm:max-w-lg sm:rounded-2xl"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Header */}
         <div className="sticky top-0 z-10 flex items-start justify-between border-b border-slate-100 bg-white px-5 py-4">
           <div className="min-w-0">
             <h2 className="text-lg font-bold text-slate-900">Manage user</h2>
@@ -1003,7 +1625,6 @@ function ManageUserModal({
         </div>
 
         <div className="space-y-5 px-5 py-5">
-          {/* Account status */}
           <section>
             <p className={labelClass}>Account status</p>
             <div className="flex flex-wrap gap-2">
@@ -1049,7 +1670,6 @@ function ManageUserModal({
             </div>
           </section>
 
-          {/* Payment */}
           <section>
             <p className={labelClass}>Premium payment</p>
             <div className="flex flex-wrap items-center gap-2">
@@ -1077,7 +1697,6 @@ function ManageUserModal({
             </div>
           </section>
 
-          {/* ID verification */}
           <section>
             <p className={labelClass}>
               ID verification ·{' '}
@@ -1125,7 +1744,6 @@ function ManageUserModal({
             </div>
           </section>
 
-          {/* Edit form */}
           <form onSubmit={handleSubmit} className="space-y-3 border-t border-slate-100 pt-5">
             <div>
               <label className={labelClass}>Full name *</label>
@@ -1190,7 +1808,6 @@ function ManageUserModal({
             </div>
           </form>
 
-          {/* Danger zone */}
           <div className="border-t border-slate-100 pt-4">
             <button
               type="button"
@@ -1209,7 +1826,7 @@ function ManageUserModal({
 }
 
 /* ============================================================
- * ID documents modal
+ * ID documents modal (users)
  * ============================================================ */
 
 function IdDocumentsModal({ user, urls, loading, onClose, onApprove, onReject }) {
@@ -1307,6 +1924,330 @@ function IdDocumentsModal({ user, urls, loading, onClose, onApprove, onReject })
             </button>
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+/* ============================================================
+ * Agent Details modal
+ * ============================================================ */
+
+function AgentDetailsModal({
+  agent,
+  documentUrls,
+  loadingDocs,
+  verifying,
+  onClose,
+  onApprove,
+  onReject,
+}) {
+  const serviceAreas = agent.service_areas?.toLowerCase() || '';
+  const isPremiumParish = [
+    'kingston',
+    'st. andrew',
+    'st andrew',
+    'st. catherine',
+    'st catherine',
+  ].some((parish) => serviceAreas.includes(parish));
+
+  return (
+    <div
+      className="fixed inset-0 z-[60] flex items-end justify-center bg-black/50 p-0 sm:items-center sm:p-4"
+      onClick={onClose}
+    >
+      <div
+        className="max-h-[92vh] w-full overflow-y-auto rounded-t-2xl bg-white sm:max-w-4xl sm:rounded-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="sticky top-0 z-10 flex items-start justify-between border-b border-slate-100 bg-white px-5 py-4">
+          <div className="min-w-0">
+            <h2 className="text-lg font-bold text-slate-900">Agent Details</h2>
+            <p className="mt-0.5 truncate text-sm text-slate-600">
+              {agent.user?.full_name || agent.user?.email}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-slate-500 transition hover:bg-slate-100 hover:text-slate-900"
+            aria-label="Close"
+          >
+            <X size={18} />
+          </button>
+        </div>
+
+        <div className="space-y-6 px-5 py-5">
+          {/* Personal Info */}
+          <section>
+            <h3 className="mb-3 text-sm font-semibold text-slate-900">
+              Personal Information
+            </h3>
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              <div>
+                <span className="text-slate-500">Name:</span>
+                <p className="font-medium text-slate-900">
+                  {agent.user?.full_name}
+                </p>
+              </div>
+              <div>
+                <span className="text-slate-500">Email:</span>
+                <p className="font-medium text-slate-900">
+                  {agent.user?.email}
+                </p>
+              </div>
+              <div>
+                <span className="text-slate-500">Phone:</span>
+                <p className="font-medium text-slate-900">
+                  {agent.user?.phone}
+                </p>
+              </div>
+              <div>
+                <span className="text-slate-500">Status:</span>
+                <p className="font-medium capitalize text-slate-900">
+                  {agent.verification_status}
+                </p>
+              </div>
+            </div>
+          </section>
+
+          {/* Business Info */}
+          <section>
+            <h3 className="mb-3 text-sm font-semibold text-slate-900">
+              Business Information
+            </h3>
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              <div>
+                <span className="text-slate-500">Business Name:</span>
+                <p className="font-medium text-slate-900">{agent.business_name}</p>
+              </div>
+              <div>
+                <span className="text-slate-500">Years Experience:</span>
+                <p className="font-medium text-slate-900">
+                  {agent.years_experience} years
+                </p>
+              </div>
+              <div>
+                <span className="text-slate-500">License Number:</span>
+                <p className="font-medium text-slate-900">
+                  {agent.license_number || 'N/A'}
+                </p>
+              </div>
+              <div>
+                <span className="text-slate-500">Deals Closed:</span>
+                <p className="font-medium text-slate-900">
+                  {agent.deals_closed_count}
+                </p>
+              </div>
+              <div className="col-span-2">
+                <span className="text-slate-500">Service Areas:</span>
+                <p className="font-medium text-slate-900">
+                  {agent.service_areas || 'N/A'}
+                  {isPremiumParish && (
+                    <span className="ml-2 rounded bg-orange-50 px-2 py-0.5 text-xs font-bold text-orange-600">
+                      Premium Parish
+                    </span>
+                  )}
+                </p>
+              </div>
+              <div className="col-span-2">
+                <span className="text-slate-500">Specializations:</span>
+                <p className="font-medium text-slate-900">
+                  {Array.isArray(agent.specializations)
+                    ? agent.specializations.join(', ')
+                    : agent.specializations || 'N/A'}
+                </p>
+              </div>
+              {agent.about_me && (
+                <div className="col-span-2">
+                  <span className="text-slate-500">About:</span>
+                  <p className="font-medium text-slate-900">{agent.about_me}</p>
+                </div>
+              )}
+            </div>
+          </section>
+
+          {/* Payment Information */}
+          <section>
+            <h3 className="mb-3 text-sm font-semibold text-slate-900">
+              Payment & Access
+            </h3>
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              <div>
+                <span className="text-slate-500">Access Plan:</span>
+                <p className="font-medium text-slate-900">
+                  {agent.payment_status === 'free' && '🆓 Free Access'}
+                  {agent.payment_status === '7-day' && '⚡ 7-Day Access'}
+                  {agent.payment_status === '30-day' && '🔁 30-Day Access'}
+                  {agent.payment_status === '90-day' && '🔒 90-Day Access'}
+                  {!['free', '7-day', '30-day', '90-day'].includes(
+                    agent.payment_status
+                  ) && (agent.payment_status || 'None')}
+                </p>
+              </div>
+              <div>
+                <span className="text-slate-500">Amount Paid:</span>
+                <p className="font-medium text-slate-900">
+                  {agent.payment_amount
+                    ? `J$${agent.payment_amount.toLocaleString()}`
+                    : 'N/A'}
+                </p>
+              </div>
+              <div>
+                <span className="text-slate-500">Payment Date:</span>
+                <p className="font-medium text-slate-900">
+                  {agent.payment_date
+                    ? new Date(agent.payment_date).toLocaleDateString()
+                    : 'N/A'}
+                </p>
+              </div>
+              <div>
+                <span className="text-slate-500">Access Expires:</span>
+                <p className="font-medium text-slate-900">
+                  {agent.access_expiry
+                    ? new Date(agent.access_expiry).toLocaleDateString()
+                    : agent.payment_status === 'free'
+                    ? 'Never (Free Tier)'
+                    : 'N/A'}
+                </p>
+              </div>
+              {agent.last_request_assigned_at && (
+                <div className="col-span-2">
+                  <span className="text-slate-500">Last Request Assigned:</span>
+                  <p className="font-medium text-slate-900">
+                    {new Date(agent.last_request_assigned_at).toLocaleString()}
+                  </p>
+                </div>
+              )}
+            </div>
+          </section>
+
+          {/* Documents */}
+          <section>
+            <h3 className="mb-3 text-sm font-semibold text-slate-900">
+              Verification Documents
+            </h3>
+
+            {loadingDocs ? (
+              <div className="py-8 text-center">
+                <RefreshCw className="mx-auto h-8 w-8 animate-spin text-slate-400" />
+                <p className="mt-2 text-sm text-slate-500">Loading documents…</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                {(documentUrls.license || agent.license_file_url) && (
+                  <div>
+                    <p className="mb-2 text-sm font-medium text-slate-700">
+                      Agent License
+                    </p>
+                    <div className="overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
+                      <img
+                        src={documentUrls.license || agent.license_file_url}
+                        alt="Agent License"
+                        className="h-auto w-full object-contain"
+                        onError={(e) => {
+                          e.target.style.display = 'none';
+                          e.target.nextSibling.style.display = 'flex';
+                        }}
+                      />
+                      <div className="hidden h-64 items-center justify-center bg-slate-100">
+                        <div className="text-center text-slate-500">
+                          <FileText className="mx-auto mb-2 h-12 w-12 text-slate-400" />
+                          <p className="text-sm">Unable to load document</p>
+                          <a
+                            href={
+                              documentUrls.license || agent.license_file_url
+                            }
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="mt-1 inline-block text-xs text-accent hover:underline"
+                          >
+                            Try opening directly
+                          </a>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                {(documentUrls.registration || agent.registration_file_url) && (
+                  <div>
+                    <p className="mb-2 text-sm font-medium text-slate-700">
+                      Business Registration / Gov ID
+                    </p>
+                    <div className="overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
+                      <img
+                        src={documentUrls.registration || agent.registration_file_url}
+                        alt="Business Registration"
+                        className="h-auto w-full object-contain"
+                        onError={(e) => {
+                          e.target.style.display = 'none';
+                          e.target.nextSibling.style.display = 'flex';
+                        }}
+                      />
+                      <div className="hidden h-64 items-center justify-center bg-slate-100">
+                        <div className="text-center text-slate-500">
+                          <FileText className="mx-auto mb-2 h-12 w-12 text-slate-400" />
+                          <p className="text-sm">Unable to load document</p>
+                          <a
+                            href={
+                              documentUrls.registration ||
+                              agent.registration_file_url
+                            }
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="mt-1 inline-block text-xs text-accent hover:underline"
+                          >
+                            Try opening directly
+                          </a>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                {!agent.license_file_url && !agent.registration_file_url && (
+                  <div className="col-span-2 py-8 text-center text-slate-500">
+                    <FileText className="mx-auto mb-2 h-12 w-12 text-slate-400" />
+                    <p>No verification documents uploaded</p>
+                  </div>
+                )}
+              </div>
+            )}
+          </section>
+
+          {agent.verification_notes && (
+            <section>
+              <h3 className="mb-3 text-sm font-semibold text-slate-900">
+                Admin Notes
+              </h3>
+              <p className="rounded-lg bg-slate-50 p-3 text-sm text-slate-700">
+                {agent.verification_notes}
+              </p>
+            </section>
+          )}
+
+          {agent.verification_status === 'pending' && (
+            <div className="flex items-center gap-3 border-t border-slate-100 pt-4">
+              <button
+                type="button"
+                onClick={onApprove}
+                disabled={verifying}
+                className="inline-flex flex-1 items-center justify-center gap-2 rounded-full bg-emerald-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-50"
+              >
+                <CheckCircle2 className="h-5 w-5" />
+                Approve Agent
+              </button>
+              <button
+                type="button"
+                onClick={onReject}
+                disabled={verifying}
+                className="inline-flex flex-1 items-center justify-center gap-2 rounded-full border border-red-200 bg-white px-4 py-3 text-sm font-semibold text-red-700 transition hover:bg-red-50 disabled:opacity-50"
+              >
+                <XCircle className="h-5 w-5" />
+                Reject Agent
+              </button>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

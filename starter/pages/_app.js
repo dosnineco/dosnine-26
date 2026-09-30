@@ -54,7 +54,7 @@ const PUBLIC_ROUTES = [
 ];
 
 // Pages that should not have header/footer
-const NO_LAYOUT_PAGES = ['/ads/request-agent', '/course', '/logo', '/ads-course', '/hill-lot'];
+const NO_LAYOUT_PAGES = ['/ads/request-agent', '/course', '/logo', '/ads-course', '/invest'];
 
 /* ============================================================
  * Header sizing

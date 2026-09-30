@@ -1,6 +1,6 @@
 import Head from 'next/head';
 import { useEffect, useMemo, useState } from 'react';
-import { useUser } from '@clerk/nextjs';
+import { useUser, useAuth } from '@clerk/nextjs';
 import toast from 'react-hot-toast';
 import {
   Users,
@@ -17,13 +17,11 @@ import {
   Check,
   AlertCircle,
   Building2,
+  Plus,
+  Pencil,
+  Trash2,
+  Loader2,
 } from 'lucide-react';
-
-const RATE_MAP = {
-  'USD 30K': 0.04,
-  'USD 20K': 0.0325,
-  'USD 10K': 0.03,
-};
 
 const TIER_STYLES = {
   'USD 30K': { label: 'USD 30K', badge: 'bg-emerald-100 text-emerald-800 border-emerald-200' },
@@ -43,8 +41,15 @@ const formatUSD = (value) =>
     maximumFractionDigits: 0,
   })}`;
 
+const inputClass =
+  'w-full rounded-lg border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-accent focus:ring-2 focus:ring-accent/20';
+const labelClass =
+  'block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1.5';
+
 export default function HillLotInvestorsPage() {
   const { user } = useUser();
+  const { getToken, isLoaded: authLoaded } = useAuth();
+
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
   const [items, setItems] = useState([]);
@@ -53,16 +58,45 @@ export default function HillLotInvestorsPage() {
   const [sortBy, setSortBy] = useState('newest');
   const [copied, setCopied] = useState('');
 
+  const [modal, setModal] = useState(null);
+  const [pendingId, setPendingId] = useState(null);
+
+  /* ----------------------------------------------------------
+   * Authed fetch helper (Bearer token + cookies)
+   * ---------------------------------------------------------- */
+  const authedFetch = async (url, options = {}) => {
+    const token = await getToken();
+    const headers = { ...(options.headers || {}) };
+    if (token) headers.Authorization = `Bearer ${token}`;
+    if (options.body && !headers['Content-Type']) {
+      headers['Content-Type'] = 'application/json';
+    }
+    return fetch(url, {
+      ...options,
+      credentials: 'include',
+      headers,
+    });
+  };
+
+  /* ----------------------------------------------------------
+   * Admin verification
+   * ---------------------------------------------------------- */
   useEffect(() => {
     const verify = async () => {
       if (!user) {
         setLoading(false);
         return;
       }
+      if (!authLoaded) return;
 
       try {
-        const response = await fetch('/api/admin/verify-admin');
+        const token = await getToken();
+        const response = await fetch('/api/admin/verify-admin', {
+          credentials: 'include',
+          headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        });
         const payload = await response.json();
+
         if (!response.ok || !payload?.isAdmin) {
           setIsAdmin(false);
           toast.error('Access denied');
@@ -79,14 +113,16 @@ export default function HillLotInvestorsPage() {
     };
 
     verify();
-  }, [user]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, authLoaded]);
 
+  /* ----------------------------------------------------------
+   * Fetch
+   * ---------------------------------------------------------- */
   const fetchData = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/admin/hill-lot-investors', {
-        credentials: 'include',
-      });
+      const response = await authedFetch('/api/admin/hill-lot-investors');
       const payload = await response.json();
       if (!response.ok || !payload?.success) {
         throw new Error(payload?.error || 'Unable to load investor data');
@@ -96,6 +132,113 @@ export default function HillLotInvestorsPage() {
       toast.error(error.message || 'Unable to load investor data');
     } finally {
       setLoading(false);
+    }
+  };
+
+  /* ----------------------------------------------------------
+   * CRUD handlers
+   * ---------------------------------------------------------- */
+  const openCreate = () =>
+    setModal({
+      mode: 'create',
+      item: {
+        full_name: '',
+        email: '',
+        phone: '',
+        investment_amount: '',
+        stay_type: '',
+      },
+    });
+
+  const openEdit = (item) =>
+    setModal({
+      mode: 'edit',
+      item: {
+        id: item.id,
+        full_name: item.full_name || '',
+        email: item.email || '',
+        phone: item.phone || '',
+        investment_amount:
+          item.investment_amount !== undefined && item.investment_amount !== null
+            ? String(item.investment_amount)
+            : '',
+        stay_type: item.stay_type || '',
+      },
+    });
+
+  const closeModal = () => setModal(null);
+
+  const handleSave = async (form) => {
+    const isEdit = modal?.mode === 'edit';
+    const trimmedName = form.full_name?.trim() || '';
+
+    if (!trimmedName) {
+      toast.error('Full name is required');
+      return;
+    }
+    if (form.email && !/^\S+@\S+\.\S+$/.test(form.email.trim())) {
+      toast.error('Enter a valid email address');
+      return;
+    }
+
+    const payloadBody = {
+      full_name: trimmedName,
+      email: form.email?.trim() || null,
+      phone: form.phone?.trim() || null,
+      investment_amount:
+        form.investment_amount === '' ||
+        form.investment_amount === null ||
+        form.investment_amount === undefined
+          ? null
+          : Number(form.investment_amount),
+      stay_type: form.stay_type?.trim() || null,
+    };
+
+    if (isEdit) payloadBody.id = form.id;
+
+    try {
+      setPendingId(isEdit ? form.id : 'create');
+      const response = await authedFetch('/api/admin/hill-lot-investors', {
+        method: isEdit ? 'PATCH' : 'POST',
+        body: JSON.stringify(payloadBody),
+      });
+      const payload = await response.json();
+      if (!response.ok || !payload?.success) {
+        throw new Error(payload?.error || 'Failed to save investor');
+      }
+
+      toast.success(isEdit ? 'Investor updated' : 'Investor added');
+      closeModal();
+      await fetchData();
+    } catch (err) {
+      toast.error(err.message || 'Failed to save investor');
+    } finally {
+      setPendingId(null);
+    }
+  };
+
+  const handleDelete = async (item) => {
+    const label = item.full_name || 'this investor';
+    if (!confirm(`Delete submission from "${label}"? This cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      setPendingId(item.id);
+      const response = await authedFetch('/api/admin/hill-lot-investors', {
+        method: 'DELETE',
+        body: JSON.stringify({ id: item.id }),
+      });
+      const payload = await response.json();
+      if (!response.ok || !payload?.success) {
+        throw new Error(payload?.error || 'Failed to delete investor');
+      }
+      toast.success('Investor deleted');
+      await fetchData();
+    } catch (err) {
+      toast.error(err.message || 'Failed to delete investor');
+    } finally {
+      setPendingId(null);
     }
   };
 
@@ -111,16 +254,19 @@ export default function HillLotInvestorsPage() {
     );
 
     const estimatedAnnual = items.reduce(
-      (sum, item) => sum + Number(item.amount_value || 0) * (item.rate_value || 0),
+      (sum, item) =>
+        sum + Number(item.amount_value || 0) * (item.rate_value || 0),
       0
     );
 
     const averageInvestment =
       totalInvestors > 0 ? totalRaised / totalInvestors : 0;
 
-    const averageRate = totalInvestors > 0
-      ? items.reduce((sum, item) => sum + Number(item.rate_value || 0), 0) / totalInvestors
-      : 0;
+    const averageRate =
+      totalInvestors > 0
+        ? items.reduce((sum, item) => sum + Number(item.rate_value || 0), 0) /
+          totalInvestors
+        : 0;
 
     const tierBreakdown = items.reduce((acc, item) => {
       const key = item.amount_label || 'Unknown';
@@ -221,7 +367,9 @@ export default function HillLotInvestorsPage() {
       <div className="flex items-center justify-center py-24">
         <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center">
           <AlertCircle className="mx-auto h-10 w-10 text-red-500" />
-          <h1 className="mt-4 text-xl font-semibold text-slate-900">Access denied</h1>
+          <h1 className="mt-4 text-xl font-semibold text-slate-900">
+            Access denied
+          </h1>
           <p className="mt-2 text-sm text-slate-600">
             Admin access is required to view investor data.
           </p>
@@ -247,17 +395,30 @@ export default function HillLotInvestorsPage() {
               Hill Lot Investor Interest
             </h1>
             <p className="mt-1 text-sm text-slate-600">
-              Review submissions, capital commitments, and projected annual returns.
+              Review submissions, capital commitments, and projected annual
+              returns.
             </p>
           </div>
-          <button
-            type="button"
-            onClick={fetchData}
-            className="inline-flex shrink-0 items-center gap-2 self-start rounded-full border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
-          >
-            <TrendingUp size={14} />
-            Refresh
-          </button>
+
+          <div className="flex flex-wrap gap-2 self-start">
+            <button
+              type="button"
+              onClick={openCreate}
+              disabled={pendingId === 'create'}
+              className="inline-flex items-center gap-2 rounded-full bg-accent px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-accent/90 disabled:opacity-60"
+            >
+              <Plus size={14} />
+              Add investor
+            </button>
+            <button
+              type="button"
+              onClick={fetchData}
+              className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
+            >
+              <TrendingUp size={14} />
+              Refresh
+            </button>
+          </div>
         </div>
 
         {/* Summary stats */}
@@ -316,7 +477,8 @@ export default function HillLotInvestorsPage() {
                           {tierStyle.label}
                         </span>
                         <span className="text-xs font-semibold text-slate-500">
-                          {data.count} {data.count === 1 ? 'investor' : 'investors'}
+                          {data.count}{' '}
+                          {data.count === 1 ? 'investor' : 'investors'}
                         </span>
                       </div>
                       <p className="mt-3 text-lg font-bold text-slate-900">
@@ -423,8 +585,11 @@ export default function HillLotInvestorsPage() {
         {/* Results count */}
         {!loading && items.length > 0 && (
           <p className="text-sm text-slate-500">
-            Showing <strong className="text-slate-900">{filteredAndSorted.length}</strong> of{' '}
-            {items.length} investor{items.length === 1 ? '' : 's'}
+            Showing{' '}
+            <strong className="text-slate-900">
+              {filteredAndSorted.length}
+            </strong>{' '}
+            of {items.length} investor{items.length === 1 ? '' : 's'}
           </p>
         )}
 
@@ -447,6 +612,14 @@ export default function HillLotInvestorsPage() {
             <p className="mt-1 text-sm text-slate-500">
               Submissions from the Hill Lot interest form will appear here.
             </p>
+            <button
+              type="button"
+              onClick={openCreate}
+              className="mt-4 inline-flex items-center gap-2 rounded-full bg-accent px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-accent/90"
+            >
+              <Plus size={14} />
+              Add investor
+            </button>
           </div>
         ) : filteredAndSorted.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-slate-200 bg-white py-16 text-center">
@@ -470,13 +643,16 @@ export default function HillLotInvestorsPage() {
                 .join('')
                 .toUpperCase();
 
+              const isBusy = pendingId === item.id;
+
               return (
                 <article
                   key={item.id}
-                  className="rounded-2xl border border-slate-200 bg-white transition hover:border-slate-300"
+                  className={`rounded-2xl border border-slate-200 bg-white transition hover:border-slate-300 ${
+                    isBusy ? 'opacity-60' : ''
+                  }`}
                 >
                   <div className="flex flex-col gap-4 p-4 sm:flex-row sm:p-5">
-                    {/* Avatar + tier */}
                     <div className="flex shrink-0 items-center gap-3 sm:flex-col sm:items-start">
                       <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-slate-100 text-sm font-bold text-slate-700">
                         {initials || '?'}
@@ -488,19 +664,18 @@ export default function HillLotInvestorsPage() {
                       </span>
                     </div>
 
-                    {/* Main content */}
                     <div className="min-w-0 flex-1">
-                      {/* Name */}
                       <h3 className="text-base font-bold text-slate-900">
                         {item.full_name || 'Unnamed investor'}
                       </h3>
 
-                      {/* Contact details */}
                       <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-sm">
                         {item.email && (
                           <button
                             type="button"
-                            onClick={() => copyToClipboard(item.email, `${item.id}-email`)}
+                            onClick={() =>
+                              copyToClipboard(item.email, `${item.id}-email`)
+                            }
                             className="group inline-flex items-center gap-1.5 text-slate-600 transition hover:text-accent"
                           >
                             <Mail size={13} className="text-slate-400" />
@@ -527,7 +702,6 @@ export default function HillLotInvestorsPage() {
                         )}
                       </div>
 
-                      {/* Financial metrics */}
                       <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
                         <MetricBox
                           label="Investment"
@@ -548,17 +722,19 @@ export default function HillLotInvestorsPage() {
                         />
                       </div>
 
-                      {/* Footer row */}
                       <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-slate-500">
                         <span className="inline-flex items-center gap-1.5">
                           <Calendar size={11} />
                           Submitted{' '}
                           {item.created_at
-                            ? new Date(item.created_at).toLocaleDateString('en-US', {
-                                month: 'short',
-                                day: 'numeric',
-                                year: 'numeric',
-                              })
+                            ? new Date(item.created_at).toLocaleDateString(
+                                'en-US',
+                                {
+                                  month: 'short',
+                                  day: 'numeric',
+                                  year: 'numeric',
+                                }
+                              )
                             : '—'}
                         </span>
                         {item.stay_type && (
@@ -570,12 +746,49 @@ export default function HillLotInvestorsPage() {
                       </div>
                     </div>
                   </div>
+
+                  {/* Action bar */}
+                  <div className="flex flex-wrap items-center gap-2 border-t border-slate-100 bg-slate-50/60 px-4 py-3 sm:px-5">
+                    <button
+                      type="button"
+                      onClick={() => openEdit(item)}
+                      disabled={isBusy}
+                      className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-100 disabled:opacity-50"
+                    >
+                      <Pencil size={13} />
+                      Edit
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDelete(item)}
+                      disabled={isBusy}
+                      className="ml-auto inline-flex items-center gap-1.5 rounded-full border border-red-200 bg-white px-3.5 py-2 text-xs font-semibold text-red-700 transition hover:bg-red-50 disabled:opacity-50"
+                    >
+                      {isBusy ? (
+                        <Loader2 size={13} className="animate-spin" />
+                      ) : (
+                        <Trash2 size={13} />
+                      )}
+                      Delete
+                    </button>
+                  </div>
                 </article>
               );
             })}
           </div>
         )}
       </div>
+
+      {/* Create/Edit modal */}
+      {modal && (
+        <InvestorModal
+          mode={modal.mode}
+          initial={modal.item}
+          saving={pendingId === 'create' || pendingId === modal.item?.id}
+          onClose={closeModal}
+          onSave={handleSave}
+        />
+      )}
     </>
   );
 }
@@ -621,6 +834,143 @@ function MetricBox({ label, value, tone }) {
         {label}
       </p>
       <p className={`mt-1 truncate text-sm font-bold ${valueClass}`}>{value}</p>
+    </div>
+  );
+}
+
+function InvestorModal({ mode, initial, saving, onClose, onSave }) {
+  const [form, setForm] = useState({
+    id: initial?.id,
+    full_name: initial?.full_name || '',
+    email: initial?.email || '',
+    phone: initial?.phone || '',
+    investment_amount: initial?.investment_amount ?? '',
+    stay_type: initial?.stay_type || '',
+  });
+
+  const setField = (field, value) =>
+    setForm((prev) => ({ ...prev, [field]: value }));
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    onSave(form);
+  };
+
+  const isEdit = mode === 'edit';
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-0 sm:items-center sm:p-4"
+      onClick={onClose}
+    >
+      <div
+        className="max-h-[92vh] w-full overflow-y-auto rounded-t-2xl bg-white sm:max-w-lg sm:rounded-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="sticky top-0 z-10 flex items-start justify-between border-b border-slate-100 bg-white px-5 py-4">
+          <div>
+            <h2 className="text-lg font-bold text-slate-900">
+              {isEdit ? 'Edit investor' : 'Add investor'}
+            </h2>
+            <p className="mt-0.5 text-sm text-slate-600">
+              {isEdit
+                ? 'Update the details for this investor submission.'
+                : 'Manually add an investor submission.'}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-slate-500 transition hover:bg-slate-100 hover:text-slate-900"
+            aria-label="Close"
+          >
+            <X size={18} />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-4 px-5 py-5">
+          <div>
+            <label className={labelClass}>Full name *</label>
+            <input
+              type="text"
+              value={form.full_name}
+              onChange={(e) => setField('full_name', e.target.value)}
+              className={inputClass}
+              placeholder="e.g. Jane Doe"
+              required
+            />
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <label className={labelClass}>Email</label>
+              <input
+                type="email"
+                value={form.email}
+                onChange={(e) => setField('email', e.target.value)}
+                className={inputClass}
+                placeholder="jane@example.com"
+              />
+            </div>
+            <div>
+              <label className={labelClass}>Phone</label>
+              <input
+                type="tel"
+                value={form.phone}
+                onChange={(e) => setField('phone', e.target.value)}
+                className={inputClass}
+                placeholder="876-123-4567"
+              />
+            </div>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <label className={labelClass}>Investment amount (USD)</label>
+              <input
+                type="number"
+                min="0"
+                step="100"
+                value={form.investment_amount}
+                onChange={(e) => setField('investment_amount', e.target.value)}
+                className={inputClass}
+                placeholder="30000"
+              />
+              <p className="mt-1 text-[11px] text-slate-500">
+                Tiers: $10K (3%), $20K (3.25%), $30K+ (4%)
+              </p>
+            </div>
+            <div>
+              <label className={labelClass}>Stay type</label>
+              <input
+                type="text"
+                value={form.stay_type}
+                onChange={(e) => setField('stay_type', e.target.value)}
+                className={inputClass}
+                placeholder="e.g. Long-term, Short-term"
+              />
+            </div>
+          </div>
+
+          <div className="flex gap-3 pt-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 rounded-full border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={saving}
+              className="inline-flex flex-1 items-center justify-center gap-2 rounded-full bg-accent px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-accent/90 disabled:opacity-50"
+            >
+              {saving && <Loader2 size={14} className="animate-spin" />}
+              {saving ? 'Saving…' : isEdit ? 'Save changes' : 'Add investor'}
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }

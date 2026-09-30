@@ -187,13 +187,7 @@ export default function AdminLayout({ children }) {
       icon: FiZap,
       badge: counts.applications,
     },
-    {
-      href: '/admin/requests-management',
-      label: 'Manage Requests',
-      icon: FiZap,
-      badge: counts.requests,
-    },
-    { href: '/admin/agents', label: 'Agents', icon: FiUsers },
+
     { href: '/admin/htv', label: 'HTV', icon: FiPackage },
     {
       href: '/admin/advertisements',
@@ -207,8 +201,7 @@ export default function AdminLayout({ children }) {
       label: 'Market Intelligence',
       icon: FiTrendingUp,
     },
-    { href: '/admin/hill-lot-investors', label: 'Hill Lot Investors', icon: FiDollarSign },
-    { href: '/admin/allocation', label: 'Allocation', icon: FiTrendingUp },
+    { href: '/admin/investors', label: 'Investors', icon: FiDollarSign },
     { href: '/admin/users', label: 'Users', icon: FiUsers },
     { href: '/admin/properties', label: 'Properties', icon: FiUsers },
     { href: '/admin/api-smoke', label: 'API Smoke', icon: FiGrid },
