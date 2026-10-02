@@ -54,7 +54,8 @@ const PUBLIC_ROUTES = [
 ];
 
 // Pages that should not have header/footer
-const NO_LAYOUT_PAGES = ['/ads/request-agent', '/course', '/logo', '/ads-course', '/invest'];
+const NO_LAYOUT_PAGES = ['/ads/request-agent', '/course', '/logo', '/ads-course',  '/fin', '/invest', '/chargeback',
+];
 
 /* ============================================================
  * Header sizing
@@ -83,6 +84,9 @@ const NO_SPONSORED_BANNER_ROUTES = [
   '/refund-policy',
   '/about',
   '/advertise',
+  '/chargeback',
+    '/fin',
+
 ];
 
 const NO_SPONSORED_BANNER_PREFIXES = [
@@ -90,6 +94,9 @@ const NO_SPONSORED_BANNER_PREFIXES = [
   '/agent/dashboard',
   '/landlord',
   '/tenant',
+  '/chargeback',
+    '/fin',
+
 ];
 
 const shouldHideSponsoredBanner = (pathname) => {

@@ -1,6 +1,15 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import Head from 'next/head';
-import { Copy, CheckCircle } from 'lucide-react';
+import {
+  Copy,
+  CheckCircle,
+  Settings2,
+  FileInput,
+  FileOutput,
+  Trash2,
+  Wand2,
+  Layers,
+} from 'lucide-react';
 
 const outputHeaders = [
   "Bank Ac",
@@ -26,6 +35,23 @@ const outputHeaders = [
   "ARN"
 ];
 
+const REASON_CODES = [
+  "NO C/HOLDER AUTH",
+  "DUPLICATE PROCESSING",
+  "GOODS/SERVICE NOT AS DESCRIBED/DAMAGED",
+  "INCORRECT AMOUNT",
+  "GOODS/SERVICES NOT RECEIVED",
+  "PAID BY OTHER MEANS",
+  "CREDIT NOT PROCESSED",
+  "NO AUTHORIZATION",
+  "LATE PRESENTMENT",
+  "INCORRECT CURRENCY",
+  "CANCELLED RECURRING",
+  "MISREPRESENTATION",
+  "CANCELLED MERCHANDISE/SERVICES",
+  "NON-RECEIPT OF CASH",
+];
+
 const processTransactions = (inputText, formData) => {
   const [year, month, day] = formData.reportDate.split('-');
   const formattedDate = `${day}/${month}/${year}`;
@@ -40,7 +66,6 @@ const processTransactions = (inputText, formData) => {
   let output = "";
 
   for (let i = 0; i < lines.length; i += 2) {
-
     if (!lines[i + 1]) break;
 
     const txnDetails = lines[i].match(/\S+/g) || [];
@@ -100,11 +125,11 @@ const processTransactions = (inputText, formData) => {
   return output;
 };
 
-export default function Home() {
-
+export default function ChargebackGenerator() {
   const [input, setInput] = useState("");
   const [output, setOutput] = useState("");
-  const [copied, setCopied] = useState(false);
+  const [copiedTsV, setCopiedTsV] = useState(false);
+  const [copiedTable, setCopiedTable] = useState(false);
 
   const [formData, setFormData] = useState({
     bankAcNumber: "XXXXXXX",
@@ -116,207 +141,382 @@ export default function Home() {
     producttype: "Consumer"
   });
 
-  const outputRows = output
-    .trim()
-    .split('\n')
-    .filter(Boolean)
-    .map((line) => line.split('\t'));
+  const outputRows = useMemo(
+    () =>
+      output
+        .trim()
+        .split('\n')
+        .filter(Boolean)
+        .map((line) => line.split('\t')),
+    [output]
+  );
 
   const handleProcess = () => {
     const processedData = processTransactions(input, formData);
     setOutput(processedData);
   };
 
-  const handleCopy = async () => {
+  const handleClear = () => {
+    setInput("");
+    setOutput("");
+  };
+
+  const handleCopyTsv = async () => {
     await navigator.clipboard.writeText(output);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    setCopiedTsV(true);
+    setTimeout(() => setCopiedTsV(false), 2000);
+  };
+
+  const handleCopyTable = async () => {
+    // Tab-delimited, works when pasted into Excel / Google Sheets
+    const text = outputRows.map((row) => row.join('\t')).join('\n');
+    await navigator.clipboard.writeText(text);
+    setCopiedTable(true);
+    setTimeout(() => setCopiedTable(false), 2000);
   };
 
   const handleFormChange = (e) => {
     const { name, value } = e.target;
-
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
+    setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
+  const canProcess = input.trim().length > 0;
+
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-slate-50">
       <Head>
         <title>Chargeback Generator — Dosnine</title>
         <meta name="robots" content="noindex, nofollow" />
       </Head>
-      <main className="container mx-auto px-4 py-8">
-        <div className="max-w-4xl mx-auto">
-          <h1 className="text-3xl font-bold text-center mb-6 text-accent">
-            Chargeback Generator
-          </h1>
 
-          <div className="bg-gray-100 rounded-xl p-6 mb-8">
-            <h2 className="text-xl font-semibold mb-4 text-accent">
-              Configuration
-            </h2>
+      <main className="mx-auto max-w-6xl px-4 py-10 sm:px-6 lg:px-8">
+        {/* ============ HEADER ============ */}
+        <header className="mb-10">
+          <div className="flex items-center gap-3">
+            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-accent/10 text-accent">
+              <Wand2 size={18} />
+            </span>
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-accent">
+                Internal tool
+              </p>
+              <h1 className="mt-0.5 text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
+                Chargeback Generator
+              </h1>
+            </div>
+          </div>
+          <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600">
+            Paste transaction data below, configure the report parameters, and
+            generate a formatted chargeback file ready to submit.
+          </p>
+        </header>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm mb-1">Report Date</label>
+        <div className="space-y-6">
+          {/* ============================================================
+              STEP 1 — CONFIGURATION
+              ============================================================ */}
+          <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+            <div className="flex items-center justify-between gap-3 border-b border-slate-100 px-5 py-4 sm:px-6">
+              <div className="flex items-center gap-3">
+                <span className="flex h-7 w-7 items-center justify-center rounded-full bg-slate-900 text-xs font-bold text-white">
+                  1
+                </span>
+                <h2 className="text-base font-bold text-slate-900">
+                  Configuration
+                </h2>
+              </div>
+              <span className="hidden items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-slate-400 sm:flex">
+                <Settings2 size={12} />
+                Report parameters
+              </span>
+            </div>
+
+            <div className="grid gap-5 p-5 sm:grid-cols-2 sm:p-6 lg:grid-cols-3">
+              <Field label="Report date" hint="Appears on every row">
                 <input
                   type="date"
                   name="reportDate"
                   value={formData.reportDate}
                   onChange={handleFormChange}
-                  className="w-full bg-gray-50 px-3 py-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent"
+                  className="w-full rounded-lg border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-900 outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/20"
                 />
-              </div>
+              </Field>
 
-              <div>
-                <label className="block text-sm mb-1">Card Prefix</label>
+              <Field label="Card prefix" hint="First 6 digits (BIN)">
                 <input
                   name="fFour"
                   value={formData.fFour}
                   onChange={handleFormChange}
-                  className="w-full bg-gray-50 px-3 py-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent"
+                  className="w-full rounded-lg border border-slate-200 bg-white px-3.5 py-2.5 font-mono text-sm text-slate-900 outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/20"
                 />
-              </div>
+              </Field>
 
-              <div>
-                <label className="block text-sm mb-1">Reason Code</label>
-                <select
-                  name="reasonCode"
-                  value={formData.reasonCode}
+              <Field label="Bank account number" hint="Masked value on output">
+                <input
+                  name="bankAcNumber"
+                  value={formData.bankAcNumber}
                   onChange={handleFormChange}
-                  className="w-full bg-gray-50 px-3 py-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent"
-                >
-                  <option value="NO C/HOLDER AUTH">NO C/HOLDER AUTH</option>
-                  <option value="DUPLICATE PROCESSING">DUPLICATE PROCESSING</option>
-                  <option value="GOODS/SERVICE NOT AS DESCRIBED/DAMAGED">GOODS/SERVICE NOT AS DESCRIBED/DAMAGED</option>
-                  <option value="INCORRECT AMOUNT">INCORRECT AMOUNT</option>
-                  <option value="GOODS/SERVICES NOT RECEIVED">GOODS/SERVICES NOT RECEIVED</option>
-                  <option value="PAID BY OTHER MEANS">PAID BY OTHER MEANS</option>
-                  <option value="CREDIT NOT PROCESSED">CREDIT NOT PROCESSED</option>
-                  <option value="NO AUTHORIZATION">NO AUTHORIZATION</option>
-                  <option value="LATE PRESENTMENT">LATE PRESENTMENT</option>
-                  <option value="INCORRECT CURRENCY">INCORRECT CURRENCY</option>
-                  <option value="CANCELLED RECURRING">CANCELLED RECURRING</option>
-                  <option value="MISREPRESENTATION">MISREPRESENTATION</option>
-                  <option value="CANCELLED MERCHANDISE/SERVICES">CANCELLED MERCHANDISE/SERVICES</option>
-                  <option value="NON-RECEIPT OF CASH">NON-RECEIPT OF CASH</option>
-                </select>
-              </div>
+                  className="w-full rounded-lg border border-slate-200 bg-white px-3.5 py-2.5 font-mono text-sm text-slate-900 outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/20"
+                />
+              </Field>
 
-              <div>
-                <label className="block text-sm mb-1">OTP</label>
-                <select
-                  name="otp"
-                  value={formData.otp}
-                  onChange={handleFormChange}
-                  className="w-full bg-gray-50 px-3 py-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent"
-                >
-                  <option value="Y">Y</option>
-                  <option value="N">N</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm mb-1">Card Type</label>
+              <Field label="Card type">
                 <select
                   name="cardtype"
                   value={formData.cardtype}
                   onChange={handleFormChange}
-                  className="w-full bg-gray-50 px-3 py-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent"
+                  className="w-full rounded-lg border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-900 outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/20"
                 >
                   <option>Debit</option>
                   <option>Credit</option>
                 </select>
-              </div>
+              </Field>
 
-              <div>
-                <label className="block text-sm mb-1">Product Type</label>
+              <Field label="Product type">
                 <select
                   name="producttype"
                   value={formData.producttype}
                   onChange={handleFormChange}
-                  className="w-full bg-gray-50 px-3 py-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent"
+                  className="w-full rounded-lg border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-900 outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/20"
                 >
                   <option>Consumer</option>
                   <option>Business</option>
                 </select>
+              </Field>
+
+              <Field label="OTP used">
+                <select
+                  name="otp"
+                  value={formData.otp}
+                  onChange={handleFormChange}
+                  className="w-full rounded-lg border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-900 outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/20"
+                >
+                  <option value="Y">Y — OTP was used</option>
+                  <option value="N">N — No OTP</option>
+                </select>
+              </Field>
+
+              <div className="sm:col-span-2 lg:col-span-3">
+                <Field
+                  label="Reason code"
+                  hint="Applied to every generated row"
+                >
+                  <select
+                    name="reasonCode"
+                    value={formData.reasonCode}
+                    onChange={handleFormChange}
+                    className="w-full rounded-lg border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-900 outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/20"
+                  >
+                    {REASON_CODES.map((code) => (
+                      <option key={code} value={code}>
+                        {code}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
               </div>
             </div>
-          </div>
+          </section>
 
-          <div className="bg-gray-100 rounded-xl p-6 mb-8">
-            <h2 className="text-xl font-semibold mb-4 text-accent">Input</h2>
-            <textarea
-              rows={10}
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              className="w-full bg-gray-50 px-3 py-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-accent"
-              placeholder="Paste transaction text..."
-            />
-            <button
-              onClick={handleProcess}
-              className="mt-4 bg-accent hover:bg-accent/90 text-white px-6 py-3 rounded-xl font-semibold transition"
-            >
-              Process Transactions
-            </button>
-          </div>
-
-          <div className="bg-gray-100 rounded-xl p-6">
-            <div className="flex justify-between mb-4">
-              <h2 className="text-xl font-semibold text-accent">Output</h2>
-              <button
-                onClick={handleCopy}
-                className="flex items-center gap-2 px-4 py-2 bg-accent hover:bg-accent/90 text-white rounded-xl font-semibold transition"
-              >
-                {copied ? <CheckCircle size={18} /> : <Copy size={18} />}
-                {copied ? "Copied" : "Copy"}
-              </button>
+          {/* ============================================================
+              STEP 2 — INPUT
+              ============================================================ */}
+          <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+            <div className="flex items-center justify-between gap-3 border-b border-slate-100 px-5 py-4 sm:px-6">
+              <div className="flex items-center gap-3">
+                <span className="flex h-7 w-7 items-center justify-center rounded-full bg-slate-900 text-xs font-bold text-white">
+                  2
+                </span>
+                <h2 className="text-base font-bold text-slate-900">
+                  Paste transaction data
+                </h2>
+              </div>
+              <span className="hidden items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-slate-400 sm:flex">
+                <FileInput size={12} />
+                Two lines per transaction
+              </span>
             </div>
 
-            <div className="bg-gray-50 rounded-lg p-4">
-              <table className="min-w-full border-collapse text-sm">
-                <thead>
-                  <tr className="bg-accent text-white">
-                    {outputHeaders.map((header) => (
-                      <th key={header} className="px-3 py-2 text-left whitespace-nowrap">
-                        {header}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {outputRows.length === 0 && (
+            <div className="p-5 sm:p-6">
+              <textarea
+                rows={12}
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                className="w-full resize-y rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 font-mono text-xs leading-relaxed text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-accent focus:bg-white focus:ring-2 focus:ring-accent/20"
+                placeholder="Paste transaction text here — each transaction takes two lines…"
+              />
+
+              <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <p className="text-xs text-slate-500">
+                  {input.trim().length === 0
+                    ? 'Waiting for input'
+                    : `${input.split('\n').length} line${
+                        input.split('\n').length === 1 ? '' : 's'
+                      } pasted`}
+                </p>
+
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={handleClear}
+                    disabled={!input && !output}
+                    className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <Trash2 size={14} />
+                    Clear
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleProcess}
+                    disabled={!canProcess}
+                    className="inline-flex items-center gap-2 rounded-full bg-accent px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-accent/90 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <Wand2 size={14} />
+                    Process transactions
+                  </button>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          {/* ============================================================
+              STEP 3 — OUTPUT
+              ============================================================ */}
+          <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-4 sm:px-6">
+              <div className="flex items-center gap-3">
+                <span className="flex h-7 w-7 items-center justify-center rounded-full bg-slate-900 text-xs font-bold text-white">
+                  3
+                </span>
+                <h2 className="text-base font-bold text-slate-900">
+                  Generated output
+                </h2>
+                {outputRows.length > 0 && (
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wider text-emerald-700">
+                    <Layers size={11} />
+                    {outputRows.length} row
+                    {outputRows.length === 1 ? '' : 's'}
+                  </span>
+                )}
+              </div>
+
+              {outputRows.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={handleCopyTable}
+                    className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
+                  >
+                    {copiedTable ? (
+                      <CheckCircle size={14} className="text-emerald-600" />
+                    ) : (
+                      <Copy size={14} />
+                    )}
+                    {copiedTable ? 'Copied' : 'Copy as table'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleCopyTsv}
+                    className="inline-flex items-center gap-2 rounded-full bg-accent px-4 py-2 text-xs font-semibold text-white transition hover:bg-accent/90"
+                  >
+                    {copiedTsV ? (
+                      <CheckCircle size={14} />
+                    ) : (
+                      <Copy size={14} />
+                    )}
+                    {copiedTsV ? 'Copied' : 'Copy TSV (submit)'}
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {outputRows.length === 0 ? (
+              /* ---------- EMPTY STATE ---------- */
+              <div className="flex flex-col items-center justify-center px-6 py-16 text-center">
+                <span className="flex h-14 w-14 items-center justify-center rounded-full bg-slate-100 text-slate-400">
+                  <FileOutput size={22} />
+                </span>
+                <p className="mt-4 text-sm font-semibold text-slate-700">
+                  No output yet
+                </p>
+                <p className="mt-1 max-w-sm text-sm text-slate-500">
+                  Configure the report, paste transactions above, then click{' '}
+                  <strong className="font-semibold text-slate-700">
+                    Process transactions
+                  </strong>{' '}
+                  to generate your file.
+                </p>
+              </div>
+            ) : (
+              /* ---------- TABLE ---------- */
+              <div className="overflow-x-auto">
+                <table className="min-w-full border-collapse text-xs">
+                  <thead className="sticky top-0 z-10 bg-slate-900 text-white">
                     <tr>
-                      <td
-                        colSpan={outputHeaders.length}
-                        className="px-3 py-6 text-center text-accent"
-                      >
-                        Process transactions to preview output rows.
-                      </td>
-                    </tr>
-                  )}
-                  {outputRows.map((row, rowIndex) => (
-                    <tr key={`${row[20] || 'row'}-${rowIndex}`} className="even:bg-gray-100">
-                      {outputHeaders.map((_, colIndex) => (
-                        <td key={`${rowIndex}-${colIndex}`} className="px-3 py-2 whitespace-nowrap">
-                          {row[colIndex] || ""}
-                        </td>
+                      {outputHeaders.map((header) => (
+                        <th
+                          key={header}
+                          className="whitespace-nowrap px-3 py-2.5 text-left text-[10px] font-bold uppercase tracking-wider"
+                        >
+                          {header}
+                        </th>
                       ))}
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {outputRows.map((row, rowIndex) => (
+                      <tr
+                        key={`${row[20] || 'row'}-${rowIndex}`}
+                        className="transition hover:bg-slate-50"
+                      >
+                        {outputHeaders.map((_, colIndex) => (
+                          <td
+                            key={`${rowIndex}-${colIndex}`}
+                            className="whitespace-nowrap px-3 py-2 font-mono text-[11px] text-slate-700"
+                          >
+                            {row[colIndex] || (
+                              <span className="text-slate-300">—</span>
+                            )}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
 
-            <p className="mt-3 text-sm text-accent">
-              Copy still uses the original tab-delimited output format.
-            </p>
-          </div>
+            {outputRows.length > 0 && (
+              <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 bg-slate-50 px-5 py-3 text-[11px] text-slate-500 sm:px-6">
+                <span>
+                  Use <strong className="font-semibold text-slate-700">Copy TSV (submit)</strong> to copy the tab-delimited file exactly as it will be submitted.
+                </span>
+                <span className="hidden sm:inline">
+                  {outputRows.length} row{outputRows.length === 1 ? '' : 's'} ·{' '}
+                  {outputHeaders.length} columns
+                </span>
+              </div>
+            )}
+          </section>
         </div>
       </main>
     </div>
+  );
+}
+
+/* ============================================================
+ * Small helper component for consistent form fields
+ * ============================================================ */
+function Field({ label, hint, children }) {
+  return (
+    <label className="block">
+      <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-600">
+        {label}
+      </span>
+      {children}
+      {hint ? (
+        <span className="mt-1 block text-[11px] text-slate-400">{hint}</span>
+      ) : null}
+    </label>
   );
 }
