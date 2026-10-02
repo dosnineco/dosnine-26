@@ -44,6 +44,7 @@ const ENDPOINTS = [
   { key: 'admin-requests-post', label: 'Admin Requests POST', method: 'POST', url: '/api/admin/requests', body: { action: 'invalid' }, expected: [400], idParam: 'requestId' },
   { key: 'admin-requests-mgmt-post', label: 'Admin Requests Mgmt POST', method: 'POST', url: '/api/admin/requests-management', body: { action: 'invalid', ids: [] }, expected: [400], idParam: 'ids' },
   { key: 'admin-update-status', label: 'Agent Update Status', method: 'POST', url: '/api/admin/agents/update-status', body: { status: 'approved' }, expected: [400], idParam: 'agentId' },
+  
 ];
 
 /* ============================================================

@@ -229,6 +229,8 @@ export default function AgentPayment() {
                   : 'Based on deal value. Choose your plan and get verified in 24 hours.'}
               </p>
 
+
+
               {/* Current Plan Status */}
               {userData?.agent && (
                 <div className="mt-4 pt-4 border-t border-gray-400">

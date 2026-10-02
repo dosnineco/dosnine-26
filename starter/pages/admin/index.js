@@ -4,6 +4,8 @@ import Link from 'next/link';
 import { useUser } from '@clerk/nextjs';
 import { supabase } from '@/lib/supabase';
 import { formatJMD } from '@/lib/formatMoney';
+import AdminAnalyticsPanel from '@/components/AdminAnalyticsPanel';
+
 import {
   Users,
   FileText,
@@ -369,6 +371,9 @@ export default function AdminDashboardIndex() {
           </div>
         </div>
 
+        <AdminAnalyticsPanel />
+
+
         {/* Primary KPIs */}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <KpiCard
@@ -561,40 +566,7 @@ export default function AdminDashboardIndex() {
           </div>
         </div>
 
-        {/* Quick links */}
-        <div className="rounded-2xl border border-slate-200 bg-white p-6">
-          <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-500">
-            Quick links
-          </h2>
-          <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
-            {[
-              { href: '/admin/requests', label: 'Requests', icon: FileText },
-              { href: '/admin/requests-management', label: 'Manage Requests', icon: FileText },
-              { href: '/admin/agent-applications', label: 'Applications', icon: AlertCircle },
-              { href: '/admin/agents', label: 'Agents', icon: Briefcase },
-              { href: '/admin/advertisements', label: 'Advertisements', icon: Megaphone },
-              { href: '/admin/newsletter', label: 'Newsletter', icon: Mail },
-              { href: '/admin/market-intelligence', label: 'Market Intel', icon: TrendingUp },
-              { href: '/admin/allocation', label: 'Allocation', icon: Users },
-              { href: '/admin/hill-lot-investors', label: 'Investors', icon: Building2 },
-              { href: '/admin/htv', label: 'HTV Orders', icon: Package },
-              { href: '/admin/users', label: 'Users', icon: Users },
-              { href: '/admin/properties', label: 'Properties', icon: Home },
-            ].map(({ href, label, icon: Icon }) => (
-              <Link
-                key={href}
-                href={href}
-                className="group flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium text-slate-700 transition hover:border-accent hover:bg-white hover:text-accent"
-              >
-                <Icon
-                  size={16}
-                  className="shrink-0 text-slate-400 transition group-hover:text-accent"
-                />
-                <span className="truncate">{label}</span>
-              </Link>
-            ))}
-          </div>
-        </div>
+   
       </div>
     </>
   );

@@ -728,6 +728,8 @@ export default function AdminDashboard() {
   return (
     <>
       <Head>
+
+        
         <title>HTV Admin Dashboard</title>
         <meta name="description" content="HTV admin dashboard with weekly revenue, expenses, profit, and order entry." />
       </Head>

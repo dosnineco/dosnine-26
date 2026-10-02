@@ -445,6 +445,8 @@ export default function AgentDashboard() {
             </div>
           )}
 
+
+
           {adInquiries.length > 0 && (
             <div className="bg-white rounded-lg border border-gray-200 p-6 mb-6">
               <div className="flex items-center justify-between gap-3 mb-4">

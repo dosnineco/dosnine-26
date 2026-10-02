@@ -230,6 +230,8 @@ const getTitle = (r) => {
 
         {/* AREAS */}
 
+
+
         {areas.length > 0 && (
           <div className="mb-6 flex flex-wrap gap-2">
             {areas.map(a=>{
