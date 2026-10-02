@@ -345,7 +345,7 @@ const PLAN_DURATIONS = {
   { value: 'stager', label: 'Home Stager' },
   { value: 'other', label: 'Other' },
 ];
-}
+
 
 const DEFAULT_DURATION_DAYS = 14
 
