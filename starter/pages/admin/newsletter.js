@@ -102,7 +102,7 @@ const BRAND = {
   name: 'Dosnine Limited',
   navy: '#0f172a',       // header background
   navyHover: '#1e293b',
-  accent: '#2563eb',      // CTA button
+  accent: '#F55353',      // CTA button
   text: '#0f172a',        // body text
   muted: '#475569',       // secondary text
   border: '#e2e8f0',
@@ -115,13 +115,28 @@ const BRAND = {
  * table-based shell so it renders consistently across Gmail,
  * Apple Mail, Outlook, and Yahoo.
  * ============================================================ */
+/* ============================================================
+ * Build the full email — wraps the editor content in a
+ * table-based shell with the Dosnine logo, brand accent,
+ * and a clean footer.
+ *
+ * Mobile behaviour: the card fills the full viewport width
+ * (no gutters, no rounded corners, no side borders) so the
+ * email reads like a native app screen rather than a boxed
+ * card floating in gray.
+ * ============================================================ */
 function buildEmailHtml({ subject, previewText, bodyHtml }) {
   const siteUrl =
     (typeof process !== 'undefined' && process.env.NEXT_PUBLIC_SITE_URL) ||
     'https://dosnine.com';
+  const cleanSiteUrl = String(siteUrl).replace(/\/$/, '');
+  const logoUrl = `${cleanSiteUrl}/logo.png`;
   const year = new Date().getFullYear();
 
-  // Preheader: hidden text that appears beside the subject in the inbox.
+  const fontStack =
+    "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif";
+
+  // Hidden preheader — the snippet that appears next to the subject in the inbox
   const preheaderText = String(previewText || '').trim();
   const preheader = preheaderText
     ? `<div style="display:none;font-size:1px;color:${BRAND.pageBg};line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;mso-hide:all;">${escapeHtml(
@@ -136,51 +151,95 @@ function buildEmailHtml({ subject, previewText, bodyHtml }) {
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="x-apple-disable-message-reformatting">
   <meta name="format-detection" content="telephone=no,address=no,email=no">
+  <meta name="color-scheme" content="light only">
+  <meta name="supported-color-schemes" content="light">
   <title>${escapeHtml(subject || BRAND.name)}</title>
+  <style>
+    /* Progressive enhancement — most modern clients honour these */
+    .email-body a { color:${BRAND.accent}; text-decoration:underline; }
+    .email-body h1, .email-body h2, .email-body h3 {
+      font-family: Georgia, 'Times New Roman', serif;
+      color:${BRAND.ink};
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      line-height: 1.25;
+      margin: 28px 0 12px;
+    }
+    .email-body h1 { font-size: 28px; }
+    .email-body h2 { font-size: 22px; }
+    .email-body h3 { font-size: 18px; }
+    .email-body p  { margin: 0 0 16px; }
+    .email-body ul, .email-body ol { margin: 0 0 16px; padding-left: 22px; }
+    .email-body li { margin: 0 0 6px; }
+    .email-body img { max-width: 100%; height: auto; border-radius: 8px; }
+    .email-body blockquote {
+      margin: 20px 0; padding: 14px 20px;
+      border-left: 3px solid ${BRAND.accent};
+      background: ${BRAND.soft};
+      color: ${BRAND.muted};
+      font-style: italic;
+    }
+
+    /* ---- MOBILE: full-bleed layout, no card, no gutters ---- */
+    @media (max-width:620px) {
+      .email-outer-pad   { padding: 0 !important; }
+      .email-container   {
+        width: 100% !important;
+        max-width: 100% !important;
+        border-radius: 0 !important;
+        border-left: 0 !important;
+        border-right: 0 !important;
+        border-top: 0 !important;
+        border-bottom: 0 !important;
+      }
+      .email-header-pad  { padding: 32px 24px 20px !important; }
+      .email-body-pad    { padding: 24px 22px 32px !important; }
+      .email-footer-pad  { padding: 24px 22px 32px !important; }
+      .email-logo        { width: 132px !important; }
+      .email-body h1     { font-size: 24px !important; }
+      .email-body h2     { font-size: 20px !important; }
+    }
+  </style>
 </head>
-<body style="margin:0;padding:0;background:${BRAND.pageBg};font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;color:${BRAND.text};-webkit-font-smoothing:antialiased;">
+<body style="margin:0;padding:0;background:${BRAND.pageBg};font-family:${fontStack};color:${BRAND.text};-webkit-font-smoothing:antialiased;text-size-adjust:100%;">
   ${preheader}
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:${BRAND.pageBg};">
     <tr>
-      <td align="center" style="padding:32px 12px;">
+      <td class="email-outer-pad" align="center" style="padding:40px 16px;">
 
-        <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:600px;background:#ffffff;border-radius:14px;overflow:hidden;border:1px solid ${BRAND.border};">
+        <table role="presentation" class="email-container" width="600" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:600px;background:#ffffff;border-radius:16px;overflow:hidden;border:1px solid ${BRAND.border};">
 
-          <!-- ============ HEADER ============ -->
+          <!-- ============ ACCENT TOP BAR ============ -->
+ 
+
+          <!-- ============ DIVIDER ============ -->
           <tr>
-            <td style="background:${BRAND.navy};padding:22px 32px;">
-              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
-                <tr>
-                  <td style="font-size:18px;font-weight:700;color:#ffffff;letter-spacing:-0.01em;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
-                    <a href="${siteUrl}" style="color:#ffffff;text-decoration:none;">${BRAND.name}</a>
-                  </td>
-                  <td align="right" style="font-size:12px;color:rgba(255,255,255,0.7);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
-                    <a href="${siteUrl}" style="color:rgba(255,255,255,0.85);text-decoration:none;font-weight:600;">Visit site →</a>
-                  </td>
-                </tr>
-              </table>
+            <td style="padding:0 40px;">
+              <div style="height:1px;background:${BRAND.border};line-height:0;font-size:0;">&nbsp;</div>
             </td>
           </tr>
 
           <!-- ============ BODY ============ -->
           <tr>
-            <td style="padding:32px;font-size:16px;line-height:1.65;color:${BRAND.text};font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+            <td class="email-body-pad email-body" style="padding:36px 40px 40px;font-family:${fontStack};font-size:16px;line-height:1.7;color:${BRAND.text};">
               ${bodyHtml}
             </td>
           </tr>
 
           <!-- ============ FOOTER ============ -->
           <tr>
-            <td style="padding:24px 32px;background:${BRAND.soft};border-top:1px solid ${BRAND.border};font-size:12px;line-height:1.6;color:${BRAND.muted};font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
-              <p style="margin:0 0 10px;">
+            <td class="email-footer-pad" style="padding:28px 40px 32px;background:${BRAND.soft};border-top:1px solid ${BRAND.border};font-family:${fontStack};">
+              <p style="margin:0 0 14px;font-size:12px;line-height:1.65;color:${BRAND.muted};">
                 You received this email because you signed up or submitted a request on Dosnine.
               </p>
-              <p style="margin:0 0 14px;">
-                <a href="${siteUrl}/newsletter/unsubscribe" style="color:${BRAND.muted};text-decoration:underline;">Unsubscribe</a>
-                &nbsp;·&nbsp;
-                <a href="${siteUrl}" style="color:${BRAND.muted};text-decoration:underline;">dosnine.com</a>
+              <p style="margin:0 0 18px;font-size:12px;line-height:1.65;color:${BRAND.muted};">
+                <a href="${cleanSiteUrl}" style="color:${BRAND.ink};text-decoration:none;font-weight:600;">Dosnine.com</a>
+                <span style="color:#cbd5e1;">&nbsp;·&nbsp;</span>
+                <a href="${cleanSiteUrl}/contact" style="color:${BRAND.ink};text-decoration:none;font-weight:600;">Contact</a>
+                <span style="color:#cbd5e1;">&nbsp;·&nbsp;</span>
+                <a href="${cleanSiteUrl}/newsletter/unsubscribe" style="color:${BRAND.ink};text-decoration:none;font-weight:600;">Unsubscribe</a>
               </p>
-              <p style="margin:0;color:#94a3b8;">
+              <p style="margin:0;font-size:11px;line-height:1.6;color:${BRAND.subtle};">
                 © ${year} ${BRAND.name} · Jamaica
               </p>
             </td>
