@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { getAuth } from '@clerk/nextjs/server';
 import { enforceRateLimitDistributed } from '@/lib/rateLimit';
 import { enforceMethods } from '@/lib/apiSecurity';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
@@ -33,6 +34,24 @@ export default async function handler(req, res) {
     });
     if (!rate.allowed) {
       return res.status(429).json({ error: 'Too many requests.' });
+    }
+
+    const clerkUserId = getAuth(req).userId;
+    if (clerkUserId) {
+      const { data: user, error: userError } = await supabaseAdmin
+        .from('users')
+        .select('role')
+        .eq('clerk_id', clerkUserId)
+        .maybeSingle();
+
+      if (userError) {
+        console.error('Analytics admin check failed:', userError);
+        return res.status(500).json({ error: 'Failed to track analytics' });
+      }
+
+      if (user?.role === 'admin') {
+        return res.status(200).json({ success: true });
+      }
     }
 
     const parsed = EventSchema.parse(req.body || {});
