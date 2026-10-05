@@ -15,8 +15,8 @@ export const sendBrevoEmail = async ({ to, subject, htmlContent, textContent }) 
   sendSmtpEmail.subject = subject;
   sendSmtpEmail.htmlContent = htmlContent;
   sendSmtpEmail.sender = {
-    name: 'Dosnine',
-    email: 'admin@dosnine.com',
+    name: process.env.BREVO_FROM_NAME || 'Dosnine',
+    email: process.env.BREVO_FROM_EMAIL || 'admin@dosnine.com',
   };
   sendSmtpEmail.to = [{ email: to }];
   if (textContent) {

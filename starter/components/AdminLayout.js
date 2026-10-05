@@ -29,6 +29,7 @@ export default function AdminLayout({ children }) {
     requests: 0,
     applications: 0,
     advertisements: 0,
+    agents: 0,
   });
 
   // Desktop: collapsed = icon-only rail. Mobile: whether drawer is open.
@@ -90,14 +91,18 @@ export default function AdminLayout({ children }) {
       '/admin/requests-management': 'requests',
       '/admin/agent-applications': 'applications',
       '/admin/advertisements': 'advertisements',
+      '/admin/users?tab=agents': 'agents',
     }),
     []
   );
 
   useEffect(() => {
-    const group = routeToGroup[path];
+    const group =
+      path === '/admin/users' && router.query.tab === 'agents'
+        ? 'agents'
+        : routeToGroup[path];
     if (group) markGroupAsSeen(group);
-  }, [path, routeToGroup]);
+  }, [path, router.query.tab, routeToGroup]);
 
   /* -------------------- Fetch badge counts -------------------- */
   useEffect(() => {
@@ -105,17 +110,20 @@ export default function AdminLayout({ children }) {
 
     const fetchCounts = async () => {
       try {
-        const [requestsRes, applicationsRes, advertisementsRes] = await Promise.all([
+        const agentsLastSeen = getLastSeen('agents');
+        const [requestsRes, applicationsRes, advertisementsRes, agentsRes] = await Promise.all([
           fetch('/api/admin/requests', { credentials: 'include' }),
           fetch('/api/admin/agent-applications', { credentials: 'include' }),
           fetch('/api/admin/advertisements', { credentials: 'include' }),
+          fetch(`/api/admin/agents/notifications?since=${agentsLastSeen}`, { credentials: 'include' }),
         ]);
 
-        const [requestsPayload, applicationsPayload, advertisementsPayload] =
+        const [requestsPayload, applicationsPayload, advertisementsPayload, agentsPayload] =
           await Promise.all([
             requestsRes.json().catch(() => null),
             applicationsRes.json().catch(() => null),
             advertisementsRes.json().catch(() => null),
+            agentsRes.json().catch(() => null),
           ]);
 
         if (!isMounted) return;
@@ -152,6 +160,7 @@ export default function AdminLayout({ children }) {
           requests: requestCount,
           applications: applicationsCount,
           advertisements: advertisementsCount,
+          agents: agentsPayload?.success ? Number(agentsPayload.count) || 0 : 0,
         });
       } catch (error) {
         // Keep layout functional even if badge fetch fails.
@@ -202,6 +211,12 @@ export default function AdminLayout({ children }) {
       icon: FiTrendingUp,
     },
     { href: '/admin/users', label: 'Users', icon: FiUsers },
+    {
+      href: '/admin/users?tab=agents',
+      label: 'Agents',
+      icon: FiUsers,
+      badge: counts.agents,
+    },
     { href: '/admin/properties', label: 'Properties', icon: FiUsers },
     { href: '/admin/api-smoke', label: 'API Smoke', icon: FiGrid },
   ];
@@ -212,7 +227,15 @@ export default function AdminLayout({ children }) {
     { href: '/dashboard', label: 'Agent Dashboard', icon: FiUser },
   ];
 
-  const isActive = (href) => path === href;
+  const isActive = (href) => {
+    if (href === '/admin/users') {
+      return path === href && router.query.tab !== 'agents';
+    }
+    if (href === '/admin/users?tab=agents') {
+      return path === '/admin/users' && router.query.tab === 'agents';
+    }
+    return path === href;
+  };
 
   const renderBadge = (count) => {
     if (!count) return null;

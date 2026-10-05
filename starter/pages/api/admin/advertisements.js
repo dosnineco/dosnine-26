@@ -1,4 +1,79 @@
 import { getDbClient, requireAdminUser } from '../../../lib/apiAuth';
+import { sendBrevoEmail } from '../../../lib/serviceRequestAllocation';
+
+const escapeHtml = (value) =>
+  String(value || '').replace(/[&<>"']/g, (character) => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;',
+  })[character]);
+
+async function sendAdvertiserApprovalEmail(db, submission) {
+  const recipient = String(submission.email || '').trim();
+  if (
+    !recipient ||
+    recipient.endsWith('@dosnine.local') ||
+    !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(recipient)
+  ) {
+    throw new Error('Advertiser email address is unavailable or invalid.');
+  }
+
+  const { data: linkedAd, error: linkError } = await db
+    .from('advertisements')
+    .select('id, title, company_name')
+    .eq('sponsor_submission_id', submission.id)
+    .maybeSingle();
+  if (linkError && !['42703', 'PGRST204'].includes(linkError.code)) throw linkError;
+
+  let ad = linkedAd;
+  if (!ad?.id) {
+    const { data: userAds, error: userAdsError } = await db
+      .from('advertisements')
+      .select('id, title, company_name, email')
+      .eq('created_by_clerk_id', submission.created_by_clerk_id)
+      .order('created_at', { ascending: false });
+    if (userAdsError) throw userAdsError;
+
+    const normalizedCompany = String(submission.company_name || '').trim().toLowerCase();
+    const normalizedEmail = recipient.toLowerCase();
+    ad = (userAds || []).find((item) =>
+      String(item.company_name || '').trim().toLowerCase() === normalizedCompany &&
+      String(item.email || '').trim().toLowerCase() === normalizedEmail
+    );
+  }
+  if (!ad?.id) throw new Error('Approved advertisement link could not be resolved.');
+
+  const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || 'https://dosnine.com').replace(/\/+$/, '');
+  const adUrl = `${siteUrl}/ads/${encodeURIComponent(ad.id)}`;
+  const title = ad.title || ad.company_name || submission.company_name || 'your advertisement';
+  const htmlContent = `
+    <h2>Your advertisement is approved</h2>
+    <p>Hi ${escapeHtml(submission.contact_name || submission.company_name || 'there')},</p>
+    <p>Your payment has been verified and your advertisement is now approved and active on Dosnine.</p>
+    <p><strong>Advertisement:</strong> ${escapeHtml(title)}</p>
+    <p><a href="${adUrl}">View your advertisement</a></p>
+    <p>You can also sign in to your Dosnine account to manage your advertisement.</p>
+    <p>Thank you,<br />Dosnine</p>
+  `;
+  const textContent = [
+    'Your advertisement is approved',
+    `Hi ${submission.contact_name || submission.company_name || 'there'},`,
+    'Your payment has been verified and your advertisement is now approved and active on Dosnine.',
+    `Advertisement: ${title}`,
+    `View your advertisement: ${adUrl}`,
+    'You can also sign in to your Dosnine account to manage your advertisement.',
+    'Thank you, Dosnine',
+  ].join('\n\n');
+
+  await sendBrevoEmail({
+    to: recipient,
+    subject: 'Your Dosnine advertisement is approved',
+    htmlContent,
+    textContent,
+  });
+}
 
 export default async function handler(req, res) {
   try {
@@ -188,7 +263,15 @@ export default async function handler(req, res) {
           }
           throw error;
         }
-        return res.status(200).json({ success: true });
+        let emailWarning = null;
+        try {
+          await sendAdvertiserApprovalEmail(db, submission);
+        } catch (emailError) {
+          const reason = emailError?.message || 'Unknown email delivery error';
+          emailWarning = `Advertisement approved, but the customer email could not be sent: ${reason}`;
+          console.error(`Advertiser approval email failed for submission ${id}:`, emailError);
+        }
+        return res.status(200).json({ success: true, emailWarning });
       }
 
       if (status === 'pending_review' && submission.status === 'waitlisted') {

@@ -44,6 +44,12 @@ const inputClass =
   'w-full rounded-lg border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-accent focus:ring-2 focus:ring-accent/20';
 const labelClass =
   'block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1.5';
+const DEFAULT_AGENT_PLAN_PRICES = {
+  '7-day': 1499,
+  '30-day': 4999,
+  '90-day': 14999,
+  free: 0,
+};
 
 const ROLE_STYLES = {
   admin: { label: 'Admin', badge: 'bg-slate-900 text-white border-slate-900' },
@@ -164,6 +170,14 @@ export default function AdminUsersPage() {
   const [agentDocumentUrls, setAgentDocumentUrls] = useState({});
   const [loadingAgentDocs, setLoadingAgentDocs] = useState(false);
   const [selectedPlans, setSelectedPlans] = useState({});
+  const [agentPlanPrices, setAgentPlanPrices] = useState(DEFAULT_AGENT_PLAN_PRICES);
+  const [agentPlanPricesDraft, setAgentPlanPricesDraft] = useState(DEFAULT_AGENT_PLAN_PRICES);
+  const [savingAgentPlanPrices, setSavingAgentPlanPrices] = useState(false);
+
+  useEffect(() => {
+    if (router.pathname !== '/admin/users') return;
+    setActiveTab(router.query.tab === 'agents' ? 'agents' : 'users');
+  }, [router.pathname, router.query.tab]);
 
   /* ----------------------------------------------------------
    * Admin check (once)
@@ -238,6 +252,19 @@ export default function AdminUsersPage() {
     }
   };
 
+  const fetchAgentPlanPrices = async () => {
+    try {
+      const authConfig = await getAuthConfig();
+      const response = await axios.get('/api/admin/agents/plan-prices', authConfig);
+      const prices = response.data?.planPrices || DEFAULT_AGENT_PLAN_PRICES;
+      setAgentPlanPrices(prices);
+      setAgentPlanPricesDraft(prices);
+    } catch (error) {
+      if (handleAuthFailure(error)) return;
+      toast.error(error.response?.data?.error || 'Failed to load agent plan prices');
+    }
+  };
+
   // Load data when tab becomes active
   useEffect(() => {
     if (!isAdmin) return;
@@ -250,6 +277,11 @@ export default function AdminUsersPage() {
     if (activeTab === 'agents') fetchAgents();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAdmin, activeTab, agentFilterStatus]);
+
+  useEffect(() => {
+    if (isAdmin && activeTab === 'agents') fetchAgentPlanPrices();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAdmin, activeTab]);
 
   // Keep pending-agents badge fresh (only while on agents tab)
   useEffect(() => {
@@ -268,6 +300,35 @@ export default function AdminUsersPage() {
     });
     setSelectedPlans(next);
   }, [agents]);
+
+  const saveAgentPlanPrices = async () => {
+    setSavingAgentPlanPrices(true);
+    try {
+      const authConfig = await getAuthConfig();
+      const prices = Object.fromEntries(
+        Object.entries(DEFAULT_AGENT_PLAN_PRICES).map(([plan, fallback]) => [
+          plan,
+          plan === 'free' ? 0 : Number(agentPlanPricesDraft[plan] ?? fallback),
+        ])
+      );
+      const response = await axios.patch(
+        '/api/admin/agents/plan-prices',
+        { planPrices: prices },
+        authConfig
+      );
+      if (!response.data?.success) {
+        throw new Error(response.data?.error || 'Failed to save agent plan prices');
+      }
+      setAgentPlanPrices(response.data.planPrices);
+      setAgentPlanPricesDraft(response.data.planPrices);
+      toast.success('Agent plan prices updated');
+    } catch (error) {
+      if (handleAuthFailure(error)) return;
+      toast.error(error.response?.data?.error || error.message || 'Failed to save agent plan prices');
+    } finally {
+      setSavingAgentPlanPrices(false);
+    }
+  };
 
   /* ============================================================
    * USER ACTIONS (unchanged)
@@ -499,6 +560,7 @@ export default function AdminUsersPage() {
         authConfig
       );
       toast.success(response.data.message);
+      if (response.data.emailWarning) toast.error(response.data.emailWarning);
       fetchAgents({ silent: true });
       setSelectedAgent(null);
     } catch (error) {
@@ -529,17 +591,11 @@ export default function AdminUsersPage() {
       else if (plan === '30-day') expiryDate = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
       else if (plan === '90-day') expiryDate = new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000);
 
-      let paymentAmount = null;
-      if (plan === '7-day') paymentAmount = 1500;
-      else if (plan === '30-day') paymentAmount = 6000;
-      else if (plan === '90-day') paymentAmount = 15000;
-
       const response = await axios.post(
         '/api/admin/agents/payment-plan',
         {
           agentId,
           plan,
-          paymentAmount,
           accessExpiry: expiryDate ? expiryDate.toISOString() : null,
         },
         authConfig
@@ -549,10 +605,59 @@ export default function AdminUsersPage() {
       }
 
       toast.success(`Access plan set to ${plan}`);
+      if (response.data.emailWarning) toast.error(response.data.emailWarning);
       fetchAgents({ silent: true });
+      return true;
     } catch (error) {
       if (handleAuthFailure(error)) return;
       toast.error(error.message || 'Failed to set access plan');
+      return false;
+    }
+  };
+
+  const confirmAgentPayment = async (agent) => {
+    if (agent.payment_receipt_status !== 'pending') {
+      toast.error('This receipt is no longer awaiting verification.');
+      return;
+    }
+    const plan = agent.payment_receipt_plan;
+    if (!['7-day', '30-day', '90-day'].includes(plan)) {
+      toast.error('The submitted receipt does not have a valid paid plan.');
+      return;
+    }
+    if (!confirm(`Confirm the J$${Number(agent.payment_receipt_amount).toLocaleString()} transfer and activate ${plan} access for ${agent.user?.full_name || 'this agent'}?`)) {
+      return;
+    }
+
+    const confirmed = await setPaymentPlan(agent.id, plan, agent);
+    if (confirmed) setSelectedAgent(null);
+  };
+
+  const rejectAgentPaymentReceipt = async (agent) => {
+    if (agent.payment_receipt_status !== 'pending') {
+      toast.error('This receipt is no longer awaiting verification.');
+      return;
+    }
+    if (!confirm(`Reject the payment receipt submitted by ${agent.user?.full_name || 'this agent'}?`)) {
+      return;
+    }
+
+    try {
+      const authConfig = await getAuthConfig();
+      const response = await axios.patch(
+        '/api/admin/agents/payment-receipt',
+        { agentId: agent.id, action: 'reject' },
+        authConfig
+      );
+      if (!response.data?.success) {
+        throw new Error(response.data?.error || 'Failed to reject receipt');
+      }
+      toast.success('Payment receipt rejected');
+      setSelectedAgent(null);
+      fetchAgents({ silent: true });
+    } catch (error) {
+      if (handleAuthFailure(error)) return;
+      toast.error(error.response?.data?.error || 'Failed to reject receipt');
     }
   };
 
@@ -747,7 +852,10 @@ export default function AdminUsersPage() {
         <div className="inline-flex w-full rounded-full bg-slate-100 p-1 sm:w-auto">
           <button
             type="button"
-            onClick={() => setActiveTab('users')}
+            onClick={() => {
+              setActiveTab('users');
+              router.replace('/admin/users', undefined, { shallow: true });
+            }}
             className={`flex-1 rounded-full px-4 py-2.5 text-sm font-semibold transition sm:flex-none sm:px-5 ${
               activeTab === 'users'
                 ? 'bg-white text-slate-900 shadow-sm'
@@ -767,7 +875,10 @@ export default function AdminUsersPage() {
           </button>
           <button
             type="button"
-            onClick={() => setActiveTab('agents')}
+            onClick={() => {
+              setActiveTab('agents');
+              router.replace('/admin/users?tab=agents', undefined, { shallow: true });
+            }}
             className={`flex-1 rounded-full px-4 py-2.5 text-sm font-semibold transition sm:flex-none sm:px-5 ${
               activeTab === 'agents'
                 ? 'bg-white text-slate-900 shadow-sm'
@@ -1043,6 +1154,51 @@ export default function AdminUsersPage() {
               />
             </div>
 
+            <section className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <h2 className="text-sm font-bold text-slate-900">Agent plan pricing</h2>
+                  <p className="mt-1 text-xs text-slate-500">
+                    Prices appear on the agent upgrade page and are recorded when a plan is activated.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={saveAgentPlanPrices}
+                  disabled={savingAgentPlanPrices}
+                  className="rounded-lg bg-slate-900 px-4 py-2 text-xs font-semibold text-white hover:bg-slate-800 disabled:opacity-50"
+                >
+                  {savingAgentPlanPrices ? 'Saving…' : 'Save prices'}
+                </button>
+              </div>
+              <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-4">
+                {[
+                  ['7-day', '7-Day Access'],
+                  ['30-day', '1 Month Access'],
+                  ['90-day', '3 Month Access'],
+                  ['free', 'Free Access'],
+                ].map(([plan, label]) => (
+                  <label key={plan} className="block">
+                    <span className={labelClass}>{label} · JMD</span>
+                    <input
+                      type="number"
+                      min={plan === 'free' ? 0 : 1}
+                      step="1"
+                      value={agentPlanPricesDraft[plan] ?? 0}
+                      onChange={(event) =>
+                        setAgentPlanPricesDraft((current) => ({
+                          ...current,
+                          [plan]: event.target.value,
+                        }))
+                      }
+                      disabled={plan === 'free' || savingAgentPlanPrices}
+                      className={`${inputClass} disabled:bg-slate-50 disabled:text-slate-500`}
+                    />
+                  </label>
+                ))}
+              </div>
+            </section>
+
             {/* Filter */}
             <div className="rounded-2xl border border-slate-200 bg-white p-3 sm:p-4">
               <div className="flex flex-wrap items-center gap-2">
@@ -1117,7 +1273,14 @@ export default function AdminUsersPage() {
                     </thead>
                     <tbody className="divide-y divide-slate-100 bg-white">
                       {filteredAgents.map((agent) => (
-                        <tr key={agent.id} className="hover:bg-slate-50">
+                        <tr
+                          key={agent.id}
+                          className={
+                            agent.payment_receipt_status === 'pending'
+                              ? 'bg-amber-50/70 hover:bg-amber-50'
+                              : 'hover:bg-slate-50'
+                          }
+                        >
                           <td className="px-5 py-4">
                             <div>
                               <p className="font-semibold text-slate-900">
@@ -1167,52 +1330,96 @@ export default function AdminUsersPage() {
                             </span>
                           </td>
                           <td className="px-5 py-4">
-                            <div className="flex flex-wrap items-center gap-2">
-                              <select
-                                value={selectedPlans[agent.id] || '7-day'}
-                                onChange={(e) =>
-                                  setSelectedPlans((prev) => ({
-                                    ...prev,
-                                    [agent.id]: e.target.value,
-                                  }))
-                                }
-                                disabled={agent.verification_status !== 'approved'}
-                                className="rounded-md border border-slate-300 bg-white px-2 py-1 text-xs text-slate-900 disabled:bg-slate-100 disabled:text-slate-500"
-                                title={
-                                  agent.verification_status !== 'approved'
-                                    ? 'Agent must be approved first'
-                                    : 'Choose access plan'
-                                }
-                              >
-                                <option value="free">Free</option>
-                                <option value="7-day">7-Day</option>
-                                <option value="30-day">30-Day</option>
-                                <option value="90-day">90-Day</option>
-                              </select>
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  setPaymentPlan(
-                                    agent.id,
-                                    selectedPlans[agent.id] || '7-day',
-                                    agent
-                                  )
-                                }
-                                disabled={agent.verification_status !== 'approved'}
-                                className="inline-flex items-center gap-2 rounded-md bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-40"
-                                title={
-                                  agent.verification_status !== 'approved'
-                                    ? 'Agent must be approved first'
-                                    : 'Apply selected plan'
-                                }
-                              >
-                                Set Plan
-                              </button>
-                            </div>
-                            {agent.payment_amount && (
-                              <p className="mt-1 text-xs text-slate-500">
-                                J${agent.payment_amount?.toLocaleString()}
-                              </p>
+                            {agent.payment_receipt_status === 'pending' ? (
+                              <div className="min-w-52 rounded-xl bg-amber-100 p-3 ring-1 ring-amber-300">
+                                <div className="flex items-center gap-2 text-amber-950">
+                                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-amber-200">
+                                    <Clock className="h-4 w-4" />
+                                  </span>
+                                  <span className="text-xs font-extrabold uppercase tracking-wide">
+                                    Payment pending
+                                  </span>
+                                </div>
+                                <p className="mt-2 text-sm font-bold text-slate-900">
+                                  {agent.payment_receipt_plan === '7-day'
+                                    ? '7-Day Access'
+                                    : agent.payment_receipt_plan === '30-day'
+                                    ? '1 Month Access'
+                                    : agent.payment_receipt_plan === '90-day'
+                                    ? '3 Month Access'
+                                    : 'Paid access plan'}
+                                  {agent.payment_receipt_amount != null &&
+                                    ` · J$${Number(agent.payment_receipt_amount).toLocaleString()}`}
+                                </p>
+                                {agent.payment_receipt_submitted_at && (
+                                  <p className="mt-1 text-[11px] text-amber-900">
+                                    Submitted {new Date(agent.payment_receipt_submitted_at).toLocaleString()}
+                                  </p>
+                                )}
+                                <button
+                                  type="button"
+                                  onClick={() => viewAgentDocuments(agent)}
+                                  className="mt-3 inline-flex w-full items-center justify-center gap-1.5 rounded-lg bg-amber-900 px-3 py-2 text-xs font-bold text-white transition hover:bg-amber-950"
+                                >
+                                  <Eye className="h-3.5 w-3.5" />
+                                  Review payment
+                                </button>
+                              </div>
+                            ) : (
+                              <>
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <select
+                                    value={selectedPlans[agent.id] || '7-day'}
+                                    onChange={(e) =>
+                                      setSelectedPlans((prev) => ({
+                                        ...prev,
+                                        [agent.id]: e.target.value,
+                                      }))
+                                    }
+                                    disabled={agent.verification_status !== 'approved'}
+                                    className="rounded-md border border-slate-300 bg-white px-2 py-1 text-xs text-slate-900 disabled:bg-slate-100 disabled:text-slate-500"
+                                    title={
+                                      agent.verification_status !== 'approved'
+                                        ? 'Agent must be approved first'
+                                        : 'Choose access plan'
+                                    }
+                                  >
+                                    <option value="free">Free</option>
+                                    <option value="7-day">7-Day</option>
+                                    <option value="30-day">30-Day</option>
+                                    <option value="90-day">90-Day</option>
+                                  </select>
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setPaymentPlan(
+                                        agent.id,
+                                        selectedPlans[agent.id] || '7-day',
+                                        agent
+                                      )
+                                    }
+                                    disabled={agent.verification_status !== 'approved'}
+                                    className="inline-flex items-center gap-2 rounded-md bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-40"
+                                    title={
+                                      agent.verification_status !== 'approved'
+                                        ? 'Agent must be approved first'
+                                        : 'Apply selected plan'
+                                    }
+                                  >
+                                    Set Plan
+                                  </button>
+                                </div>
+                                {agent.payment_amount && (
+                                  <p className="mt-1 text-xs text-slate-500">
+                                    Paid J${agent.payment_amount?.toLocaleString()}
+                                  </p>
+                                )}
+                                {selectedPlans[agent.id] !== 'free' && (
+                                  <p className="mt-1 text-xs font-medium text-slate-600">
+                                    Plan price: J${Number(agentPlanPrices[selectedPlans[agent.id]] || 0).toLocaleString()}
+                                  </p>
+                                )}
+                              </>
                             )}
                           </td>
                           <td className="px-5 py-4 text-sm text-slate-500">
@@ -1319,6 +1526,8 @@ export default function AdminUsersPage() {
           documentUrls={agentDocumentUrls}
           loadingDocs={loadingAgentDocs}
           verifying={verifyingAgent}
+          onConfirmPayment={() => confirmAgentPayment(selectedAgent)}
+          onRejectPayment={() => rejectAgentPaymentReceipt(selectedAgent)}
           onClose={() => {
             setSelectedAgent(null);
             setAgentDocumentUrls({});
@@ -1938,6 +2147,8 @@ function AgentDetailsModal({
   documentUrls,
   loadingDocs,
   verifying,
+  onConfirmPayment,
+  onRejectPayment,
   onClose,
   onApprove,
   onReject,
@@ -2111,6 +2322,60 @@ function AgentDetailsModal({
                     : 'N/A'}
                 </p>
               </div>
+              {agent.payment_receipt_submitted_at && (
+                <div className="col-span-2 rounded-lg bg-slate-50 p-3">
+                  <p className="font-semibold text-slate-900">
+                    Payment receipt · {agent.payment_receipt_status || 'pending'}
+                  </p>
+                  <p className="mt-1 text-slate-600">
+                    {agent.payment_receipt_plan || 'Plan not recorded'}
+                    {agent.payment_receipt_amount != null &&
+                      ` · J$${Number(agent.payment_receipt_amount).toLocaleString()}`}
+                    {` · submitted ${new Date(agent.payment_receipt_submitted_at).toLocaleString()}`}
+                  </p>
+                  {agent.payment_receipt_url ? (
+                    <a
+                      href={agent.payment_receipt_url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="mt-3 block"
+                    >
+                      <img
+                        src={agent.payment_receipt_url}
+                        alt="Agent bank transfer receipt"
+                        className="max-h-80 w-full rounded-lg bg-white object-contain"
+                      />
+                      <span className="mt-2 inline-block text-xs font-semibold text-accent">
+                        Open receipt image
+                      </span>
+                    </a>
+                  ) : (
+                    <p className="mt-2 text-xs text-red-600">
+                      Receipt image is unavailable. Refresh the agent list or check the private storage bucket.
+                    </p>
+                  )}
+                  {agent.payment_receipt_status === 'pending' && (
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={onConfirmPayment}
+                        disabled={verifying}
+                        className="rounded-lg bg-emerald-700 px-4 py-2 text-xs font-semibold text-white hover:bg-emerald-800 disabled:opacity-50"
+                      >
+                        Confirm payment &amp; activate plan
+                      </button>
+                      <button
+                        type="button"
+                        onClick={onRejectPayment}
+                        disabled={verifying}
+                        className="rounded-lg bg-red-50 px-4 py-2 text-xs font-semibold text-red-700 hover:bg-red-100 disabled:opacity-50"
+                      >
+                        Reject receipt
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
               {agent.last_request_assigned_at && (
                 <div className="col-span-2">
                   <span className="text-slate-500">Last Request Assigned:</span>

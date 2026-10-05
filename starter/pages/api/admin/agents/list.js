@@ -60,10 +60,11 @@ export default async function handler(req, res) {
       return res.status(200).json({ agents: [] });
     }
 
-    // Convert storage paths to public URLs
-    const agentsWithUrls = agents.map(agent => {
+    // Convert storage paths to public URLs and keep payment receipts private.
+    const agentsWithUrls = await Promise.all(agents.map(async (agent) => {
       let licenseUrl = null;
       let registrationUrl = null;
+      let paymentReceiptUrl = null;
 
       if (agent.license_file_url) {
         // If it's already a full URL, use it
@@ -89,12 +90,24 @@ export default async function handler(req, res) {
         }
       }
 
+      if (agent.payment_receipt_path) {
+        const { data, error: receiptUrlError } = await db.storage
+          .from('agent-payment-receipts')
+          .createSignedUrl(agent.payment_receipt_path, 3600);
+        if (receiptUrlError) {
+          console.error(`Failed to create payment receipt URL for agent ${agent.id}:`, receiptUrlError);
+        } else {
+          paymentReceiptUrl = data?.signedUrl || null;
+        }
+      }
+
       return {
         ...agent,
         license_file_url: licenseUrl,
         registration_file_url: registrationUrl,
+        payment_receipt_url: paymentReceiptUrl,
       };
-    });
+    }));
 
     return res.status(200).json({ agents: agentsWithUrls });
 

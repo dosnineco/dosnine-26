@@ -1,4 +1,14 @@
 import { getDbClient, requireAdminUser } from '../../../../lib/apiAuth';
+import { sendBrevoEmail } from '../../../../lib/serviceRequestAllocation';
+
+const escapeHtml = (value) =>
+  String(value || '').replace(/[&<>"']/g, (character) => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;',
+  })[character]);
 
 // Approve or reject agent verification
 export default async function handler(req, res) {
@@ -128,14 +138,44 @@ export default async function handler(req, res) {
     }
 
     /* ----------------------------------------------------------
-     * 4. QUEUE NOTIFICATION (non-blocking)
+     * 4. NOTIFY THE AGENT (non-blocking)
      * ---------------------------------------------------------- */
+    let emailWarning = null;
     try {
       const notificationMessage =
         notes ||
         (status === 'approved'
           ? 'Congratulations! Your agent application has been approved. You can now access your agent dashboard to view client requests and post properties.'
           : `Your agent application has been ${status}. ${notes || ''}`);
+
+      let emailSent = false;
+      if (status === 'approved') {
+        const recipient = String(agentUser.email || '').trim();
+        if (!recipient || recipient.endsWith('@dosnine.local')) {
+          throw new Error('Agent email address is unavailable.');
+        }
+        const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || 'https://dosnine.com').replace(/\/+$/, '');
+        const dashboardUrl = `${siteUrl}/agent/dashboard`;
+        await sendBrevoEmail({
+          to: recipient,
+          subject: 'Your Dosnine agent account is approved',
+          htmlContent: `
+            <h2>Your agent account is approved</h2>
+            <p>Hi ${escapeHtml(agentUser.full_name || 'there')},</p>
+            <p>Your Dosnine agent application has been approved. You can now sign in to access your agent profile and dashboard.</p>
+            <p><a href="${dashboardUrl}">Sign in to your agent dashboard</a></p>
+            <p>Thank you,<br />Dosnine</p>
+          `,
+          textContent: [
+            'Your agent account is approved',
+            `Hi ${agentUser.full_name || 'there'},`,
+            'Your Dosnine agent application has been approved. You can now sign in to access your agent profile and dashboard.',
+            `Sign in to your agent dashboard: ${dashboardUrl}`,
+            'Thank you, Dosnine',
+          ].join('\n\n'),
+        });
+        emailSent = true;
+      }
 
       const { data: notification, error: notificationError } = await db
         .from('notifications')
@@ -158,17 +198,22 @@ export default async function handler(req, res) {
         .single();
 
       if (!notificationError && notification?.id) {
-        await db
-          .from('notifications')
-          .update({
-            status: 'sent',
-            sent_at: new Date().toISOString(),
-          })
-          .eq('id', notification.id);
+        if (emailSent) {
+          const { error: notificationUpdateError } = await db
+            .from('notifications')
+            .update({
+              status: 'sent',
+              sent_at: new Date().toISOString(),
+            })
+            .eq('id', notification.id);
+          if (notificationUpdateError) {
+            console.error('Failed to mark agent approval notification as sent:', notificationUpdateError);
+          }
+        }
       }
     } catch (notifError) {
-      console.error('Failed to send notification:', notifError);
-      // Don't fail the request if notification fails
+      emailWarning = 'Agent account approved, but the confirmation email could not be sent.';
+      console.error('Failed to send agent status notification:', notifError);
     }
 
     return res.status(200).json({
@@ -178,6 +223,7 @@ export default async function handler(req, res) {
         user: agentUser,
       },
       message: `Agent ${status} successfully`,
+      emailWarning,
     });
   } catch (error) {
     console.error('Update status error:', error);

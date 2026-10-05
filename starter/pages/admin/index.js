@@ -9,7 +9,6 @@ import AdminAnalyticsPanel from '@/components/AdminAnalyticsPanel';
 import {
   Users,
   FileText,
-  Building2,
   Megaphone,
   Home,
   DollarSign,
@@ -19,7 +18,6 @@ import {
   AlertCircle,
   ArrowRight,
   RefreshCw,
-  Mail,
   Package,
   Briefcase,
   MapPin,
@@ -84,8 +82,6 @@ export default function AdminDashboardIndex() {
     properties: null,
     market: null,
     htvOrders: null,
-    investors: null,
-    newsletter: null,
     adsActive: 0,
     adsPending: 0,
     approvedSubmissions: [],
@@ -118,8 +114,6 @@ export default function AdminDashboardIndex() {
       propertiesRes,
       marketRes,
       htvOrdersRes,
-      investorsRes,
-      newsletterRes,
     ] = await Promise.all([
       safeFetch('/api/admin/requests'),
       safeFetch('/api/admin/agents/list?status=all'),
@@ -128,8 +122,6 @@ export default function AdminDashboardIndex() {
       safeFetch('/api/admin/properties'),
       safeFetch('/api/admin/market-intelligence'),
       safeFetch('/api/admin/htv-orders'),
-      safeFetch('/api/admin/hill-lot-investors'),
-      safeFetch('/api/newsletter/summary'),
     ]);
 
     // Advertisements + sponsor submissions live in Supabase.
@@ -168,8 +160,6 @@ export default function AdminDashboardIndex() {
       properties: propertiesRes,
       market: marketRes,
       htvOrders: htvOrdersRes,
-      investors: investorsRes,
-      newsletter: newsletterRes,
       adsActive,
       adsPending,
       approvedSubmissions,
@@ -190,8 +180,6 @@ export default function AdminDashboardIndex() {
     const applications = data.applications?.applications || [];
     const properties = data.properties?.properties || [];
     const orders = data.htvOrders?.orders || [];
-    const investors = data.investors?.items || [];
-    const newsletter = data.newsletter || {};
 
     const openRequests = requests.filter((r) => r.status === 'open').length;
     const assignedRequests = requests.filter(
@@ -236,11 +224,6 @@ export default function AdminDashboardIndex() {
         htvProfit += rev - exp;
       });
 
-    const investorCapital = investors.reduce(
-      (sum, i) => sum + Number(i.amount_value || 0),
-      0
-    );
-
     return {
       users: {
         total: users.length,
@@ -284,15 +267,6 @@ export default function AdminDashboardIndex() {
         revenue: htvRevenue,
         expenses: htvExpenses,
         profit: htvProfit,
-      },
-      investors: {
-        total: investors.length,
-        capital: investorCapital,
-      },
-      newsletter: {
-        reach:
-          Number(newsletter.visitorCount || 0) + Number(newsletter.optedInCount || 0),
-        optedIn: Number(newsletter.optedInCount || 0),
       },
       market: {
         totalRequests: data.market?.metrics?.totalRequests || 0,
@@ -413,7 +387,7 @@ export default function AdminDashboardIndex() {
         </div>
 
         {/* Money & Reach KPIs */}
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
           <KpiCard
             label="Agent Revenue"
             value={formatJMD(metrics.agents.revenue)}
@@ -437,22 +411,6 @@ export default function AdminDashboardIndex() {
             tone={metrics.htv.profit >= 0 ? 'emerald' : 'red'}
             sub={`${formatJMD(metrics.htv.revenue)} revenue · ${formatJMD(metrics.htv.expenses)} exp.`}
             href="/admin/htv"
-          />
-          <KpiCard
-            label="Hill Lot Capital"
-            value={`USD ${formatNumber(metrics.investors.capital)}`}
-            icon={Building2}
-            tone="violet"
-            sub={`${metrics.investors.total} investors`}
-            href="/admin/hill-lot-investors"
-          />
-          <KpiCard
-            label="Newsletter Reach"
-            value={formatNumber(metrics.newsletter.reach)}
-            icon={Mail}
-            tone="accent"
-            sub={`${metrics.newsletter.optedIn} opted-in`}
-            href="/admin/newsletter"
           />
         </div>
 
@@ -591,29 +549,38 @@ const TONE_STYLES = {
 function KpiCard({ label, value, icon: Icon, tone = 'accent', sub, href }) {
   const style = TONE_STYLES[tone] || TONE_STYLES.accent;
   const card = (
-    <div className="group flex h-full flex-col rounded-2xl border border-slate-200 bg-white p-5 transition hover:border-slate-300">
-      <div className="flex items-start justify-between gap-3">
-        <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
-          {label}
-        </p>
-        <span
-          className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${style.bg} ${style.text}`}
-        >
-          <Icon size={16} />
-        </span>
+    <div className="group flex h-full min-h-32 flex-col rounded-xl bg-white p-4 transition-colors hover:bg-gray-50">
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex min-w-0 items-center gap-2.5">
+          <span
+            className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${style.bg} ${style.text}`}
+          >
+            <Icon size={16} />
+          </span>
+          <p className="truncate text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+            {label}
+          </p>
+        </div>
+        {href ? (
+          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-slate-400 transition group-hover:bg-white group-hover:text-accent">
+            <ArrowRight size={14} />
+          </span>
+        ) : null}
       </div>
-      <p className="mt-3 truncate text-2xl font-bold tracking-tight text-slate-900">
+      <p className="mt-3 break-words text-2xl font-bold leading-tight tracking-tight text-slate-900">
         {value}
       </p>
-      {sub ? <p className="mt-1 text-xs text-slate-500">{sub}</p> : null}
-      {href ? (
-        <span className="mt-4 inline-flex items-center gap-1 text-[11px] font-semibold text-slate-400 transition group-hover:text-accent">
-          View <ArrowRight size={11} />
-        </span>
-      ) : null}
+      {sub ? <p className="mt-1 text-xs leading-4 text-slate-600">{sub}</p> : null}
     </div>
   );
-  return href ? <Link href={href}>{card}</Link> : card;
+  return href ? (
+    <Link
+      href={href}
+      className="block h-full rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
+    >
+      {card}
+    </Link>
+  ) : card;
 }
 
 function ActionCard({

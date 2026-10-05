@@ -23,6 +23,7 @@ import {
   Image as ImageIcon,
   AlertCircle,
   RefreshCw,
+  Mail,
 } from 'lucide-react'
 
 const compressImageToWebP = (file, maxWidth = 1600, quality = 0.82) =>
@@ -529,6 +530,7 @@ export default function AdminAdvertisements() {
     if (!response.ok || !payload?.success) {
       throw new Error(payload?.error || 'Failed to update submission status')
     }
+    return payload
   }
 
   /* ----------------------------------------------------------
@@ -725,15 +727,30 @@ export default function AdminAdvertisements() {
     setLoading(true)
 
     try {
-      await updateSubmissionStatusViaApi(submission.id, 'approved')
+      const result = await updateSubmissionStatusViaApi(submission.id, 'approved')
       updateSubmissionInState(submission.id, 'approved')
       toast.success('Payment verified. Submission approved and ad activated.')
+      if (result.emailWarning) toast.error(result.emailWarning)
       loadAds()
       loadSubmissions()
     } catch (err) {
       toast.error(err.message)
     } finally {
       setLoading(false)
+      setSubmissionActionId(null)
+    }
+  }
+
+  const resendApprovalEmail = async (submission) => {
+    if (submissionActionId === submission.id) return
+    setSubmissionActionId(submission.id)
+    try {
+      const result = await updateSubmissionStatusViaApi(submission.id, 'approved')
+      if (result.emailWarning) throw new Error(result.emailWarning)
+      toast.success(`Approval email sent to ${submission.email}`)
+    } catch (error) {
+      toast.error(error.message || 'Unable to send approval email')
+    } finally {
       setSubmissionActionId(null)
     }
   }
@@ -1884,6 +1901,14 @@ export default function AdminAdvertisements() {
 
                         {getSubmissionStatus(sub.status) === 'approved' && (
                           <>
+                            <button
+                              onClick={() => resendApprovalEmail(sub)}
+                              disabled={loading || submissionActionId === sub.id}
+                              className="inline-flex items-center gap-1.5 rounded-full border border-blue-200 bg-white px-4 py-2 text-sm font-semibold text-blue-700 transition hover:bg-blue-50 disabled:opacity-60"
+                            >
+                              <Mail size={14} />
+                              {submissionActionId === sub.id ? 'Sending…' : 'Resend approval email'}
+                            </button>
                             {matchingAd ? (
                               <>
                                 <button

@@ -1,11 +1,23 @@
 import { useState, useEffect } from 'react';
-import { useUser } from '@clerk/nextjs';
+import { useAuth, useUser } from '@clerk/nextjs';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
 import toast from 'react-hot-toast';
 import { useRoleProtection } from '../../lib/useRoleProtection';
 import { isVerifiedAgent } from '../../lib/rbac';
-import { Copy, Check, AlertCircle, Award, Users, Home, DollarSign } from 'lucide-react';
+import {
+  Copy,
+  Check,
+  AlertCircle,
+  Award,
+  Users,
+  Home,
+  DollarSign,
+  Upload,
+  Clock,
+  CheckCircle,
+  Loader2,
+} from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { getSiteSettings } from '../../lib/siteSettings';
 
@@ -108,6 +120,7 @@ export default function AgentPayment() {
   const isOwnerUser = userData?.user_type === 'owner' || userData?.role === 'owner';
 
   const { user } = useUser();
+  const { getToken } = useAuth();
   const router = useRouter();
   const [copied, setCopied] = useState(false);
   const [queueCount, setQueueCount] = useState(null);
@@ -115,6 +128,15 @@ export default function AgentPayment() {
   const [selectedPlanId, setSelectedPlanId] = useState('30-day');
   const [sessionToken, setSessionToken] = useState(null);
   const [ownerCurrency, setOwnerCurrency] = useState('USD');
+  const [planPrices, setPlanPrices] = useState({});
+  const [receiptFile, setReceiptFile] = useState(null);
+  const [uploadingReceipt, setUploadingReceipt] = useState(false);
+  const [receiptState, setReceiptState] = useState(null);
+  const [agentProfile, setAgentProfile] = useState(null);
+
+  useEffect(() => {
+    if (userData?.agent) setAgentProfile(userData.agent);
+  }, [userData]);
 
   // Generate and track session token for upgrade flow
   useEffect(() => {
@@ -123,7 +145,6 @@ export default function AgentPayment() {
       setSessionToken(token);
       
       sessionStorage.setItem('agent_upgrade_token', token);
-      sessionStorage.setItem('agent_upgrade_plan', selectedPlanId);
       sessionStorage.setItem('agent_upgrade_timestamp', new Date().toISOString());
     }
   }, [user?.id]);
@@ -137,13 +158,52 @@ export default function AgentPayment() {
 
   // Pre-select agent's current plan
   useEffect(() => {
-    if (userData?.agent?.payment_status) {
+    if (agentProfile?.payment_status) {
       const validPlans = ['free', '7-day', '30-day', '90-day'];
-      if (validPlans.includes(userData.agent.payment_status)) {
-        setSelectedPlanId(userData.agent.payment_status);
+      if (validPlans.includes(agentProfile.payment_status)) {
+        setSelectedPlanId(agentProfile.payment_status);
       }
     }
-  }, [userData]);
+  }, [agentProfile?.payment_status]);
+
+  useEffect(() => {
+    const agent = agentProfile;
+    if (agent?.payment_receipt_submitted_at) {
+      setReceiptState({
+        submittedAt: agent.payment_receipt_submitted_at,
+        plan: agent.payment_receipt_plan,
+        amount: agent.payment_receipt_amount,
+        status: agent.payment_receipt_status,
+      });
+    }
+  }, [agentProfile]);
+
+  useEffect(() => {
+    if (receiptState?.status !== 'pending') return undefined;
+
+    const refreshReceiptStatus = async () => {
+      try {
+        const response = await fetch('/api/user/profile', { credentials: 'include' });
+        if (!response.ok) return;
+        const profile = await response.json();
+        const agent = profile?.agent;
+        if (agent?.payment_receipt_submitted_at) {
+          setAgentProfile(agent);
+          setReceiptState({
+            submittedAt: agent.payment_receipt_submitted_at,
+            plan: agent.payment_receipt_plan,
+            amount: agent.payment_receipt_amount,
+            status: agent.payment_receipt_status,
+          });
+        }
+      } catch (error) {
+        console.error('Failed to refresh agent payment receipt status:', error);
+      }
+    };
+
+    const timer = setInterval(refreshReceiptStatus, 30000);
+    return () => clearInterval(timer);
+  }, [receiptState?.status]);
 
   // Allow override of plan prices via site settings
   useEffect(() => {
@@ -152,11 +212,7 @@ export default function AgentPayment() {
       try {
         const s = await getSiteSettings();
         if (!mounted) return;
-        if (s.plan_prices) {
-          plans.forEach(p => {
-            if (s.plan_prices[p.id] !== undefined) p.price = s.plan_prices[p.id];
-          });
-        }
+        if (s.plan_prices) setPlanPrices(s.plan_prices);
       } catch (e) {
         console.error('Failed to load plan prices:', e);
       }
@@ -165,10 +221,70 @@ export default function AgentPayment() {
     return () => { mounted = false; };
   }, []);
 
-  const selectedPlan = plans.find((plan) => plan.id === selectedPlanId) || plans[2];
+  const selectedPlanBase = plans.find((plan) => plan.id === selectedPlanId) || plans[2];
+  const selectedPlan = {
+    ...selectedPlanBase,
+    price: planPrices[selectedPlanBase.id] ?? selectedPlanBase.price,
+  };
   const userEmail = user?.primaryEmailAddress?.emailAddress || 'YOUR_EMAIL';
   const emailHandle = userEmail.includes('@') ? userEmail.split('@')[0] : userEmail;
   const paymentRequired = selectedPlan.price > 0;
+  const handleReceiptSelection = (event) => {
+    const file = event.target.files?.[0] || null;
+    if (!file) {
+      setReceiptFile(null);
+      return;
+    }
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+      toast.error('Choose a JPG, PNG, or WebP receipt image.');
+      event.target.value = '';
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Receipt image must be 5 MB or smaller.');
+      event.target.value = '';
+      return;
+    }
+    setReceiptFile(file);
+  };
+
+  const uploadPaymentReceipt = async (event) => {
+    event.preventDefault();
+    if (!receiptFile) {
+      toast.error('Choose a receipt image first.');
+      return;
+    }
+    if (!['7-day', '30-day', '90-day'].includes(selectedPlan.id)) {
+      toast.error('Choose a paid plan before uploading a receipt.');
+      return;
+    }
+
+    setUploadingReceipt(true);
+    try {
+      const token = await getToken();
+      const formData = new FormData();
+      formData.append('receipt', receiptFile);
+      formData.append('plan', selectedPlan.id);
+      const response = await fetch('/api/agent/payment-receipt', {
+        method: 'POST',
+        credentials: 'include',
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        body: formData,
+      });
+      const payload = await response.json();
+      if (!response.ok || !payload?.success) {
+        throw new Error(payload?.error || 'Unable to upload receipt.');
+      }
+      setReceiptState(payload.receipt);
+      setReceiptFile(null);
+      event.target.reset();
+      toast.success('Receipt submitted. Your payment is awaiting verification.');
+    } catch (error) {
+      toast.error(error.message || 'Unable to upload receipt.');
+    } finally {
+      setUploadingReceipt(false);
+    }
+  };
   
   // WhatsApp message for bank transfer / free access
   const whatsappText = encodeURIComponent(
@@ -222,25 +338,25 @@ export default function AgentPayment() {
 
 
               {/* Current Plan Status */}
-              {userData?.agent && (
+              {agentProfile && (
                 <div className="mt-4 pt-4 border-t border-gray-400">
                   <div className="flex items-center justify-between flex-wrap gap-2">
                     <div>
                       <p className="text-xs text-gray-300">Current Plan</p>
                       <p className="text-lg font-bold">
-                        {userData.agent.payment_status === 'free' && 'Free Access'}
-                        {userData.agent.payment_status === '7-day' && '7-Day Access'}
-                        {userData.agent.payment_status === '30-day' && ' 30-Day Access'}
-                        {userData.agent.payment_status === '90-day' && ' 90-Day Access'}
+                        {agentProfile.payment_status === 'free' && 'Free Access'}
+                        {agentProfile.payment_status === '7-day' && '7-Day Access'}
+                        {agentProfile.payment_status === '30-day' && ' 30-Day Access'}
+                        {agentProfile.payment_status === '90-day' && ' 90-Day Access'}
                       </p>
                     </div>
-                    {userData.agent.access_expiry && (
+                    {agentProfile.access_expiry && (
                       <div className="text-right">
                         <p className="text-xs text-gray-300">
-                          {new Date(userData.agent.access_expiry) > new Date() ? 'Renews' : 'Expired'}
+                          {new Date(agentProfile.access_expiry) > new Date() ? 'Renews' : 'Expired'}
                         </p>
                         <p className="text-sm font-semibold">
-                          {new Date(userData.agent.access_expiry).toLocaleDateString('en-US', { 
+                          {new Date(agentProfile.access_expiry).toLocaleDateString('en-US', {
                             month: 'short', 
                             day: 'numeric', 
                             year: 'numeric' 
@@ -397,6 +513,7 @@ export default function AgentPayment() {
                 <div className="space-y-3 sm:grid sm:grid-cols-2 sm:gap-4 sm:space-y-0">
                   {plans.map((plan) => {
                     const isSelected = plan.id === selectedPlanId;
+                    const price = planPrices[plan.id] ?? plan.price;
                     return (
                       <button
                         key={plan.id}
@@ -418,7 +535,7 @@ export default function AgentPayment() {
                             <p className="text-xs sm:text-sm text-gray-600 mt-1">{plan.headline}</p>
                           </div>
                           <div className="text-right flex-shrink-0">
-                            <p className="text-xl sm:text-2xl font-bold text-gray-900">{formatCurrency(plan.price)}</p>
+                            <p className="text-xl sm:text-2xl font-bold text-gray-900">{formatCurrency(price)}</p>
                             <p className="text-xs text-gray-500">{plan.duration}</p>
                           </div>
                         </div>
@@ -449,6 +566,32 @@ export default function AgentPayment() {
                 </div>
               </div>
 
+              {receiptState?.status && (
+                <div
+                  className={`rounded-lg p-4 text-sm ${
+                    receiptState.status === 'verified'
+                      ? 'bg-emerald-50 text-emerald-900'
+                      : receiptState.status === 'rejected'
+                      ? 'bg-red-50 text-red-900'
+                      : 'bg-amber-50 text-amber-900'
+                  }`}
+                >
+                  <p className="flex items-center gap-2 font-semibold">
+                    {receiptState.status === 'verified' ? <CheckCircle size={17} /> : <Clock size={17} />}
+                    {receiptState.status === 'verified'
+                      ? 'Payment verified. Your access plan has been updated.'
+                      : receiptState.status === 'rejected'
+                      ? 'Your receipt was rejected. Please upload a corrected receipt.'
+                      : 'Receipt submitted — payment is awaiting verification.'}
+                  </p>
+                  <p className="mt-1">
+                    {receiptState.plan && `${plans.find((plan) => plan.id === receiptState.plan)?.name || receiptState.plan} · `}
+                    {receiptState.amount != null && formatCurrency(Number(receiptState.amount))}
+                    {receiptState.submittedAt && ` · ${new Date(receiptState.submittedAt).toLocaleString()}`}
+                  </p>
+                </div>
+              )}
+
               {/* Bank Transfer Instructions */}
               {paymentRequired && (
               <div className="bg-gray-100 border-l-4 border-accent rounded-lg p-4 sm:p-6">
@@ -464,18 +607,11 @@ export default function AgentPayment() {
                         In notes, add: <strong>{selectedPlan.name}</strong> + <strong>{emailHandle}</strong>
                       </li>
                       <li>Screenshot the receipt</li>
-                      <li>Upload or send proof (button below)</li>
+                      <li>Upload your receipt below</li>
                     </ol>
                     <p className="text-gray-600 text-xs mt-3 font-semibold">
                       Verified within 24 hours. Access starts after confirmation.
                     </p>
-                    {sessionToken && (
-                      <p className="text-gray-500 text-xs mt-3 bg-gray-50 p-2 rounded border border-gray-200">
-                        <strong>Session Token:</strong> <code className="font-mono">{sessionToken}</code>
-                        <br />
-                        <em>Included in WhatsApp message—helps us track your upgrade request.</em>
-                      </p>
-                    )}
                   </div>
                 </div>
 
@@ -536,22 +672,42 @@ export default function AgentPayment() {
                 })}
                 </div>
 
-                {/* WhatsApp Submission for Bank Transfer */}
+                {/* On-site bank transfer receipt submission */}
                 <div className="mt-5 bg-white border border-gray-200 rounded-lg p-4 text-center">
                   <h3 className="text-base font-bold text-gray-900 mb-2">
-                    Upload your proof
+                    Upload your transfer receipt
                   </h3>
                   <p className="text-sm text-gray-700 mb-3">
-                    Submit your transfer proof to activate your access window. Verified within 24 hours.
+                    Submit your receipt here. We will verify the transfer before activating your access.
                   </p>
-                  <a
-                    href={`https://wa.me/18763369045?text=${whatsappText}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="w-full inline-flex items-center justify-center gap-2 bg-accent hover:bg-accent/90 text-white font-bold py-3 px-4 rounded-lg transition text-sm sm:text-base"
-                  >
-                    Upload Proof on WhatsApp
-                  </a>
+                  <form onSubmit={uploadPaymentReceipt} className="space-y-3 text-left">
+                    <label className="block text-sm font-medium text-gray-700">
+                      Payment receipt
+                      <input
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp"
+                        onChange={handleReceiptSelection}
+                        className="mt-2 block w-full rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm"
+                        disabled={uploadingReceipt}
+                      />
+                    </label>
+                    <p className="text-xs text-gray-500">JPG, PNG, or WebP · maximum 5 MB</p>
+                    <button
+                      type="submit"
+                      disabled={!receiptFile || uploadingReceipt}
+                      className="w-full inline-flex items-center justify-center gap-2 bg-accent hover:bg-accent/90 text-white font-bold py-3 px-4 rounded-lg transition text-sm sm:text-base disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {uploadingReceipt ? <Loader2 size={17} className="animate-spin" /> : <Upload size={17} />}
+                      {uploadingReceipt
+                        ? 'Submitting receipt…'
+                        : receiptState?.status === 'pending'
+                        ? 'Replace and submit receipt'
+                        : 'Submit transfer receipt'}
+                    </button>
+                  </form>
+                  <p className="mt-3 text-xs text-gray-500">
+                    Payment is verified within 24 hours. Your access starts after confirmation.
+                  </p>
                 </div>
               </div>
               )}
