@@ -8,6 +8,15 @@ export default async function handler(req, res) {
     const db = getDbClient();
 
     if (req.method === 'GET') {
+      let waitlistWarning = null;
+      const { error: waitlistError } = await db.rpc(
+        'promote_available_waitlisted_sponsor_submissions'
+      );
+      if (waitlistError) {
+        waitlistWarning = 'Apply migration 057 to automatically promote paid waitlisted ads when a monthly slot opens.';
+        console.error('Automatic sponsor waitlist promotion failed:', waitlistError);
+      }
+
       const [{ data: ads, error: adsError }, { data: submissions, error: submissionsError }] = await Promise.all([
         db.from('advertisements').select('*').order('created_at', { ascending: false }),
         db.from('sponsor_submissions').select('*').order('submitted_at', { ascending: false }),
@@ -16,20 +25,121 @@ export default async function handler(req, res) {
       if (adsError) throw adsError;
       if (submissionsError) throw submissionsError;
 
+      const monthParts = new Intl.DateTimeFormat('en', {
+        timeZone: 'America/Jamaica',
+        year: 'numeric',
+        month: '2-digit',
+      }).formatToParts(new Date());
+      const currentSponsorMonth = `${monthParts.find((part) => part.type === 'year')?.value}-${monthParts.find((part) => part.type === 'month')?.value}-01`;
+      let reservedSlots = null;
+      let capacityWarning = waitlistWarning;
+      const capacityWithReleases = await db
+        .from('sponsor_submissions')
+        .select('id', { count: 'exact', head: true })
+        .eq('payment_status', 'paid')
+        .eq('scheduled_month', currentSponsorMonth)
+        .is('capacity_released_at', null)
+        .neq('status', 'rejected');
+      if (!capacityWithReleases.error) {
+        reservedSlots = capacityWithReleases.count || 0;
+      } else if (['42703', 'PGRST204'].includes(capacityWithReleases.error.code)) {
+        const legacyCapacity = await db
+          .from('sponsor_submissions')
+          .select('id', { count: 'exact', head: true })
+          .eq('payment_status', 'paid')
+          .eq('scheduled_month', currentSponsorMonth)
+          .neq('status', 'rejected');
+        if (legacyCapacity.error) {
+          capacityWarning = 'Apply migration 056 to enable accurate capacity tracking.';
+          console.error('Monthly capacity lookup failed:', legacyCapacity.error);
+        } else {
+          reservedSlots = legacyCapacity.count || 0;
+          capacityWarning = 'Apply migration 056 to release slots when ads are deactivated or deleted.';
+          console.error('Monthly capacity release migration is missing:', capacityWithReleases.error);
+        }
+      } else {
+        capacityWarning = 'Monthly capacity could not be loaded.';
+        console.error('Monthly capacity lookup failed:', capacityWithReleases.error);
+      }
+
+      const { data: pricing, error: pricingError } = await db
+        .from('site_settings')
+        .select('value')
+        .eq('key', 'ad_plan_prices')
+        .maybeSingle();
+      if (pricingError) {
+        console.error('Ad pricing settings are not configured; using default prices:', pricingError);
+      }
+
+      const submissionsWithReceipts = await Promise.all(
+        (submissions || []).map(async (submission) => {
+          if (!submission.payment_receipt_path) return submission;
+          try {
+            const { data, error } = await db.storage
+              .from('payment-receipts')
+              .createSignedUrl(submission.payment_receipt_path, 3600);
+            if (error) throw error;
+            return { ...submission, payment_receipt_url: data.signedUrl };
+          } catch (error) {
+            console.error(`Failed to create receipt URL for submission ${submission.id}:`, error);
+            return { ...submission, payment_receipt_url: null };
+          }
+        })
+      );
+
+      res.setHeader('Cache-Control', 'no-store, max-age=0');
       return res.status(200).json({
         success: true,
         ads: ads || [],
-        submissions: submissions || [],
+        submissions: submissionsWithReceipts,
+        monthlyCapacity: reservedSlots === null
+          ? { month: currentSponsorMonth, limit: 40, reserved: null, warning: capacityWarning }
+          : {
+              month: currentSponsorMonth,
+              limit: 40,
+              reserved: reservedSlots,
+              warning: capacityWarning,
+            },
+        capacityWarning,
+        adPlanPrices: pricing?.value || { '14-day': 17999, '30-day': 52499 },
       });
     }
 
     if (req.method === 'PATCH') {
+      if (req.body?.adPlanPrices) {
+        const { adPlanPrices } = req.body;
+        const planIds = ['14-day', '30-day'];
+        if (
+          !adPlanPrices ||
+          typeof adPlanPrices !== 'object' ||
+          Array.isArray(adPlanPrices) ||
+          planIds.some((planId) =>
+            !Number.isInteger(Number(adPlanPrices[planId])) ||
+            Number(adPlanPrices[planId]) < 1 ||
+            Number(adPlanPrices[planId]) > 10000000
+          )
+        ) {
+          return res.status(400).json({ error: 'Enter valid prices for both ad plans.' });
+        }
+
+        const { error } = await db.from('site_settings').upsert(
+          {
+            key: 'ad_plan_prices',
+            value: Object.fromEntries(planIds.map((planId) => [planId, Number(adPlanPrices[planId])])),
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: 'key' }
+        );
+        if (error) throw error;
+        return res.status(200).json({ success: true });
+      }
+
       const { id, status } = req.body || {};
       if (!id || !status) {
         return res.status(400).json({ error: 'Missing id or status' });
       }
 
-      const allowedStatuses = ['pending', 'pending_payment', 'approved', 'rejected'];
+      const allowedStatuses = ['pending', 'pending_payment', 'pending_review', 'waitlisted', 'approved', 'rejected'];
       if (!allowedStatuses.includes(status)) {
         return res.status(400).json({ error: 'Invalid status' });
       }
@@ -45,9 +155,60 @@ export default async function handler(req, res) {
         return res.status(404).json({ error: 'Submission not found' });
       }
 
+      if (
+        status === 'pending_review' &&
+        ['pending_payment', 'pending_review'].includes(submission.status) &&
+        submission.payment_status !== 'paid'
+      ) {
+        if (!submission.payment_receipt_path) {
+          return res.status(409).json({ error: 'Upload a payment receipt before confirming this transfer.' });
+        }
+        const { error } = await db.rpc('confirm_bank_transfer_sponsor_payment', {
+          p_submission_id: id,
+        });
+        if (error) {
+          if (
+            String(error.message || '').includes('Rejected sponsor submissions')
+            || String(error.message || '').includes('Sponsor submission not found')
+          ) {
+            return res.status(409).json({ error: error.message });
+          }
+          throw error;
+        }
+        return res.status(200).json({ success: true });
+      }
+
+      if (status === 'approved') {
+        const { error } = await db.rpc('approve_paid_sponsor_submission', {
+          p_submission_id: id,
+        });
+        if (error) {
+          if (String(error.message || '').includes('Only paid submissions')) {
+            return res.status(409).json({ error: error.message });
+          }
+          throw error;
+        }
+        return res.status(200).json({ success: true });
+      }
+
+      if (status === 'pending_review' && submission.status === 'waitlisted') {
+        const { error } = await db.rpc('promote_waitlisted_sponsor_submission', {
+          p_submission_id: id,
+        });
+        if (error) {
+          if (String(error.message || '').includes('Only paid waitlisted submissions')
+            || String(error.message || '').includes('future month')
+            || String(error.message || '').includes('current month is full')
+            || String(error.message || '').includes('No available monthly slot')) {
+            return res.status(409).json({ error: error.message });
+          }
+          throw error;
+        }
+        return res.status(200).json({ success: true });
+      }
+
       const updates = {
         status,
-        ...(status === 'approved' ? { verified_at: new Date().toISOString() } : {}),
       };
 
       const { error } = await db
@@ -57,62 +218,17 @@ export default async function handler(req, res) {
 
       if (error) throw error;
 
-      if (status === 'approved') {
-        const durationDays = Number(submission?.duration_days) > 0
-          ? Number(submission.duration_days)
-          : (submission?.plan_id === '30-day' ? 30 : 7);
-
-        const expiresAt = new Date();
-        expiresAt.setDate(expiresAt.getDate() + durationDays);
-
-        const { data: matchingAds, error: adsError } = await db
-          .from('advertisements')
-          .select('id, advertiser_id')
-          .eq('company_name', submission.company_name)
-          .eq('email', submission.email)
-          .order('created_at', { ascending: false })
-          .limit(1);
-
-        if (adsError) throw adsError;
-
-        let advertiserId = matchingAds?.[0]?.advertiser_id || null;
-        if (!advertiserId && submission.created_by_clerk_id) {
-          const { data: owner, error: ownerError } = await db
-            .from('users')
-            .select('id')
-            .eq('clerk_id', submission.created_by_clerk_id)
-            .maybeSingle();
-
-          if (ownerError) throw ownerError;
-          advertiserId = owner?.id || null;
-        }
-
-        const activePayload = {
-          is_active: true,
-          is_featured: Boolean(submission?.is_featured),
-          expires_at: expiresAt.toISOString(),
-          ...(advertiserId ? { advertiser_id: advertiserId } : {}),
-          ...(Array.isArray(submission?.image_urls) && submission.image_urls.length > 0
-            ? { image_urls: submission.image_urls.slice(0, 3), image_url: submission.image_urls[0] }
-            : (submission?.image_url ? { image_url: submission.image_url } : {})),
-        };
-
-        if (matchingAds?.[0]?.id) {
-          const { error: activateError } = await db
-            .from('advertisements')
-            .update(activePayload)
-            .eq('id', matchingAds[0].id);
-
-          if (activateError) throw activateError;
-        }
-      }
-
       return res.status(200).json({ success: true });
     }
 
     return res.status(405).json({ error: 'Method not allowed' });
   } catch (error) {
     console.error('Admin advertisements API error:', error);
+    if (error?.code === 'PGRST205' && String(error?.message || '').includes('site_settings')) {
+      return res.status(503).json({
+        error: 'The site_settings table is missing from Supabase. Run db-migrations/052_ensure_site_settings_for_ad_pricing.sql in the Supabase SQL Editor, then retry.',
+      });
+    }
     const message = typeof error?.message === 'string' ? error.message : 'Request failed';
     return res.status(500).json({ error: message });
   }

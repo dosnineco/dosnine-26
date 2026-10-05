@@ -45,6 +45,8 @@ const LEGACY_STANDARD_PRICE = 8970;
 
 const getSubmissionRevenue = (sub) => {
   if (!sub) return 0;
+  const submittedAmount = Number(sub.amount);
+  if (Number.isFinite(submittedAmount) && submittedAmount > 0) return submittedAmount;
   const planId = sub.plan_id && String(sub.plan_id);
   if (planId && AD_PRICING[planId] != null) return AD_PRICING[planId];
   return sub.is_featured ? LEGACY_FEATURED_PRICE : LEGACY_STANDARD_PRICE;
@@ -151,7 +153,7 @@ export default function AdminDashboardIndex() {
       // Fetch only the fields we need for revenue computation.
       const { data: approvedData } = await supabase
         .from('sponsor_submissions')
-        .select('is_featured, plan_id')
+        .select('is_featured, plan_id, amount')
         .eq('status', 'approved');
       approvedSubmissions = approvedData || [];
     } catch {

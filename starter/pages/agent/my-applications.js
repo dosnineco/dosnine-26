@@ -124,9 +124,10 @@ export default function MyApplicationsPage() {
   const bankDetails = [
     {
       bank: 'Scotiabank Jamaica',
-      accountName: 'Tahjay Thompson',
-      accountNumber: '010860258',
-      branch: '50575'
+      accountName: 'Dosnine Limited',
+      accountNumber: '000991881',
+      branch: '50575',
+      accountType: 'Business Savings',
     }
   ];
 

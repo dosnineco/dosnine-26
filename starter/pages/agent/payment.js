@@ -18,7 +18,6 @@ const plans = [
     price: 1499,
     duration: '7 days',
     headline: 'Get qualified leads for 7 days straight',
-    gumroadUrl: 'https://dosnine.gumroad.com/l/agent-7day',
     included: [
       
     ],
@@ -37,7 +36,6 @@ const plans = [
     price: 4999,
     duration: '30 days',
     headline: 'Full access to all resquest and features',
-    gumroadUrl: 'https://dosnine.gumroad.com/l/agent-30day',
     included: [
  
     ],
@@ -56,7 +54,6 @@ const plans = [
     price: 14999,
     duration: '3 - months',
     headline: 'Same power, lower cost per day',
-    gumroadUrl: 'https://dosnine.gumroad.com/l/agent-90day',
     included: [
    
     ],
@@ -75,7 +72,6 @@ const plans = [
     price: 0,
     duration: 'Free',
     headline: 'Test the platform on small rentals',
-    gumroadUrl: null,
     included: [
 
     ],
@@ -92,9 +88,10 @@ const plans = [
 const bankDetails = [
   {
     bank: 'Scotiabank Jamaica',
-    accountName: 'Tahjay Thompson',
-    accountNumber: '010860258',
-    branch: '50575'
+    accountName: 'Dosnine Limited',
+    accountNumber: '000991881',
+    branch: '50575',
+    accountType: 'Business Savings',
   },
 ];
 
@@ -118,7 +115,6 @@ export default function AgentPayment() {
   const [selectedPlanId, setSelectedPlanId] = useState('30-day');
   const [sessionToken, setSessionToken] = useState(null);
   const [ownerCurrency, setOwnerCurrency] = useState('USD');
-  const [paymentMethod, setPaymentMethod] = useState('gumroad'); // 'gumroad' | 'bank'
 
   // Generate and track session token for upgrade flow
   useEffect(() => {
@@ -181,13 +177,8 @@ export default function AgentPayment() {
       : `Hello Dosnine Team, please activate ${selectedPlan.name} for ${userEmail}. Session: ${sessionToken}.`
   );
 
-  // WhatsApp message for Gumroad follow-up
-  const gumroadWhatsappText = encodeURIComponent(
-    `Hello Dosnine Team, I just paid for ${selectedPlan.name} (${selectedPlan.duration}) via Gumroad. Email: ${userEmail}. Amount: ${formatCurrency(selectedPlan.price)}. Session: ${sessionToken}. Please activate my access.`
-  );
-
-  const ownerJmdWhatsappText = encodeURIComponent(
-    `Hi Dosnine, I want to join Tenant Services and pay in JMD. Email: ${userEmail}. Please send the local payment instructions for JMD ${OWNER_SERVICE_PRICE_JMD.toLocaleString()}.`
+  const ownerPaymentWhatsappText = encodeURIComponent(
+    `Hi Dosnine, I want to join Tenant Services and pay by bank transfer in ${ownerCurrency}. Email: ${userEmail}. Amount: ${ownerCurrency === 'USD' ? `$${OWNER_SERVICE_PRICE_USD}` : `JMD ${OWNER_SERVICE_PRICE_JMD.toLocaleString()}`}. Please send the bank transfer instructions.`
   );
 
   const copyToClipboard = (text, field) => {
@@ -212,7 +203,6 @@ export default function AgentPayment() {
     <>
       <Head>
         <title>Agent Access Plans — Dosnine Limited</title>
-        <script src="https://gumroad.com/js/gumroad.js" defer />
       </Head>
 
       <div className="min-h-screen bg-white py-8 px-4 sm:py-12">
@@ -338,25 +328,14 @@ export default function AgentPayment() {
                   </div>
 
                   <div className="mt-5 flex flex-col gap-3">
-                  {ownerCurrency === 'USD' ? (
                     <a
-                      href="https://dosnine.gumroad.com/l/tentant-services"
-                      data-gumroad-action="buy"
-                      rel="noreferrer"
-                      className="inline-flex min-h-12 w-full items-center justify-center rounded-lg bg-accent px-5 py-3 text-center text-sm font-bold text-white hover:bg-accent/90"
-                    >
-                      Join Tenant Services - $5/month
-                    </a>
-                  ) : (
-                    <a
-                      href={`https://wa.me/18763369045?text=${ownerJmdWhatsappText}`}
+                      href={`https://wa.me/18763369045?text=${ownerPaymentWhatsappText}`}
                       target="_blank"
                       rel="noreferrer"
                       className="inline-flex min-h-12 w-full items-center justify-center rounded-lg bg-accent px-5 py-3 text-center text-sm font-bold text-white hover:bg-accent/90"
                     >
-                      Pay JMD {OWNER_SERVICE_PRICE_JMD.toLocaleString()} on WhatsApp
+                      Request bank transfer instructions
                     </a>
-                  )}
 
                   <a
                     href={`https://wa.me/18763369045?text=${encodeURIComponent(`Hi Dosnine, I need help finding a tenant. Email: ${userEmail}. My property rent is [amount]. Please explain the Dosnine Tenant Services membership process and the $5/month plan.`)}`}
@@ -368,9 +347,7 @@ export default function AgentPayment() {
                   </a>
                   </div>
                   <p className="mt-3 text-center text-xs text-gray-500">
-                    {ownerCurrency === 'USD'
-                      ? 'Secure checkout through Gumroad. Cancel anytime.'
-                      : 'We will send JMD payment instructions on WhatsApp.'}
+                    We will send bank transfer instructions on WhatsApp.
                   </p>
                 </div>
               </div>
@@ -472,85 +449,8 @@ export default function AgentPayment() {
                 </div>
               </div>
 
-              {/* Payment Method Toggle - Only for paid plans */}
+              {/* Bank Transfer Instructions */}
               {paymentRequired && (
-                <div className="flex rounded-lg bg-gray-100 p-1" role="group" aria-label="Choose payment method">
-                  <button
-                    type="button"
-                    onClick={() => setPaymentMethod('gumroad')}
-                    aria-pressed={paymentMethod === 'gumroad'}
-                    className={`flex-1 rounded-md px-4 py-2.5 text-sm font-bold transition ${
-                      paymentMethod === 'gumroad'
-                        ? 'bg-accent text-white shadow-sm'
-                        : 'text-gray-600 hover:bg-gray-200'
-                    }`}
-                  >
-                    Pay Online (Card / PayPal)
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setPaymentMethod('bank')}
-                    aria-pressed={paymentMethod === 'bank'}
-                    className={`flex-1 rounded-md px-4 py-2.5 text-sm font-bold transition ${
-                      paymentMethod === 'bank'
-                        ? 'bg-accent text-white shadow-sm'
-                        : 'text-gray-600 hover:bg-gray-200'
-                    }`}
-                  >
-                    Bank Transfer
-                  </button>
-                </div>
-              )}
-
-              {/* Gumroad Payment - Online */}
-              {paymentRequired && paymentMethod === 'gumroad' && (
-                <div className="bg-gray-100 border-l-4 border-accent rounded-lg p-4 sm:p-6">
-                  <div className="flex items-start gap-3">
-                    <AlertCircle className="text-accent flex-shrink-0 mt-0.5" size={18} />
-                    <div className="flex-1">
-                      <h3 className="font-bold text-gray-900 mb-2 text-sm sm:text-base">Pay securely online</h3>
-                      <p className="text-gray-700 text-sm mb-4">
-                        Pay <strong>{formatCurrency(selectedPlan.price)}</strong> for <strong>{selectedPlan.name}</strong> using
-                        card, PayPal, or Apple Pay via Gumroad. Access activates within 24 hours of payment confirmation.
-                      </p>
-
-                      <a
-                        href={`${selectedPlan.gumroadUrl}?wanted=true&email=${encodeURIComponent(userEmail)}&utm_source=dosnine&utm_content=${selectedPlan.id}`}
-                        data-gumroad-action="buy"
-                        rel="noreferrer"
-                        className="w-full inline-flex items-center justify-center gap-2 bg-accent hover:bg-accent/90 text-white font-bold py-3 px-4 rounded-lg transition text-sm sm:text-base"
-                      >
-                        Pay {formatCurrency(selectedPlan.price)} with Gumroad →
-                      </a>
-
-                      <div className="mt-4 bg-white rounded-lg p-3 border border-gray-200">
-                        <p className="text-xs text-gray-500 mb-1">
-                          <strong>After payment:</strong> Send your Gumroad receipt to WhatsApp so we can verify and activate faster.
-                        </p>
-                        <a
-                          href={`https://wa.me/18763369045?text=${gumroadWhatsappText}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="mt-2 w-full inline-flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white font-semibold py-2.5 px-4 rounded-lg transition text-sm"
-                        >
-                          Send Receipt on WhatsApp
-                        </a>
-                      </div>
-
-                      {sessionToken && (
-                        <p className="text-gray-500 text-xs mt-3 bg-white p-2 rounded border border-gray-200">
-                          <strong>Session Token:</strong> <code className="font-mono">{sessionToken}</code>
-                          <br />
-                          <em>Useful for tracking—include in WhatsApp if needed.</em>
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Bank Transfer Instructions - Only for paid plans + bank method */}
-              {paymentRequired && paymentMethod === 'bank' && (
               <div className="bg-gray-100 border-l-4 border-accent rounded-lg p-4 sm:p-6">
                 <div className="flex items-start gap-3">
                   <AlertCircle className="text-accent flex-shrink-0 mt-0.5" size={18} />

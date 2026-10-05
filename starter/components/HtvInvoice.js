@@ -202,11 +202,10 @@ const HtvInvoice = forwardRef(({ order, onClose }, ref) => {
             SCOTIABANK ACCOUNT:
           </p>
           <div className="invoice-payment-details">
-            <p className="invoice-payment-detail-line">First Name: Tahjay</p>
-            <p className="invoice-payment-detail-line">Last Name: Thompson</p>
+            <p className="invoice-payment-detail-line">Account Name: Dosnine Limited</p>
             <p className="invoice-payment-detail-line">Branch/Transit Number: 50575</p>
-            <p className="invoice-payment-detail-line">Account Type: Savings</p>
-            <p className="invoice-payment-detail-line">Account Number: 50575 010860258</p>
+            <p className="invoice-payment-detail-line">Account Type: Business Savings</p>
+            <p className="invoice-payment-detail-line">Account Number: 000991881</p>
             <p className="invoice-payment-detail-line">Currency: JMD</p>
           </div>
         </div>

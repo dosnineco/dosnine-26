@@ -1,5 +1,4 @@
 import { enforceRateLimit } from '@/lib/rateLimit';
-import { supabase } from '@/lib/supabase';
 import { getDbClient, requireDbUser } from '@/lib/apiAuth';
 import * as SibApiV3Sdk from '@getbrevo/brevo';
 
@@ -57,7 +56,7 @@ async function sendAdminAdSubmissionEmail({
   contact_name,
   selectedPlan,
   submittedAt,
-  syntheticId,
+  submissionId,
 }) {
   const apiKey = process.env.BREVO_API_KEY;
   if (!apiKey) return;
@@ -71,7 +70,7 @@ async function sendAdminAdSubmissionEmail({
 
   const htmlContent = `
     <h2>New Ad Submission Received</h2>
-    <p><strong>Submission ID:</strong> ${syntheticId}</p>
+    <p><strong>Submission ID:</strong> ${submissionId}</p>
     <p><strong>Submitted At:</strong> ${submittedAt}</p>
     <hr />
     <p><strong>Business Name:</strong> ${company_name || ''}</p>
@@ -160,23 +159,10 @@ export default async function handler(req, res) {
 
   const primaryImageUrl = normalizedImageUrls[0] || image_url || null;
 
-  const tryInsert = async (client, tableName, rows) => client
-    .from(tableName)
-    .insert(rows);
-
-  const isPolicyOrPermissionError = (error) => {
-    const message = String(error?.message || '').toLowerCase();
-    const code = String(error?.code || '');
-    return (
-      message.includes('row-level security') ||
-      message.includes('permission denied') ||
-      code === '42501'
-    );
-  };
-
   try {
     const resolved = await requireDbUser(req, res);
     if (!resolved) return;
+    const db = getDbClient();
 
     const accountVerified =
       resolved.user.identity_verified === true ||
@@ -187,7 +173,20 @@ export default async function handler(req, res) {
       return res.status(403).json({ error: 'A verified Dosnine account is required to submit an advertisement.' });
     }
 
-    const selectedPlan = AD_PLANS[plan_id] || AD_PLANS['7-day'];
+    const defaultPlan = AD_PLANS[plan_id] || AD_PLANS['7-day'];
+    const { data: pricing, error: pricingError } = await db
+      .from('site_settings')
+      .select('value')
+      .eq('key', 'ad_plan_prices')
+      .maybeSingle();
+    if (pricingError) throw pricingError;
+    const configuredPrice = Number(pricing?.value?.[defaultPlan.id]);
+    const selectedPlan = {
+      ...defaultPlan,
+      amount: Number.isInteger(configuredPrice) && configuredPrice > 0
+        ? configuredPrice
+        : defaultPlan.amount,
+    };
     const submittedAt = new Date().toISOString();
     const createdByClerkId = resolved.clerkId;
     const normalizedEmail = String(email || resolved.user.email || '').trim() || 'no-email@dosnine.local';
@@ -212,52 +211,18 @@ export default async function handler(req, res) {
       created_by_clerk_id: resolved.clerkId,
     };
 
-    const syntheticId = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 10)}`;
-
-    let { error } = await tryInsert(supabase, 'sponsor_submissions', [payload]);
-
-    if (error && isPolicyOrPermissionError(error)) {
-      try {
-        const db = getDbClient();
-        const retry = await tryInsert(db, 'sponsor_submissions', [payload]);
-        error = retry.error;
-      } catch (fallbackError) {
-        error = fallbackError;
-      }
-    }
-
-    if (error && String(error?.message || '').toLowerCase().includes('column')) {
-      const fallbackPayload = {
-        company_name,
-        category: normalizedCategory,
-        description,
-        phone,
-        email: normalizedEmail,
-        website: website || null,
-        image_url: primaryImageUrl,
-        is_featured: Boolean(is_featured),
-        status: 'pending_payment',
-        submitted_at: submittedAt,
-      };
-
-      let retry = await tryInsert(supabase, 'sponsor_submissions', [fallbackPayload]);
-
-      if (retry.error && isPolicyOrPermissionError(retry.error)) {
-        try {
-          const db = getDbClient();
-          retry = await tryInsert(db, 'sponsor_submissions', [fallbackPayload]);
-        } catch (fallbackError) {
-          retry = { error: fallbackError };
-        }
-      }
-
-      error = retry.error;
-    }
-
+    const { data: submission, error } = await db
+      .from('sponsor_submissions')
+      .insert(payload)
+      .select('id')
+      .single();
     if (error) {
       return res.status(500).json({
-        error: error?.message || 'Failed to submit sponsor application',
+        error: error.message || 'Failed to submit sponsor application',
       });
+    }
+    if (!submission?.id) {
+      return res.status(500).json({ error: 'Sponsor submission was saved without a returned ID.' });
     }
 
     const adDraft = {
@@ -279,16 +244,7 @@ export default async function handler(req, res) {
       is_featured: Boolean(is_featured),
     };
 
-    let adInsert = await tryInsert(supabase, 'advertisements', [adDraft]);
-
-    if (adInsert.error && isPolicyOrPermissionError(adInsert.error)) {
-      try {
-        const db = getDbClient();
-        adInsert = await tryInsert(db, 'advertisements', [adDraft]);
-      } catch (fallbackError) {
-        adInsert = { error: fallbackError };
-      }
-    }
+    const adInsert = await db.from('advertisements').insert([adDraft]);
 
     if (adInsert.error && !String(adInsert.error?.code || '').includes('23505')) {
       console.error('Failed to create advertisement draft:', adInsert.error);
@@ -308,7 +264,7 @@ export default async function handler(req, res) {
         contact_name,
         selectedPlan,
         submittedAt,
-        syntheticId,
+        submissionId: submission.id,
       });
     } catch (emailError) {
       console.error('Failed to send admin ad submission email:', emailError?.message || emailError);
@@ -316,7 +272,7 @@ export default async function handler(req, res) {
 
     return res.status(200).json({
       success: true,
-      id: syntheticId,
+      id: submission.id,
       plan: {
         id: selectedPlan.id,
         name: selectedPlan.name,

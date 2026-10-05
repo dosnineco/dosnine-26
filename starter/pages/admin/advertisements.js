@@ -8,6 +8,7 @@ import {
   Plus,
   X,
   Eye,
+  Copy,
   MousePointerClick,
   Star,
   EyeOff,
@@ -21,6 +22,7 @@ import {
   ExternalLink,
   Image as ImageIcon,
   AlertCircle,
+  RefreshCw,
 } from 'lucide-react'
 
 const compressImageToWebP = (file, maxWidth = 1600, quality = 0.82) =>
@@ -348,6 +350,18 @@ const PLAN_DURATIONS = {
 
 
 const DEFAULT_DURATION_DAYS = 14
+const SPONSOR_MONTHLY_CAPACITY = 40
+
+const getCurrentSponsorMonth = () => {
+  const parts = new Intl.DateTimeFormat('en', {
+    timeZone: 'America/Jamaica',
+    year: 'numeric',
+    month: '2-digit',
+  }).formatToParts(new Date())
+  const year = parts.find((part) => part.type === 'year')?.value
+  const month = parts.find((part) => part.type === 'month')?.value
+  return `${year}-${month}-01`
+}
 
 const getDurationDays = (submission) => {
   const fromField = Number(submission?.duration_days)
@@ -384,10 +398,16 @@ export default function AdminAdvertisements() {
   const [submissionFilter, setSubmissionFilter] = useState('all')
   const [submissionActionId, setSubmissionActionId] = useState(null)
   const [showForm, setShowForm] = useState(false)
+  const [adPlanPrices, setAdPlanPrices] = useState({ '14-day': 17999, '30-day': 52499 })
+  const [savingPrices, setSavingPrices] = useState(false)
+  const [selectedReceipt, setSelectedReceipt] = useState(null)
+  const [monthlyCapacity, setMonthlyCapacity] = useState(null)
+  const [monthlyCapacityError, setMonthlyCapacityError] = useState('')
+  const [submissionsLoadError, setSubmissionsLoadError] = useState('')
 
   const getSubmissionStatus = (status) => String(status || '').trim().toLowerCase()
   const isPendingStatus = (status) =>
-    ['pending', 'pending_payment'].includes(getSubmissionStatus(status))
+    ['pending', 'pending_payment', 'pending_review'].includes(getSubmissionStatus(status))
   const normalizeValue = (value) => String(value || '').trim().toLowerCase()
 
   const getExpiryIso = (submission) => computeExpiresAt(getDurationDays(submission))
@@ -409,10 +429,17 @@ export default function AdminAdvertisements() {
 
   const statusCounts = {
     pending: submissions.filter((s) => isPendingStatus(s.status)).length,
+    waitlisted: submissions.filter((s) => getSubmissionStatus(s.status) === 'waitlisted').length,
     approved: submissions.filter((s) => getSubmissionStatus(s.status) === 'approved').length,
     rejected: submissions.filter((s) => getSubmissionStatus(s.status) === 'rejected').length,
     all: submissions.length,
   }
+
+  const currentSponsorMonth = monthlyCapacity?.month || getCurrentSponsorMonth()
+  const monthlySlotsUsed = monthlyCapacity?.reserved ?? null
+  const monthlySlotsRemaining = Number.isFinite(monthlyCapacity?.reserved)
+    ? Math.max(0, monthlyCapacity.limit - monthlyCapacity.reserved)
+    : null
 
   const activeAdsCount = ads.filter((ad) => ad.is_active && !isAdExpired(ad)).length
 
@@ -460,12 +487,30 @@ export default function AdminAdvertisements() {
   }
 
   const loadSubmissions = async () => {
-    const { data } = await supabase
-      .from('sponsor_submissions')
-      .select('*')
-      .order('submitted_at', { ascending: false })
-
-    setSubmissions(data || [])
+    try {
+      const token = await getToken()
+      const response = await fetch('/api/admin/advertisements', {
+        credentials: 'include',
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      })
+      const payload = await response.json()
+      if (!response.ok || !payload?.success) {
+        throw new Error(payload?.error || 'Unable to load sponsor submissions.')
+      }
+      setSubmissions(payload.submissions || [])
+      setSubmissionsLoadError('')
+      setAdPlanPrices({ '14-day': 17999, '30-day': 52499, ...payload.adPlanPrices })
+      if (payload.monthlyCapacity) {
+        setMonthlyCapacity(payload.monthlyCapacity)
+        setMonthlyCapacityError(payload.capacityWarning || '')
+      }
+      return payload.submissions || []
+    } catch (error) {
+      setSubmissionsLoadError(error.message || 'Unable to load sponsor submissions.')
+      setMonthlyCapacityError(error.message || 'Unable to load monthly paid ad capacity.')
+      toast.error(error.message || 'Unable to load sponsor submissions.')
+      return null
+    }
   }
 
   const updateSubmissionStatusViaApi = async (id, status) => {
@@ -638,6 +683,7 @@ export default function AdminAdvertisements() {
     } else {
       toast.success(!currentStatus ? 'Ad activated' : 'Ad deactivated')
       loadAds()
+      loadSubmissions()
     }
   }
 
@@ -651,6 +697,7 @@ export default function AdminAdvertisements() {
     } else {
       toast.success('Advertisement deleted')
       loadAds()
+      loadSubmissions()
     }
   }
 
@@ -661,86 +708,26 @@ export default function AdminAdvertisements() {
       toast('Submission is already approved')
       return
     }
+    if (submission.payment_status !== 'paid') {
+      toast.error('Confirm the bank transfer before approving this ad.')
+      return
+    }
+    if (submission.scheduled_month && submission.scheduled_month > currentSponsorMonth) {
+      toast.error('This submission is scheduled for a future month and cannot be approved yet.')
+      return
+    }
+    if (submission.status !== 'pending_review') {
+      toast.error('Only submissions in the review queue can be approved.')
+      return
+    }
 
     setSubmissionActionId(submission.id)
     setLoading(true)
 
     try {
-      const existingAdInState = ads.find(
-        (ad) =>
-          normalizeValue(ad.company_name) === normalizeValue(submission.company_name) &&
-          normalizeValue(ad.email) === normalizeValue(submission.email)
-      )
-
-      const existingAdInDb = await findExistingAdByCompanyEmail(
-        submission.company_name,
-        submission.email
-      )
-      const existingAd = existingAdInState || existingAdInDb
-
-      if (existingAd) {
-        const submissionImageUrls = normalizeImageUrls(submission?.image_urls)
-        const submissionPrimaryImage =
-          submissionImageUrls[0] || submission?.image_url || null
-
-        const { error: activationError } = await supabase
-          .from('advertisements')
-          .update({
-            is_active: true,
-            expires_at: getExpiryIso(submission),
-            is_featured: Boolean(submission?.is_featured),
-            ...(submissionPrimaryImage ? { image_url: submissionPrimaryImage } : {}),
-            ...(submissionImageUrls.length > 0 ? { image_urls: submissionImageUrls } : {}),
-          })
-          .eq('id', existingAd.id)
-
-        if (activationError) throw activationError
-
-        await updateSubmissionStatusViaApi(submission.id, 'approved')
-
-        updateSubmissionInState(submission.id, 'approved')
-        toast.success('Submission approved. Existing ad activated automatically.')
-        loadAds()
-        loadSubmissions()
-        return
-      }
-
-      const { error: adError } = await supabase.from('advertisements').insert([
-        {
-          title: submission.title || submission.company_name,
-          company_name: submission.company_name,
-          category: submission.category,
-          description: submission.description,
-          email: submission.email,
-          phone: submission.phone,
-          website: submission.website,
-          image_url:
-            normalizeImageUrls(submission?.image_urls)[0] || submission.image_url || null,
-          image_urls: normalizeImageUrls(submission?.image_urls),
-          is_featured: submission.is_featured,
-          is_active: true,
-          expires_at: getExpiryIso(submission),
-          created_by_clerk_id: submission.created_by_clerk_id || user.id,
-          created_at: new Date().toISOString(),
-        },
-      ])
-
-      if (adError) {
-        if (adError.code === '23505') {
-          await updateSubmissionStatusViaApi(submission.id, 'approved')
-
-          updateSubmissionInState(submission.id, 'approved')
-          toast.success('Submission approved. Duplicate ad was blocked.')
-          loadSubmissions()
-          return
-        }
-        throw adError
-      }
-
       await updateSubmissionStatusViaApi(submission.id, 'approved')
-
       updateSubmissionInState(submission.id, 'approved')
-      toast.success('Submission approved and ad created!')
+      toast.success('Payment verified. Submission approved and ad activated.')
       loadAds()
       loadSubmissions()
     } catch (err) {
@@ -748,6 +735,62 @@ export default function AdminAdvertisements() {
     } finally {
       setLoading(false)
       setSubmissionActionId(null)
+    }
+  }
+
+  const confirmBankTransfer = async (submission) => {
+    if (submissionActionId === submission.id) return
+    setSubmissionActionId(submission.id)
+    setLoading(true)
+    try {
+      await updateSubmissionStatusViaApi(submission.id, 'pending_review')
+      const refreshedSubmissions = await loadSubmissions()
+      const refreshedSubmission = refreshedSubmissions?.find((item) => item.id === submission.id)
+      if (!refreshedSubmission) {
+        throw new Error('Bank transfer was confirmed, but the submission status could not be refreshed.')
+      }
+      if (refreshedSubmission.payment_status !== 'paid') {
+        throw new Error('Bank transfer confirmation did not update the payment status. Please refresh and try again.')
+      }
+      toast.success(
+        refreshedSubmission.status === 'waitlisted'
+          ? 'Bank transfer confirmed. Submission is waitlisted for a future month.'
+          : 'Bank transfer confirmed. Submission added to the review queue.'
+      )
+    } catch (error) {
+      toast.error(error.message)
+    } finally {
+      setLoading(false)
+      setSubmissionActionId(null)
+    }
+  }
+
+  const saveAdPlanPrices = async () => {
+    setSavingPrices(true)
+    try {
+      const token = await getToken()
+      const response = await fetch('/api/admin/advertisements', {
+        method: 'PATCH',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ adPlanPrices }),
+      })
+      const payload = await response.json()
+      if (!response.ok || !payload?.success) {
+        throw new Error(payload?.error || 'Unable to save ad pricing.')
+      }
+      setAdPlanPrices({
+        '14-day': Number(adPlanPrices['14-day']),
+        '30-day': Number(adPlanPrices['30-day']),
+      })
+      toast.success('Ad prices updated.')
+    } catch (error) {
+      toast.error(error.message || 'Unable to save ad pricing.')
+    } finally {
+      setSavingPrices(false)
     }
   }
 
@@ -781,10 +824,10 @@ export default function AdminAdvertisements() {
     setSubmissionActionId(submissionId)
     setLoading(true)
     try {
-      await updateSubmissionStatusViaApi(submissionId, 'pending_payment')
+      await updateSubmissionStatusViaApi(submissionId, 'pending_review')
 
-      updateSubmissionInState(submissionId, 'pending_payment')
-      toast.success('Submission reverted to pending payment')
+      updateSubmissionInState(submissionId, 'pending_review')
+      toast.success('Submission returned to the review queue')
       loadSubmissions()
     } catch (err) {
       toast.error(err.message)
@@ -796,6 +839,8 @@ export default function AdminAdvertisements() {
 
   const filteredSubmissions = submissions.filter((submission) => {
     if (submissionFilter === 'pending') return isPendingStatus(submission.status)
+    if (submissionFilter === 'waitlisted')
+      return getSubmissionStatus(submission.status) === 'waitlisted'
     if (submissionFilter === 'approved')
       return getSubmissionStatus(submission.status) === 'approved'
     if (submissionFilter === 'rejected')
@@ -804,6 +849,22 @@ export default function AdminAdvertisements() {
   })
 
   const getStatusPill = (status) => {
+    if (getSubmissionStatus(status) === 'waitlisted') {
+      return {
+        text: 'Waitlisted',
+        badge: 'bg-violet-100 text-violet-800 border-violet-200',
+        strip: 'bg-violet-500',
+        icon: Clock,
+      }
+    }
+    if (getSubmissionStatus(status) === 'pending_review') {
+      return {
+        text: 'Paid · In review queue',
+        badge: 'bg-blue-100 text-blue-800 border-blue-200',
+        strip: 'bg-blue-500',
+        icon: Clock,
+      }
+    }
     if (isPendingStatus(status)) {
       return {
         text: 'Pending',
@@ -974,6 +1035,20 @@ export default function AdminAdvertisements() {
               {statusCounts.pending}
             </span>
           )}
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setActiveTab('pricing')
+            setShowForm(false)
+          }}
+          className={`flex-1 rounded-full px-4 py-2.5 text-sm font-semibold transition sm:flex-none sm:px-5 ${
+            activeTab === 'pricing'
+              ? 'bg-white text-slate-900 shadow-sm'
+              : 'text-slate-500 hover:text-slate-700'
+          }`}
+        >
+          Ad pricing
         </button>
       </div>
 
@@ -1440,6 +1515,49 @@ export default function AdminAdvertisements() {
 
       {activeTab === 'submissions' && (
         <section>
+          <div className="mb-4 flex justify-end">
+            <button
+              type="button"
+              onClick={loadSubmissions}
+              className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+            >
+              <RefreshCw size={14} />
+              Refresh submissions and receipts
+            </button>
+          </div>
+          <div className="mb-5 rounded-2xl bg-slate-900 p-5 text-white">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-300">
+              Monthly paid ad capacity
+            </p>
+            <div className="mt-2 flex flex-wrap items-end justify-between gap-3">
+              <p className="text-2xl font-bold">
+                {monthlySlotsUsed === null
+                  ? monthlyCapacityError
+                    ? 'Capacity unavailable'
+                    : 'Loading capacity…'
+                  : `${monthlySlotsUsed}/${monthlyCapacity.limit} slots reserved`}
+              </p>
+              <p className="text-sm text-slate-300">
+                {monthlySlotsRemaining === null
+                  ? monthlyCapacityError || 'Checking paid submissions…'
+                  : `${monthlySlotsRemaining} available · submissions stay open when full`}
+              </p>
+            </div>
+            <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/15">
+              <div
+                className="h-full rounded-full bg-emerald-400 transition-all"
+                style={{
+                  width: `${Math.min(
+                    100,
+                    ((monthlySlotsUsed || 0) / (monthlyCapacity?.limit || SPONSOR_MONTHLY_CAPACITY)) * 100
+                  )}%`,
+                }}
+              />
+            </div>
+            {monthlyCapacityError ? (
+              <p className="mt-2 text-xs text-amber-200">{monthlyCapacityError}</p>
+            ) : null}
+          </div>
           <div className="mb-4 flex flex-wrap gap-2">
             {[
               { key: 'pending', label: 'Pending', count: statusCounts.pending, tone: 'amber' },
@@ -1448,6 +1566,12 @@ export default function AdminAdvertisements() {
                 label: 'Approved',
                 count: statusCounts.approved,
                 tone: 'emerald',
+              },
+              {
+                key: 'waitlisted',
+                label: 'Waitlisted',
+                count: statusCounts.waitlisted,
+                tone: 'violet',
               },
               { key: 'rejected', label: 'Rejected', count: statusCounts.rejected, tone: 'red' },
               { key: 'all', label: 'All', count: statusCounts.all, tone: 'slate' },
@@ -1460,6 +1584,9 @@ export default function AdminAdvertisements() {
                 emerald: selected
                   ? 'bg-emerald-500 text-white border-emerald-500'
                   : 'bg-white text-emerald-700 border-emerald-200 hover:border-emerald-300',
+                violet: selected
+                  ? 'bg-violet-500 text-white border-violet-500'
+                  : 'bg-white text-violet-700 border-violet-200 hover:border-violet-300',
                 red: selected
                   ? 'bg-red-500 text-white border-red-500'
                   : 'bg-white text-red-700 border-red-200 hover:border-red-300',
@@ -1493,7 +1620,23 @@ export default function AdminAdvertisements() {
             {filteredSubmissions.length === 1 ? '' : 's'}
           </p>
 
-          {filteredSubmissions.length === 0 ? (
+          {submissionsLoadError ? (
+            <div className="rounded-2xl border border-red-200 bg-red-50 px-5 py-8 text-center">
+              <AlertCircle className="mx-auto h-10 w-10 text-red-400" />
+              <p className="mt-3 text-sm font-semibold text-red-800">
+                Unable to load sponsor submissions
+              </p>
+              <p className="mt-1 text-sm text-red-700">{submissionsLoadError}</p>
+              <button
+                type="button"
+                onClick={loadSubmissions}
+                className="mt-4 inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-semibold text-red-800"
+              >
+                <RefreshCw size={14} />
+                Try again
+              </button>
+            </div>
+          ) : filteredSubmissions.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-slate-200 bg-white py-14 text-center">
               <AlertCircle className="mx-auto h-10 w-10 text-slate-300" />
               <p className="mt-3 text-sm font-semibold text-slate-700">
@@ -1529,7 +1672,7 @@ export default function AdminAdvertisements() {
                             <span className="capitalize">{sub.category}</span>
                             <span className="mx-1.5 text-slate-300">·</span>
                             <span className="font-semibold text-slate-900">
-                              J${sub.is_featured ? '14,970' : '8,970'}
+                              J${Number(sub.amount || 0).toLocaleString()}
                             </span>
                             {sub.is_featured && (
                               <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-800">
@@ -1556,6 +1699,28 @@ export default function AdminAdvertisements() {
                       )}
 
                       <dl className="mt-4 grid grid-cols-1 gap-x-6 gap-y-2 text-sm sm:grid-cols-2">
+                        <div className="flex items-start gap-2">
+                          <dt className="w-16 shrink-0 text-xs font-semibold uppercase tracking-wider text-slate-500">
+                            Payment
+                          </dt>
+                          <dd className="min-w-0 text-slate-800">
+                            {sub.payment_status === 'paid' ? 'Paid' : 'Awaiting payment'}
+                            {sub.amount ? ` · J$${Number(sub.amount).toLocaleString()}` : ''}
+                          </dd>
+                        </div>
+                        {sub.scheduled_month ? (
+                          <div className="flex items-start gap-2">
+                            <dt className="w-16 shrink-0 text-xs font-semibold uppercase tracking-wider text-slate-500">
+                              Month
+                            </dt>
+                            <dd className="min-w-0 text-slate-800">
+                              {new Date(`${sub.scheduled_month}T00:00:00`).toLocaleDateString(undefined, {
+                                month: 'long',
+                                year: 'numeric',
+                              })}
+                            </dd>
+                          </div>
+                        ) : null}
                         <div className="flex items-start gap-2">
                           <dt className="w-16 shrink-0 text-xs font-semibold uppercase tracking-wider text-slate-500">
                             Phone
@@ -1587,6 +1752,60 @@ export default function AdminAdvertisements() {
                         )}
                       </dl>
 
+                      <div className="mt-4 rounded-xl bg-slate-50 p-4">
+                        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                          <div>
+                            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                              Submission ID · payment notes
+                            </p>
+                            <p className="mt-1 break-all font-mono text-sm text-slate-900">{sub.id}</p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              navigator.clipboard.writeText(sub.id)
+                                .then(() => toast.success('Submission ID copied.'))
+                                .catch(() => toast.error('Unable to copy submission ID.'))
+                            }
+                            className="inline-flex shrink-0 items-center gap-1 rounded-full bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100"
+                          >
+                            <Copy size={13} />
+                            Copy ID
+                          </button>
+                        </div>
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <h4 className="text-sm font-semibold text-slate-900">Bank transfer receipt</h4>
+                          {sub.payment_receipt_submitted_at ? (
+                            <span className="text-xs text-slate-500">
+                              Submitted {new Date(sub.payment_receipt_submitted_at).toLocaleString()}
+                            </span>
+                          ) : null}
+                        </div>
+                        {sub.payment_receipt_url ? (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setSelectedReceipt({
+                                url: sub.payment_receipt_url,
+                                companyName: sub.company_name,
+                              })
+                            }
+                            aria-label={`Open payment receipt for ${sub.company_name}`}
+                            className="mt-3 inline-flex items-center gap-2 text-sm font-semibold text-accent hover:underline"
+                          >
+                            <img
+                              src={sub.payment_receipt_url}
+                              alt={`Payment receipt for ${sub.company_name}`}
+                              className="h-24 w-32 rounded-lg border border-slate-200 bg-white object-contain"
+                            />
+                            Open full receipt
+                            <Eye size={14} />
+                          </button>
+                        ) : (
+                          <p className="mt-2 text-sm text-slate-500">No receipt uploaded yet.</p>
+                        )}
+                      </div>
+
                       {sub.description && (
                         <p className="mt-3 rounded-lg bg-slate-50 p-3 text-sm leading-relaxed text-slate-700">
                           {sub.description}
@@ -1598,27 +1817,69 @@ export default function AdminAdvertisements() {
                       </p>
 
                       <div className="mt-4 flex flex-wrap gap-2 border-t border-slate-100 pt-4">
-                        {isPendingStatus(sub.status) && (
-                          <>
+                        {getSubmissionStatus(sub.status) === 'pending_review' &&
+                          sub.payment_status === 'paid' && (
                             <button
                               onClick={() => approveSubmission(sub)}
-                              disabled={loading || submissionActionId === sub.id}
+                              disabled={
+                                loading ||
+                                submissionActionId === sub.id ||
+                                (sub.scheduled_month && sub.scheduled_month > currentSponsorMonth)
+                              }
                               className="inline-flex items-center gap-1.5 rounded-full bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-60"
                             >
                               <CheckCircle2 size={14} />
                               {submissionActionId === sub.id
                                 ? 'Approving…'
-                                : 'Approve & activate'}
+                                : sub.scheduled_month && sub.scheduled_month > currentSponsorMonth
+                                  ? 'Available next month'
+                                  : 'Approve & activate'}
                             </button>
+                        )}
+
+                        {['pending_payment', 'pending_review'].includes(
+                          getSubmissionStatus(sub.status)
+                        ) && sub.payment_status !== 'paid' && (
+                          <>
+                            <p className="self-center text-sm text-amber-700">
+                              {sub.payment_receipt_path
+                                ? 'Receipt uploaded; bank transfer still needs confirmation.'
+                                : 'Awaiting bank transfer and receipt.'}
+                            </p>
                             <button
-                              onClick={() => rejectSubmission(sub.id)}
-                              disabled={loading || submissionActionId === sub.id}
-                              className="inline-flex items-center gap-1.5 rounded-full border border-red-200 bg-white px-4 py-2 text-sm font-semibold text-red-700 transition hover:bg-red-50 disabled:opacity-60"
+                              onClick={() => confirmBankTransfer(sub)}
+                              disabled={
+                                loading ||
+                                submissionActionId === sub.id ||
+                                !sub.payment_receipt_path
+                              }
+                              className="inline-flex items-center gap-1.5 rounded-full bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-60"
                             >
-                              <XCircle size={14} />
-                              Reject
+                              <CheckCircle2 size={14} />
+                              {submissionActionId === sub.id
+                                ? 'Confirming…'
+                                : sub.payment_receipt_path
+                                  ? 'Confirm bank transfer'
+                                  : 'Waiting for receipt'}
                             </button>
                           </>
+                        )}
+
+                        {getSubmissionStatus(sub.status) === 'waitlisted' && (
+                          <p className="self-center text-sm text-violet-700">
+                            Paid and queued. It moves into the review queue automatically when a slot opens.
+                          </p>
+                        )}
+
+                        {isPendingStatus(sub.status) && (
+                          <button
+                            onClick={() => rejectSubmission(sub.id)}
+                            disabled={loading || submissionActionId === sub.id}
+                            className="inline-flex items-center gap-1.5 rounded-full border border-red-200 bg-white px-4 py-2 text-sm font-semibold text-red-700 transition hover:bg-red-50 disabled:opacity-60"
+                          >
+                            <XCircle size={14} />
+                            Reject
+                          </button>
                         )}
 
                         {getSubmissionStatus(sub.status) === 'approved' && (
@@ -1674,31 +1935,39 @@ export default function AdminAdvertisements() {
 
                         {getSubmissionStatus(sub.status) === 'rejected' && (
                           <>
-                            <button
-                              onClick={() => {
-                                if (submissionActionId === sub.id) return
-                                const newStatus = 'pending_payment'
-                                setSubmissionActionId(sub.id)
-                                updateSubmissionStatusViaApi(sub.id, newStatus)
-                                  .then(() => {
-                                    updateSubmissionInState(sub.id, newStatus)
-                                    toast.success('Submission restored to pending')
-                                    loadSubmissions()
-                                    setSubmissionActionId(null)
-                                  })
-                                  .catch((err) => {
-                                    toast.error(err.message)
-                                    setSubmissionActionId(null)
-                                  })
-                              }}
-                              disabled={loading || submissionActionId === sub.id}
-                              className="inline-flex items-center gap-1.5 rounded-full bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:opacity-60"
-                            >
-                              Restore to pending
-                            </button>
-                            <p className="self-center text-sm text-slate-500">
-                              Rejected submissions can be restored if needed.
-                            </p>
+                            {sub.payment_status === 'paid' ? (
+                              <p className="self-center text-sm text-amber-700">
+                                Payment was received; arrange any refund manually before restoring.
+                              </p>
+                            ) : (
+                              <>
+                                <button
+                                  onClick={() => {
+                                    if (submissionActionId === sub.id) return
+                                    const newStatus = 'pending_payment'
+                                    setSubmissionActionId(sub.id)
+                                    updateSubmissionStatusViaApi(sub.id, newStatus)
+                                      .then(() => {
+                                        updateSubmissionInState(sub.id, newStatus)
+                                        toast.success('Submission restored to pending')
+                                        loadSubmissions()
+                                        setSubmissionActionId(null)
+                                      })
+                                      .catch((err) => {
+                                        toast.error(err.message)
+                                        setSubmissionActionId(null)
+                                      })
+                                  }}
+                                  disabled={loading || submissionActionId === sub.id}
+                                  className="inline-flex items-center gap-1.5 rounded-full bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:opacity-60"
+                                >
+                                  Restore to pending
+                                </button>
+                                <p className="self-center text-sm text-slate-500">
+                                  Rejected submissions can be restored if needed.
+                                </p>
+                              </>
+                            )}
                           </>
                         )}
                       </div>
@@ -1709,6 +1978,85 @@ export default function AdminAdvertisements() {
             </div>
           )}
         </section>
+      )}
+
+      {activeTab === 'pricing' && (
+        <section className="max-w-2xl rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+          <h2 className="text-lg font-bold text-slate-900">Set advertisement prices</h2>
+          <p className="mt-1 text-sm text-slate-600">
+            Prices are in Jamaican dollars and apply to new submissions. Existing submissions keep their saved price.
+          </p>
+          <div className="mt-5 grid gap-4 sm:grid-cols-2">
+            {[
+              ['14-day', 'Professional · 14 days'],
+              ['30-day', 'Elite · 30 days'],
+            ].map(([planId, label]) => (
+              <label key={planId} className="block">
+                <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-600">
+                  {label}
+                </span>
+                <div className="flex items-center rounded-lg border border-slate-200 px-3">
+                  <span className="text-sm font-semibold text-slate-500">J$</span>
+                  <input
+                    type="number"
+                    min="1"
+                    max="10000000"
+                    step="1"
+                    value={adPlanPrices[planId]}
+                    onChange={(event) =>
+                      setAdPlanPrices((prices) => ({ ...prices, [planId]: event.target.value }))
+                    }
+                    className="w-full border-0 px-2 py-3 text-sm text-slate-900 outline-none focus:ring-0"
+                  />
+                </div>
+              </label>
+            ))}
+          </div>
+          <button
+            type="button"
+            onClick={saveAdPlanPrices}
+            disabled={savingPrices}
+            className="mt-5 inline-flex items-center justify-center rounded-full bg-accent px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-accent/90 disabled:opacity-60"
+          >
+            {savingPrices ? 'Saving prices…' : 'Save ad prices'}
+          </button>
+        </section>
+      )}
+      {selectedReceipt && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4"
+          role="presentation"
+          onClick={() => setSelectedReceipt(null)}
+        >
+          <section
+            role="dialog"
+            aria-modal="true"
+            aria-label={`Payment receipt for ${selectedReceipt.companyName}`}
+            className="relative flex max-h-full w-full max-w-5xl flex-col rounded-2xl bg-white p-4 sm:p-6"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="mb-4 flex items-center justify-between gap-4">
+              <h2 className="text-lg font-semibold text-slate-900">
+                Payment receipt · {selectedReceipt.companyName}
+              </h2>
+              <button
+                type="button"
+                onClick={() => setSelectedReceipt(null)}
+                aria-label="Close payment receipt"
+                className="rounded-full p-2 text-slate-600 hover:bg-slate-100"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <div className="flex min-h-0 flex-1 items-center justify-center overflow-auto">
+              <img
+                src={selectedReceipt.url}
+                alt={`Payment receipt for ${selectedReceipt.companyName}`}
+                className="max-h-[75vh] max-w-full object-contain"
+              />
+            </div>
+          </section>
+        </div>
       )}
     </div>
   )

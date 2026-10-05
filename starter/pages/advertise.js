@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Image from 'next/image';
 import Head from 'next/head';
 import Link from 'next/link';
@@ -10,8 +10,8 @@ import {
   Copy,
   Globe2,
   Mail,
-  MapPin,
   MessageCircle,
+  MapPin,
   Phone,
   ShieldCheck,
   UploadCloud,
@@ -36,15 +36,13 @@ const plans = [
   },
 ];
 
-const bankDetails = [
-  {
-    bank: 'Scotiabank Jamaica',
-    accountName: 'Tahjay Thompson',
-    accountType: 'Savings',
-    accountNumber: '010860258',
-    branch: 'University (50575)',
-  },
-];
+const sponsorBankDetails = {
+  bank: 'Scotiabank Jamaica',
+  accountName: 'Dosnine Limited',
+  accountNumber: '000991881',
+  branch: '50575',
+  accountType: 'Business Savings',
+};
 
 const categories = [
   // ---------- AGENTS & BROKERS (1-18) ----------
@@ -325,14 +323,18 @@ const categories = [
 ];
 
 const formatMoney = (value) => `J$${Number(value || 0).toLocaleString()}`;
+const DEFAULT_AD_PLAN_PRICES = { '14-day': 17999, '30-day': 52499 };
 
 const MAX_IMAGE_SIZE_KB = 250;
 const MONTHLY_VISITORS = '57K+';
-const SPOTS_LEFT = 4;
-const SPOTS_TOTAL = 20;
+const SPOTS_TOTAL = 40;
 
 const STORAGE_KEY = 'dosnine:ad-submission';
 const STORAGE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+const isValidSubmissionId = (value) =>
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+    String(value || '').trim()
+  );
 
 const normalizeWebsite = (value) => {
   const trimmed = String(value || '').trim();
@@ -467,6 +469,16 @@ export default function AdvertisePage() {
   const [saveStatus, setSaveStatus] = useState('');
   const [copied, setCopied] = useState('');
   const [submissionId, setSubmissionId] = useState('');
+  const [paymentStatus, setPaymentStatus] = useState('unpaid');
+  const [submissionStatus, setSubmissionStatus] = useState('pending_payment');
+  const [receiptSubmittedAt, setReceiptSubmittedAt] = useState('');
+  const [receiptFile, setReceiptFile] = useState(null);
+  const [uploadingReceipt, setUploadingReceipt] = useState(false);
+  const receiptInputRef = useRef(null);
+  const [planPrices, setPlanPrices] = useState(DEFAULT_AD_PLAN_PRICES);
+  const [checkingPayment, setCheckingPayment] = useState(false);
+  const [spotsLeft, setSpotsLeft] = useState(null);
+  const [availabilityError, setAvailabilityError] = useState('');
   const [submitError, setSubmitError] = useState('');
   const [fieldErrors, setFieldErrors] = useState({});
   const [imageFiles, setImageFiles] = useState([]);
@@ -493,23 +505,58 @@ export default function AdvertisePage() {
     [form.plan_id]
   );
 
-  const totalAmount = selectedPlan.price;
-  const whatsappText = encodeURIComponent(
-    `Hello Dosnine Team, I just sent payment for the ${selectedPlan.name} ad plan (${selectedPlan.duration}). Amount: ${formatMoney(totalAmount)}. Submission: ${submissionId || 'pending'}. Sending proof now so you can review and publish my ad.`
-  );
-
+  const totalAmount = Number(planPrices[selectedPlan.id] || selectedPlan.price);
   /* -------------------- Restore on mount -------------------- */
   useEffect(() => {
     const persisted = loadPersistedSubmission();
-    if (persisted?.submissionId) {
+    if (isValidSubmissionId(persisted?.submissionId)) {
       setSubmissionId(persisted.submissionId);
+      setPaymentStatus(persisted.paymentStatus || 'unpaid');
+      setSubmissionStatus(persisted.submissionStatus || 'pending_payment');
+      setReceiptSubmittedAt(persisted.receiptSubmittedAt || '');
       if (persisted.form) {
         setForm((prev) => ({ ...prev, ...persisted.form }));
       }
       setStep(2);
       setRestoredFromStorage(true);
       toast.success('Welcome back — pick up where you left off.');
+    } else if (persisted) {
+      clearPersistedSubmission();
+      toast.error('Your saved ad submission is missing a valid ID. Please submit your ad again.');
     }
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    const loadAvailability = async () => {
+      try {
+        const response = await fetch('/api/sponsors/availability', { cache: 'no-store' });
+        const payload = await response.json();
+        if (!response.ok || !payload?.success) {
+          throw new Error(payload?.error || 'Unable to load sponsor availability.');
+        }
+        if (!active) return;
+        setSpotsLeft(payload.available);
+        setPlanPrices({ ...DEFAULT_AD_PLAN_PRICES, ...payload.adPlanPrices });
+        setAvailabilityError('');
+      } catch (error) {
+        if (!active) return;
+        console.error('Failed to load sponsor availability:', error);
+        setAvailabilityError(error.message || 'Unable to load monthly ad capacity.');
+      }
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') loadAvailability();
+    };
+    loadAvailability();
+    const interval = window.setInterval(loadAvailability, 30000);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      active = false;
+      window.clearInterval(interval);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
   }, []);
 
   useEffect(() => {
@@ -560,8 +607,15 @@ export default function AdvertisePage() {
   const handleStartOver = () => {
     clearPersistedSubmission();
     setSubmissionId('');
+    setPaymentStatus('unpaid');
+    setSubmissionStatus('pending_payment');
+    setReceiptSubmittedAt('');
+    setReceiptFile(null);
     setStep(1);
     setRestoredFromStorage(false);
+    setSubmitError('');
+    setFieldErrors({});
+    setSaveStatus('');
     setForm((prev) => ({
       ...prev,
       company_name: '',
@@ -578,6 +632,39 @@ export default function AdvertisePage() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
     toast('Starting a new ad submission.');
   };
+
+  const finishReviewedSubmission = useCallback((status) => {
+    clearPersistedSubmission();
+    setSubmissionId('');
+    setPaymentStatus('unpaid');
+    setSubmissionStatus('pending_payment');
+    setReceiptSubmittedAt('');
+    setReceiptFile(null);
+    setStep(1);
+    setRestoredFromStorage(false);
+    setSubmitError('');
+    setFieldErrors({});
+    setSaveStatus('');
+    setForm((previous) => ({
+      ...previous,
+      company_name: '',
+      title: '',
+      description: '',
+      phone: '',
+      whatsapp: '',
+      website: '',
+      contact_name: '',
+      location: '',
+    }));
+    setImageFiles([]);
+    setImagePreviews([]);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    toast.success(
+      status === 'approved'
+        ? 'Your ad was approved. You can submit another ad now.'
+        : 'Your ad was rejected. You can submit a new ad now.'
+    );
+  }, []);
 
   const onSubmit = async (event) => {
     event.preventDefault();
@@ -666,12 +753,21 @@ export default function AdvertisePage() {
         throw new Error(payload?.error || `Unable to submit ad request. Server returned ${response.status}.`);
       }
 
-      const newId = payload.id || '';
+      const newId = String(payload.id || '').trim();
+      if (!isValidSubmissionId(newId)) {
+        throw new Error('Your ad was not assigned a valid submission ID. Please try submitting it again.');
+      }
       setSubmissionId(newId);
+      setPaymentStatus('unpaid');
+      setSubmissionStatus('pending_payment');
+      setReceiptSubmittedAt('');
+      setReceiptFile(null);
       setSaveStatus('Saved. Preparing payment step...');
 
       persistSubmission({
         submissionId: newId,
+        paymentStatus: 'unpaid',
+        submissionStatus: 'pending_payment',
         planId: selectedPlan.id,
         form: submissionPayload,
         imageUrls: uploadedImageUrls,
@@ -679,7 +775,7 @@ export default function AdvertisePage() {
 
       setStep(2);
       window.scrollTo({ top: 0, behavior: 'smooth' });
-      toast.success('Ad request submitted. Complete your bank transfer to activate.');
+      toast.success('Ad request submitted. Complete the bank transfer and send your receipt.');
     } catch (error) {
       const message = error?.message || 'Unable to submit ad request.';
       setSubmitError(message);
@@ -689,6 +785,150 @@ export default function AdvertisePage() {
       setSubmitting(false);
     }
   };
+
+  const refreshPaymentStatus = async () => {
+    if (!submissionId || checkingPayment) return;
+    setCheckingPayment(true);
+    try {
+      const token = await getToken();
+      const response = await fetch(
+        `/api/sponsors/payment-status?submission_id=${encodeURIComponent(submissionId)}`,
+        {
+          headers: token ? { Authorization: 'Bearer ' + token } : {},
+        }
+      );
+      const payload = await response.json();
+      if (!response.ok || !payload?.success) {
+        throw new Error(payload?.error || 'Unable to check payment status.');
+      }
+      setPaymentStatus(payload.paymentStatus || 'unpaid');
+      setSubmissionStatus(payload.status || 'pending_payment');
+      setReceiptSubmittedAt(payload.receiptSubmittedAt || '');
+      if (payload.status === 'approved' || payload.status === 'rejected') {
+        finishReviewedSubmission(payload.status);
+        return;
+      }
+      if (payload.paymentStatus === 'paid') {
+        const savedSubmission = loadPersistedSubmission();
+        if (savedSubmission?.submissionId === submissionId) {
+          persistSubmission({
+            ...savedSubmission,
+            paymentStatus: 'paid',
+            submissionStatus: payload.status,
+          });
+        }
+        toast.success(
+          payload.status === 'waitlisted'
+            ? 'Payment confirmed. Your ad is waitlisted for a future month.'
+            : 'Payment confirmed. Your ad is waiting for review.'
+        );
+      } else if (payload.receiptSubmittedAt) {
+        toast(
+          'Your receipt is received. Bank processing times vary, so payment may take a few business days to appear.'
+        );
+      } else {
+        toast(
+          'Payment is not confirmed yet. Bank processing times vary; check the status again once the transfer has had time to appear.'
+        );
+      }
+    } catch (error) {
+      toast.error(error.message || 'Unable to check payment status.');
+    } finally {
+      setCheckingPayment(false);
+    }
+  };
+
+  const submitPaymentReceipt = async () => {
+    if (!isValidSubmissionId(submissionId) || !receiptFile || uploadingReceipt) return;
+    setUploadingReceipt(true);
+    try {
+      const token = await getToken();
+      const body = new FormData();
+      body.append('submission_id', submissionId);
+      body.append('receipt', receiptFile);
+      const response = await fetch('/api/sponsors/payment-receipt', {
+        method: 'POST',
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        body,
+      });
+      const payload = await response.json();
+      if (!response.ok || !payload?.success) {
+        throw new Error(payload?.error || 'Unable to submit payment receipt.');
+      }
+      const submittedAt = payload.receiptSubmittedAt || new Date().toISOString();
+      setReceiptSubmittedAt(submittedAt);
+      setSubmissionStatus('pending_payment');
+      setReceiptFile(null);
+      if (receiptInputRef.current) receiptInputRef.current.value = '';
+      const savedSubmission = loadPersistedSubmission();
+      if (savedSubmission?.submissionId === submissionId) {
+        persistSubmission({
+          ...savedSubmission,
+          receiptSubmittedAt: submittedAt,
+          submissionStatus: 'pending_payment',
+        });
+      }
+      toast.success(
+        'Receipt submitted. Bank processing times vary; we will verify payment once the transfer appears.'
+      );
+    } catch (error) {
+      toast.error(error.message || 'Unable to submit payment receipt.');
+    } finally {
+      setUploadingReceipt(false);
+    }
+  };
+
+  useEffect(() => {
+    if (step !== 2 || !receiptSubmittedAt || !submissionId || !isSignedIn) return undefined;
+
+    let active = true;
+    let requestInProgress = false;
+    const checkForReviewDecision = async () => {
+      if (requestInProgress) return;
+      requestInProgress = true;
+      try {
+        const token = await getToken();
+        const response = await fetch(
+          `/api/sponsors/payment-status?submission_id=${encodeURIComponent(submissionId)}`,
+          { headers: token ? { Authorization: `Bearer ${token}` } : {} }
+        );
+        const payload = await response.json();
+        if (!response.ok || !payload?.success) {
+          throw new Error(payload?.error || 'Unable to retrieve submission status.');
+        }
+        if (!active) return;
+
+        if (payload.status === 'approved' || payload.status === 'rejected') {
+          finishReviewedSubmission(payload.status);
+          return;
+        }
+
+        setPaymentStatus(payload.paymentStatus || 'unpaid');
+        setSubmissionStatus(payload.status || 'pending_payment');
+        setReceiptSubmittedAt(payload.receiptSubmittedAt || '');
+        const savedSubmission = loadPersistedSubmission();
+        if (savedSubmission?.submissionId === submissionId) {
+          persistSubmission({
+            ...savedSubmission,
+            paymentStatus: payload.paymentStatus || 'unpaid',
+            submissionStatus: payload.status || 'pending_payment',
+            receiptSubmittedAt: payload.receiptSubmittedAt || '',
+          });
+        }
+      } catch (error) {
+        if (active) console.error('Automatic ad review status check failed:', error);
+      } finally {
+        requestInProgress = false;
+      }
+    };
+
+    checkForReviewDecision();
+    const interval = window.setInterval(checkForReviewDecision, 15000);
+    return () => {
+      active = false;
+      window.clearInterval(interval);
+    };
+  }, [step, receiptSubmittedAt, submissionId, isSignedIn, getToken, finishReviewedSubmission]);
 
   return (
     <>
@@ -713,22 +953,26 @@ export default function AdvertisePage() {
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-emerald-100">
-                      Complete payment
+                      {receiptSubmittedAt || paymentStatus === 'paid'
+                        ? 'Submission received'
+                        : 'Complete payment'}
                     </p>
                     <h1 className="mt-2 text-2xl font-semibold leading-tight text-white sm:text-3xl">
-                      Send your bank transfer to activate your ad
+                      {receiptSubmittedAt || paymentStatus === 'paid'
+                        ? 'Your ad is under review'
+                        : 'Pay by bank transfer'}
                     </h1>
                     <p className="mt-2 max-w-2xl text-sm leading-6 text-emerald-50">
-                      Your ad request has been received. Transfer the amount below,
-                      then forward your receipt on WhatsApp — your ad goes live once
-                      payment is confirmed.
+                      {receiptSubmittedAt || paymentStatus === 'paid'
+                        ? 'We’ll update this page when your ad is approved or rejected. You can leave this page and return later.'
+                        : 'Your ad request has been saved. Include the submission ID in your transfer notes, then upload the receipt here. We will verify payment before reviewing and activating your ad.'}
                     </p>
                   </div>
                 </div>
               </div>
 
               {/* Restored-from-storage notice */}
-              {restoredFromStorage ? (
+              {restoredFromStorage && !receiptSubmittedAt && paymentStatus !== 'paid' ? (
                 <div className="border-b border-amber-100 bg-amber-50 px-6 py-4 sm:px-8 lg:px-10">
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <p className="flex items-start gap-2 text-sm text-amber-900">
@@ -767,122 +1011,130 @@ export default function AdvertisePage() {
                         <p className="text-2xl font-semibold tracking-tight text-slate-900">
                           {formatMoney(totalAmount)}
                         </p>
-                        <p className="mt-1 text-xs text-slate-500">One-time payment</p>
+                        <p className="mt-1 text-xs text-slate-500">One-time bank transfer</p>
                       </div>
                     </div>
 
-                    <div className="mt-4 flex items-center justify-between gap-3 border-t border-slate-200 pt-3">
-                      <span className="text-xs font-medium uppercase tracking-wider text-slate-500">
-                        Submission ID
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => copyToClipboard(submissionId || '', 'submission-id')}
-                        className="inline-flex max-w-[60%] items-center gap-1.5 truncate font-mono text-xs font-semibold text-slate-900 transition hover:text-accent"
-                        disabled={!submissionId}
-                      >
-                        <span className="truncate">{submissionId || 'Pending'}</span>
-                        {submissionId ? (
-                          copied === 'submission-id' ? (
-                            <Check size={12} className="shrink-0" />
-                          ) : (
-                            <Copy size={12} className="shrink-0" />
-                          )
-                        ) : null}
-                      </button>
-                    </div>
                   </div>
                 </div>
 
-                {/* Bank transfer details */}
-                <div className="rounded-xl border border-slate-200 bg-white p-5 sm:p-6">
-                  <h3 className="text-base font-semibold text-slate-900">
-                    Bank transfer details
-                  </h3>
-                  <p className="mt-2 text-sm text-slate-600">
-                    Transfer <strong>{formatMoney(totalAmount)}</strong> to the account
-                    below, then send us the receipt on WhatsApp.
-                  </p>
-
-                  <div className="mt-4 space-y-3">
-                    {bankDetails.map((bank) => (
-                      <div
-                        key={bank.accountNumber}
-                        className="rounded-lg border border-slate-200 bg-slate-50 p-4"
-                      >
-                        <p className="text-sm font-semibold text-slate-900">
-                          {bank.bank}
-                        </p>
-                        <div className="mt-3 divide-y divide-slate-200">
-                          {[
-                            ['Account name', bank.accountName],
-                            ['Account type', bank.accountType],
-                            ['Account number', bank.accountNumber],
-                            ['Branch', bank.branch],
-                            ['Amount', formatMoney(totalAmount)],
-                          ].map(([label, value]) => {
-                            const key = `bank-${label}`;
-                            return (
-                              <div
-                                key={label}
-                                className="flex items-center justify-between gap-3 py-2.5 first:pt-0 last:pb-0"
-                              >
-                                <span className="text-xs uppercase tracking-wider text-slate-500">
-                                  {label}
-                                </span>
-                                <button
-                                  type="button"
-                                  onClick={() => copyToClipboard(value, key)}
-                                  className="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-900 transition hover:text-accent"
-                                >
-                                  <span className="truncate">{value}</span>
-                                  {copied === key ? (
-                                    <Check size={14} className="shrink-0 text-emerald-600" />
-                                  ) : (
-                                    <Copy size={14} className="shrink-0 text-slate-400" />
-                                  )}
-                                </button>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Confirmation — single column, stacked */}
+                {/* Payment and review status */}
                 <div className="rounded-xl border border-accent/30 bg-accent/5 p-5 sm:p-6">
                   <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-accent">
-                    Confirmation
+                    {paymentStatus === 'paid'
+                      ? 'Payment confirmed'
+                      : receiptSubmittedAt
+                        ? 'Receipt received'
+                        : 'Payment required'}
                   </p>
                   <h3 className="mt-2 text-lg font-semibold leading-snug text-slate-900">
-                    Send proof and we will activate your ad
+                    {paymentStatus === 'paid'
+                      ? submissionStatus === 'waitlisted'
+                        ? 'Paid — scheduled for a future review month'
+                        : 'Paid — awaiting ad review and approval'
+                      : receiptSubmittedAt
+                        ? 'Your payment is being verified'
+                        : 'Pay by bank transfer'}
                   </h3>
                   <p className="mt-2 text-sm leading-6 text-slate-600">
-                    Once we verify your bank transfer, your ad goes through review
-                    and publishing.
+                    {paymentStatus === 'paid'
+                      ? submissionStatus === 'waitlisted'
+                        ? 'Your payment is confirmed. Your ad is reserved for the next available review month. This page will return to a new ad form after the team approves or rejects it.'
+                        : 'Your payment is confirmed. Your ad is awaiting review and approval. This page will return to a new ad form after the team approves or rejects it.'
+                      : receiptSubmittedAt
+                        ? 'Your receipt has been submitted. We are verifying the transfer; bank processing times vary and it may take a few business days for payment to appear. Once confirmed, your ad will wait for approval. This page will return to a new ad form after the team approves or rejects it.'
+                        : 'Transfer the amount to the bank account below. Put your submission ID in the transfer notes, then upload your receipt for verification.'}
                   </p>
 
-                  <a
-                    href={`https://wa.me/18763369045?text=${whatsappText}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-full bg-accent px-5 py-3.5 text-sm font-semibold text-white transition hover:bg-accent/90"
-                  >
-                    <MessageCircle className="h-4 w-4" />
-                    Send Proof on WhatsApp
-                  </a>
+                  {!receiptSubmittedAt && paymentStatus !== 'paid' ? (
+                    <>
+                      <div className="mt-5 divide-y divide-slate-100 rounded-lg bg-white px-4">
+                        {[
+                          ['Bank', sponsorBankDetails.bank],
+                          ['Account name', sponsorBankDetails.accountName],
+                          ['Account number', sponsorBankDetails.accountNumber],
+                          ['Account type', sponsorBankDetails.accountType],
+                          ['Branch', sponsorBankDetails.branch],
+                          ['Transfer amount', formatMoney(totalAmount)],
+                          ['Payment notes — use this exact ID', submissionId],
+                        ].map(([label, value]) => (
+                          <div key={label} className="flex items-center justify-between gap-3 py-3">
+                            <div className="min-w-0">
+                              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{label}</p>
+                              <p className="mt-1 break-all font-medium text-slate-900">{value}</p>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => copyToClipboard(value, label)}
+                              className="inline-flex shrink-0 items-center gap-1 rounded-full bg-slate-100 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-200"
+                            >
+                              {copied === label ? <Check size={14} /> : <Copy size={14} />}
+                              {copied === label ? 'Copied' : 'Copy'}
+                            </button>
+                          </div>
+                        ))}
+                      </div>
 
-                  <div className="mt-5 flex justify-center border-t border-slate-200 pt-4">
-                    <button
-                      type="button"
-                      onClick={handleStartOver}
-                      className="text-xs font-semibold text-slate-500 underline-offset-2 transition hover:text-slate-700 hover:underline"
-                    >
-                      Submit a different ad
-                    </button>
-                  </div>
+                      <div className="mt-5">
+                        <label htmlFor="payment-receipt" className="block text-sm font-semibold text-slate-800">
+                          Payment receipt
+                        </label>
+                        <p className="mt-1 text-xs text-slate-500">
+                          Upload a JPG, PNG, or WebP image, up to 5 MB.
+                        </p>
+                        <input
+                          ref={receiptInputRef}
+                          id="payment-receipt"
+                          type="file"
+                          accept="image/jpeg,image/png,image/webp"
+                          onChange={(event) => {
+                            const file = event.target.files?.[0] || null;
+                            if (file && file.size > 5 * 1024 * 1024) {
+                              toast.error('Receipt image must be 5 MB or smaller.');
+                              event.target.value = '';
+                              return;
+                            }
+                            setReceiptFile(file);
+                          }}
+                          className="mt-2 block w-full rounded-lg border border-slate-200 bg-white p-3 text-sm text-slate-700 file:mr-3 file:rounded-md file:border-0 file:bg-slate-100 file:px-3 file:py-2 file:text-sm file:font-semibold"
+                        />
+                        <button
+                          type="button"
+                          onClick={submitPaymentReceipt}
+                          disabled={!isValidSubmissionId(submissionId) || !receiptFile || uploadingReceipt}
+                          className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-full bg-accent px-5 py-3.5 text-sm font-semibold text-white transition hover:bg-accent/90 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          <UploadCloud className="h-4 w-4" />
+                          {uploadingReceipt ? 'Submitting receipt…' : 'Submit payment receipt'}
+                        </button>
+                      </div>
+                    </>
+                  ) : null}
+
+                  <button
+                    type="button"
+                    onClick={refreshPaymentStatus}
+                    disabled={checkingPayment}
+                    className="mt-4 inline-flex w-full items-center justify-center rounded-full border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:opacity-60"
+                  >
+                    {checkingPayment
+                      ? 'Checking…'
+                      : receiptSubmittedAt || paymentStatus === 'paid'
+                        ? 'Check approval status'
+                        : 'Refresh payment status'}
+                  </button>
+
+                  {!receiptSubmittedAt && paymentStatus !== 'paid' ? (
+                    <div className="mt-5 flex justify-center border-t border-slate-200 pt-4">
+                      <button
+                        type="button"
+                        onClick={handleStartOver}
+                        className="text-xs font-semibold text-slate-500 underline-offset-2 transition hover:text-slate-700 hover:underline"
+                      >
+                        Submit a different ad
+                      </button>
+                    </div>
+                  ) : null}
                 </div>
               </div>
             </div>
@@ -916,9 +1168,11 @@ export default function AdvertisePage() {
                   </div>
                   <div>
                     <p className="text-3xl font-semibold text-slate-900 sm:text-4xl">
-                      {SPOTS_LEFT}/{SPOTS_TOTAL}
+                      {spotsLeft === null ? '—' : spotsLeft}/{SPOTS_TOTAL}
                     </p>
-                    <p className="mt-1 text-sm text-slate-500">Spots left this month</p>
+                    <p className="mt-1 text-sm text-slate-500">
+                      {availabilityError ? 'Monthly capacity unavailable' : 'Paid spots left this month'}
+                    </p>
                   </div>
                 </div>
 
@@ -1034,7 +1288,7 @@ export default function AdvertisePage() {
                               selected ? 'text-white' : 'text-slate-900'
                             }`}
                           >
-                            {formatMoney(plan.price)}
+                            {formatMoney(planPrices[plan.id] || plan.price)}
                           </span>
                         </div>
                         <p
@@ -1070,8 +1324,12 @@ export default function AdvertisePage() {
                 </div>
 
                 <p className="mt-8 max-w-2xl text-sm text-slate-500">
-                  Only {SPOTS_LEFT} of {SPOTS_TOTAL} sponsor slots remain for this month. Once full,
-                  new advertisers join the waitlist for next month.
+                  {spotsLeft === null
+                    ? `There are ${SPOTS_TOTAL} paid sponsor slots each month. Submissions stay open when they fill and paid ads are queued for the next available month.`
+                    : spotsLeft > 0
+                    ? `Only ${spotsLeft} of ${SPOTS_TOTAL} paid sponsor slots remain this month. Submissions stay open after they fill and join the next available month’s waitlist.`
+                    : `This month’s ${SPOTS_TOTAL} paid sponsor slots are full. You can still submit and pay; your ad will be queued for the next available month.`}
+                  {availabilityError ? ` (${availabilityError})` : ''}
                 </p>
               </div>
             </section>
@@ -1458,7 +1716,7 @@ export default function AdvertisePage() {
                       disabled={submitting}
                       className="flex w-full items-center justify-center gap-2 rounded-full bg-accent px-6 py-4 text-base font-semibold text-white transition hover:bg-accent/90 disabled:bg-slate-400"
                     >
-                      {submitting ? saveStatus || 'Saving...' : `Continue to Payment — ${formatMoney(totalAmount)}`}
+                      {submitting ? saveStatus || 'Saving...' : `Continue to bank transfer — ${formatMoney(totalAmount)}`}
                       {!submitting ? <ArrowRight className="h-5 w-5" /> : null}
                     </button>
                   </form>

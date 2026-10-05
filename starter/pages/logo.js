@@ -87,9 +87,10 @@ const KNUTSFORD_LOCATIONS = [
 const bankDetails = [
   {
     bank: 'Scotiabank Jamaica',
-    accountName: 'Tahjay Thompson',
-    accountNumber: '010860258',
+    accountName: 'Dosnine Limited',
+    accountNumber: '000991881',
     branch: '50575',
+    accountType: 'Business Savings',
   },
 ];
 
@@ -1003,6 +1004,7 @@ export default function LogoPage() {
                           ['Bank', bankDetails[0].bank],
                           ['Account name', bankDetails[0].accountName],
                           ['Account number', bankDetails[0].accountNumber],
+                          ['Account type', bankDetails[0].accountType],
                           ['Branch', bankDetails[0].branch],
                           ['Amount', formatCurrency(total)],
                         ].map(([label, value]) => {
