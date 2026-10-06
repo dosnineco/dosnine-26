@@ -33,6 +33,12 @@ const HtvInvoice = forwardRef(({ order, onClose }, ref) => {
   const rawMaterials = Array.isArray(order.raw_materials) ? order.raw_materials : [];
   const formattedEmail = order.email ? order.email : '';
   const formattedPhone = formatPhoneNumber(order.phone);
+  const rawMaterialsTotal = rawMaterials.reduce((sum, m) => sum + Number(m.cost || m.price || 0), 0);
+  const deliveryFee = Number(order.delivery_fee || 0);
+  const laborCost = Number(order.labor_cost || 0);
+  const subtotalBeforeTax = Number(order.subtotal || 0) + deliveryFee + laborCost + rawMaterialsTotal;
+  const gctAmount = Math.round(subtotalBeforeTax * 0.15);
+  const totalWithGct = subtotalBeforeTax + gctAmount;
   
   return (
     <div ref={ref} className="invoice-container">
@@ -170,12 +176,16 @@ const HtvInvoice = forwardRef(({ order, onClose }, ref) => {
           {rawMaterials.length > 0 && (
             <div className="invoice-totals-row">
               <span>Raw Materials Total:</span>
-              <span>JMD {rawMaterials.reduce((sum, m) => sum + Number(m.cost || m.price || 0), 0).toLocaleString()}</span>
+              <span>JMD {rawMaterialsTotal.toLocaleString()}</span>
             </div>
           )}
+          <div className="invoice-totals-row">
+            <span>GCT (15%):</span>
+            <span>JMD {gctAmount.toLocaleString()}</span>
+          </div>
           <div className="invoice-totals-row invoice-totals-row-total">
             <span>TOTAL:</span>
-            <span>JMD {order.total.toLocaleString()}</span>
+            <span>JMD {totalWithGct.toLocaleString()}</span>
           </div>
         </div>
       </div>
@@ -183,18 +193,6 @@ const HtvInvoice = forwardRef(({ order, onClose }, ref) => {
       {/* Payment Terms */}
       <div className="invoice-payment">
         <h3 className="invoice-payment-title">Payment Instructions</h3>
-        
-        <div className="invoice-payment-section">
-          <p className="invoice-payment-label">
-            <Building2 size={14} style={{ display: 'inline', marginRight: '5px' }} />
-            NCB ACCOUNT:
-          </p>
-          <div className="invoice-payment-details">
-            <p className="invoice-payment-detail-line">Name: Tahjay Thompson</p>
-            <p className="invoice-payment-detail-line">Account Number: 401337768</p>
-            <p className="invoice-payment-detail-line">Account Type: Checking</p>
-          </div>
-        </div>
 
         <div className="invoice-payment-section">
           <p className="invoice-payment-label">

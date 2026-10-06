@@ -89,10 +89,12 @@ export default async function handler(req, res) {
 
       const subtotal = Number(payload.subtotal || 0);
       const delivery_fee = Number(payload.delivery_fee || 0);
-      const total = Number(payload.total ?? subtotal + delivery_fee);
       const raw_material_cost = Number(payload.raw_material_cost || 0);
       const labor_cost = Number(payload.labor_cost || 0);
       const other_expenses = Number(payload.other_expenses || 0);
+      const baseTotal = subtotal + delivery_fee + raw_material_cost + labor_cost;
+      const explicitTotal = Number(payload.total || 0);
+      const total = explicitTotal > 0 ? (explicitTotal > baseTotal ? explicitTotal : explicitTotal + Math.round(explicitTotal * 0.15)) : baseTotal + Math.round(baseTotal * 0.15);
       const revenue = Number(payload.revenue ?? total);
       const expenses = Number(payload.expenses ?? raw_material_cost + labor_cost + other_expenses);
       const profit = Number(payload.profit ?? revenue - expenses);
@@ -166,10 +168,12 @@ export default async function handler(req, res) {
 
       const subtotal = Number(payload.subtotal || 0);
       const delivery_fee = Number(payload.delivery_fee || 0);
-      const total = Number(payload.total ?? subtotal + delivery_fee);
       const raw_material_cost = Number(payload.raw_material_cost || 0);
       const labor_cost = Number(payload.labor_cost || 0);
       const other_expenses = Number(payload.other_expenses || 0);
+      const baseTotal = subtotal + delivery_fee + raw_material_cost + labor_cost;
+      const explicitTotal = Number(payload.total || 0);
+      const total = explicitTotal > 0 ? (explicitTotal > baseTotal ? explicitTotal : explicitTotal + Math.round(explicitTotal * 0.15)) : baseTotal + Math.round(baseTotal * 0.15);
       const revenue = Number(payload.revenue ?? total);
       const expenses = Number(payload.expenses ?? raw_material_cost + labor_cost + other_expenses);
       const profit = Number(payload.profit ?? revenue - expenses);

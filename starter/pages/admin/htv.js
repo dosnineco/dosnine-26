@@ -49,8 +49,14 @@ const DELIVERY = {
   knutsford: { label: 'Knutsford Express Pickup', fee: 0 },
 }
 
+const GCT_RATE = 0.15
+
 function formatCurrency(value) {
   return `JMD ${Number(value || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+}
+
+function calculateGctAmount(amount) {
+  return Math.round(Number(amount || 0) * GCT_RATE)
 }
 
 // Parse a DATE column (e.g. "2026-09-01") as a local calendar date, not a UTC instant,
@@ -119,7 +125,9 @@ function calculateTotals(order) {
     const rushMultiplier = order.rush_order ? 1.5 : 1
     const deliveryFee = DELIVERY[order.delivery_area]?.fee ?? 0
     const subtotal = Math.round(deal.price * rushMultiplier)
-    return { subtotal, deliveryFee, total: Math.round(subtotal + deliveryFee), quantity }
+    const baseTotal = Math.round(subtotal + deliveryFee)
+    const gctAmount = calculateGctAmount(baseTotal)
+    return { subtotal, deliveryFee, baseTotal, gct: gctAmount, total: baseTotal + gctAmount, quantity }
   }
 
   const sizeData = PRICING[order.size] || PRICING.small
@@ -137,8 +145,10 @@ function calculateTotals(order) {
 
   const rushMultiplier = order.rush_order ? 1.5 : 1
   const deliveryFee = DELIVERY[order.delivery_area]?.fee ?? 0
-  const total = Math.round(subtotal * rushMultiplier) + deliveryFee
-  return { subtotal: Math.round(subtotal * rushMultiplier), deliveryFee, total }
+  const subtotalWithRush = Math.round(subtotal * rushMultiplier)
+  const baseTotal = subtotalWithRush + deliveryFee
+  const gctAmount = calculateGctAmount(baseTotal)
+  return { subtotal: subtotalWithRush, deliveryFee, baseTotal, gct: gctAmount, total: baseTotal + gctAmount }
 }
 
 export default function AdminDashboard() {
@@ -343,7 +353,9 @@ export default function AdminDashboard() {
   const selectedTotals = calculateTotals(newOrder)
   const rawMaterialCost = rawMaterials.reduce((sum, item) => sum + Number(item.cost || 0), 0)
   const logoWorkCharge = Number(newOrder.logo_work_charge || 0)
-  const totalRevenue = selectedTotals.total + logoWorkCharge
+  const taxableRevenueBeforeGct = selectedTotals.baseTotal + logoWorkCharge
+  const gctAmount = calculateGctAmount(taxableRevenueBeforeGct)
+  const totalRevenue = taxableRevenueBeforeGct + gctAmount
   const expenseTotal = rawMaterialCost
   const profitTotal = totalRevenue - expenseTotal
 
