@@ -407,11 +407,7 @@ export default function Dashboard() {
             </p>
             <h1 className="mt-1 text-3xl font-bold">Hi, {user?.username || 'User'}!</h1>
           </div>
-          {isAdmin && (
-            <Link href="/admin/dashboard" className="rounded-xl bg-gray-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-gray-700">
-              Open Admin Dashboard
-            </Link>
-          )}
+      
         </div>
 
         {accountType === 'agent' && !agentData && (
@@ -448,13 +444,7 @@ export default function Dashboard() {
 
         {/* Quick Actions */}
         <div className="mb-6 grid gap-4 lg:grid-cols-[240px_minmax(0,1fr)]">
-          <aside className="rounded-2xl border border-gray-200 bg-gray-50 p-4 sm:p-5">
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent">Quick Actions</p>
-            <h2 className="mt-2 text-xl font-bold text-gray-900">Start here</h2>
-            <p className="mt-2 text-sm text-gray-600">
-              Manage your listings, grow your reach, and keep your property pipeline moving.
-            </p>
-          </aside>
+  
 
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
             <Link
@@ -516,28 +506,7 @@ export default function Dashboard() {
           </div>
         </div>
 
-          {/* Become Agent Prompt */}
-        {!agentData && showAgentPrompt && !pendingAdVerificationAt && (
-          <div className="bg-blue-50 border-l-4 border-accent p-6 rounded-lg mb-8">
-            <div className="flex items-start gap-3">
-              <Briefcase className="w-6 h-6 text-accent flex-shrink-0 mt-0.5" />
-              <div className="flex-1">
-                <h3 className="text-lg font-semibold text-gray-900 mb-1">
-                  Become a Verified Agent
-                </h3>
-                <p className="text-gray-700 mb-3">
-                  Connect with clients, post unlimited properties, and grow your business!
-                </p>
-                <Link
-                  href="/agent/signup"
-                  className="btn-accent inline-block"
-                >
-                  Apply Now
-                </Link>
-              </div>
-            </div>
-          </div>
-        )}
+      
 
         {/* Agent Status Banner */}
         {accountType === 'agent' && agentData && (

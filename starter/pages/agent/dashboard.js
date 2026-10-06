@@ -376,15 +376,7 @@ export default function AgentDashboard() {
                 </Link>
               )}
 
-              {initialUserData?.role === 'admin' && (
-                <Link
-                  href="/admin/dashboard"
-                  className="group flex h-full items-center gap-3 rounded-lg bg-gray-900 p-3 transition hover:bg-gray-700"
-                >
-                  <ShieldCheck className="h-5 w-5 text-white transition group-hover:scale-110" />
-                  <h3 className="text-sm font-semibold text-white">Admin Dashboard</h3>
-                </Link>
-              )}
+            
 
               {!isOwner && (
                 <Link
