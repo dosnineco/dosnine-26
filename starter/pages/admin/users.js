@@ -38,12 +38,13 @@ import {
 } from 'lucide-react';
 
 /* ----------------------------------------------------------
- * Tokens
+ * Dosnine UI tokens
  * ---------------------------------------------------------- */
 const inputClass =
-  'w-full rounded-lg border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-accent focus:ring-2 focus:ring-accent/20';
+  'w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-accent focus:ring-2 focus:ring-accent/10';
 const labelClass =
-  'block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1.5';
+  'block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1.5';
+
 const DEFAULT_AGENT_PLAN_PRICES = {
   '7-day': 1499,
   '30-day': 4999,
@@ -53,20 +54,32 @@ const DEFAULT_AGENT_PLAN_PRICES = {
 
 const ROLE_STYLES = {
   admin: { label: 'Admin', badge: 'bg-slate-900 text-white border-slate-900' },
-  landlord: { label: 'Homeowner', badge: 'bg-violet-100 text-violet-800 border-violet-200' },
-  tenant: { label: 'Tenant', badge: 'bg-slate-100 text-slate-700 border-slate-200' },
+  landlord: { label: 'Homeowner', badge: 'bg-violet-50 text-violet-700 border-violet-200' },
+  tenant: { label: 'Tenant', badge: 'bg-slate-100 text-slate-600 border-slate-200' },
 };
 
 const STATUS_STYLES = {
-  active: { label: 'Active', badge: 'bg-emerald-100 text-emerald-800 border-emerald-200', dot: 'bg-emerald-500' },
-  flagged: { label: 'Flagged', badge: 'bg-amber-100 text-amber-800 border-amber-200', dot: 'bg-amber-500' },
-  deactivated: { label: 'Deactivated', badge: 'bg-red-100 text-red-800 border-red-200', dot: 'bg-red-500' },
+  active: {
+    label: 'Active',
+    badge: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+    dot: 'bg-emerald-500',
+  },
+  flagged: {
+    label: 'Flagged',
+    badge: 'bg-amber-50 text-amber-700 border-amber-200',
+    dot: 'bg-amber-500',
+  },
+  deactivated: {
+    label: 'Deactivated',
+    badge: 'bg-red-50 text-red-700 border-red-200',
+    dot: 'bg-red-500',
+  },
 };
 
 const ID_VERIFICATION_STYLES = {
-  approved: { label: 'Verified', badge: 'bg-emerald-100 text-emerald-800 border-emerald-200' },
-  pending: { label: 'Pending', badge: 'bg-amber-100 text-amber-800 border-amber-200' },
-  rejected: { label: 'Rejected', badge: 'bg-red-100 text-red-800 border-red-200' },
+  approved: { label: 'Verified', badge: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+  pending: { label: 'Pending', badge: 'bg-amber-50 text-amber-700 border-amber-200' },
+  rejected: { label: 'Rejected', badge: 'bg-red-50 text-red-700 border-red-200' },
   unverified: { label: 'Unverified', badge: 'bg-slate-100 text-slate-600 border-slate-200' },
 };
 
@@ -208,7 +221,7 @@ export default function AdminUsersPage() {
   }, [user]);
 
   /* ----------------------------------------------------------
-   * Fetch users (only when on users tab)
+   * Fetch users
    * ---------------------------------------------------------- */
   const fetchUsers = async ({ silent = false } = {}) => {
     try {
@@ -233,7 +246,7 @@ export default function AdminUsersPage() {
   };
 
   /* ----------------------------------------------------------
-   * Fetch agents (only when on agents tab)
+   * Fetch agents
    * ---------------------------------------------------------- */
   const fetchAgents = async ({ silent = false } = {}) => {
     if (!silent) setLoadingAgents(true);
@@ -265,7 +278,6 @@ export default function AdminUsersPage() {
     }
   };
 
-  // Load data when tab becomes active
   useEffect(() => {
     if (!isAdmin) return;
     if (activeTab === 'users' && loadingUsers) fetchUsers();
@@ -283,7 +295,6 @@ export default function AdminUsersPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAdmin, activeTab]);
 
-  // Keep pending-agents badge fresh (only while on agents tab)
   useEffect(() => {
     if (!isAdmin || activeTab !== 'agents') return;
     const timer = setInterval(() => fetchAgents({ silent: true }), 20000);
@@ -291,7 +302,6 @@ export default function AdminUsersPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAdmin, activeTab, agentFilterStatus]);
 
-  // Keep selectedPlans in sync with agents list
   useEffect(() => {
     const validPlans = ['free', '7-day', '30-day', '90-day'];
     const next = {};
@@ -331,7 +341,7 @@ export default function AdminUsersPage() {
   };
 
   /* ============================================================
-   * USER ACTIONS (unchanged)
+   * USER ACTIONS (logic unchanged)
    * ============================================================ */
   const isPremiumActive = (u) =>
     Boolean(u.premium_service_request) &&
@@ -546,7 +556,7 @@ export default function AdminUsersPage() {
   };
 
   /* ============================================================
-   * AGENT ACTIONS (unchanged)
+   * AGENT ACTIONS (logic unchanged)
    * ============================================================ */
   const updateAgentStatus = async (agentId, status, notes = '') => {
     if (!confirm(`Are you sure you want to ${status} this agent?`)) return;
@@ -791,7 +801,7 @@ export default function AdminUsersPage() {
     return (
       <div className="flex items-center justify-center py-24">
         <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center">
-          <ShieldX className="mx-auto h-12 w-12 text-red-500" />
+          <ShieldX className="mx-auto h-12 w-12 text-red-600" />
           <h1 className="mt-4 text-xl font-semibold text-slate-900">Access denied</h1>
           <p className="mt-2 text-sm text-slate-600">
             Admin access is required to view this page.
@@ -1154,10 +1164,13 @@ export default function AdminUsersPage() {
               />
             </div>
 
-            <section className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5">
+            {/* Plan pricing */}
+            <section className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
-                  <h2 className="text-sm font-bold text-slate-900">Agent plan pricing</h2>
+                  <h2 className="text-sm font-bold text-slate-900">
+                    Agent plan pricing
+                  </h2>
                   <p className="mt-1 text-xs text-slate-500">
                     Prices appear on the agent upgrade page and are recorded when a plan is activated.
                   </p>
@@ -1166,7 +1179,7 @@ export default function AdminUsersPage() {
                   type="button"
                   onClick={saveAgentPlanPrices}
                   disabled={savingAgentPlanPrices}
-                  className="rounded-lg bg-slate-900 px-4 py-2 text-xs font-semibold text-white hover:bg-slate-800 disabled:opacity-50"
+                  className="rounded-full bg-accent px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-accent/90 disabled:opacity-60"
                 >
                   {savingAgentPlanPrices ? 'Saving…' : 'Save prices'}
                 </button>
@@ -1245,9 +1258,9 @@ export default function AdminUsersPage() {
                 </div>
               ) : (
                 <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-slate-200">
-                    <thead className="bg-slate-50">
-                      <tr>
+                  <table className="min-w-full">
+                    <thead>
+                      <tr className="border-b border-slate-100">
                         <th className="px-5 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-slate-500">
                           Agent
                         </th>
@@ -1271,14 +1284,14 @@ export default function AdminUsersPage() {
                         </th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-100 bg-white">
+                    <tbody className="bg-white">
                       {filteredAgents.map((agent) => (
                         <tr
                           key={agent.id}
                           className={
                             agent.payment_receipt_status === 'pending'
-                              ? 'bg-amber-50/70 hover:bg-amber-50'
-                              : 'hover:bg-slate-50'
+                              ? 'border-b border-slate-100 bg-amber-50/60 hover:bg-amber-50'
+                              : 'border-b border-slate-100 hover:bg-slate-50'
                           }
                         >
                           <td className="px-5 py-4">
@@ -1304,17 +1317,17 @@ export default function AdminUsersPage() {
                               License: {agent.license_number || 'N/A'}
                             </p>
                           </td>
-                          <td className="px-5 py-4 text-sm text-slate-700">
+                          <td className="px-5 py-4 text-sm text-slate-600">
                             {agent.years_experience} years
                           </td>
                           <td className="px-5 py-4">
                             <span
-                              className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
+                              className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
                                 agent.verification_status === 'approved'
-                                  ? 'border-emerald-200 bg-emerald-100 text-emerald-800'
+                                  ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
                                   : agent.verification_status === 'rejected'
-                                  ? 'border-red-200 bg-red-100 text-red-800'
-                                  : 'border-amber-200 bg-amber-100 text-amber-800'
+                                  ? 'border-red-200 bg-red-50 text-red-700'
+                                  : 'border-amber-200 bg-amber-50 text-amber-700'
                               }`}
                             >
                               {agent.verification_status === 'approved' && (
@@ -1331,12 +1344,12 @@ export default function AdminUsersPage() {
                           </td>
                           <td className="px-5 py-4">
                             {agent.payment_receipt_status === 'pending' ? (
-                              <div className="min-w-52 rounded-xl bg-amber-100 p-3 ring-1 ring-amber-300">
-                                <div className="flex items-center gap-2 text-amber-950">
-                                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-amber-200">
+                              <div className="min-w-52 rounded-xl border border-amber-200 bg-amber-50 p-3">
+                                <div className="flex items-center gap-2 text-amber-700">
+                                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white">
                                     <Clock className="h-4 w-4" />
                                   </span>
-                                  <span className="text-xs font-extrabold uppercase tracking-wide">
+                                  <span className="text-xs font-extrabold uppercase tracking-wider">
                                     Payment pending
                                   </span>
                                 </div>
@@ -1352,14 +1365,14 @@ export default function AdminUsersPage() {
                                     ` · J$${Number(agent.payment_receipt_amount).toLocaleString()}`}
                                 </p>
                                 {agent.payment_receipt_submitted_at && (
-                                  <p className="mt-1 text-[11px] text-amber-900">
+                                  <p className="mt-1 text-[11px] text-amber-700">
                                     Submitted {new Date(agent.payment_receipt_submitted_at).toLocaleString()}
                                   </p>
                                 )}
                                 <button
                                   type="button"
                                   onClick={() => viewAgentDocuments(agent)}
-                                  className="mt-3 inline-flex w-full items-center justify-center gap-1.5 rounded-lg bg-amber-900 px-3 py-2 text-xs font-bold text-white transition hover:bg-amber-950"
+                                  className="mt-3 inline-flex w-full items-center justify-center gap-1.5 rounded-full bg-amber-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-amber-700"
                                 >
                                   <Eye className="h-3.5 w-3.5" />
                                   Review payment
@@ -1377,7 +1390,7 @@ export default function AdminUsersPage() {
                                       }))
                                     }
                                     disabled={agent.verification_status !== 'approved'}
-                                    className="rounded-md border border-slate-300 bg-white px-2 py-1 text-xs text-slate-900 disabled:bg-slate-100 disabled:text-slate-500"
+                                    className="rounded-xl border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-900 outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/10 disabled:bg-slate-50 disabled:text-slate-500"
                                     title={
                                       agent.verification_status !== 'approved'
                                         ? 'Agent must be approved first'
@@ -1399,7 +1412,7 @@ export default function AdminUsersPage() {
                                       )
                                     }
                                     disabled={agent.verification_status !== 'approved'}
-                                    className="inline-flex items-center gap-2 rounded-md bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-40"
+                                    className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
                                     title={
                                       agent.verification_status !== 'approved'
                                         ? 'Agent must be approved first'
@@ -1437,7 +1450,7 @@ export default function AdminUsersPage() {
                               <button
                                 type="button"
                                 onClick={() => viewAgentDocuments(agent)}
-                                className="rounded-lg p-2 text-slate-700 transition hover:bg-slate-100"
+                                className="rounded-full p-2 text-slate-600 transition hover:bg-slate-100"
                                 title="View Details"
                               >
                                 <Eye className="h-4 w-4" />
@@ -1450,7 +1463,7 @@ export default function AdminUsersPage() {
                                       updateAgentStatus(agent.id, 'approved')
                                     }
                                     disabled={verifyingAgent}
-                                    className="rounded-lg p-2 text-emerald-700 transition hover:bg-emerald-50 disabled:opacity-50"
+                                    className="rounded-full p-2 text-emerald-700 transition hover:bg-emerald-50 disabled:opacity-50"
                                     title="Approve"
                                   >
                                     <CheckCircle2 className="h-4 w-4" />
@@ -1461,7 +1474,7 @@ export default function AdminUsersPage() {
                                       updateAgentStatus(agent.id, 'rejected')
                                     }
                                     disabled={verifyingAgent}
-                                    className="rounded-lg p-2 text-red-700 transition hover:bg-red-50 disabled:opacity-50"
+                                    className="rounded-full p-2 text-red-700 transition hover:bg-red-50 disabled:opacity-50"
                                     title="Reject"
                                   >
                                     <XCircle className="h-4 w-4" />
@@ -1570,7 +1583,7 @@ function StatCard({ label, value, icon: Icon, tone = 'accent', onClick }) {
     <Wrapper
       type={onClick ? 'button' : undefined}
       onClick={onClick}
-      className={`rounded-2xl border border-slate-200 bg-white p-4 text-left transition ${
+      className={`rounded-2xl border border-slate-200 bg-white p-5 text-left transition ${
         onClick ? 'hover:border-slate-300 hover:bg-slate-50' : ''
       }`}
     >
@@ -1594,7 +1607,7 @@ function StatCard({ label, value, icon: Icon, tone = 'accent', onClick }) {
 function AgentStatCard({ label, value, icon: Icon, tone = 'accent' }) {
   const style = TONE_STYLES[tone] || TONE_STYLES.accent;
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-4">
+    <div className="rounded-2xl border border-slate-200 bg-white p-5">
       <div className="flex items-start justify-between gap-2">
         <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">
           {label}
@@ -1627,7 +1640,7 @@ function UserCard({
 
   return (
     <article className="overflow-hidden rounded-2xl border border-slate-200 bg-white transition hover:border-slate-300">
-      <div className="flex flex-col gap-4 p-4 sm:flex-row sm:p-5">
+      <div className="flex flex-col gap-4 p-5 sm:flex-row">
         <div className="flex shrink-0 items-start gap-3 sm:flex-col sm:items-center">
           <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-slate-900 text-sm font-bold text-white">
             {getInitials(user.full_name)}
@@ -1640,18 +1653,18 @@ function UserCard({
               {user.full_name || 'Unnamed user'}
             </h3>
             <span
-              className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${role.badge}`}
+              className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${role.badge}`}
             >
               {role.label}
             </span>
             <span
-              className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${status.badge}`}
+              className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${status.badge}`}
             >
               <span className={`h-1.5 w-1.5 rounded-full ${status.dot}`} />
               {status.label}
             </span>
             {isPremiumActive && (
-              <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-100 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-emerald-800">
+              <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-emerald-700">
                 <DollarSign size={10} />
                 Paid
               </span>
@@ -1727,7 +1740,7 @@ function UserCard({
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center gap-2 border-t border-slate-100 bg-slate-50/60 px-4 py-3 sm:px-5">
+      <div className="flex flex-wrap items-center gap-2 border-t border-slate-100 px-5 py-3">
         <button
           type="button"
           onClick={onTogglePremium}
@@ -1746,7 +1759,7 @@ function UserCard({
           type="button"
           onClick={onManage}
           disabled={pending}
-          className="ml-auto inline-flex items-center gap-1.5 rounded-full bg-slate-900 px-3.5 py-2 text-xs font-semibold text-white transition hover:bg-slate-800 disabled:opacity-50"
+          className="ml-auto inline-flex items-center gap-1.5 rounded-full bg-accent px-3.5 py-2 text-xs font-semibold text-white transition hover:bg-accent/90 disabled:opacity-50"
         >
           <Settings size={13} />
           Manage
@@ -1764,7 +1777,7 @@ function MetaBox({ label, value, tone = 'slate' }) {
   }[tone];
 
   return (
-    <div className="rounded-lg border border-slate-100 bg-slate-50 p-2.5">
+    <div className="rounded-xl border border-slate-100 bg-slate-50 p-2.5">
       <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">
         {label}
       </p>
@@ -1813,7 +1826,7 @@ function ManageUserModal({
       onClick={onClose}
     >
       <div
-        className="max-h-[92vh] w-full overflow-y-auto rounded-t-2xl bg-white sm:max-w-lg sm:rounded-2xl"
+        className="max-h-[92vh] w-full overflow-y-auto rounded-t-2xl border border-slate-200 bg-white sm:max-w-lg sm:rounded-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="sticky top-0 z-10 flex items-start justify-between border-b border-slate-100 bg-white px-5 py-4">
@@ -1826,7 +1839,7 @@ function ManageUserModal({
           <button
             type="button"
             onClick={onClose}
-            className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-slate-500 transition hover:bg-slate-100 hover:text-slate-900"
+            className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-slate-500 transition hover:bg-slate-100 hover:text-slate-900"
             aria-label="Close"
           >
             <X size={18} />
@@ -1841,9 +1854,9 @@ function ManageUserModal({
                 type="button"
                 onClick={() => onSetStatus('active')}
                 disabled={pending || currentStatus === 'active'}
-                className={`inline-flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-xs font-semibold transition disabled:opacity-50 ${
+                className={`inline-flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-xs font-semibold transition disabled:opacity-60 ${
                   currentStatus === 'active'
-                    ? 'border-emerald-500 bg-emerald-500 text-white'
+                    ? 'border-emerald-600 bg-emerald-600 text-white'
                     : 'border-slate-200 bg-white text-emerald-700 hover:bg-emerald-50'
                 }`}
               >
@@ -1854,9 +1867,9 @@ function ManageUserModal({
                 type="button"
                 onClick={() => onSetStatus('flagged')}
                 disabled={pending || currentStatus === 'flagged'}
-                className={`inline-flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-xs font-semibold transition disabled:opacity-50 ${
+                className={`inline-flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-xs font-semibold transition disabled:opacity-60 ${
                   currentStatus === 'flagged'
-                    ? 'border-amber-500 bg-amber-500 text-white'
+                    ? 'border-amber-600 bg-amber-600 text-white'
                     : 'border-slate-200 bg-white text-amber-700 hover:bg-amber-50'
                 }`}
               >
@@ -1867,9 +1880,9 @@ function ManageUserModal({
                 type="button"
                 onClick={() => onSetStatus('deactivated')}
                 disabled={pending || currentStatus === 'deactivated'}
-                className={`inline-flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-xs font-semibold transition disabled:opacity-50 ${
+                className={`inline-flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-xs font-semibold transition disabled:opacity-60 ${
                   currentStatus === 'deactivated'
-                    ? 'border-red-500 bg-red-500 text-white'
+                    ? 'border-red-600 bg-red-600 text-white'
                     : 'border-slate-200 bg-white text-red-700 hover:bg-red-50'
                 }`}
               >
@@ -1886,10 +1899,10 @@ function ManageUserModal({
                 type="button"
                 onClick={onTogglePremium}
                 disabled={pending}
-                className={`inline-flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-xs font-semibold transition disabled:opacity-50 ${
+                className={`inline-flex items-center gap-1.5 rounded-full border bg-white px-3.5 py-1.5 text-xs font-semibold transition disabled:opacity-50 ${
                   isPremiumActive
-                    ? 'border-red-200 bg-white text-red-700 hover:bg-red-50'
-                    : 'border-emerald-200 bg-white text-emerald-700 hover:bg-emerald-50'
+                    ? 'border-red-200 text-red-700 hover:bg-red-50'
+                    : 'border-emerald-200 text-emerald-700 hover:bg-emerald-50'
                 }`}
               >
                 <DollarSign size={12} />
@@ -1928,9 +1941,9 @@ function ManageUserModal({
                 type="button"
                 onClick={() => onSetIdVerification('approved')}
                 disabled={pending || currentIdVerification === 'approved'}
-                className={`inline-flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-xs font-semibold transition disabled:opacity-50 ${
+                className={`inline-flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-xs font-semibold transition disabled:opacity-60 ${
                   currentIdVerification === 'approved'
-                    ? 'border-emerald-500 bg-emerald-500 text-white'
+                    ? 'border-emerald-600 bg-emerald-600 text-white'
                     : 'border-slate-200 bg-white text-emerald-700 hover:bg-emerald-50'
                 }`}
               >
@@ -1941,9 +1954,9 @@ function ManageUserModal({
                 type="button"
                 onClick={() => onSetIdVerification('rejected')}
                 disabled={pending || currentIdVerification === 'rejected'}
-                className={`inline-flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-xs font-semibold transition disabled:opacity-50 ${
+                className={`inline-flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-xs font-semibold transition disabled:opacity-60 ${
                   currentIdVerification === 'rejected'
-                    ? 'border-red-500 bg-red-500 text-white'
+                    ? 'border-red-600 bg-red-600 text-white'
                     : 'border-slate-200 bg-white text-red-700 hover:bg-red-50'
                 }`}
               >
@@ -2003,14 +2016,14 @@ function ManageUserModal({
               <button
                 type="button"
                 onClick={onClose}
-                className="flex-1 rounded-full border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                className="flex-1 rounded-full border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={pending}
-                className="flex-1 rounded-full bg-accent px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-accent/90 disabled:opacity-50"
+                className="flex-1 rounded-full bg-accent px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-accent/90 disabled:opacity-60"
               >
                 {pending ? 'Saving…' : 'Save changes'}
               </button>
@@ -2022,7 +2035,7 @@ function ManageUserModal({
               type="button"
               onClick={onDelete}
               disabled={pending}
-              className="inline-flex w-full items-center justify-center gap-2 rounded-full border border-red-200 bg-white px-4 py-2.5 text-sm font-semibold text-red-700 transition hover:bg-red-50 disabled:opacity-50"
+              className="inline-flex w-full items-center justify-center gap-2 rounded-full border border-red-200 bg-white px-4 py-2.5 text-sm font-semibold text-red-700 transition hover:bg-red-50 disabled:opacity-60"
             >
               <Trash2 size={14} />
               Delete user
@@ -2047,7 +2060,7 @@ function IdDocumentsModal({ user, urls, loading, onClose, onApprove, onReject })
       onClick={onClose}
     >
       <div
-        className="max-h-[92vh] w-full overflow-y-auto rounded-t-2xl bg-white sm:max-w-3xl sm:rounded-2xl"
+        className="max-h-[92vh] w-full overflow-y-auto rounded-t-2xl border border-slate-200 bg-white sm:max-w-3xl sm:rounded-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="sticky top-0 z-10 flex items-start justify-between border-b border-slate-100 bg-white px-5 py-4">
@@ -2060,7 +2073,7 @@ function IdDocumentsModal({ user, urls, loading, onClose, onApprove, onReject })
           <button
             type="button"
             onClick={onClose}
-            className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-slate-500 transition hover:bg-slate-100 hover:text-slate-900"
+            className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-slate-500 transition hover:bg-slate-100 hover:text-slate-900"
             aria-label="Close"
           >
             <X size={18} />
@@ -2118,7 +2131,7 @@ function IdDocumentsModal({ user, urls, loading, onClose, onApprove, onReject })
             <button
               type="button"
               onClick={onApprove}
-              className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-full bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-700"
+              className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-full border border-emerald-200 bg-white px-4 py-2.5 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-50"
             >
               <CheckCircle2 size={14} />
               Approve ID
@@ -2168,7 +2181,7 @@ function AgentDetailsModal({
       onClick={onClose}
     >
       <div
-        className="max-h-[92vh] w-full overflow-y-auto rounded-t-2xl bg-white sm:max-w-4xl sm:rounded-2xl"
+        className="max-h-[92vh] w-full overflow-y-auto rounded-t-2xl border border-slate-200 bg-white sm:max-w-4xl sm:rounded-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="sticky top-0 z-10 flex items-start justify-between border-b border-slate-100 bg-white px-5 py-4">
@@ -2181,7 +2194,7 @@ function AgentDetailsModal({
           <button
             type="button"
             onClick={onClose}
-            className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-slate-500 transition hover:bg-slate-100 hover:text-slate-900"
+            className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-slate-500 transition hover:bg-slate-100 hover:text-slate-900"
             aria-label="Close"
           >
             <X size={18} />
@@ -2191,7 +2204,7 @@ function AgentDetailsModal({
         <div className="space-y-6 px-5 py-5">
           {/* Personal Info */}
           <section>
-            <h3 className="mb-3 text-sm font-semibold text-slate-900">
+            <h3 className="mb-3 text-sm font-bold text-slate-900">
               Personal Information
             </h3>
             <div className="grid grid-cols-2 gap-4 text-sm">
@@ -2224,7 +2237,7 @@ function AgentDetailsModal({
 
           {/* Business Info */}
           <section>
-            <h3 className="mb-3 text-sm font-semibold text-slate-900">
+            <h3 className="mb-3 text-sm font-bold text-slate-900">
               Business Information
             </h3>
             <div className="grid grid-cols-2 gap-4 text-sm">
@@ -2255,7 +2268,7 @@ function AgentDetailsModal({
                 <p className="font-medium text-slate-900">
                   {agent.service_areas || 'N/A'}
                   {isPremiumParish && (
-                    <span className="ml-2 rounded bg-orange-50 px-2 py-0.5 text-xs font-bold text-orange-600">
+                    <span className="ml-2 rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-700">
                       Premium Parish
                     </span>
                   )}
@@ -2280,7 +2293,7 @@ function AgentDetailsModal({
 
           {/* Payment Information */}
           <section>
-            <h3 className="mb-3 text-sm font-semibold text-slate-900">
+            <h3 className="mb-3 text-sm font-bold text-slate-900">
               Payment & Access
             </h3>
             <div className="grid grid-cols-2 gap-4 text-sm">
@@ -2323,7 +2336,7 @@ function AgentDetailsModal({
                 </p>
               </div>
               {agent.payment_receipt_submitted_at && (
-                <div className="col-span-2 rounded-lg bg-slate-50 p-3">
+                <div className="col-span-2 rounded-xl border border-slate-200 bg-slate-50 p-3">
                   <p className="font-semibold text-slate-900">
                     Payment receipt · {agent.payment_receipt_status || 'pending'}
                   </p>
@@ -2343,14 +2356,14 @@ function AgentDetailsModal({
                       <img
                         src={agent.payment_receipt_url}
                         alt="Agent bank transfer receipt"
-                        className="max-h-80 w-full rounded-lg bg-white object-contain"
+                        className="max-h-80 w-full rounded-xl border border-slate-200 bg-white object-contain"
                       />
                       <span className="mt-2 inline-block text-xs font-semibold text-accent">
                         Open receipt image
                       </span>
                     </a>
                   ) : (
-                    <p className="mt-2 text-xs text-red-600">
+                    <p className="mt-2 text-xs text-red-700">
                       Receipt image is unavailable. Refresh the agent list or check the private storage bucket.
                     </p>
                   )}
@@ -2360,7 +2373,7 @@ function AgentDetailsModal({
                         type="button"
                         onClick={onConfirmPayment}
                         disabled={verifying}
-                        className="rounded-lg bg-emerald-700 px-4 py-2 text-xs font-semibold text-white hover:bg-emerald-800 disabled:opacity-50"
+                        className="rounded-full border border-emerald-200 bg-white px-4 py-2 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-50 disabled:opacity-60"
                       >
                         Confirm payment &amp; activate plan
                       </button>
@@ -2368,7 +2381,7 @@ function AgentDetailsModal({
                         type="button"
                         onClick={onRejectPayment}
                         disabled={verifying}
-                        className="rounded-lg bg-red-50 px-4 py-2 text-xs font-semibold text-red-700 hover:bg-red-100 disabled:opacity-50"
+                        className="rounded-full border border-red-200 bg-white px-4 py-2 text-xs font-semibold text-red-700 transition hover:bg-red-50 disabled:opacity-60"
                       >
                         Reject receipt
                       </button>
@@ -2389,7 +2402,7 @@ function AgentDetailsModal({
 
           {/* Documents */}
           <section>
-            <h3 className="mb-3 text-sm font-semibold text-slate-900">
+            <h3 className="mb-3 text-sm font-bold text-slate-900">
               Verification Documents
             </h3>
 
@@ -2405,7 +2418,7 @@ function AgentDetailsModal({
                     <p className="mb-2 text-sm font-medium text-slate-700">
                       Agent License
                     </p>
-                    <div className="overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
+                    <div className="overflow-hidden rounded-xl border border-slate-200 bg-slate-50">
                       <img
                         src={documentUrls.license || agent.license_file_url}
                         alt="Agent License"
@@ -2425,7 +2438,7 @@ function AgentDetailsModal({
                             }
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="mt-1 inline-block text-xs text-accent hover:underline"
+                            className="mt-1 inline-block text-xs font-semibold text-accent hover:underline"
                           >
                             Try opening directly
                           </a>
@@ -2439,7 +2452,7 @@ function AgentDetailsModal({
                     <p className="mb-2 text-sm font-medium text-slate-700">
                       Business Registration / Gov ID
                     </p>
-                    <div className="overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
+                    <div className="overflow-hidden rounded-xl border border-slate-200 bg-slate-50">
                       <img
                         src={documentUrls.registration || agent.registration_file_url}
                         alt="Business Registration"
@@ -2460,7 +2473,7 @@ function AgentDetailsModal({
                             }
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="mt-1 inline-block text-xs text-accent hover:underline"
+                            className="mt-1 inline-block text-xs font-semibold text-accent hover:underline"
                           >
                             Try opening directly
                           </a>
@@ -2481,10 +2494,10 @@ function AgentDetailsModal({
 
           {agent.verification_notes && (
             <section>
-              <h3 className="mb-3 text-sm font-semibold text-slate-900">
+              <h3 className="mb-3 text-sm font-bold text-slate-900">
                 Admin Notes
               </h3>
-              <p className="rounded-lg bg-slate-50 p-3 text-sm text-slate-700">
+              <p className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
                 {agent.verification_notes}
               </p>
             </section>
@@ -2496,7 +2509,7 @@ function AgentDetailsModal({
                 type="button"
                 onClick={onApprove}
                 disabled={verifying}
-                className="inline-flex flex-1 items-center justify-center gap-2 rounded-full bg-emerald-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-50"
+                className="inline-flex flex-1 items-center justify-center gap-2 rounded-full border border-emerald-200 bg-white px-4 py-3 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-50 disabled:opacity-60"
               >
                 <CheckCircle2 className="h-5 w-5" />
                 Approve Agent
@@ -2505,7 +2518,7 @@ function AgentDetailsModal({
                 type="button"
                 onClick={onReject}
                 disabled={verifying}
-                className="inline-flex flex-1 items-center justify-center gap-2 rounded-full border border-red-200 bg-white px-4 py-3 text-sm font-semibold text-red-700 transition hover:bg-red-50 disabled:opacity-50"
+                className="inline-flex flex-1 items-center justify-center gap-2 rounded-full border border-red-200 bg-white px-4 py-3 text-sm font-semibold text-red-700 transition hover:bg-red-50 disabled:opacity-60"
               >
                 <XCircle className="h-5 w-5" />
                 Reject Agent

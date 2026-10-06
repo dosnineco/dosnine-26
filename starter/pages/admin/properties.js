@@ -19,10 +19,13 @@ import {
   Image as ImageIcon,
 } from 'lucide-react';
 
+/* -------------------- theme primitives -------------------- */
+
 const inputClass =
-  'w-full rounded-lg border border-slate-200 bg-white px-3.5 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-accent focus:ring-2 focus:ring-accent/20';
+  'w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-900 outline-none placeholder:text-slate-400 focus:border-accent focus:ring-2 focus:ring-accent/10';
+
 const labelClass =
-  'block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1.5';
+  'block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1.5';
 
 const formatJMD = (value) => {
   const num = Number(value || 0);
@@ -107,7 +110,6 @@ export default function AdminPropertiesPage() {
     }
   };
 
-  // Lightweight polling for updates
   useEffect(() => {
     if (!isAdmin) return;
 
@@ -234,7 +236,7 @@ export default function AdminPropertiesPage() {
     return (
       <div className="flex items-center justify-center py-24">
         <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center">
-          <AlertCircle className="mx-auto h-10 w-10 text-red-500" />
+          <AlertCircle className="mx-auto h-10 w-10 text-red-600" />
           <h1 className="mt-4 text-xl font-semibold text-slate-900">Access denied</h1>
           <p className="mt-2 text-sm text-slate-600">
             Admin access is required to view properties.
@@ -245,7 +247,10 @@ export default function AdminPropertiesPage() {
   }
 
   const activeCount = properties.filter(
-    (p) => typeof p.is_active === 'boolean' ? p.is_active : (p.status || 'available') === 'available'
+    (p) =>
+      typeof p.is_active === 'boolean'
+        ? p.is_active
+        : (p.status || 'available') === 'available'
   ).length;
   const featuredCount = properties.filter((p) => p.is_featured).length;
 
@@ -255,9 +260,9 @@ export default function AdminPropertiesPage() {
         <title>Properties — Admin</title>
       </Head>
 
-      <div className="space-y-5">
+      <div className="space-y-6">
         {/* Header */}
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.22em] text-accent">
               Properties
@@ -310,10 +315,10 @@ export default function AdminPropertiesPage() {
 
         {/* Create / Edit form */}
         {showForm && (
-          <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+          <section className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6">
             <div className="mb-6 flex items-start justify-between gap-3">
               <div>
-                <h2 className="text-lg font-bold text-slate-900">
+                <h2 className="text-base font-bold text-slate-900">
                   {editingId ? 'Edit property' : 'New property'}
                 </h2>
                 <p className="mt-1 text-sm text-slate-600">
@@ -325,7 +330,7 @@ export default function AdminPropertiesPage() {
               <button
                 type="button"
                 onClick={closeForm}
-                className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-slate-500 transition hover:bg-slate-100 hover:text-slate-900"
+                className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-slate-500 transition hover:bg-slate-100 hover:text-slate-900"
                 aria-label="Close form"
               >
                 <X size={18} />
@@ -394,7 +399,9 @@ export default function AdminPropertiesPage() {
                 <label className={labelClass}>Description</label>
                 <textarea
                   value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, description: e.target.value })
+                  }
                   placeholder="Describe the property's key features, condition, and neighborhood…"
                   rows="4"
                   className={`${inputClass} resize-none`}
@@ -402,32 +409,36 @@ export default function AdminPropertiesPage() {
               </div>
 
               {/* Toggles */}
-              <div className="sm:col-span-2 grid gap-3 sm:grid-cols-2">
-                <label className="flex cursor-pointer items-center gap-3 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 transition hover:border-slate-300">
+              <div className="grid gap-3 sm:col-span-2 sm:grid-cols-2">
+                <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 transition hover:border-slate-300">
                   <input
                     type="checkbox"
                     checked={formData.is_featured}
-                    onChange={(e) => setFormData({ ...formData, is_featured: e.target.checked })}
-                    className="h-4 w-4 rounded border-slate-300 text-accent focus:ring-accent"
+                    onChange={(e) =>
+                      setFormData({ ...formData, is_featured: e.target.checked })
+                    }
+                    className="h-4 w-4 rounded border-slate-300 text-accent focus:ring-accent/20"
                   />
                   <span className="text-sm font-medium text-slate-800">
                     Featured property
                   </span>
                 </label>
 
-                <label className="flex cursor-pointer items-center gap-3 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 transition hover:border-slate-300">
+                <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 transition hover:border-slate-300">
                   <input
                     type="checkbox"
                     checked={formData.is_active}
-                    onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
-                    className="h-4 w-4 rounded border-slate-300 text-accent focus:ring-accent"
+                    onChange={(e) =>
+                      setFormData({ ...formData, is_active: e.target.checked })
+                    }
+                    className="h-4 w-4 rounded border-slate-300 text-accent focus:ring-accent/20"
                   />
                   <span className="text-sm font-medium text-slate-800">Active</span>
                 </label>
               </div>
 
               {/* Actions */}
-              <div className="sm:col-span-2 flex flex-col gap-3 border-t border-slate-100 pt-5 sm:flex-row sm:justify-end">
+              <div className="flex flex-col gap-3 border-t border-slate-100 pt-5 sm:col-span-2 sm:flex-row sm:justify-end">
                 <button
                   type="button"
                   onClick={closeForm}
@@ -452,9 +463,9 @@ export default function AdminPropertiesPage() {
         )}
 
         {/* Properties list */}
-        <section>
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-500">
+        <section className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-bold text-slate-900">
               All properties ({properties.length})
             </h2>
           </div>
@@ -489,9 +500,9 @@ export default function AdminPropertiesPage() {
                 return (
                   <article
                     key={property.id}
-                    className="flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:shadow-md"
+                    className="flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white transition hover:border-slate-300"
                   >
-                    <div className="flex flex-1 flex-col p-5">
+                    <div className="flex flex-1 flex-col p-5 sm:p-6">
                       {/* Header */}
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0 flex-1">
@@ -507,7 +518,7 @@ export default function AdminPropertiesPage() {
                         </div>
 
                         {isActive ? null : (
-                          <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-slate-200 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-700">
+                          <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-600">
                             <EyeOff size={10} />
                             Inactive
                           </span>
@@ -545,13 +556,13 @@ export default function AdminPropertiesPage() {
                       {/* Badges */}
                       <div className="mt-3 flex flex-wrap items-center gap-2">
                         {property.is_featured && (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-800">
+                          <span className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-700">
                             <Star size={10} className="fill-amber-600 text-amber-600" />
                             Featured
                           </span>
                         )}
                         {isActive && (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-emerald-800">
+                          <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-emerald-700">
                             Active
                           </span>
                         )}
@@ -559,11 +570,11 @@ export default function AdminPropertiesPage() {
                     </div>
 
                     {/* Actions */}
-                    <div className="flex flex-wrap items-center gap-2 border-t border-slate-100 bg-slate-50/60 px-5 py-3">
+                    <div className="flex flex-wrap items-center gap-2 border-t border-slate-100 px-5 py-3 sm:px-6">
                       <button
                         type="button"
                         onClick={() => handleEdit(property)}
-                        className="inline-flex items-center gap-1.5 rounded-full bg-white px-3.5 py-2 text-xs font-semibold text-blue-700 shadow-sm transition hover:bg-blue-50"
+                        className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
                       >
                         <Pencil size={13} />
                         Edit
@@ -571,7 +582,7 @@ export default function AdminPropertiesPage() {
                       <button
                         type="button"
                         onClick={() => handleDelete(property.id)}
-                        className="ml-auto inline-flex items-center gap-1.5 rounded-full bg-white px-3.5 py-2 text-xs font-semibold text-red-700 shadow-sm transition hover:bg-red-50"
+                        className="ml-auto inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-red-700 transition hover:border-red-200 hover:bg-red-50"
                       >
                         <Trash2 size={13} />
                         Delete
@@ -588,19 +599,25 @@ export default function AdminPropertiesPage() {
   );
 }
 
+/* -------------------- styles -------------------- */
+
+const STAT_TONES = {
+  slate: { text: 'text-slate-700' },
+  emerald: { text: 'text-emerald-700' },
+  amber: { text: 'text-amber-700' },
+};
+
+/* -------------------- sub-components -------------------- */
+
 function StatCard({ label, value, tone = 'slate' }) {
-  const classes = {
-    slate: { bg: 'bg-slate-100', text: 'text-slate-800' },
-    emerald: { bg: 'bg-emerald-100', text: 'text-emerald-800' },
-    amber: { bg: 'bg-amber-100', text: 'text-amber-800' },
-  }[tone];
+  const style = STAT_TONES[tone] || STAT_TONES.slate;
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-4">
+    <div className="rounded-2xl border border-slate-200 bg-white p-5">
       <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
         {label}
       </p>
-      <p className={`mt-2 text-2xl font-bold ${classes.text}`}>{value}</p>
+      <p className={`mt-2 text-2xl font-bold ${style.text}`}>{value}</p>
     </div>
   );
 }

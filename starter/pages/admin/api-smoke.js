@@ -32,19 +32,44 @@ import {
 const ENDPOINTS = [
   { key: 'verify-admin', label: 'Verify Admin', method: 'GET', url: '/api/admin/verify-admin', expected: [200] },
   { key: 'admin-requests', label: 'Admin Requests', method: 'GET', url: '/api/admin/requests', expected: [200], sensitiveFields: ['client_email', 'client_phone'] },
-  { key: 'admin-requests-mgmt', label: 'Admin Requests Management', method: 'GET', url: '/api/admin/requests-management', expected: [200], sensitiveFields: ['client_email', 'client_phone'] },
-  { key: 'admin-agents-list', label: 'Admin Agents List', method: 'GET', url: '/api/admin/agents/list?status=all', expected: [200], sensitiveFields: ['email', 'phone'] },
-  { key: 'admin-users', label: 'Admin Users', method: 'GET', url: '/api/admin/users', expected: [200], sensitiveFields: ['email', 'phone', 'clerk_user_id'] },
-  { key: 'admin-dashboard', label: 'Admin Dashboard Data', method: 'GET', url: '/api/admin/dashboard-data?tab=emails', expected: [200], sensitiveFields: ['client_email', 'email'] },
-  { key: 'admin-alloc', label: 'Admin Allocation Stats', method: 'GET', url: '/api/admin/allocation-stats', expected: [200] },
-  { key: 'admin-visitor-emails', label: 'Admin Visitor Emails', method: 'GET', url: '/api/admin/visitor-emails', expected: [200], sensitiveFields: ['client_email', 'email'] },
-  { key: 'admin-properties', label: 'Admin Properties', method: 'GET', url: '/api/admin/properties', expected: [200] },
-  { key: 'admin-htv-orders', label: 'Admin HTV Orders', method: 'GET', url: '/api/admin/htv-orders', expected: [200] },
-  { key: 'agent-apps', label: 'Agent Applications', method: 'GET', url: '/api/admin/agent-applications', expected: [200], sensitiveFields: ['email', 'phone'] },
   { key: 'admin-requests-post', label: 'Admin Requests POST', method: 'POST', url: '/api/admin/requests', body: { action: 'invalid' }, expected: [400], idParam: 'requestId' },
+  { key: 'admin-requests-mgmt', label: 'Admin Requests Management', method: 'GET', url: '/api/admin/requests-management', expected: [200], sensitiveFields: ['client_email', 'client_phone'] },
   { key: 'admin-requests-mgmt-post', label: 'Admin Requests Mgmt POST', method: 'POST', url: '/api/admin/requests-management', body: { action: 'invalid', ids: [] }, expected: [400], idParam: 'ids' },
-  { key: 'admin-update-status', label: 'Agent Update Status', method: 'POST', url: '/api/admin/agents/update-status', body: { status: 'approved' }, expected: [400], idParam: 'agentId' },
-  
+  { key: 'admin-agents-list', label: 'Admin Agents List', method: 'GET', url: '/api/admin/agents/list?status=all', expected: [200], sensitiveFields: ['email', 'phone'] },
+  { key: 'admin-agent-update-status', label: 'Agent Update Status', method: 'POST', url: '/api/admin/agents/update-status', body: { status: 'approved' }, expected: [400], idParam: 'agentId' },
+  { key: 'admin-agent-payment-plan', label: 'Agent Payment Plan', method: 'POST', url: '/api/admin/agents/payment-plan', body: {}, expected: [400] },
+  { key: 'admin-agent-document', label: 'Agent Verification Document', method: 'GET', url: '/api/admin/agents/get-document', expected: [400] },
+  { key: 'admin-agent-notifications', label: 'Agent Notifications', method: 'GET', url: '/api/admin/agents/notifications', expected: [200] },
+  { key: 'admin-agent-plan-prices', label: 'Agent Plan Prices', method: 'GET', url: '/api/admin/agents/plan-prices', expected: [200] },
+  { key: 'admin-agent-plan-prices-patch', label: 'Agent Plan Prices PATCH', method: 'PATCH', url: '/api/admin/agents/plan-prices', body: {}, expected: [400] },
+  { key: 'admin-agent-payment-receipt', label: 'Agent Payment Receipt', method: 'PATCH', url: '/api/admin/agents/payment-receipt', body: {}, expected: [400] },
+  { key: 'admin-users', label: 'Admin Users', method: 'GET', url: '/api/admin/users', expected: [200], sensitiveFields: ['email', 'phone', 'clerk_user_id'] },
+  { key: 'admin-users-patch', label: 'Admin Users PATCH', method: 'PATCH', url: '/api/admin/users', body: {}, expected: [400] },
+  { key: 'admin-users-delete', label: 'Admin Users DELETE', method: 'DELETE', url: '/api/admin/users', body: {}, expected: [400] },
+  { key: 'admin-dashboard', label: 'Admin Dashboard Data', method: 'GET', url: '/api/admin/dashboard-data?tab=emails', expected: [200], sensitiveFields: ['client_email', 'email'] },
+  { key: 'admin-analytics', label: 'Admin Analytics', method: 'GET', url: '/api/admin/analytics', expected: [200] },
+  { key: 'admin-market-intelligence', label: 'Market Intelligence', method: 'GET', url: '/api/admin/market-intelligence', expected: [200] },
+  { key: 'admin-properties', label: 'Admin Properties', method: 'GET', url: '/api/admin/properties', expected: [200] },
+  { key: 'admin-properties-patch', label: 'Admin Properties PATCH', method: 'PATCH', url: '/api/admin/properties', body: {}, expected: [400] },
+  { key: 'admin-properties-delete', label: 'Admin Properties DELETE', method: 'DELETE', url: '/api/admin/properties', body: {}, expected: [400] },
+  { key: 'admin-htv-orders', label: 'Admin HTV Orders', method: 'GET', url: '/api/admin/htv-orders', expected: [200] },
+  { key: 'admin-htv-orders-post', label: 'HTV Order Submission Validation', method: 'POST', url: '/api/admin/htv-orders', body: {}, expected: [400], public: true },
+  { key: 'admin-htv-orders-put', label: 'Admin HTV Orders PUT', method: 'PUT', url: '/api/admin/htv-orders', body: {}, expected: [400] },
+  { key: 'admin-htv-orders-delete', label: 'Admin HTV Orders DELETE', method: 'DELETE', url: '/api/admin/htv-orders', expected: [400] },
+  { key: 'agent-apps', label: 'Agent Applications', method: 'GET', url: '/api/admin/agent-applications', expected: [200], sensitiveFields: ['email', 'phone'] },
+  { key: 'agent-apps-patch', label: 'Agent Applications PATCH', method: 'PATCH', url: '/api/admin/agent-applications', body: {}, expected: [400] },
+  { key: 'admin-htv-expenses', label: 'Admin HTV Expenses', method: 'GET', url: '/api/admin/htv-expenses', expected: [200] },
+  { key: 'admin-htv-expenses-post', label: 'Admin HTV Expenses POST', method: 'POST', url: '/api/admin/htv-expenses', body: {}, expected: [400] },
+  { key: 'admin-htv-expenses-delete', label: 'Admin HTV Expenses DELETE', method: 'DELETE', url: '/api/admin/htv-expenses', expected: [400] },
+  { key: 'admin-advertisements', label: 'Admin Advertisements', method: 'GET', url: '/api/admin/advertisements', expected: [200] },
+  { key: 'admin-advertisements-patch', label: 'Admin Advertisements PATCH', method: 'PATCH', url: '/api/admin/advertisements', body: {}, expected: [400] },
+  { key: 'admin-upload-logo', label: 'Admin Logo Upload Validation', method: 'POST', url: '/api/admin/upload-logo', body: {}, expected: [400] },
+  { key: 'admin-hill-lot-investors', label: 'Admin Hill Lot Investors', method: 'GET', url: '/api/admin/hill-lot-investors', expected: [200] },
+  { key: 'admin-hill-lot-investors-post', label: 'Hill Lot Investor POST', method: 'POST', url: '/api/admin/hill-lot-investors', body: {}, expected: [400] },
+  { key: 'admin-hill-lot-investors-patch', label: 'Hill Lot Investor PATCH', method: 'PATCH', url: '/api/admin/hill-lot-investors', body: {}, expected: [400] },
+  { key: 'admin-hill-lot-investors-put', label: 'Hill Lot Investor PUT', method: 'PUT', url: '/api/admin/hill-lot-investors', body: {}, expected: [400] },
+  { key: 'admin-hill-lot-investors-delete', label: 'Hill Lot Investor DELETE', method: 'DELETE', url: '/api/admin/hill-lot-investors', body: {}, expected: [400] },
+  { key: 'admin-htv-invoice', label: 'Admin HTV Invoice Validation', method: 'GET', url: '/api/admin/htv-invoice', expected: [400] },
 ];
 
 /* ============================================================
@@ -385,10 +410,10 @@ export default function AdminApiSmokePage() {
     try {
       /* ----------------------------------------------------------
        * 1. UNAUTHENTICATED ACCESS
-       * Every admin route must return 401 or 403 when called
-       * without an Authorization header.
+       * Protected admin routes must reject requests without an
+       * Authorization header. Public routes are excluded.
        * ---------------------------------------------------------- */
-      for (const endpoint of ENDPOINTS) {
+      for (const endpoint of ENDPOINTS.filter((item) => !item.public)) {
         probed += 1;
         const unauth = await instrumentedFetch({
           method: endpoint.method,

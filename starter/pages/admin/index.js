@@ -27,11 +27,6 @@ import {
 
 const formatNumber = (value) => Number(value || 0).toLocaleString();
 
-/**
- * Pricing for sponsor submission plans (JMD).
- * Matches the current Advertise page plans; falls back to the legacy
- * featured/standard rates if plan_id isn't present.
- */
 const AD_PRICING = {
   '7-day': 11999,
   '14-day': 17999,
@@ -50,10 +45,6 @@ const getSubmissionRevenue = (sub) => {
   return sub.is_featured ? LEGACY_FEATURED_PRICE : LEGACY_STANDARD_PRICE;
 };
 
-/**
- * Fetch JSON safely — never throws. Returns null on any failure
- * so one broken endpoint can't take down the whole dashboard.
- */
 const safeFetch = async (url, options = {}) => {
   try {
     const response = await fetch(url, { credentials: 'include', ...options });
@@ -124,8 +115,6 @@ export default function AdminDashboardIndex() {
       safeFetch('/api/admin/htv-orders'),
     ]);
 
-    // Advertisements + sponsor submissions live in Supabase.
-    // We fetch only aggregate data: counts and the fields needed to compute revenue.
     let adsActive = 0;
     let adsPending = 0;
     let approvedSubmissions = [];
@@ -142,7 +131,6 @@ export default function AdminDashboardIndex() {
         .in('status', ['pending', 'pending_payment']);
       adsPending = pendingCount || 0;
 
-      // Fetch only the fields we need for revenue computation.
       const { data: approvedData } = await supabase
         .from('sponsor_submissions')
         .select('is_featured, plan_id, amount')
@@ -205,7 +193,6 @@ export default function AdminDashboardIndex() {
 
     const activeProperties = properties.filter((p) => p.is_active !== false).length;
 
-    // HTV: revenue / expenses / profit from completed orders only.
     let htvRevenue = 0;
     let htvExpenses = 0;
     let htvProfit = 0;
@@ -293,7 +280,7 @@ export default function AdminDashboardIndex() {
     return (
       <div className="flex items-center justify-center py-24">
         <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center">
-          <XCircle className="mx-auto h-12 w-12 text-red-500" />
+          <XCircle className="mx-auto h-12 w-12 text-red-600" />
           <h1 className="mt-4 text-xl font-semibold text-slate-900">
             Access denied
           </h1>
@@ -339,7 +326,7 @@ export default function AdminDashboardIndex() {
               type="button"
               onClick={loadAll}
               disabled={loading}
-              className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 disabled:opacity-60"
+              className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 disabled:opacity-60"
             >
               <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
               Refresh
@@ -348,7 +335,6 @@ export default function AdminDashboardIndex() {
         </div>
 
         <AdminAnalyticsPanel />
-
 
         {/* Primary KPIs */}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -415,7 +401,7 @@ export default function AdminDashboardIndex() {
         </div>
 
         {/* Total platform revenue */}
-        <div className="rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-white p-5 sm:p-6">
+        <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-5 sm:p-6">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.22em] text-emerald-700">
@@ -429,7 +415,7 @@ export default function AdminDashboardIndex() {
               </p>
             </div>
             <div className="flex flex-wrap gap-3">
-              <div className="rounded-xl bg-white px-4 py-3 shadow-sm">
+              <div className="rounded-xl border border-emerald-200 bg-white px-4 py-3">
                 <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">
                   Agent plans
                 </p>
@@ -437,7 +423,7 @@ export default function AdminDashboardIndex() {
                   {formatJMD(metrics.agents.revenue)}
                 </p>
               </div>
-              <div className="rounded-xl bg-white px-4 py-3 shadow-sm">
+              <div className="rounded-xl border border-emerald-200 bg-white px-4 py-3">
                 <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">
                   Ad plans
                 </p>
@@ -505,28 +491,7 @@ export default function AdminDashboardIndex() {
           />
         </div>
 
-        {/* Request breakdown */}
-        <div className="rounded-2xl border border-slate-200 bg-white p-6">
-          <div className="flex items-center justify-between">
-            <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-500">
-              Request status breakdown
-            </h2>
-            <Link
-              href="/admin/requests"
-              className="inline-flex items-center gap-1 text-xs font-semibold text-accent hover:text-accent/80"
-            >
-              View all <ArrowRight size={12} />
-            </Link>
-          </div>
-          <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <StatusPill label="Total" value={metrics.requests.total} tone="slate" />
-            <StatusPill label="Open" value={metrics.requests.open} tone="amber" />
-            <StatusPill label="Assigned" value={metrics.requests.assigned} tone="blue" />
-            <StatusPill label="Completed" value={metrics.requests.completed} tone="emerald" />
-          </div>
-        </div>
-
-   
+       
       </div>
     </>
   );
@@ -541,7 +506,7 @@ const TONE_STYLES = {
   violet: { bg: 'bg-violet-50', text: 'text-violet-600' },
   amber: { bg: 'bg-amber-50', text: 'text-amber-600' },
   red: { bg: 'bg-red-50', text: 'text-red-600' },
-  slate: { bg: 'bg-slate-100', text: 'text-slate-700' },
+  slate: { bg: 'bg-slate-100', text: 'text-slate-600' },
 };
 
 /* -------------------- sub-components -------------------- */
@@ -549,7 +514,7 @@ const TONE_STYLES = {
 function KpiCard({ label, value, icon: Icon, tone = 'accent', sub, href }) {
   const style = TONE_STYLES[tone] || TONE_STYLES.accent;
   const card = (
-    <div className="group flex h-full min-h-32 flex-col rounded-xl bg-white p-4 transition-colors hover:bg-gray-50">
+    <div className="group flex h-full flex-col rounded-2xl border border-slate-200 bg-white p-5 transition hover:border-slate-300">
       <div className="flex items-center justify-between gap-2">
         <div className="flex min-w-0 items-center gap-2.5">
           <span
@@ -562,7 +527,7 @@ function KpiCard({ label, value, icon: Icon, tone = 'accent', sub, href }) {
           </p>
         </div>
         {href ? (
-          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-slate-400 transition group-hover:bg-white group-hover:text-accent">
+          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-slate-400 transition group-hover:bg-slate-50 group-hover:text-accent">
             <ArrowRight size={14} />
           </span>
         ) : null}
