@@ -184,6 +184,7 @@ export default function AdminLayout({ children }) {
   /* -------------------- Nav items -------------------- */
   const navItems = [
     { href: '/admin', label: 'Dashboard', icon: FiHome },
+    { href: '/admin/dashboard', label: 'Submitted Visitors', icon: FiMail },
     {
       href: '/admin/requests',
       label: 'Requests',
@@ -211,20 +212,15 @@ export default function AdminLayout({ children }) {
       icon: FiTrendingUp,
     },
     { href: '/admin/users', label: 'Users', icon: FiUsers },
-    {
-      href: '/admin/users?tab=agents',
-      label: 'Agents',
-      icon: FiUsers,
-      badge: counts.agents,
-    },
+   
     { href: '/admin/properties', label: 'Properties', icon: FiUsers },
     { href: '/admin/api-smoke', label: 'API Smoke', icon: FiGrid },
   ];
 
   /* -------------------- External nav (leave admin) -------------------- */
   const externalNavItems = [
-    { href: '/', label: 'Home page', icon: FiExternalLink },
-    { href: '/dashboard', label: 'Agent Dashboard', icon: FiUser },
+    { href: '/', label: 'Home', icon: FiExternalLink },
+    { href: '/dashboard', label: 'Dashboard', icon: FiUser },
   ];
 
   const isActive = (href) => {

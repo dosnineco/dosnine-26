@@ -8,6 +8,15 @@ import { CheckCircle, AlertCircle, Upload, MapPin, Award } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { PARISHES } from '@/lib/normalizeParish';
 
+/* ----------------------------------------------------------
+ * Dosnine UI tokens
+ * ---------------------------------------------------------- */
+const inputClass =
+  'w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-accent focus:ring-2 focus:ring-accent/10 disabled:bg-slate-50 disabled:text-slate-500';
+
+const labelClass =
+  'block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1.5';
+
 const SPECIALIZATIONS = [
   'Residential',
   'Commercial',
@@ -23,11 +32,10 @@ export default function AgentSignup() {
   const { user } = useUser();
   const { getToken } = useAuth();
   const router = useRouter();
-  const [step, setStep] = useState(1); // 1: Info, 2: Verification, 3: Confirmation
+  const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [agentData, setAgentData] = useState(null);
 
-  // Redirect verified agents with valid plans to dashboard
   useEffect(() => {
     const checkAgentStatus = async () => {
       if (!user?.id) return;
@@ -67,7 +75,11 @@ export default function AgentSignup() {
         if (!data) return;
 
         const profileFullName = data.full_name || data.fullName || user.fullName || '';
-        const profileEmail = data.email || user?.primaryEmailAddress?.emailAddress || user?.emailAddresses?.[0]?.emailAddress || '';
+        const profileEmail =
+          data.email ||
+          user?.primaryEmailAddress?.emailAddress ||
+          user?.emailAddresses?.[0]?.emailAddress ||
+          '';
         const profilePhone = data.phone || '';
 
         setFormData((prev) => ({
@@ -86,13 +98,16 @@ export default function AgentSignup() {
 
   const [formData, setFormData] = useState({
     fullName: user?.fullName || '',
-    email: user?.primaryEmailAddress?.emailAddress || user?.emailAddresses?.[0]?.emailAddress || '',
+    email:
+      user?.primaryEmailAddress?.emailAddress ||
+      user?.emailAddresses?.[0]?.emailAddress ||
+      '',
     phone: '',
     businessName: '',
     yearsExperience: '',
     specializations: [],
     licenseNumber: '',
-    serviceAreas: [], // array of parishes
+    serviceAreas: [],
     aboutMe: '',
     profileImageUrl: '',
     dealsClosedCount: 0,
@@ -106,41 +121,39 @@ export default function AgentSignup() {
   });
 
   const handleSpecializationToggle = (spec) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
       specializations: prev.specializations.includes(spec)
-        ? prev.specializations.filter(s => s !== spec)
-        : [...prev.specializations, spec]
+        ? prev.specializations.filter((s) => s !== spec)
+        : [...prev.specializations, spec],
     }));
   };
 
   const handleServiceAreaToggle = (parish) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
       serviceAreas: prev.serviceAreas.includes(parish)
-        ? prev.serviceAreas.filter(p => p !== parish)
-        : [...prev.serviceAreas, parish]
+        ? prev.serviceAreas.filter((p) => p !== parish)
+        : [...prev.serviceAreas, parish],
     }));
   };
 
   const handleFileChange = (e, fileType) => {
     const file = e.target.files[0];
     if (!file) return;
-    
-    // Check file type - only images allowed
+
     const validTypes = ['image/jpeg', 'image/jpg', 'image/png'];
     if (!validTypes.includes(file.type)) {
       toast.error('Only JPG and PNG images are allowed');
       return;
     }
-    
-    // Check file size - 5MB limit
+
     if (file.size > 5 * 1024 * 1024) {
       toast.error('File size must be less than 5MB');
       return;
     }
-    
-    setVerification(prev => ({
+
+    setVerification((prev) => ({
       ...prev,
       [fileType]: file,
     }));
@@ -148,9 +161,14 @@ export default function AgentSignup() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     if (step === 1) {
-      if (!formData.fullName || !formData.phone || !formData.businessName || !formData.yearsExperience) {
+      if (
+        !formData.fullName ||
+        !formData.phone ||
+        !formData.businessName ||
+        !formData.yearsExperience
+      ) {
         toast.error('Please fill all required fields');
         return;
       }
@@ -183,11 +201,9 @@ export default function AgentSignup() {
       return;
     }
 
-    // Step 3: Submit application
     if (step === 3) {
       setLoading(true);
 
-      // Upload files directly to Supabase (simpler approach)
       let licenseUrl = null;
       let registrationUrl = null;
 
@@ -198,79 +214,85 @@ export default function AgentSignup() {
 
         console.log('Uploading documents for user:', user.id);
 
-        // Upload license directly
         const licenseExt = verification.agentLicenseFile.name.split('.').pop();
         const licenseName = `${user.id}_license_${Date.now()}.${licenseExt}`;
-        
+
         const { error: licenseError } = await supabase.storage
           .from('agent-documents')
           .upload(licenseName, verification.agentLicenseFile, {
             cacheControl: '3600',
-            upsert: true
+            upsert: true,
           });
 
         if (licenseError) {
           console.error('License upload error:', licenseError);
           throw new Error(`License upload failed: ${licenseError.message}`);
         }
-        
+
         licenseUrl = licenseName;
         console.log('License uploaded:', licenseName);
 
-        // Upload registration directly
         const regExt = verification.businessRegistrationFile.name.split('.').pop();
         const regName = `${user.id}_registration_${Date.now()}.${regExt}`;
-        
+
         const { error: regError } = await supabase.storage
           .from('agent-documents')
           .upload(regName, verification.businessRegistrationFile, {
             cacheControl: '3600',
-            upsert: true
+            upsert: true,
           });
 
         if (regError) {
           console.error('Registration upload error:', regError);
           throw new Error(`Registration upload failed: ${regError.message}`);
         }
-        
+
         registrationUrl = regName;
         console.log('Registration uploaded:', regName);
-
       } catch (uploadError) {
         console.error('Upload error:', uploadError);
-        console.error('Upload error details:', uploadError.response?.data || uploadError.message);
-        const errorMsg = uploadError.response?.data?.error || uploadError.message || 'Unknown error';
+        console.error(
+          'Upload error details:',
+          uploadError.response?.data || uploadError.message
+        );
+        const errorMsg =
+          uploadError.response?.data?.error || uploadError.message || 'Unknown error';
         toast.error(`Failed to upload documents: ${errorMsg}`);
         setLoading(false);
         return;
       }
 
-      // Now submit data to API
       try {
         const token = await getToken();
-        const response = await axios.post('/api/agents/signup', {
-          userId: user?.id,
-          clerkId: user?.id,
-          fullName: formData.fullName,
-          email: formData.email,
-          phone: formData.phone,
-          businessName: formData.businessName,
-          yearsExperience: parseInt(formData.yearsExperience),
-          specializations: formData.specializations,
-          licenseNumber: formData.licenseNumber,
-          serviceAreas: formData.serviceAreas,
-          aboutMe: formData.aboutMe,
-          dealsClosedCount: parseInt(formData.dealsClosedCount) || 0,
-          dataConsent: verification.dataConsent,
-          licenseFileUrl: licenseUrl,
-          registrationFileUrl: registrationUrl,
-        }, {
-          withCredentials: true,
-          headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-        });
+        const response = await axios.post(
+          '/api/agents/signup',
+          {
+            userId: user?.id,
+            clerkId: user?.id,
+            fullName: formData.fullName,
+            email: formData.email,
+            phone: formData.phone,
+            businessName: formData.businessName,
+            yearsExperience: parseInt(formData.yearsExperience),
+            specializations: formData.specializations,
+            licenseNumber: formData.licenseNumber,
+            serviceAreas: formData.serviceAreas,
+            aboutMe: formData.aboutMe,
+            dealsClosedCount: parseInt(formData.dealsClosedCount) || 0,
+            dataConsent: verification.dataConsent,
+            licenseFileUrl: licenseUrl,
+            registrationFileUrl: registrationUrl,
+          },
+          {
+            withCredentials: true,
+            headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+          }
+        );
 
         if (response.data.success) {
-          toast.success('Agent signup successful! Our team will review your application.');
+          toast.success(
+            'Agent signup successful! Our team will review your application.'
+          );
           router.replace('/dashboard');
         } else {
           toast.error(response.data.error || 'Failed to complete signup');
@@ -281,91 +303,148 @@ export default function AgentSignup() {
         setLoading(false);
       }
     }
-  }
+  };
 
+  /* ----------------------------------------------------------
+   * Pending review state
+   * ---------------------------------------------------------- */
   if (agentData?.verification_status === 'pending') {
     return (
-      <div className="min-h-screen bg-gray-50 p-4 flex items-center">
-        <div className="max-w-md mx-auto bg-white rounded-lg shadow-lg p-8 text-center">
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">Verification Pending</h1>
-          <p className="text-gray-600 mb-6">
-            Your agent application is submitted and currently under review. We will notify you within 24-48 hours.
+      <div className="flex min-h-screen items-center justify-center bg-slate-50 px-5 py-10 sm:px-6">
+        <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 text-center sm:p-8">
+          <span className="mx-auto flex h-11 w-11 items-center justify-center rounded-full bg-amber-50 text-amber-600">
+            <AlertCircle size={20} />
+          </span>
+
+          <p className="mt-4 text-xs font-semibold uppercase tracking-[0.22em] text-accent">
+            Agent Application
           </p>
-          <div className="bg-accent/10 border border-accent/20 p-4 rounded-lg mb-6">
-            <p className="text-sm text-gray-900 font-semibold">
-              What happens next:
+          <h1 className="mt-2 text-2xl font-bold tracking-tight text-slate-900">
+            Verification pending
+          </h1>
+          <p className="mt-2 text-sm text-slate-600">
+            Your agent application is submitted and currently under review. We
+            will notify you within 24–48 hours.
+          </p>
+
+          <div className="mt-5 rounded-xl border border-accent/30 bg-accent/10 p-4 text-left">
+            <p className="text-xs font-semibold uppercase tracking-wider text-accent">
+              What happens next
             </p>
-            <ul className="text-sm text-gray-700 space-y-2 mt-3 text-left">
-              <li>✓ Document verification</li>
-              <li>✓ License confirmation</li>
-              <li>✓ Approval notification</li>
-              <li>✓ Payment activation</li>
-              <li>✓ Agent dashboard access</li>
+            <ul className="mt-3 space-y-2 text-sm text-slate-700">
+              {[
+                'Document verification',
+                'License confirmation',
+                'Approval notification',
+                'Payment activation',
+                'Agent dashboard access',
+              ].map((item) => (
+                <li key={item} className="flex items-start gap-2">
+                  <CheckCircle
+                    size={14}
+                    className="mt-0.5 shrink-0 text-accent"
+                  />
+                  <span>{item}</span>
+                </li>
+              ))}
             </ul>
           </div>
+
           <Link
             href="/dashboard"
-            className="inline-block w-full btn-accent px-4 py-2 rounded-lg font-semibold transition text-center"
+            className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-full bg-accent px-5 py-3 text-sm font-semibold text-white transition hover:bg-accent/90"
           >
-            Go to Dashboard
+            Go to dashboard
           </Link>
-
         </div>
       </div>
     );
   }
 
+  /* ----------------------------------------------------------
+   * Main form
+   * ---------------------------------------------------------- */
   return (
-    <div className="min-h-screen bg-gray-50 p-4">
-      <div className="max-w-2xl mx-auto">
-        {/* Progress Indicator */}
-        <div className="mb-8">
-          <div className="flex justify-between items-center">
-            {[1, 2, 3].map(s => (
-              <div key={s} className="flex items-center flex-1">
+    <div className="min-h-screen bg-slate-50 px-5 py-8 sm:px-6 sm:py-10">
+      <div className="mx-auto max-w-2xl space-y-6">
+        {/* Header */}
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-accent">
+            Agent Registration
+          </p>
+          <h1 className="mt-2 text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
+            Become a Dosnine agent
+          </h1>
+          <p className="mt-1 text-sm text-slate-600">
+            Three short steps — your details, your documents, and a final review.
+          </p>
+        </div>
+
+        {/* Progress indicator */}
+        <div className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5">
+          <div className="flex items-center">
+            {[1, 2, 3].map((s) => (
+              <div key={s} className="flex flex-1 items-center">
                 <div
-                  className={`w-10 h-10 rounded-full flex items-center justify-center font-semibold transition ${
+                  className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-bold transition ${
                     s <= step
                       ? 'bg-accent text-white'
-                      : 'bg-gray-300 text-gray-600'
+                      : 'bg-slate-100 text-slate-500'
                   }`}
                 >
                   {s}
                 </div>
                 {s < 3 && (
                   <div
-                    className={`flex-1 h-1 mx-2 transition ${
-                      s < step ? 'bg-accent' : 'bg-gray-300'
+                    className={`mx-2 h-0.5 flex-1 rounded-full transition ${
+                      s < step ? 'bg-accent' : 'bg-slate-100'
                     }`}
                   />
                 )}
               </div>
             ))}
           </div>
-          <div className="flex justify-between text-xs text-gray-600 mt-2">
-            <span>Basic Info</span>
-            <span>Verification</span>
-            <span>Review</span>
+          <div className="mt-3 flex justify-between text-[11px] font-semibold uppercase tracking-wider">
+            <span className={step >= 1 ? 'text-accent' : 'text-slate-400'}>
+              Basic Info
+            </span>
+            <span className={step >= 2 ? 'text-accent' : 'text-slate-400'}>
+              Verification
+            </span>
+            <span className={step >= 3 ? 'text-accent' : 'text-slate-400'}>
+              Review
+            </span>
           </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow-lg p-8 mb-6">
-          {/* Step 1: Basic Information */}
+        <form
+          onSubmit={handleSubmit}
+          className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6"
+        >
+          {/* ============================================================
+              Step 1: Basic information
+             ============================================================ */}
           {step === 1 && (
-            <div className="space-y-6">
-              <h2 className="text-2xl font-bold text-gray-900">Agent Registration</h2>
-              <p className="text-gray-600">Let&apos;s start with your basic information</p>
-
-              {/* Full Name */}
+            <div className="space-y-5">
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Full Name *
-                </label>
+                <h2 className="text-base font-bold text-slate-900">
+                  Your details
+                </h2>
+                <p className="mt-1 text-sm text-slate-600">
+                  Let&apos;s start with your basic information.
+                </p>
+              </div>
+
+              {/* Full name */}
+              <div>
+                <label className={labelClass}>Full name *</label>
                 <input
                   type="text"
                   value={formData.fullName}
-                  onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-accent outline-none"
+                  onChange={(e) =>
+                    setFormData({ ...formData, fullName: e.target.value })
+                  }
+                  className={inputClass}
                   placeholder="Your full name"
                   required
                 />
@@ -373,156 +452,176 @@ export default function AgentSignup() {
 
               {/* Email */}
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Email Address
-                </label>
+                <label className={labelClass}>Email address</label>
                 <input
                   type="email"
                   value={formData.email}
                   disabled
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-600"
+                  className={inputClass}
                 />
-                <p className="text-xs text-gray-500 mt-1">Linked to your account</p>
+                <p className="mt-1 text-xs text-slate-500">
+                  Linked to your account
+                </p>
               </div>
 
               {/* Phone */}
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Phone Number *
-                </label>
+                <label className={labelClass}>Phone number *</label>
                 <input
                   type="tel"
                   value={formData.phone}
-                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-accent outline-none"
+                  onChange={(e) =>
+                    setFormData({ ...formData, phone: e.target.value })
+                  }
+                  className={inputClass}
                   placeholder="+1 (555) 123-4567"
                   required
                 />
               </div>
 
-              {/* Business Name */}
+              {/* Business name */}
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Business Name *
-                </label>
+                <label className={labelClass}>Business name *</label>
                 <input
                   type="text"
                   value={formData.businessName}
-                  onChange={(e) => setFormData({ ...formData, businessName: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-accent outline-none"
+                  onChange={(e) =>
+                    setFormData({ ...formData, businessName: e.target.value })
+                  }
+                  className={inputClass}
                   placeholder="Your business name"
                   required
                 />
               </div>
 
-              {/* Years of Experience */}
+              {/* Years of experience */}
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Years of Experience *
-                </label>
+                <label className={labelClass}>Years of experience *</label>
                 <select
                   value={formData.yearsExperience}
-                  onChange={(e) => setFormData({ ...formData, yearsExperience: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-accent outline-none"
+                  onChange={(e) =>
+                    setFormData({ ...formData, yearsExperience: e.target.value })
+                  }
+                  className={inputClass}
                   required
                 >
                   <option value="">Select years</option>
-                  <option value="1">0-1 years</option>
-                  <option value="2">1-2 years</option>
-                  <option value="5">2-5 years</option>
-                  <option value="10">5-10 years</option>
+                  <option value="1">0–1 years</option>
+                  <option value="2">1–2 years</option>
+                  <option value="5">2–5 years</option>
+                  <option value="10">5–10 years</option>
                   <option value="15">10+ years</option>
                 </select>
               </div>
 
               {/* Specializations */}
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Specializations * (Select at least one)
+                <label className={labelClass}>
+                  Specializations * · select at least one
                 </label>
-                <div className="grid grid-cols-2 gap-2">
-                  {SPECIALIZATIONS.map(spec => (
-                    <button
-                      key={spec}
-                      type="button"
-                      onClick={() => handleSpecializationToggle(spec)}
-                      className={`px-3 py-2 rounded-lg text-sm font-medium transition ${
-                        formData.specializations.includes(spec)
-                          ? 'bg-accent text-white'
-                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                      }`}
-                    >
-                      {spec}
-                    </button>
-                  ))}
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                  {SPECIALIZATIONS.map((spec) => {
+                    const selected = formData.specializations.includes(spec);
+                    return (
+                      <button
+                        key={spec}
+                        type="button"
+                        onClick={() => handleSpecializationToggle(spec)}
+                        className={`rounded-full border px-3 py-2 text-xs font-semibold transition ${
+                          selected
+                            ? 'border-accent bg-accent text-white'
+                            : 'border-slate-200 bg-white text-slate-600 hover:border-accent hover:text-accent'
+                        }`}
+                      >
+                        {spec}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
-              {/* License Number */}
+              {/* License number */}
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Real Estate License Number
+                <label className={labelClass}>
+                  Real estate license number
                 </label>
                 <input
                   type="text"
                   value={formData.licenseNumber}
-                  onChange={(e) => setFormData({ ...formData, licenseNumber: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-accent outline-none"
+                  onChange={(e) =>
+                    setFormData({ ...formData, licenseNumber: e.target.value })
+                  }
+                  className={inputClass}
                   placeholder="Your license number"
                 />
-                <p className="text-xs text-gray-500 mt-1">
-                  Verify at <a href="https://reb.gov.jm/search-public-register/dealer" target="_blank" rel="noopener noreferrer" className="text-accent hover:underline">Jamaica Real Estate Board</a>
+                <p className="mt-1 text-xs text-slate-500">
+                  Verify at{' '}
+                  <a
+                    href="https://reb.gov.jm/search-public-register/dealer"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="font-semibold text-accent hover:text-accent/80"
+                  >
+                    Jamaica Real Estate Board
+                  </a>
                 </p>
               </div>
 
-              {/* Service Areas */}
+              {/* Service areas */}
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Service Areas (Parishes/Regions) * (Select at least one)
+                <label className={labelClass}>
+                  Service areas * · select at least one
                 </label>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                  {PARISHES.map(parish => (
-                    <button
-                      key={parish}
-                      type="button"
-                      onClick={() => handleServiceAreaToggle(parish)}
-                      className={`px-3 py-2 rounded-lg text-sm font-medium transition ${
-                        formData.serviceAreas.includes(parish)
-                          ? 'bg-accent text-white'
-                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                      }`}
-                    >
-                      {parish}
-                    </button>
-                  ))}
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                  {PARISHES.map((parish) => {
+                    const selected = formData.serviceAreas.includes(parish);
+                    return (
+                      <button
+                        key={parish}
+                        type="button"
+                        onClick={() => handleServiceAreaToggle(parish)}
+                        className={`rounded-full border px-3 py-2 text-xs font-semibold transition ${
+                          selected
+                            ? 'border-accent bg-accent text-white'
+                            : 'border-slate-200 bg-white text-slate-600 hover:border-accent hover:text-accent'
+                        }`}
+                      >
+                        {parish}
+                      </button>
+                    );
+                  })}
                 </div>
-                <p className="text-xs text-gray-500 mt-1">Select the parishes you serve</p>
+                <p className="mt-1 text-xs text-slate-500">
+                  Select the parishes you serve
+                </p>
               </div>
 
-              {/* About Me */}
+              {/* About me */}
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  About You
-                </label>
+                <label className={labelClass}>About you</label>
                 <textarea
                   value={formData.aboutMe}
-                  onChange={(e) => setFormData({ ...formData, aboutMe: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-accent outline-none"
-                  placeholder="Tell us about yourself and your experience..."
+                  onChange={(e) =>
+                    setFormData({ ...formData, aboutMe: e.target.value })
+                  }
+                  className={`${inputClass} resize-none`}
+                  placeholder="Tell us about yourself and your experience…"
                   rows={4}
                 />
               </div>
 
-              {/* Deals Closed */}
+              {/* Deals closed */}
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Deals Closed (Approximate)
+                <label className={labelClass}>
+                  Deals closed · approximate
                 </label>
                 <input
                   type="number"
                   value={formData.dealsClosedCount}
-                  onChange={(e) => setFormData({ ...formData, dealsClosedCount: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-accent outline-none"
+                  onChange={(e) =>
+                    setFormData({ ...formData, dealsClosedCount: e.target.value })
+                  }
+                  className={inputClass}
                   placeholder="0"
                   min="0"
                 />
@@ -530,170 +629,219 @@ export default function AgentSignup() {
             </div>
           )}
 
-          {/* Step 2: Verification Documents */}
+          {/* ============================================================
+              Step 2: Documents
+             ============================================================ */}
           {step === 2 && (
-            <div className="space-y-6">
-              <h2 className="text-2xl font-bold text-gray-900">Document Verification</h2>
-              <p className="text-gray-600">Please upload documents to verify your credentials</p>
-
-              <div className="bg-accent/10 border border-accent/20 rounded-lg p-4 flex items-start">
-                <AlertCircle className="w-5 h-5 text-accent mr-3 mt-0.5 flex-shrink-0" />
-                <p className="text-sm text-gray-700">
-                  Upload clear images of your agent license and business registration (or government ID if no company). Files must be JPG or PNG and under 5MB.
+            <div className="space-y-5">
+              <div>
+                <h2 className="text-base font-bold text-slate-900">
+                  Document verification
+                </h2>
+                <p className="mt-1 text-sm text-slate-600">
+                  Upload documents to verify your credentials.
                 </p>
               </div>
-              {/* Agent License */}
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Real Estate Agent License *
-                </label>
-                <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-blue-500 transition cursor-pointer"
-                  onClick={() => document.getElementById('license-file').click()}
-                >
-                  <Upload className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-                  <p className="text-sm font-medium text-gray-700">
-                    {verification.agentLicenseFile
-                      ? verification.agentLicenseFile.name
-                      : 'Click to upload or drag and drop'}
-                  </p>
-                  <p className="text-xs text-gray-500">JPG, PNG • Max 5MB</p>
-                  <input
-                    id="license-file"
-                    type="file"
-                    accept=".jpg,.jpeg,.png,image/jpeg,image/png"
-                    onChange={(e) => handleFileChange(e, 'agentLicenseFile')}
-                    className="hidden"
-                  />
-                </div>
-              </div>
 
-              {/* Business Registration */}
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Business Registration or Government ID *
-                </label>
-                <p className="text-xs text-gray-600 mb-2">
-                  Upload your business registration document or government-issued ID if you operate as an individual.
+              <div className="flex items-start gap-3 rounded-xl border border-accent/30 bg-accent/10 p-3.5">
+                <AlertCircle
+                  size={16}
+                  className="mt-0.5 shrink-0 text-accent"
+                />
+                <p className="text-xs leading-relaxed text-slate-700">
+                  Upload clear images of your agent license and business
+                  registration (or government ID if no company). Files must be
+                  JPG or PNG and under 5MB.
                 </p>
-                <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-blue-500 transition cursor-pointer"
-                  onClick={() => document.getElementById('registration-file').click()}
-                >
-                  <Upload className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-                  <p className="text-sm font-medium text-gray-700">
-                    {verification.businessRegistrationFile
-                      ? verification.businessRegistrationFile.name
-                      : 'Click to upload or drag and drop'}
-                  </p>
-                  <p className="text-xs text-gray-500">JPG, PNG • Max 5MB</p>
-                  <input
-                    id="registration-file"
-                    type="file"
-                    accept=".jpg,.jpeg,.png,image/jpeg,image/png"
-                    onChange={(e) => handleFileChange(e, 'businessRegistrationFile')}
-                    className="hidden"
-                  />
-                </div>
               </div>
 
-              {/* Terms and Conditions */}
+              {/* Agent license */}
+              <div>
+                <label className={labelClass}>
+                  Real estate agent license *
+                </label>
+                <UploadDropzone
+                  id="license-file"
+                  file={verification.agentLicenseFile}
+                  onPick={() =>
+                    document.getElementById('license-file').click()
+                  }
+                  onChange={(e) => handleFileChange(e, 'agentLicenseFile')}
+                  accept=".jpg,.jpeg,.png,image/jpeg,image/png"
+                />
+              </div>
+
+              {/* Business registration */}
+              <div>
+                <label className={labelClass}>
+                  Business registration or government ID *
+                </label>
+                <p className="mb-2 text-xs text-slate-500">
+                  Upload your business registration document or
+                  government-issued ID if you operate as an individual.
+                </p>
+                <UploadDropzone
+                  id="registration-file"
+                  file={verification.businessRegistrationFile}
+                  onPick={() =>
+                    document.getElementById('registration-file').click()
+                  }
+                  onChange={(e) =>
+                    handleFileChange(e, 'businessRegistrationFile')
+                  }
+                  accept=".jpg,.jpeg,.png,image/jpeg,image/png"
+                />
+              </div>
+
+              {/* Terms + consent */}
               <div className="space-y-3">
-                <div className="flex items-start">
+                <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 bg-white p-3.5 transition hover:border-slate-300">
                   <input
                     id="agree-terms"
                     type="checkbox"
                     checked={verification.agreeToTerms}
-                    onChange={(e) => setVerification({ ...verification, agreeToTerms: e.target.checked })}
-                    className="mt-1 w-4 h-4 border-gray-300 rounded focus:ring-accent cursor-pointer"
+                    onChange={(e) =>
+                      setVerification({
+                        ...verification,
+                        agreeToTerms: e.target.checked,
+                      })
+                    }
+                    className="mt-0.5 h-4 w-4 rounded border-slate-300 text-accent focus:ring-accent/20"
                   />
-                  <label htmlFor="agree-terms" className="ml-3 text-sm text-gray-700">
-                    I agree to the <a href="/terms-of-service" target="_blank" className="text-blue-600 hover:underline">Agent Terms and Conditions</a> *
-                  </label>
-                </div>
-                
-                <div className="flex items-start bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                  <span className="text-sm text-slate-700">
+                    I agree to the{' '}
+                    <a
+                      href="/terms-of-service"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="font-semibold text-accent hover:text-accent/80"
+                    >
+                      Agent Terms and Conditions
+                    </a>{' '}
+                    *
+                  </span>
+                </label>
+
+                <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-3.5">
                   <input
                     id="data-consent"
                     type="checkbox"
                     checked={verification.dataConsent}
-                    onChange={(e) => setVerification({ ...verification, dataConsent: e.target.checked })}
-                    className="mt-1 w-4 h-4 border-gray-300 rounded focus:ring-accent cursor-pointer"
+                    onChange={(e) =>
+                      setVerification({
+                        ...verification,
+                        dataConsent: e.target.checked,
+                      })
+                    }
+                    className="mt-0.5 h-4 w-4 rounded border-amber-300 text-accent focus:ring-accent/20"
                   />
-                  <label htmlFor="data-consent" className="ml-3 text-sm text-gray-700">
-                    <strong className="text-red-600">* REQUIRED:</strong> I consent to sharing my contact information (name, phone, email) and business details with clients who request my services through this platform. I understand that clients will be able to contact me directly. Read our full <a href="/privacy-policy" target="_blank" className="text-blue-600 hover:underline">Privacy Policy</a> for details on how your data is used and shared. *
-                  </label>
-                </div>
+                  <span className="text-xs leading-relaxed text-slate-700">
+                    <strong className="text-amber-700">* Required:</strong> I
+                    consent to sharing my contact information (name, phone,
+                    email) and business details with clients who request my
+                    services through this platform. I understand that clients
+                    will be able to contact me directly. Read our full{' '}
+                    <a
+                      href="/privacy-policy"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="font-semibold text-accent hover:text-accent/80"
+                    >
+                      Privacy Policy
+                    </a>{' '}
+                    for details on how your data is used and shared. *
+                  </span>
+                </label>
               </div>
             </div>
           )}
 
-          {/* Step 3: Review */}
+          {/* ============================================================
+              Step 3: Review
+             ============================================================ */}
           {step === 3 && (
-            <div className="space-y-6">
-              <h2 className="text-2xl font-bold text-gray-900">Review Your Application</h2>
-              <p className="text-gray-600">Please review your information before submitting</p>
+            <div className="space-y-5">
+              <div>
+                <h2 className="text-base font-bold text-slate-900">
+                  Review your application
+                </h2>
+                <p className="mt-1 text-sm text-slate-600">
+                  Please review your information before submitting.
+                </p>
+              </div>
 
-              <div className="space-y-4 bg-gray-50 p-4 rounded-lg">
+              <div className="space-y-3 rounded-xl border border-slate-100 bg-slate-50 p-4">
+                <ReviewRow label="Full name" value={formData.fullName} />
+                <ReviewRow label="Email" value={formData.email} />
+                <ReviewRow label="Phone" value={formData.phone} />
+                <ReviewRow label="Business name" value={formData.businessName} />
+                <ReviewRow
+                  label="Experience"
+                  value={`${formData.yearsExperience} years`}
+                />
+
                 <div>
-                  <p className="text-xs uppercase font-semibold text-gray-500">Full Name</p>
-                  <p className="text-gray-800">{formData.fullName}</p>
-                </div>
-                <div>
-                  <p className="text-xs uppercase font-semibold text-gray-500">Email</p>
-                  <p className="text-gray-800">{formData.email}</p>
-                </div>
-                <div>
-                  <p className="text-xs uppercase font-semibold text-gray-500">Phone</p>
-                  <p className="text-gray-800">{formData.phone}</p>
-                </div>
-                <div>
-                  <p className="text-xs uppercase font-semibold text-gray-500">Business Name</p>
-                  <p className="text-gray-800">{formData.businessName}</p>
-                </div>
-                <div>
-                  <p className="text-xs uppercase font-semibold text-gray-500">Experience</p>
-                  <p className="text-gray-800">{formData.yearsExperience} years</p>
-                </div>
-                <div>
-                  <p className="text-xs uppercase font-semibold text-gray-500">Specializations</p>
-                  <div className="flex flex-wrap gap-2 mt-1">
-                    {formData.specializations.map(spec => (
-                      <span key={spec} className="bg-accent/20 text-accent text-xs px-2 py-1 rounded">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+                    Specializations
+                  </p>
+                  <div className="mt-1.5 flex flex-wrap gap-1.5">
+                    {formData.specializations.map((spec) => (
+                      <span
+                        key={spec}
+                        className="rounded-full border border-accent/30 bg-accent/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-accent"
+                      >
                         {spec}
                       </span>
                     ))}
                   </div>
                 </div>
+
                 <div>
-                  <p className="text-xs uppercase font-semibold text-gray-500">Service Areas</p>
-                  <div className="flex flex-wrap gap-2 mt-1">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+                    Service areas
+                  </p>
+                  <div className="mt-1.5 flex flex-wrap gap-1.5">
                     {formData.serviceAreas.length > 0 ? (
-                      formData.serviceAreas.map(area => (
-                        <span key={area} className="bg-blue-100 text-blue-700 text-xs px-2 py-1 rounded">
+                      formData.serviceAreas.map((area) => (
+                        <span
+                          key={area}
+                          className="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-600"
+                        >
                           {area}
                         </span>
                       ))
                     ) : (
-                      <span className="text-gray-500 text-sm">Not specified</span>
+                      <span className="text-xs text-slate-500">
+                        Not specified
+                      </span>
                     )}
                   </div>
                 </div>
               </div>
 
-              <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                <p className="text-sm text-green-700">
-                  ✓ Documents uploaded: {verification.agentLicenseFile && verification.businessRegistrationFile ? '2/2' : '0/2'}
+              <div className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 p-3">
+                <CheckCircle
+                  size={14}
+                  className="shrink-0 text-emerald-700"
+                />
+                <p className="text-xs font-semibold text-emerald-700">
+                  Documents uploaded:{' '}
+                  {verification.agentLicenseFile &&
+                  verification.businessRegistrationFile
+                    ? '2 of 2'
+                    : '0 of 2'}
                 </p>
               </div>
             </div>
           )}
 
-          {/* Navigation Buttons */}
-          <div className="flex gap-4 mt-8">
+          {/* Navigation */}
+          <div className="mt-6 flex flex-col gap-3 border-t border-slate-100 pt-5 sm:flex-row">
             {step > 1 && (
               <button
                 type="button"
                 onClick={() => setStep(step - 1)}
-                className="flex-1 border border-gray-300 text-gray-800 px-6 py-3 rounded-lg font-semibold hover:bg-gray-50 transition"
+                className="inline-flex flex-1 items-center justify-center rounded-full border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
               >
                 Back
               </button>
@@ -701,17 +849,67 @@ export default function AgentSignup() {
             <button
               type="submit"
               disabled={loading}
-              className={`flex-1 text-white px-6 py-3 rounded-lg font-semibold transition ${
-                loading
-                  ? 'bg-gray-400 cursor-not-allowed'
-                  : 'btn-accent'
-              }`}
+              className="inline-flex flex-1 items-center justify-center rounded-full bg-accent px-5 py-3 text-sm font-semibold text-white transition hover:bg-accent/90 disabled:opacity-60"
             >
-              {loading ? 'Processing...' : step === 3 ? 'Submit Application' : 'Next'}
+              {loading
+                ? 'Processing…'
+                : step === 3
+                ? 'Submit application'
+                : 'Next'}
             </button>
           </div>
         </form>
       </div>
+    </div>
+  );
+}
+
+/* ============================================================
+ * Sub-components
+ * ============================================================ */
+
+function UploadDropzone({ id, file, onPick, onChange, accept }) {
+  return (
+    <div
+      onClick={onPick}
+      className={`cursor-pointer rounded-xl border-2 border-dashed p-5 text-center transition ${
+        file
+          ? 'border-accent/40 bg-accent/5'
+          : 'border-slate-200 bg-white hover:border-accent/40 hover:bg-slate-50'
+      }`}
+    >
+      <Upload
+        size={20}
+        className={`mx-auto ${file ? 'text-accent' : 'text-slate-300'}`}
+      />
+      <p
+        className={`mt-2 truncate text-sm font-semibold ${
+          file ? 'text-slate-900' : 'text-slate-700'
+        }`}
+      >
+        {file ? file.name : 'Click to upload or drag and drop'}
+      </p>
+      <p className="mt-1 text-[11px] text-slate-500">JPG, PNG · Max 5MB</p>
+      <input
+        id={id}
+        type="file"
+        accept={accept}
+        onChange={onChange}
+        className="hidden"
+      />
+    </div>
+  );
+}
+
+function ReviewRow({ label, value }) {
+  return (
+    <div>
+      <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+        {label}
+      </p>
+      <p className="mt-0.5 text-sm font-semibold text-slate-900">
+        {value || '—'}
+      </p>
     </div>
   );
 }

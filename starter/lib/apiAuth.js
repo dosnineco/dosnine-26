@@ -273,3 +273,17 @@ export async function requireAdminUser(req, res) {
 
   return resolved;
 }
+
+export async function requireAgentAccountUser(req, res) {
+  const resolved = await requireDbUser(req, res);
+  if (!resolved) return null;
+
+  const isAgentAccount = resolved.user.account_type === 'agent' ||
+    (!resolved.user.account_type && resolved.user.user_type === 'agent');
+  if (!isAgentAccount) {
+    res.status(403).json({ error: 'An Agent account is required to access this resource.' });
+    return null;
+  }
+
+  return resolved;
+}

@@ -1,19 +1,24 @@
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/router';
+import Image from 'next/image';
 import { useUser } from '@clerk/nextjs';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 import { CheckCircle2, ShieldCheck, Upload, IdCard } from 'lucide-react';
+import { clearUserCache } from '../lib/useRoleProtection';
 
 const ROLE_OPTIONS = [
   { value: 'homeowner', label: 'Homeowner' },
-  { value: 'agent', label: 'Agent' },
+  { value: 'tenant', label: 'Tenant' },
+  { value: 'advertiser', label: 'Advertiser' },
+  { value: 'agent', label: 'Real Estate Agent' },
 ];
 
 export default function VerifyIdentityPage() {
   const router = useRouter();
   const { user, isLoaded } = useUser();
   const [role, setRole] = useState('homeowner');
+  const [roleLocked, setRoleLocked] = useState(false);
   const [loading, setLoading] = useState(false);
   const [checking, setChecking] = useState(true);
   const [form, setForm] = useState({
@@ -29,6 +34,13 @@ export default function VerifyIdentityPage() {
   const frontInputRef = useRef(null);
   const backInputRef = useRef(null);
   const agentIdInputRef = useRef(null);
+  const previewUrlsRef = useRef({});
+  const [previews, setPreviews] = useState({});
+
+  useEffect(
+    () => () => Object.values(previewUrlsRef.current).forEach((url) => URL.revokeObjectURL(url)),
+    []
+  );
 
   useEffect(() => {
     if (!isLoaded) return;
@@ -41,12 +53,26 @@ export default function VerifyIdentityPage() {
     const loadProfile = async () => {
       try {
         const { data } = await axios.get('/api/user/profile');
-        const isVerified = Boolean(data?.identity_verified || data?.id_verification_status === 'approved');
+        const isVerified = Boolean(
+          data?.identity_verified ||
+          data?.id_verification_status === 'approved'
+        );
+        const savedRole = data?.account_type === 'agent' || data?.user_type === 'agent'
+          ? 'agent'
+          : data?.account_type === 'advertiser'
+            ? 'advertiser'
+            : data?.account_type === 'regular'
+              ? data?.profile_intent || 'homeowner'
+              : null;
+        if (savedRole && ROLE_OPTIONS.some((option) => option.value === savedRole)) {
+          setRole(savedRole);
+          setRoleLocked(true);
+        }
         if (isVerified) {
           if (typeof window !== 'undefined' && user?.id) {
             window.localStorage.removeItem(`verification_pending_${user.id}`);
           }
-          router.replace('/agent/dashboard');
+          router.replace(savedRole === 'agent' ? '/agent/dashboard' : '/dashboard');
           return;
         }
         const pendingLocally = typeof window !== 'undefined' && user?.id
@@ -74,6 +100,7 @@ export default function VerifyIdentityPage() {
   const onFileChange = (event, side) => {
     const file = event.target.files?.[0];
     if (!file) return;
+    event.target.value = '';
     if (!['image/jpeg', 'image/jpg', 'image/png'].includes(file.type)) {
       toast.error('Please upload a JPG or PNG image');
       return;
@@ -82,6 +109,13 @@ export default function VerifyIdentityPage() {
       toast.error('Each file must be under 5MB');
       return;
     }
+
+    if (previewUrlsRef.current[side]) {
+      URL.revokeObjectURL(previewUrlsRef.current[side]);
+    }
+    const previewUrl = URL.createObjectURL(file);
+    previewUrlsRef.current[side] = previewUrl;
+    setPreviews((current) => ({ ...current, [side]: previewUrl }));
 
     if (side === 'front') setFrontFile(file);
     if (side === 'back') setBackFile(file);
@@ -105,11 +139,8 @@ export default function VerifyIdentityPage() {
 
     if (!user?.id) {
       toast.error('Please sign in before continuing');
-       if (typeof window !== 'undefined' && user?.id) {
-            window.localStorage.removeItem(`verification_pending_${user.id}`);
-          }
-          router.replace('/agent/dashboard');
-          return;
+      router.replace('/sign-in');
+      return;
     }
     if (!form.fullName?.trim()) {
       toast.error('Full name is required');
@@ -160,6 +191,7 @@ export default function VerifyIdentityPage() {
       toast.dismiss(toastId);
       if (response.data?.success) {
         toast.success('ID verification submitted successfully');
+        clearUserCache(user.id);
         if (typeof window !== 'undefined' && user?.id) {
           window.localStorage.setItem(`verification_pending_${user.id}`, 'true');
         }
@@ -229,18 +261,21 @@ export default function VerifyIdentityPage() {
 
           <form onSubmit={handleSubmit} className="p-6 md:p-8 space-y-6">
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">I am joining as</label>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                {roleLocked ? 'Your account type' : 'I am joining as'}
+              </label>
               <div className="grid grid-cols-2 gap-3">
                 {ROLE_OPTIONS.map((option) => (
                   <button
                     key={option.value}
                     type="button"
                     onClick={() => setRole(option.value)}
+                    disabled={roleLocked}
                     className={`rounded-xl border px-4 py-3 text-left font-medium transition ${
                       role === option.value
                         ? 'border-accent bg-accent/10 text-accent'
                         : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
-                    }`}
+                    } ${roleLocked ? 'cursor-not-allowed opacity-80' : ''}`}
                   >
                     {option.label}
                   </button>
@@ -273,7 +308,7 @@ export default function VerifyIdentityPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">Jamaican ID number</label>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">Government ID #</label>
               <input
                 type="text"
                 value={form.idNumber}
@@ -283,34 +318,62 @@ export default function VerifyIdentityPage() {
               />
             </div>
 
+            <div className="rounded-xl bg-blue-50 p-4 text-sm text-blue-900">
+              <p className="font-semibold">Upload photos of your Jamaican Government ID—not a selfie.</p>
+              <p className="mt-1">
+                Both the front and back are required. Make sure the whole card is in the photo and the text
+                is clear and readable. JPG or PNG only, up to 5 MB per image.
+              </p>
+            </div>
+
             <div className="grid md:grid-cols-2 gap-5">
               <div className="border-2 border-dashed border-gray-300 rounded-2xl p-5">
                 <div className="flex items-center gap-2 mb-3 text-gray-700 font-semibold">
                   <IdCard className="w-5 h-5" />
-                  Front of ID
+                  Front of ID <span className="text-xs font-medium text-red-600">Required</span>
                 </div>
-                <div
+                <button
+                  type="button"
                   onClick={() => frontInputRef.current?.click()}
-                  className="cursor-pointer rounded-xl border border-gray-200 bg-gray-50 p-4 text-center hover:bg-gray-100"
+                  className="w-full cursor-pointer rounded-xl border border-gray-200 bg-gray-50 p-4 text-center hover:bg-gray-100"
                 >
-                  <Upload className="w-6 h-6 text-gray-500 mx-auto mb-2" />
-                  <p className="text-sm font-medium text-gray-700">{frontFile ? frontFile.name : 'Upload front image'}</p>
-                </div>
+                  {previews.front ? (
+                    <span className="relative mx-auto mb-3 block h-40 w-full">
+                      <Image src={previews.front} alt="Preview of the selected front of your ID" fill unoptimized className="rounded-lg object-contain" />
+                    </span>
+                  ) : (
+                    <Upload className="w-6 h-6 text-gray-500 mx-auto mb-2" />
+                  )}
+                  <span className="block text-sm font-medium text-gray-700">
+                    {frontFile ? 'Front image selected — click to change' : 'Choose photo of front of ID'}
+                  </span>
+                  {frontFile && <span className="mt-1 block truncate text-xs text-gray-500">{frontFile.name}</span>}
+                </button>
                 <input ref={frontInputRef} type="file" accept="image/png,image/jpeg" className="hidden" onChange={(e) => onFileChange(e, 'front')} />
               </div>
 
               <div className="border-2 border-dashed border-gray-300 rounded-2xl p-5">
                 <div className="flex items-center gap-2 mb-3 text-gray-700 font-semibold">
                   <IdCard className="w-5 h-5" />
-                  Back of ID
+                  Back of ID <span className="text-xs font-medium text-red-600">Required</span>
                 </div>
-                <div
+                <button
+                  type="button"
                   onClick={() => backInputRef.current?.click()}
-                  className="cursor-pointer rounded-xl border border-gray-200 bg-gray-50 p-4 text-center hover:bg-gray-100"
+                  className="w-full cursor-pointer rounded-xl border border-gray-200 bg-gray-50 p-4 text-center hover:bg-gray-100"
                 >
-                  <Upload className="w-6 h-6 text-gray-500 mx-auto mb-2" />
-                  <p className="text-sm font-medium text-gray-700">{backFile ? backFile.name : 'Upload back image'}</p>
-                </div>
+                  {previews.back ? (
+                    <span className="relative mx-auto mb-3 block h-40 w-full">
+                      <Image src={previews.back} alt="Preview of the selected back of your ID" fill unoptimized className="rounded-lg object-contain" />
+                    </span>
+                  ) : (
+                    <Upload className="w-6 h-6 text-gray-500 mx-auto mb-2" />
+                  )}
+                  <span className="block text-sm font-medium text-gray-700">
+                    {backFile ? 'Back image selected — click to change' : 'Choose photo of back of ID'}
+                  </span>
+                  {backFile && <span className="mt-1 block truncate text-xs text-gray-500">{backFile.name}</span>}
+                </button>
                 <input ref={backInputRef} type="file" accept="image/png,image/jpeg" className="hidden" onChange={(e) => onFileChange(e, 'back')} />
               </div>
             </div>
@@ -322,13 +385,23 @@ export default function VerifyIdentityPage() {
                   Agent License / Agent ID
                 </div>
                 <p className="text-xs text-gray-500 mb-3">Upload your real estate agent license or agency-issued ID.</p>
-                <div
+                <button
+                  type="button"
                   onClick={() => agentIdInputRef.current?.click()}
-                  className="cursor-pointer rounded-xl border border-gray-200 bg-gray-50 p-4 text-center hover:bg-gray-100"
+                  className="w-full cursor-pointer rounded-xl border border-gray-200 bg-gray-50 p-4 text-center hover:bg-gray-100"
                 >
-                  <Upload className="w-6 h-6 text-gray-500 mx-auto mb-2" />
-                  <p className="text-sm font-medium text-gray-700">{agentIdFile ? agentIdFile.name : 'Upload agent ID'}</p>
-                </div>
+                  {previews.agentId ? (
+                    <span className="relative mx-auto mb-3 block h-40 w-full">
+                      <Image src={previews.agentId} alt="Preview of the selected agent license or ID" fill unoptimized className="rounded-lg object-contain" />
+                    </span>
+                  ) : (
+                    <Upload className="w-6 h-6 text-gray-500 mx-auto mb-2" />
+                  )}
+                  <span className="block text-sm font-medium text-gray-700">
+                    {agentIdFile ? 'Agent ID image selected — click to change' : 'Choose photo of agent license or ID'}
+                  </span>
+                  {agentIdFile && <span className="mt-1 block truncate text-xs text-gray-500">{agentIdFile.name}</span>}
+                </button>
                 <input ref={agentIdInputRef} type="file" accept="image/png,image/jpeg" className="hidden" onChange={(e) => onFileChange(e, 'agentId')} />
               </div>
             )}

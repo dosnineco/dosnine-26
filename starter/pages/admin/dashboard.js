@@ -168,7 +168,7 @@ export default function AdminDashboard() {
   return (
     <>
       <Head>
-        <title>Admin Dashboard — Dosnine Limited</title>
+        <title>Submitted Visitors — Admin</title>
       </Head>
       
       <div className="container mx-auto px-4 py-6 max-w-7xl">

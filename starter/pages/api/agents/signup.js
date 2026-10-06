@@ -35,6 +35,10 @@ export default async function handler(req, res) {
     const userId = trustedUser.id;
     const resolvedEmail = email || trustedUser.email;
 
+    if (trustedUser.account_type && trustedUser.account_type !== 'agent') {
+      return res.status(409).json({ error: 'This account is not set up as a real estate agent.' });
+    }
+
     console.log('Agent signup request:', { clerkId: resolved.clerkId, fullName, email: resolvedEmail });
 
     // Validate required fields
@@ -55,6 +59,7 @@ export default async function handler(req, res) {
         full_name: fullName,
         phone: phone,
         user_type: 'agent',
+        account_type: 'agent',
       })
       .eq('id', userId);
 

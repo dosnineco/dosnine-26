@@ -164,10 +164,13 @@ export default async function handler(req, res) {
     if (!resolved) return;
     const db = getDbClient();
 
+    if (resolved.user.account_type !== 'advertiser') {
+      return res.status(403).json({ error: 'Select the Advertiser account type before submitting an ad.' });
+    }
+
     const accountVerified =
       resolved.user.identity_verified === true ||
-      resolved.user.id_verification_status === 'approved' ||
-      resolved.user.account_status === 'active';
+      resolved.user.id_verification_status === 'approved';
 
     if (!accountVerified) {
       return res.status(403).json({ error: 'A verified Dosnine account is required to submit an advertisement.' });

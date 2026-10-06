@@ -29,6 +29,9 @@ export default async function handler(req, res) {
         email,
         phone,
         role,
+        account_type,
+        profile_intent,
+        is_admin,
         account_status,
         id_verification_status,
         premium_service_request,
@@ -39,11 +42,42 @@ export default async function handler(req, res) {
         return res.status(400).json({ error: 'Missing user id' });
       }
 
+      if (
+        account_type !== undefined &&
+        !['regular', 'advertiser', 'agent'].includes(account_type)
+      ) {
+        return res.status(400).json({ error: 'Invalid account type' });
+      }
+      if (
+        account_type === 'regular' &&
+        !['homeowner', 'tenant'].includes(profile_intent)
+      ) {
+        return res.status(400).json({ error: 'Invalid regular account profile' });
+      }
+      if (
+        account_type &&
+        account_type !== 'regular' &&
+        profile_intent != null
+      ) {
+        return res.status(400).json({ error: 'Only regular accounts can have a profile intent' });
+      }
+      if (is_admin !== undefined && typeof is_admin !== 'boolean') {
+        return res.status(400).json({ error: 'Admin access must be true or false' });
+      }
+
       const updatePayload = {
         ...(full_name ? { full_name } : {}),
         ...(email ? { email } : {}),
         ...(phone !== undefined ? { phone: phone || null } : {}),
-        ...(role ? { role } : {}),
+        ...(is_admin !== undefined ? { role: is_admin ? 'admin' : 'user' } : {}),
+        ...(is_admin === undefined && role ? { role } : {}),
+        ...(account_type !== undefined
+          ? {
+              account_type,
+              profile_intent: account_type === 'regular' ? profile_intent : null,
+              user_type: account_type === 'agent' ? 'agent' : 'landlord',
+            }
+          : {}),
         ...(account_status ? { account_status } : {}),
         ...(id_verification_status ? {
           id_verification_status,

@@ -6,7 +6,6 @@ import toast from 'react-hot-toast';
 
 // Global cache for user data to persist across component remounts
 const userDataCache = new Map();
-const verificationCache = new Map();
 
 /**
  * Hook to protect routes based on role requirements
@@ -58,18 +57,21 @@ export function useRoleProtection({
 
       const cacheKey = user.id;
       const cachedData = userDataCache.get(cacheKey);
-      const cachedVerification = verificationCache.get(cacheKey);
 
-      // Use cached data if available and recent (within 5 minutes)
-      if (cachedData && cachedVerification !== undefined) {
+      // Reuse recent profile data, but evaluate the current route's access rule each time.
+      if (cachedData) {
         const cacheAge = Date.now() - (cachedData._cacheTime || 0);
         if (cacheAge < 5 * 60 * 1000) { // 5 minutes
-          console.log('useRoleProtection - Using cached data');
+          const access = checkAccess ? checkAccess(cachedData) : true;
           setUserData(cachedData);
-          setHasAccess(cachedVerification);
+          setHasAccess(access);
           setLoading(false);
           hasCheckedRef.current = true;
           isCheckingRef.current = false;
+          if (!access) {
+            toast.error(message);
+            router.push(redirectTo);
+          }
           return;
         }
       }
@@ -92,7 +94,6 @@ export function useRoleProtection({
         console.log('useRoleProtection - Access check result:', access);
         
         // Cache verification result
-        verificationCache.set(cacheKey, access);
         setHasAccess(access);
         hasCheckedRef.current = true;
 
@@ -117,7 +118,6 @@ export function useRoleProtection({
   const clearCache = useCallback(() => {
     if (user?.id) {
       userDataCache.delete(user.id);
-      verificationCache.delete(user.id);
       hasCheckedRef.current = false;
     }
   }, [user?.id]);
@@ -157,7 +157,6 @@ export function withRoleProtection(Component, options) {
  */
 export function clearAllVerificationCache() {
   userDataCache.clear();
-  verificationCache.clear();
   console.log('Cleared all verification cache');
 }
 
@@ -167,7 +166,6 @@ export function clearAllVerificationCache() {
 export function clearUserCache(userId) {
   if (userId) {
     userDataCache.delete(userId);
-    verificationCache.delete(userId);
     console.log('Cleared cache for user:', userId);
   }
 }

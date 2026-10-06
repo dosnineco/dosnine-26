@@ -1,4 +1,5 @@
 import { getDbClient, requireDbUser } from '../../../lib/apiAuth';
+import { canManageProperties } from '../../../lib/rbac';
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') {
@@ -12,7 +13,13 @@ export default async function handler(req, res) {
     const db = getDbClient();
     const userData = resolved.user || {};
     const propertyCount = Number(userData.property_count || 0);
-    const isAgentUser = userData.user_type === 'agent';
+    if (!canManageProperties(userData)) {
+      return res.status(403).json({ error: 'A regular or agent account is required to post properties.' });
+    }
+    if (userData.role === 'admin') {
+      return res.status(200).json({ canPost: true, isAdmin: true, unlimited: true });
+    }
+    const isAgentUser = userData.account_type === 'agent' || userData.user_type === 'agent';
 
     let agentData = null;
     if (isAgentUser) {
@@ -25,6 +32,14 @@ export default async function handler(req, res) {
     }
 
     // If agent, check verification and payment/plan access
+    if (isAgentUser && !agentData) {
+      return res.status(200).json({
+        error: 'Agent profile not found',
+        canPost: false,
+        reason: 'verification_required',
+      });
+    }
+
     if (isAgentUser && agentData) {
       if (agentData.verification_status !== 'approved') {
         return res.status(200).json({ 

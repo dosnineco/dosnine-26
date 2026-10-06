@@ -54,8 +54,11 @@ const DEFAULT_AGENT_PLAN_PRICES = {
 
 const ROLE_STYLES = {
   admin: { label: 'Admin', badge: 'bg-slate-900 text-white border-slate-900' },
-  landlord: { label: 'Homeowner', badge: 'bg-violet-50 text-violet-700 border-violet-200' },
-  tenant: { label: 'Tenant', badge: 'bg-slate-100 text-slate-600 border-slate-200' },
+  regular: { label: 'Regular', badge: 'bg-slate-100 text-slate-700 border-slate-200' },
+  homeowner: { label: 'Homeowner', badge: 'bg-violet-50 text-violet-700 border-violet-200' },
+  tenant: { label: 'Tenant', badge: 'bg-sky-50 text-sky-700 border-sky-200' },
+  advertiser: { label: 'Advertiser', badge: 'bg-amber-50 text-amber-700 border-amber-200' },
+  agent: { label: 'Agent', badge: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
 };
 
 const STATUS_STYLES = {
@@ -83,7 +86,20 @@ const ID_VERIFICATION_STYLES = {
   unverified: { label: 'Unverified', badge: 'bg-slate-100 text-slate-600 border-slate-200' },
 };
 
-const getRoleStyle = (role) => ROLE_STYLES[role] || ROLE_STYLES.tenant;
+const getAccountType = (user) => {
+  if (['regular', 'advertiser', 'agent'].includes(user.account_type)) {
+    return user.account_type;
+  }
+  return user.user_type === 'agent' ? 'agent' : 'regular';
+};
+const getProfileIntent = (user) => {
+  if (['homeowner', 'tenant'].includes(user.profile_intent)) {
+    return user.profile_intent;
+  }
+  return user.user_type === 'tenant' || user.role === 'tenant' ? 'tenant' : 'homeowner';
+};
+const hasAdminAccess = (user) => user.role === 'admin';
+const getRoleStyle = (role) => ROLE_STYLES[role] || ROLE_STYLES.regular;
 const getStatusStyle = (status) =>
   STATUS_STYLES[status || 'active'] || STATUS_STYLES.active;
 const getIdVerificationStyle = (status) =>
@@ -454,7 +470,9 @@ export default function AdminUsersPage() {
           full_name: trimmedName,
           email: trimmedEmail,
           phone: formData.phone?.trim() || null,
-          role: formData.role,
+          account_type: formData.account_type,
+          profile_intent: formData.account_type === 'regular' ? formData.profile_intent : null,
+          is_admin: formData.is_admin,
         },
         'User updated'
       );
@@ -727,17 +745,26 @@ export default function AdminUsersPage() {
    * ============================================================ */
   const summary = useMemo(() => {
     const total = users.length;
-    const admins = users.filter((u) => u.role === 'admin').length;
-    const homeowners = users.filter((u) => u.role === 'landlord').length;
-    const tenants = users.filter((u) => u.role === 'tenant').length;
+    const admins = users.filter(hasAdminAccess).length;
+    const homeowners = users.filter((u) => getAccountType(u) === 'regular' && getProfileIntent(u) === 'homeowner').length;
+    const tenants = users.filter((u) => getAccountType(u) === 'regular' && getProfileIntent(u) === 'tenant').length;
+    const regular = users.filter((u) => getAccountType(u) === 'regular').length;
+    const advertisers = users.filter((u) => getAccountType(u) === 'advertiser').length;
+    const agents = users.filter((u) => getAccountType(u) === 'agent').length;
     const paid = users.filter(isPremiumActive).length;
-    return { total, admins, homeowners, tenants, paid };
+    return { total, admins, homeowners, tenants, regular, advertisers, agents, paid };
   }, [users]);
 
   const filteredUsers = useMemo(() => {
     let result = [...users];
     if (filterRole !== 'all') {
-      result = result.filter((u) => (u.role || 'tenant') === filterRole);
+      result = result.filter((u) => {
+        if (filterRole === 'admin') return hasAdminAccess(u);
+        if (filterRole === 'homeowner' || filterRole === 'tenant') {
+          return getAccountType(u) === 'regular' && getProfileIntent(u) === filterRole;
+        }
+        return getAccountType(u) === filterRole;
+      });
     }
     if (filterStatus !== 'all') {
       result = result.filter(
@@ -920,7 +947,7 @@ export default function AdminUsersPage() {
         {activeTab === 'users' && (
           <div className="space-y-6">
             {/* Stats */}
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
               <StatCard
                 label="Total users"
                 value={summary.total}
@@ -939,11 +966,18 @@ export default function AdminUsersPage() {
                 onClick={() => setFilterRole('admin')}
               />
               <StatCard
+                label="Regular accounts"
+                value={summary.regular}
+                icon={UsersIcon}
+                tone="blue"
+                onClick={() => setFilterRole('regular')}
+              />
+              <StatCard
                 label="Homeowners"
                 value={summary.homeowners}
                 icon={UsersIcon}
                 tone="violet"
-                onClick={() => setFilterRole('landlord')}
+                onClick={() => setFilterRole('homeowner')}
               />
               <StatCard
                 label="Tenants"
@@ -951,6 +985,20 @@ export default function AdminUsersPage() {
                 icon={UsersIcon}
                 tone="blue"
                 onClick={() => setFilterRole('tenant')}
+              />
+              <StatCard
+                label="Advertisers"
+                value={summary.advertisers}
+                icon={UsersIcon}
+                tone="amber"
+                onClick={() => setFilterRole('advertiser')}
+              />
+              <StatCard
+                label="Agents"
+                value={summary.agents}
+                icon={Building2}
+                tone="emerald"
+                onClick={() => setFilterRole('agent')}
               />
               <StatCard
                 label="Paid J$6,000"
@@ -1026,12 +1074,15 @@ export default function AdminUsersPage() {
               {showFilters && (
                 <div className="mt-4 space-y-3 border-t border-slate-100 pt-4">
                   <div>
-                    <p className={labelClass}>Role</p>
+                    <p className={labelClass}>Account type and access</p>
                     <div className="flex flex-wrap gap-2">
                       {[
                         { value: 'all', label: 'All' },
-                        { value: 'landlord', label: 'Homeowners' },
+                        { value: 'regular', label: 'Regular' },
+                        { value: 'homeowner', label: 'Homeowners' },
                         { value: 'tenant', label: 'Tenants' },
+                        { value: 'advertiser', label: 'Advertisers' },
+                        { value: 'agent', label: 'Agents' },
                         { value: 'admin', label: 'Admins' },
                       ].map(({ value, label }) => (
                         <button
@@ -1634,7 +1685,9 @@ function UserCard({
   onTogglePremium,
   onManage,
 }) {
-  const role = getRoleStyle(user.role);
+  const accountType = getAccountType(user);
+  const role = getRoleStyle(accountType);
+  const profileIntent = getProfileIntent(user);
   const status = getStatusStyle(user.account_status);
   const idVerification = getIdVerificationStyle(user.id_verification_status);
 
@@ -1652,11 +1705,19 @@ function UserCard({
             <h3 className="truncate text-base font-bold text-slate-900">
               {user.full_name || 'Unnamed user'}
             </h3>
-            <span
-              className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${role.badge}`}
-            >
+            {hasAdminAccess(user) && (
+              <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${getRoleStyle('admin').badge}`}>
+                Admin
+              </span>
+            )}
+            <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${role.badge}`}>
               {role.label}
             </span>
+            {accountType === 'regular' && (
+              <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${getRoleStyle(profileIntent).badge}`}>
+                {getRoleStyle(profileIntent).label}
+              </span>
+            )}
             <span
               className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${status.badge}`}
             >
@@ -1809,7 +1870,9 @@ function ManageUserModal({
     full_name: user.full_name || '',
     email: user.email || '',
     phone: user.phone || '',
-    role: user.role || 'tenant',
+    account_type: getAccountType(user),
+    profile_intent: getProfileIntent(user),
+    is_admin: hasAdminAccess(user),
   });
 
   const currentStatus = user.account_status || 'active';
@@ -2000,17 +2063,41 @@ function ManageUserModal({
             </div>
 
             <div>
-              <label className={labelClass}>Role</label>
+              <label className={labelClass}>Account type</label>
               <select
-                value={form.role}
-                onChange={(e) => setForm({ ...form, role: e.target.value })}
+                value={form.account_type}
+                onChange={(e) => setForm({ ...form, account_type: e.target.value })}
                 className={inputClass}
               >
-                <option value="tenant">Tenant</option>
-                <option value="landlord">Homeowner</option>
-                <option value="admin">Admin</option>
+                <option value="regular">Regular</option>
+                <option value="advertiser">Advertiser</option>
+                <option value="agent">Agent</option>
               </select>
             </div>
+
+            {form.account_type === 'regular' && (
+              <div>
+                <label className={labelClass}>Regular profile</label>
+                <select
+                  value={form.profile_intent}
+                  onChange={(e) => setForm({ ...form, profile_intent: e.target.value })}
+                  className={inputClass}
+                >
+                  <option value="homeowner">Homeowner</option>
+                  <option value="tenant">Tenant</option>
+                </select>
+              </div>
+            )}
+
+            <label className="flex items-center gap-3 rounded-xl bg-slate-50 p-3 text-sm font-semibold text-slate-700">
+              <input
+                type="checkbox"
+                checked={form.is_admin}
+                onChange={(e) => setForm({ ...form, is_admin: e.target.checked })}
+                className="h-4 w-4 rounded border-slate-300 text-accent focus:ring-accent"
+              />
+              Admin access (in addition to account type)
+            </label>
 
             <div className="flex gap-3 pt-2">
               <button

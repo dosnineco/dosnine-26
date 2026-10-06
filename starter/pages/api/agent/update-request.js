@@ -18,6 +18,12 @@ export default async function handler(req, res) {
     const db = getDbClient();
     const user = resolved.user;
     const isAdmin = user.role === 'admin';
+    const isAgentAccount = user.account_type === 'agent' ||
+      (!user.account_type && user.user_type === 'agent');
+
+    if (!isAdmin && !isAgentAccount) {
+      return res.status(403).json({ error: 'An Agent account is required to access this resource.' });
+    }
 
     let agent = null;
     if (!isAdmin) {

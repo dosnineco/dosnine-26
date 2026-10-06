@@ -1,4 +1,5 @@
 import { getDbClient, requireDbUser } from '@/lib/apiAuth';
+import { canManageProperties } from '@/lib/rbac';
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') {
@@ -8,6 +9,9 @@ export default async function handler(req, res) {
   try {
     const resolved = await requireDbUser(req, res, { createIfMissing: true });
     if (!resolved) return;
+    if (!canManageProperties(resolved.user)) {
+      return res.status(403).json({ error: 'A regular or agent account is required to manage properties.' });
+    }
 
     const db = getDbClient();
     const { data, error } = await db

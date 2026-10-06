@@ -1124,6 +1124,16 @@ export default function AdvertisePage() {
                         : 'Refresh payment status'}
                   </button>
 
+                  {(receiptSubmittedAt || paymentStatus === 'paid') && (
+                    <Link
+                        href="/dashboard"
+                        className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-full bg-accent px-5 py-3.5 text-sm font-semibold text-white transition hover:bg-accent/90"
+                    >
+                        Back to your advertiser profile
+                        <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                    </Link>
+                  )}
+
                   {!receiptSubmittedAt && paymentStatus !== 'paid' ? (
                     <div className="mt-5 flex justify-center border-t border-slate-200 pt-4">
                       <button
@@ -1168,7 +1178,7 @@ export default function AdvertisePage() {
                   </div>
                   <div>
                     <p className="text-3xl font-semibold text-slate-900 sm:text-4xl">
-                      {spotsLeft === null ? '—' : spotsLeft}/{SPOTS_TOTAL}
+                      ?/{SPOTS_TOTAL}
                     </p>
                     <p className="mt-1 text-sm text-slate-500">
                       {availabilityError ? 'Monthly capacity unavailable' : 'Paid spots left this month'}

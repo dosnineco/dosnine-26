@@ -87,6 +87,15 @@ export function canAccessAdmin(userData) {
   return isAdmin(userData);
 }
 
+export function canManageProperties(userData) {
+  if (isAdmin(userData)) return true;
+  const verified = userData?.identity_verified === true || userData?.id_verification_status === 'approved';
+  const allowedAccount = userData?.account_type === 'regular' ||
+    userData?.account_type === 'agent' ||
+    (!userData?.account_type && userData?.user_type === 'agent');
+  return verified && allowedAccount;
+}
+
 /**
  * Check if user needs to pay agent fee
  */

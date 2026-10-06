@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { getDbClient, requireDbUser } from '@/lib/apiAuth';
+import { getDbClient, requireAgentAccountUser } from '@/lib/apiAuth';
 import { enforceMethods, parseBody, sanitizeString } from '@/lib/apiSecurity';
 import { enforceRateLimitDistributed } from '@/lib/rateLimit';
 
@@ -8,7 +8,7 @@ export default async function handler(req, res) {
   if (!enforceMethods(req, res, ['GET', 'POST', 'PUT'])) return;
 
   try {
-    const resolved = await requireDbUser(req, res);
+    const resolved = await requireAgentAccountUser(req, res);
     if (!resolved) return;
 
     const rate = await enforceRateLimitDistributed(req, res, {

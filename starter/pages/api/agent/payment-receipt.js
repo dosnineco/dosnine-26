@@ -1,6 +1,6 @@
 import { randomUUID } from 'crypto';
 import { readFile } from 'fs/promises';
-import { getDbClient, requireDbUser } from '../../../lib/apiAuth';
+import { getDbClient, requireAgentAccountUser } from '../../../lib/apiAuth';
 
 export const config = {
   api: {
@@ -21,7 +21,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const resolved = await requireDbUser(req, res);
+    const resolved = await requireAgentAccountUser(req, res);
     if (!resolved) return;
 
     const formidable = await import('formidable');

@@ -1,16 +1,19 @@
 import Head from 'next/head';
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/router';
 import { useUser } from '@clerk/nextjs';
 import { supabase } from '../../lib/supabase';
 import axios from 'axios';
 import { formatPropertyMoney } from '../../lib/formatMoney';
 import { Clock, XCircle, Briefcase, DollarSign } from 'lucide-react';
+import UserRoleSelection from '../../components/UserRoleSelection';
+import AdvertiserDashboard from '../../components/AdvertiserDashboard';
 
 export default function Dashboard() {
   const { user, isLoaded } = useUser();
   const router = useRouter();
+  const statusCheckUserRef = useRef(null);
   const [stats, setStats] = useState({ properties: 0, applications: 0, activeListings: 0 });
   const [recentProperties, setRecentProperties] = useState([]);
   const [serviceRequests, setServiceRequests] = useState([]);
@@ -36,6 +39,12 @@ export default function Dashboard() {
   const [paidAgentLoading, setPaidAgentLoading] = useState(true);
   const [shouldLoadData, setShouldLoadData] = useState(false);
   const [userType, setUserType] = useState('landlord');
+  const [accountType, setAccountType] = useState(null);
+  const [profileIntent, setProfileIntent] = useState(null);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [needsAccountTypeSelection, setNeedsAccountTypeSelection] = useState(false);
+  const [dashboardError, setDashboardError] = useState('');
+  const [sponsorSubmissions, setSponsorSubmissions] = useState([]);
   const [editingAdId, setEditingAdId] = useState(null);
   const [editingAdValues, setEditingAdValues] = useState({ title: '', description: '', phone: '', website: '' });
   const [adOperationLoading, setAdOperationLoading] = useState(false);
@@ -81,13 +90,19 @@ export default function Dashboard() {
   // SECURITY: Check user status and redirect BEFORE loading any data
   useEffect(() => {
     if (!isLoaded) return;
-    if (!user?.id) return;
+    if (!user?.id) {
+      statusCheckUserRef.current = null;
+      router.replace('/sign-in');
+      return;
+    }
+    if (statusCheckUserRef.current === user.id) return;
+    statusCheckUserRef.current = user.id;
     checkUserStatus();
-  }, [user, isLoaded]);
+  }, [user, isLoaded, router]);
 
   // Only fetch queue count if user should see dashboard (not redirecting)
   useEffect(() => {
-    if (!shouldLoadData) return;
+    if (!shouldLoadData || accountType !== 'regular') return;
     
     const fetchQueueCount = async () => {
       try {
@@ -107,11 +122,11 @@ export default function Dashboard() {
     };
 
     fetchQueueCount();
-  }, [shouldLoadData]);
+  }, [shouldLoadData, accountType]);
 
   // Only fetch paid agents count if user should see dashboard (not redirecting)
   useEffect(() => {
-    if (!shouldLoadData) return;
+    if (!shouldLoadData || accountType !== 'regular') return;
     
     const fetchPaidAgentCount = async () => {
       try {
@@ -131,7 +146,7 @@ export default function Dashboard() {
     };
 
     fetchPaidAgentCount();
-  }, [shouldLoadData]);
+  }, [shouldLoadData, accountType]);
 
   useEffect(() => {
     if (!shouldLoadData || redirecting) return;
@@ -154,47 +169,69 @@ export default function Dashboard() {
       setRedirecting(true);
       const { data: overview } = await axios.get('/api/dashboard/overview', { withCredentials: true });
       const userData = overview || {};
+      const account = userData.user || {};
+      const selectedType = account.account_type || (account.user_type === 'agent' ? 'agent' : null);
 
-      const agent = Array.isArray(userData?.agent)
-        ? (userData.agent[0] || null)
-        : (userData?.agent || null);
-
-      const identityVerified = Boolean(userData?.identity_verified || userData?.id_verification_status === 'approved' || userData?.account_status === 'active');
-
-      if (!identityVerified || userData?.account_status === 'flagged' || userData?.account_status === 'deactivated') {
-        router.replace('/verify');
+      if (userData.needsAccountTypeSelection || !selectedType) {
+        setIsAdmin(account.role === 'admin');
+        setNeedsAccountTypeSelection(true);
+        setRedirecting(false);
         return;
       }
 
-      if (agent || userData?.user_type === 'agent' || userData?.role === 'agent') {
+      const admin = account.role === 'admin';
+      const identityVerified = Boolean(
+        account.identity_verified ||
+        account.id_verification_status === 'approved'
+      );
+      if (
+        !admin &&
+        (!identityVerified || ['flagged', 'deactivated'].includes(account.account_status))
+      ) {
+        const verificationRole = selectedType === 'regular'
+          ? account.profile_intent || 'homeowner'
+          : selectedType;
+        router.replace(`/verify?role=${verificationRole}`);
+        return;
+      }
+
+      setAccountType(selectedType);
+      setProfileIntent(account.profile_intent || null);
+      setIsAdmin(admin);
+      setUserType(account.user_type || 'landlord');
+      setNeedsAccountTypeSelection(false);
+      if (selectedType === 'agent') {
         router.replace('/agent/dashboard');
         return;
       }
-
-      setAgentData(agent);
-      setShowAgentPrompt(false);
-
       setRedirecting(false);
       setShouldLoadData(true);
-      fetchDashboardData();
+      await fetchDashboardData(userData);
     } catch (error) {
       setRedirecting(false);
-      setShouldLoadData(true);
-      fetchDashboardData();
+      if (error.response?.status === 403) {
+        router.replace('/verify');
+        return;
+      }
+      setDashboardError(error.response?.data?.error || 'Unable to verify your dashboard access. Please try again.');
     }
   }
 
-  async function fetchDashboardData() {
-    setLoading(true);
+  async function fetchDashboardData(overviewData = null) {
+    if (overviewData || !accountType) setLoading(true);
     try {
-      const { data: overview } = await axios.get('/api/dashboard/overview', { withCredentials: true });
+      const overview = overviewData || (await axios.get('/api/dashboard/overview', { withCredentials: true })).data;
       const payload = overview || {};
+      setDashboardError('');
       const agent = Array.isArray(payload?.agent)
         ? (payload.agent[0] || null)
         : (payload?.agent || null);
 
       setAgentData(agent);
       setUserType(payload?.user?.user_type || 'landlord');
+      setAccountType(payload?.user?.account_type || (payload?.user?.user_type === 'agent' ? 'agent' : null));
+      setProfileIntent(payload?.user?.profile_intent || null);
+      setIsAdmin(payload?.user?.role === 'admin');
       setShowAgentPrompt(!agent);
 
       if (payload?.stats) {
@@ -212,6 +249,7 @@ export default function Dashboard() {
       setAdInquiries(Array.isArray(payload?.adInquiries) ? payload.adInquiries : []);
       setAdvertisements(Array.isArray(payload?.advertisements) ? payload.advertisements : []);
       setVerifiedAdvertisements(Array.isArray(payload?.verifiedAdvertisements) ? payload.verifiedAdvertisements : []);
+      setSponsorSubmissions(Array.isArray(payload?.sponsorSubmissions) ? payload.sponsorSubmissions : []);
       setAdStats(payload?.adStats || {
         totalAds: 0,
         activeAds: 0,
@@ -222,12 +260,14 @@ export default function Dashboard() {
       });
       setPendingAdVerificationAt(payload?.pendingAdVerificationAt || null);
     } catch (err) {
+      setDashboardError(err.response?.data?.error || 'Unable to load dashboard data. Please try again.');
       setStats({ properties: 0, applications: 0, activeListings: 0 });
       setRecentProperties([]);
       setServiceRequests([]);
       setAdInquiries([]);
       setAdvertisements([]);
       setVerifiedAdvertisements([]);
+      setSponsorSubmissions([]);
       setAdStats({
         totalAds: 0,
         activeAds: 0,
@@ -303,6 +343,53 @@ export default function Dashboard() {
     }
   };
 
+  if (isLoaded && user && needsAccountTypeSelection) {
+    return <UserRoleSelection isAdmin={isAdmin} />;
+  }
+
+  if (dashboardError) {
+    return (
+      <main className="mx-auto max-w-xl px-4 py-20 text-center">
+        <h1 className="text-2xl font-bold text-gray-900">Dashboard unavailable</h1>
+        <p className="mt-3 text-gray-600">{dashboardError}</p>
+        <button
+          type="button"
+          onClick={() => {
+            setDashboardError('');
+            statusCheckUserRef.current = null;
+            checkUserStatus();
+          }}
+          className="mt-6 rounded-xl bg-accent px-5 py-3 font-semibold text-white"
+        >
+          Try again
+        </button>
+      </main>
+    );
+  }
+
+  if (accountType === 'advertiser') {
+    if (loading) {
+      return (
+        <div className="min-h-screen flex items-center justify-center">
+          <p className="text-gray-600">Loading your advertiser dashboard…</p>
+        </div>
+      );
+    }
+    return (
+      <AdvertiserDashboard
+        overview={{
+          user: { role: isAdmin ? 'admin' : 'user' },
+          adStats,
+          advertisements,
+          sponsorSubmissions,
+          adInquiries,
+        }}
+        isAdmin={isAdmin}
+        onRefresh={fetchDashboardData}
+      />
+    );
+  }
+
   // Prevent rendering if still checking auth status or redirecting
   if (!isLoaded || redirecting || !shouldLoadData) {
     return (
@@ -322,9 +409,21 @@ export default function Dashboard() {
       </Head>
 
       <div className="container mx-auto px-4 py-8">
-        <h1 className="text-3xl font-bold mb-8">Hi, {user?.username || 'User'}!</h1>
+        <div className="mb-8 flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <p className="text-sm font-semibold uppercase tracking-wide text-accent">
+              {profileIntent === 'tenant' ? 'Tenant account' : 'Homeowner account'}
+            </p>
+            <h1 className="mt-1 text-3xl font-bold">Hi, {user?.username || 'User'}!</h1>
+          </div>
+          {isAdmin && (
+            <Link href="/admin/dashboard" className="rounded-xl bg-gray-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-gray-700">
+              Open Admin Dashboard
+            </Link>
+          )}
+        </div>
 
-        {!agentData && (
+        {accountType === 'agent' && !agentData && (
           <div className="bg-gradient-to-r from-blue-50 to-gray-50 border border-blue-100 rounded-2xl p-6 mb-8">
             <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
               <div>
@@ -406,7 +505,7 @@ export default function Dashboard() {
             </Link>
 
             <Link
-              href="/advertise"
+              href="/listing"
               className="group flex h-full min-h-[220px] flex-col justify-between rounded-2xl border border-gray-200 bg-white p-4 transition duration-200 hover:-translate-y-0.5 hover:border-accent hover:bg-accent/5"
             >
               <div className="flex items-center justify-between">
@@ -415,12 +514,12 @@ export default function Dashboard() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                   </svg>
                 </div>
-                <span className="text-xs font-medium uppercase tracking-wide text-gray-400">Promote</span>
+                <span className="text-xs font-medium uppercase tracking-wide text-gray-400">Explore</span>
               </div>
 
               <div className="mt-4">
-                <h3 className="text-base font-semibold text-gray-900">Create an Ad</h3>
-                <p className="mt-1 text-sm text-gray-600">Reach buyers and renters faster with a branded ad.</p>
+                <h3 className="text-base font-semibold text-gray-900">Browse Properties</h3>
+                <p className="mt-1 text-sm text-gray-600">Explore available properties and find the right fit.</p>
               </div>
             </Link>
           </div>
@@ -450,7 +549,7 @@ export default function Dashboard() {
         )}
 
         {/* Agent Status Banner */}
-        {agentData && (
+        {accountType === 'agent' && agentData && (
           <div className="mb-8">
             {agentData.verification_status === 'pending' && (
               <div className="bg-yellow-50 border-l-4 border-yellow-400 p-6 rounded-lg">
@@ -461,7 +560,7 @@ export default function Dashboard() {
                       Agent Verification Pending
                     </h3>
                     <p className="text-yellow-700 mb-3">
-                      We're reviewing your application. You'll receive an email within 24 hours.
+                      We&apos;re reviewing your application. You&apos;ll receive an email within 24 hours.
                     </p>
                     <p className="text-sm text-yellow-600">
                       Submitted: {formatDate(agentData.verification_submitted_at || agentData.created_at)}
@@ -518,7 +617,7 @@ export default function Dashboard() {
           </div>
         )}
 
-        {pendingAdVerificationAt && (
+        {accountType === 'agent' && pendingAdVerificationAt && (
           <div className="bg-blue-50 border-l-4 border-blue-400 p-6 rounded-lg mb-8">
             <div className="flex items-start gap-3">
               <Clock className="w-6 h-6 text-blue-600 flex-shrink-0 mt-0.5" />
@@ -537,6 +636,7 @@ export default function Dashboard() {
           </div>
         )}
 
+        {accountType === 'agent' && (
         <div className="bg-white rounded-xl border border-gray-200 p-6 mb-8">
           <div className="flex items-center justify-between gap-4 mb-4">
             <div>
@@ -588,7 +688,7 @@ export default function Dashboard() {
 
           {advertisements.length === 0 && verifiedAdvertisements.length === 0 ? (
             <div className="rounded-xl bg-gray-50 p-6 text-center text-gray-600">
-              You don't have any ads yet. Create one now to start promoting your business.
+              You don&apos;t have any ads yet. Create one now to start promoting your business.
             </div>
           ) : (
             <div className="space-y-4">
@@ -686,6 +786,7 @@ export default function Dashboard() {
             </div>
           )}
         </div>
+        )}
 
     
 
@@ -873,7 +974,7 @@ export default function Dashboard() {
           {loading ? (
             <p className="text-gray-500">Loading...</p>
           ) : recentProperties.length === 0 ? (
-            <p className="text-gray-500">You haven't posted any properties yet.</p>
+            <p className="text-gray-500">You haven&apos;t posted any properties yet.</p>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full">

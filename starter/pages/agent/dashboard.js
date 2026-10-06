@@ -13,7 +13,7 @@ import { isVerifiedAgent } from '../../lib/rbac';
 import { 
   Home, Users, Mail, Phone, MapPin, DollarSign,Award, 
   Bed, Bath, Calendar, Filter, CheckCircle, XCircle,
-  AlertCircle, Clock, Plus, RotateCcw, Trash2, BellDot, MessageCircle, Phone as PhoneIcon, CreditCard, Info, MessageSquare, Search
+  AlertCircle, Clock, Plus, RotateCcw, Trash2, BellDot, MessageCircle, Phone as PhoneIcon, CreditCard, Info, MessageSquare, Search, ShieldCheck
 } from 'lucide-react';
 
 export default function AgentDashboard() {
@@ -33,14 +33,23 @@ export default function AgentDashboard() {
     </span>
   );
   // Protect route - only verified agents can access
-  const { loading: authLoading, userData: initialUserData } = useRoleProtection({
+  const {
+    loading: authLoading,
+    hasAccess,
+    userData: initialUserData,
+  } = useRoleProtection({
     checkAccess: (userData) => {
-      const verified = userData?.identity_verified === true || userData?.id_verification_status === 'approved' || userData?.account_status === 'active';
-      return verified && (isVerifiedAgent(userData) || userData?.user_type !== 'admin');
+      const isAgentAccount = userData?.account_type === 'agent' ||
+        (!userData?.account_type && userData?.user_type === 'agent');
+      if (!isAgentAccount) return false;
+      const verified = userData?.identity_verified === true || userData?.id_verification_status === 'approved';
+      return verified && isVerifiedAgent(userData);
     },
-    redirectTo: '/verify',
-    message: 'Identity verification required to use the platform'
+    redirectTo: '/dashboard',
+    message: 'An Agent account is required to access the agent dashboard.'
   });
+  const isAgentAccount = initialUserData?.account_type === 'agent' ||
+    (!initialUserData?.account_type && initialUserData?.user_type === 'agent');
 
   const { user } = useUser();
   const { getToken, isLoaded: authLoaded, userId } = useAuth();
@@ -92,7 +101,7 @@ export default function AgentDashboard() {
 
   // Fetch queue count for unpaid agents
   useEffect(() => {
-    if (!authLoaded || !userId) return;
+    if (!isAgentAccount || !authLoaded || !userId) return;
 
     const fetchStats = async () => {
       try {
@@ -116,10 +125,10 @@ export default function AgentDashboard() {
     };
 
     fetchStats();
-  }, [authLoaded, userId, getToken]);
+  }, [authLoaded, userId, getToken, isAgentAccount]);
 
   useEffect(() => {
-    if (!authLoaded || !userId) return;
+    if (!isAgentAccount || !authLoaded || !userId) return;
 
     const fetchAdvertisements = async () => {
       try {
@@ -142,7 +151,7 @@ export default function AgentDashboard() {
     };
 
     fetchAdvertisements();
-  }, [authLoaded, userId, getToken]);
+  }, [authLoaded, userId, getToken, isAgentAccount]);
 
   const fetchRequests = useCallback(async () => {
     if (!authLoaded) return;
@@ -185,10 +194,10 @@ export default function AgentDashboard() {
   }, [authLoaded, getToken, router, userId]);
 
   useEffect(() => {
-    if (agentData && authLoaded && userId) {
+    if (isAgentAccount && agentData && authLoaded && userId) {
       fetchRequests();
     }
-  }, [agentData, authLoaded, userId, fetchRequests]);
+  }, [isAgentAccount, agentData, authLoaded, userId, fetchRequests]);
 
   async function handleRequestAction(requestId, action, commentData = null) {
     if (!user?.id || !authLoaded) return;
@@ -306,6 +315,15 @@ export default function AgentDashboard() {
     return new Date(date).toLocaleDateString();
   };
 
+  if (authLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <p className="text-sm text-gray-600">Verifying agent account access…</p>
+      </div>
+    );
+  }
+  if (!hasAccess) return null;
+
   return (
     <>
       <Head>
@@ -321,7 +339,7 @@ export default function AgentDashboard() {
           <div className="mb-4 ">
        
 
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
+            <div className={`grid grid-cols-1 gap-3 sm:grid-cols-2 ${initialUserData?.role === 'admin' ? 'xl:grid-cols-6' : 'xl:grid-cols-5'}`}>
               <Link
                 href="/properties/my-listings"
                 className="group flex h-full  items-center gap-3 rounded-lg border border-gray-200 bg-white p-3 transition hover:border-accent hover:bg-accent/5"
@@ -358,13 +376,15 @@ export default function AgentDashboard() {
                 </Link>
               )}
 
-              <Link
-                href="/advertise"
-                className="group flex h-full  items-center gap-3 rounded-lg border border-gray-200 bg-white p-3 transition hover:border-accent hover:bg-accent/5"
-              >
-                <CheckCircle className="h-5 w-5 text-gray-900 transition group-hover:scale-110" />
-                <h3 className="text-sm font-semibold text-gray-900">Create Ad</h3>
-              </Link>
+              {initialUserData?.role === 'admin' && (
+                <Link
+                  href="/admin/dashboard"
+                  className="group flex h-full items-center gap-3 rounded-lg bg-gray-900 p-3 transition hover:bg-gray-700"
+                >
+                  <ShieldCheck className="h-5 w-5 text-white transition group-hover:scale-110" />
+                  <h3 className="text-sm font-semibold text-white">Admin Dashboard</h3>
+                </Link>
+              )}
 
               {!isOwner && (
                 <Link

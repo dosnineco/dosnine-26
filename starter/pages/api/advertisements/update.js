@@ -8,6 +8,16 @@ export default async function handler(req, res) {
   try {
     const resolved = await requireDbUser(req, res, { createIfMissing: true });
     if (!resolved) return;
+    if (resolved.user.account_type !== 'advertiser') {
+      return res.status(403).json({ error: 'Advertiser account required.' });
+    }
+    const verified = Boolean(
+      resolved.user.identity_verified ||
+      resolved.user.id_verification_status === 'approved'
+    );
+    if (!verified || ['flagged', 'deactivated'].includes(resolved.user.account_status)) {
+      return res.status(403).json({ error: 'Identity verification is required to manage ads.' });
+    }
 
     const { id, title, description, phone, website } = req.body || {};
     if (!id) {

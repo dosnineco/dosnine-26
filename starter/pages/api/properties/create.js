@@ -1,4 +1,5 @@
 import { getDbClient, requireDbUser } from '@/lib/apiAuth';
+import { canManageProperties, isAdmin } from '@/lib/rbac';
 import { normalizeParish } from '@/lib/normalizeParish';
 
 export const config = {
@@ -56,6 +57,45 @@ export default async function handler(req, res) {
     if (!resolved) return;
 
     const db = getDbClient();
+    const admin = isAdmin(resolved.user);
+    const accountType = resolved.user.account_type ||
+      (resolved.user.user_type === 'agent' ? 'agent' : null);
+    if (!canManageProperties(resolved.user)) {
+      return res.status(403).json({ error: 'A regular or agent account is required to post properties.' });
+    }
+
+    if (!admin && accountType === 'regular') {
+      const { count, error: countError } = await db
+        .from('properties')
+        .select('id', { count: 'exact', head: true })
+        .eq('owner_id', resolved.user.id);
+      if (countError) throw countError;
+
+      const propertyLimit = 2 + Number(resolved.user.extra_listings_paid || 0);
+      if (Number(count || 0) >= propertyLimit) {
+        return res.status(403).json({
+          error: 'Property limit reached.',
+          propertyCount: Number(count || 0),
+          maxProperties: propertyLimit,
+        });
+      }
+    }
+
+    if (!admin && accountType === 'agent') {
+      const { data: agent, error: agentError } = await db
+        .from('agents')
+        .select('verification_status, payment_status')
+        .eq('user_id', resolved.user.id)
+        .maybeSingle();
+      if (agentError) throw agentError;
+      if (
+        agent?.verification_status !== 'approved' ||
+        !['paid', 'free', '7-day', '30-day', '90-day'].includes(agent?.payment_status)
+      ) {
+        return res.status(403).json({ error: 'Approved and active agent access is required to post properties.' });
+      }
+    }
+
     const { form, images = [] } = req.body || {};
 
     if (!form?.title || !form?.description || !form?.parish || !form?.town || !form?.price || !form?.property_type) {

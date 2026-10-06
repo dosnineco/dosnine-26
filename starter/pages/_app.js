@@ -86,6 +86,7 @@ const NO_SPONSORED_BANNER_ROUTES = [
   '/advertise',
   '/chargeback',
     '/fin',
+    '/verify'
 
 ];
 

@@ -1,4 +1,4 @@
-import { getDbClient, requireDbUser } from '@/lib/apiAuth';
+import { getDbClient, requireAgentAccountUser } from '@/lib/apiAuth';
 
 async function getVerifiedAgent(db, userId) {
   const { data: agent } = await db
@@ -12,7 +12,7 @@ async function getVerifiedAgent(db, userId) {
 }
 
 export default async function handler(req, res) {
-  const resolved = await requireDbUser(req, res);
+  const resolved = await requireAgentAccountUser(req, res);
   if (!resolved) return;
 
   const db = getDbClient();

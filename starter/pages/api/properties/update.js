@@ -1,5 +1,6 @@
 import { getDbClient, requireDbUser } from '@/lib/apiAuth';
 import { normalizeParish } from '@/lib/normalizeParish';
+import { canManageProperties } from '@/lib/rbac';
 
 export default async function handler(req, res) {
   if (req.method !== 'PATCH') return res.status(405).json({ error: 'Method not allowed' });
@@ -7,6 +8,9 @@ export default async function handler(req, res) {
   try {
     const resolved = await requireDbUser(req, res, { createIfMissing: true });
     if (!resolved) return;
+    if (!canManageProperties(resolved.user)) {
+      return res.status(403).json({ error: 'A regular or agent account is required to manage properties.' });
+    }
 
     const { id, ...form } = req.body || {};
     if (!id || !form.title || !form.description || !form.parish || !form.town || !form.price) {

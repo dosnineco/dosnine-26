@@ -5,6 +5,7 @@ import { useRouter } from 'next/router';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 import { PARISHES } from '../../lib/normalizeParish';
+import { canManageProperties } from '../../lib/rbac';
 
 export default function NewProperty() {
   const { user, isLoaded } = useUser();
@@ -28,10 +29,16 @@ export default function NewProperty() {
 
       try {
         const token = await getToken();
-        await axios.get('/api/user/profile', {
+        const profileResponse = await axios.get('/api/user/profile', {
           withCredentials: true,
           headers: token ? { Authorization: `Bearer ${token}` } : undefined,
         });
+
+        const profile = profileResponse.data;
+        if (!canManageProperties(profile)) {
+          router.replace('/dashboard');
+          return;
+        }
 
         // If user is an agent (verified), just allow them to continue
         // Payment status will be managed on the agent dashboard
@@ -43,7 +50,8 @@ export default function NewProperty() {
           router.push('/sign-in');
           return;
         }
-        setCheckingAccess(false);
+        toast.error(error?.response?.data?.error || 'Unable to verify your account access.');
+        router.replace('/dashboard');
       }
     }
 

@@ -1,109 +1,137 @@
-import { useUser, useClerk } from '@clerk/nextjs';
-import Link from 'next/link';
+import { useState } from 'react';
+import { useUser } from '@clerk/nextjs';
 import { useRouter } from 'next/router';
-import { Home, Search, Users, ArrowRight } from 'lucide-react';
+import Link from 'next/link';
+import axios from 'axios';
+import toast from 'react-hot-toast';
+import { ArrowRight, Building2, Home, KeyRound, Megaphone, Users } from 'lucide-react';
+import { clearUserCache } from '../lib/useRoleProtection';
 
-export default function UserRoleSelection() {
-  const { user, isLoaded } = useUser();
-  const { redirectToSignIn } = useClerk();
+const accountOptions = [
+  {
+    accountType: 'regular',
+    profileIntent: 'homeowner',
+    title: 'Homeowner',
+    description: 'List and manage up to two properties.',
+    icon: Home,
+    color: 'text-blue-700',
+    background: 'bg-blue-50',
+  },
+  {
+    accountType: 'regular',
+    profileIntent: 'tenant',
+    title: 'Tenant',
+    description: 'Find a home and manage your property requests.',
+    icon: KeyRound,
+    color: 'text-emerald-700',
+    background: 'bg-emerald-50',
+  },
+  {
+    accountType: 'advertiser',
+    title: 'Advertiser',
+    description: 'Create and manage ad campaigns, payments, dates, and results.',
+    icon: Megaphone,
+    color: 'text-violet-700',
+    background: 'bg-violet-50',
+  },
+  {
+    accountType: 'agent',
+    title: 'Real Estate Agent',
+    description: 'Apply for agent access to listings, requests, and agent tools.',
+    icon: Users,
+    color: 'text-amber-700',
+    background: 'bg-amber-50',
+  },
+];
+
+export default function UserRoleSelection({ isAdmin = false }) {
+  const { user } = useUser();
   const router = useRouter();
+  const [saving, setSaving] = useState(false);
 
-  const roles = [
- 
-    {
-      id: 'homeowner',
-      title: 'Homeowner',
-      subtitle: 'List and manage',
-      description: 'Verify your ID first, then manage your listings and requests.',
-      icon: Home,
-      color: 'green',
-      bgColor: 'bg-green-50',
-      hoverColor: 'hover:bg-green-100',
-      textColor: 'text-green-600',
-      link: '/verify?role=homeowner',
-      cta: 'Continue',
-    },
-    {
-      id: 'agent',
-      title: 'Agent',
-      subtitle: 'Verified pros',
-      description: 'Verify your Jamaican ID and complete the agent onboarding.',
-      icon: Users,
-      color: 'purple',
-      bgColor: 'bg-purple-50',
-      hoverColor: 'hover:bg-purple-100',
-      textColor: 'text-purple-600',
-      link: '/verify?role=agent',
-      cta: 'Continue',
-    },
-  ];
+  const chooseAccount = async (option) => {
+    if (saving) return;
+    if (!user) {
+      toast.error('Sign in to set up your account.');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const { data } = await axios.post(
+        '/api/user/account-type',
+        {
+          accountType: option.accountType,
+          profileIntent: option.profileIntent,
+        },
+        { withCredentials: true }
+      );
+      clearUserCache(user.id);
+
+      if (data?.user?.role === 'admin') {
+        await router.replace(option.accountType === 'agent' ? '/agent/dashboard' : '/dashboard');
+        return;
+      }
+
+      if (option.accountType === 'agent') {
+        await router.replace('/agent/signup');
+      } else {
+        const verificationRole = option.profileIntent || option.accountType;
+        await router.replace(`/verify?role=${verificationRole}`);
+      }
+    } catch (error) {
+      toast.error(error.response?.data?.error || 'Unable to save your account type.');
+      setSaving(false);
+    }
+  };
 
   return (
-    <div className="min-h-screen bg-white">
-      <div className="max-w-5xl mx-auto px-4 py-16">
-        {/* Header */}
-  
-        {/* Role Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
-          {roles.map(role => {
-            const Icon = role.icon;
-            
-            const handleClick = (e) => {
-              if (!isLoaded) return;
-              
-              // If user is signed in, navigate directly
-              if (user) {
-                router.push(role.link);
-              } else {
-                // Store intended destination and redirect to sign-in
-                e.preventDefault();
-                sessionStorage.setItem('redirectAfterSignIn', role.link);
-                redirectToSignIn({
-                  redirectUrl: role.link
-                });
-              }
-            };
-            
+    <main className="min-h-screen bg-gray-50 px-4 py-12">
+      <div className="mx-auto max-w-5xl">
+        <header className="mx-auto mb-8 max-w-2xl text-center">
+          <Building2 className="mx-auto mb-4 h-10 w-10 text-accent" aria-hidden="true" />
+          <h1 className="text-3xl font-bold text-gray-900">Choose your Dosnine account</h1>
+          <p className="mt-3 text-gray-600">
+            Choose the account that fits how you will use Dosnine. Your dashboard will be set up for this
+            account type.
+          </p>
+          {isAdmin && (
+            <Link href="/admin/dashboard" className="mt-5 inline-flex rounded-xl bg-gray-900 px-5 py-3 font-semibold text-white hover:bg-gray-700">
+              Open Admin Dashboard
+            </Link>
+          )}
+        </header>
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          {accountOptions.map((option) => {
+            const Icon = option.icon;
             return (
-              <div key={role.id} onClick={handleClick}>
-                <div className={`${role.bgColor} ${role.hoverColor} border-2 border-transparent hover:border-gray-200 rounded-2xl p-8 text-center transition-all cursor-pointer group h-full flex flex-col`}>
-                  {/* Icon */}
-                  <div className={`w-16 h-16 ${role.textColor} bg-white rounded-xl flex items-center justify-center mx-auto mb-4 shadow-sm group-hover:shadow-md transition`}>
-                    <Icon className="w-8 h-8" />
-                  </div>
-
-                  {/* Title */}
-                  <h2 className="text-2xl font-bold text-gray-900 mb-1">
-                    {role.title}
-                  </h2>
-                  <p className={`text-sm font-medium ${role.textColor} mb-3`}>
-                    {role.subtitle}
-                  </p>
-
-                  {/* Description */}
-                  <p className="text-gray-600 mb-6 flex-grow">
-                    {role.description}
-                  </p>
-
-                  {/* CTA Button */}
-                  <button className={`w-full ${role.textColor} bg-white hover:bg-white/80 font-semibold py-3 px-6 rounded-lg transition flex items-center justify-center gap-2 shadow-sm group-hover:shadow-md`}>
-                    {role.cta}
-                    <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition" />
-                  </button>
-                </div>
-              </div>
+              <button
+                key={`${option.accountType}-${option.profileIntent || 'default'}`}
+                type="button"
+                disabled={saving}
+                onClick={() => chooseAccount(option)}
+                className="flex min-h-52 flex-col rounded-2xl bg-white p-6 text-left transition hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-accent disabled:cursor-wait disabled:opacity-60"
+              >
+                <span className={`mb-4 flex h-12 w-12 items-center justify-center rounded-xl ${option.background} ${option.color}`}>
+                  <Icon className="h-6 w-6" aria-hidden="true" />
+                </span>
+                <span className="text-lg font-semibold text-gray-900">{option.title}</span>
+                <span className="mt-2 flex-1 text-sm text-gray-600">{option.description}</span>
+                <span className={`mt-5 inline-flex items-center gap-2 text-sm font-semibold ${option.color}`}>
+                  {saving ? 'Saving account…' : 'Continue'}
+                  {!saving && <ArrowRight className="h-4 w-4" aria-hidden="true" />}
+                </span>
+              </button>
             );
           })}
         </div>
 
-        {/* Quick Info */}
-        <div className="text-center bg-gray-50 rounded-xl p-6">
-          <p className="text-sm text-gray-600">
-            <strong className="text-gray-900">Not sure?</strong> You can always switch roles later. 
-            Regular users get <strong>2 free listings</strong>, agents get unlimited listings and client leads.
-          </p>
-        </div>
+        <p className="mt-6 text-center text-sm text-gray-500">
+          Homeowner and Tenant accounts use the same basic dashboard. Admin access is an additional
+          permission and does not replace your account type.
+        </p>
       </div>
-    </div>
+    </main>
   );
 }

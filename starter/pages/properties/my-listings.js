@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useAuth, useUser } from '@clerk/nextjs';
+import { useRouter } from 'next/router';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
 import { FiEdit2, FiEye, FiMapPin, FiPlus, FiSave, FiTrash2, FiX } from 'react-icons/fi';
@@ -13,6 +14,7 @@ const emptyForm = {
 export default function MyPropertiesPage() {
   const { user, isLoaded } = useUser();
   const { getToken, isLoaded: authLoaded, userId } = useAuth();
+  const router = useRouter();
   const [properties, setProperties] = useState([]);
   const [loading, setLoading] = useState(true);
   const [editingProperty, setEditingProperty] = useState(null);
@@ -41,6 +43,10 @@ export default function MyPropertiesPage() {
       if (response.status === 401) {
         toast.error('Session expired. Please sign in again.');
         window.location.href = '/sign-in';
+        return;
+      }
+      if (response.status === 403) {
+        router.replace('/dashboard');
         return;
       }
       if (!response.ok || !payload?.success) throw new Error(payload?.error || 'Failed to fetch properties');

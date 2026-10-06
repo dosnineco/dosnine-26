@@ -41,6 +41,19 @@ export default async function handler(req, res) {
     const phone = String(getMultipartValue(files.fields, 'phone') || '').trim();
     const idNumber = String(getMultipartValue(files.fields, 'idNumber') || '').trim();
     const consent = String(getMultipartValue(files.fields, 'consent') || 'false') === 'true';
+    const accountType = role === 'agent'
+      ? 'agent'
+      : role === 'advertiser'
+        ? 'advertiser'
+        : 'regular';
+    const profileIntent = ['homeowner', 'tenant'].includes(role) ? role : null;
+
+    if (!['homeowner', 'tenant', 'advertiser', 'agent'].includes(role)) {
+      return res.status(400).json({ error: 'Choose a valid account type.' });
+    }
+    if (resolved.user.account_type && resolved.user.account_type !== accountType) {
+      return res.status(409).json({ error: 'This verification does not match your saved account type.' });
+    }
 
     if (!fullName || !phone || !idNumber || !consent) {
       return res.status(400).json({ error: 'Please complete all required identity details.' });
@@ -94,6 +107,8 @@ export default async function handler(req, res) {
     const updateFields = {
       full_name: fullName,
       phone,
+      account_type: accountType,
+      profile_intent: profileIntent,
       identity_verified: false,
       id_verification_status: 'pending',
       jamaican_id_number: idNumber,
@@ -101,6 +116,7 @@ export default async function handler(req, res) {
       verification_front_url: frontUpload?.path || frontName,
       verification_back_url: backUpload?.path || backName,
       ...(agentIdUpload ? { verification_agent_id_url: agentIdUpload.path } : {}),
+      ...(accountType === 'agent' ? { user_type: 'agent' } : {}),
     };
 
     // Retry without any column missing from the DB schema cache (e.g. before migrations run)
