@@ -7,7 +7,6 @@ import { supabase } from '../../lib/supabase';
 import axios from 'axios';
 import { formatPropertyMoney } from '../../lib/formatMoney';
 import { Clock, XCircle, Briefcase, DollarSign } from 'lucide-react';
-import UserRoleSelection from '../../components/UserRoleSelection';
 import AdvertiserDashboard from '../../components/AdvertiserDashboard';
 
 export default function Dashboard() {
@@ -42,7 +41,6 @@ export default function Dashboard() {
   const [accountType, setAccountType] = useState(null);
   const [profileIntent, setProfileIntent] = useState(null);
   const [isAdmin, setIsAdmin] = useState(false);
-  const [needsAccountTypeSelection, setNeedsAccountTypeSelection] = useState(false);
   const [dashboardError, setDashboardError] = useState('');
   const [sponsorSubmissions, setSponsorSubmissions] = useState([]);
   const [editingAdId, setEditingAdId] = useState(null);
@@ -173,9 +171,7 @@ export default function Dashboard() {
       const selectedType = account.account_type || (account.user_type === 'agent' ? 'agent' : null);
 
       if (userData.needsAccountTypeSelection || !selectedType) {
-        setIsAdmin(account.role === 'admin');
-        setNeedsAccountTypeSelection(true);
-        setRedirecting(false);
+        router.replace('/verify');
         return;
       }
 
@@ -199,7 +195,6 @@ export default function Dashboard() {
       setProfileIntent(account.profile_intent || null);
       setIsAdmin(admin);
       setUserType(account.user_type || 'landlord');
-      setNeedsAccountTypeSelection(false);
       if (selectedType === 'agent') {
         router.replace('/agent/dashboard');
         return;
@@ -342,10 +337,6 @@ export default function Dashboard() {
       setAdOperationLoading(false);
     }
   };
-
-  if (isLoaded && user && needsAccountTypeSelection) {
-    return <UserRoleSelection isAdmin={isAdmin} />;
-  }
 
   if (dashboardError) {
     return (

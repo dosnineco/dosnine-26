@@ -268,7 +268,7 @@ function AppContent({ Component, pageProps }) {
 
   useEffect(() => {
     if (!isSignedIn || !isSynced || !profileData) return;
-    if (isCurrentPagePublic || router.pathname === '/verify') return;
+    if (router.pathname === '/verify') return;
 
     const isAdmin = profileData.role === 'admin';
     const isVerified =
@@ -278,7 +278,7 @@ function AppContent({ Component, pageProps }) {
     if (!isAdmin && !isVerified) {
       router.replace('/verify');
     }
-  }, [isSignedIn, isSynced, profileData, isCurrentPagePublic, router, user]);
+  }, [isSignedIn, isSynced, profileData, router, user]);
 
   /**
    * Render the page content only — the wrapper handles the

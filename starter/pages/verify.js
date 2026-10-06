@@ -256,7 +256,9 @@ export default function VerifyIdentityPage() {
               <ShieldCheck className="w-7 h-7" />
               <h1 className="text-3xl font-bold">Verify your identity</h1>
             </div>
-            <p className="text-white/90 text-sm">Every user must submit a Jamaican ID before using the platform.</p>
+            <p className="text-white/90 text-sm">
+              Choose your account type and submit your Jamaican ID to finish setting up your Dosnine account.
+            </p>
           </div>
 
           <form onSubmit={handleSubmit} className="p-6 md:p-8 space-y-6">

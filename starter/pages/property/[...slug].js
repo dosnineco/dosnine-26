@@ -689,6 +689,9 @@ export default function PropertyPage({ property, similarProperties, isVerifiedAg
           </div>
         </div>
 
+                  <InFeedAd />
+
+
         {/* Location-specific SEO content */}
         <div className="mt-12 bg-gray-50 rounded-xl p-6">
           {property.bedrooms === 0 && property.bathrooms === 0 ? (
@@ -805,7 +808,6 @@ export default function PropertyPage({ property, similarProperties, isVerifiedAg
         )}
 
         <div className="mt-12 flex flex-col items-start gap-6">
-          <InFeedAd />
         <PropertyPopupAd propertyId={property.id} />
 
           <a

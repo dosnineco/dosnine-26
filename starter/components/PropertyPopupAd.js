@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import { X, ExternalLink } from 'lucide-react'
@@ -9,86 +9,110 @@ const POPUP_DURATION_MS = 15000
 const MAX_POOL = 20
 const SHOWN_ADS_KEY = 'dosnine:popup-shown-ads'
 
-export default function PropertyPopupAd({ propertyId }) {
+export default function PropertyPopupAd({ propertyId, show = true, onDismiss }) {
   const [ad, setAd] = useState(null)
   const [visible, setVisible] = useState(false)
   const [secondsLeft, setSecondsLeft] = useState(15)
   const closedRef = useRef(false)
+  const onDismissRef = useRef(onDismiss)
 
-  /* ----------------------------------------------------------
-   * Load one ad — fires on every propertyId change
-   * ---------------------------------------------------------- */
   useEffect(() => {
-    if (!propertyId) return
+    onDismissRef.current = onDismiss
+  }, [onDismiss])
+
+  /* Load an ad only when requested. */
+  useEffect(() => {
+    if (!propertyId || !show) return
     if (typeof window === 'undefined') return
 
-    // Reset state for the new page
     setAd(null)
     setVisible(false)
-    setSecondsLeft(15)
+    setSecondsLeft(POPUP_DURATION_MS / 1000)
     closedRef.current = false
 
     let cancelled = false
 
     const load = async () => {
-      const { data, error } = await supabase
-        .from('advertisements')
-        .select('*')
-        .eq('is_active', true)
-        .or('expires_at.is.null,expires_at.gt.now()')
-        .limit(MAX_POOL)
-
-      if (cancelled || error || !data?.length) return
-
-      let shown = []
       try {
-        shown = JSON.parse(sessionStorage.getItem(SHOWN_ADS_KEY) || '[]')
-        if (!Array.isArray(shown)) shown = []
-      } catch {
-        shown = []
+        const { data, error } = await supabase
+          .from('advertisements')
+          .select('*')
+          .eq('is_active', true)
+          .or('expires_at.is.null,expires_at.gt.now()')
+          .limit(MAX_POOL)
+
+        if (cancelled) return
+        if (error) throw error
+        if (!data?.length) {
+          closedRef.current = true
+          onDismissRef.current?.()
+          return
+        }
+
+        let shown = []
+        try {
+          shown = JSON.parse(sessionStorage.getItem(SHOWN_ADS_KEY) || '[]')
+          if (!Array.isArray(shown)) shown = []
+        } catch {
+          shown = []
+        }
+
+        const unseen = data.filter((item) => !shown.includes(item.id))
+        const pool = unseen.length > 0 ? unseen : data
+
+        const picked = pool[Math.floor(Math.random() * pool.length)]
+        if (!picked) {
+          closedRef.current = true
+          onDismissRef.current?.()
+          return
+        }
+
+        const nextShown =
+          unseen.length > 0
+            ? [...shown, picked.id]
+            : [picked.id]
+
+        try {
+          sessionStorage.setItem(SHOWN_ADS_KEY, JSON.stringify(nextShown))
+        } catch {
+          // ignore quota / privacy-mode errors
+        }
+
+        if (cancelled) return
+
+        setAd(picked)
+        setVisible(true)
+      } catch (error) {
+        if (cancelled) return
+        console.error('Failed to load property popup ad:', error)
+        closedRef.current = true
+        onDismissRef.current?.()
       }
-
-      // Prefer an unseen ad. If everything's been seen, reset the pool.
-      const unseen = data.filter((item) => !shown.includes(item.id))
-      const pool = unseen.length > 0 ? unseen : data
-
-      const picked = pool[Math.floor(Math.random() * pool.length)]
-      if (!picked) return
-
-      const nextShown =
-        unseen.length > 0
-          ? [...shown, picked.id]
-          : [picked.id]
-
-      try {
-        sessionStorage.setItem(SHOWN_ADS_KEY, JSON.stringify(nextShown))
-      } catch {
-        // ignore quota / privacy-mode errors
-      }
-
-      if (cancelled) return
-
-      setAd(picked)
-      setVisible(true)
     }
 
-    // Small delay so the new page has a moment to settle
     const timer = setTimeout(load, 400)
 
     return () => {
       cancelled = true
       clearTimeout(timer)
     }
-  }, [propertyId])
+  }, [propertyId, show])
 
-  /* Auto-dismiss after 15s */
+  const dismiss = useCallback(() => {
+    if (closedRef.current) return
+    closedRef.current = true
+    setVisible(false)
+    onDismissRef.current?.()
+  }, [])
+
+  /* Auto-dismiss after the ad duration */
   useEffect(() => {
     if (!visible) return
     const t = setTimeout(() => {
-      if (!closedRef.current) setVisible(false)
+      dismiss()
     }, POPUP_DURATION_MS)
     return () => clearTimeout(t)
-  }, [visible])
+  }, [visible, dismiss])
 
   /* Visible countdown 15 → 0 */
   useEffect(() => {
@@ -107,12 +131,7 @@ export default function PropertyPopupAd({ propertyId }) {
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [visible])
-
-  const dismiss = () => {
-    closedRef.current = true
-    setVisible(false)
-  }
+  }, [visible, dismiss])
 
   if (!visible || !ad) return null
 

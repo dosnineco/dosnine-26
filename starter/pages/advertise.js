@@ -605,6 +605,15 @@ export default function AdvertisePage() {
     `${baseClassName} ${fieldErrors[field] ? 'border-red-500 bg-red-50 focus:border-red-500' : ''}`;
 
   const handleStartOver = () => {
+    if (
+      receiptSubmittedAt &&
+      !window.confirm(
+        'Your submitted receipt and current ad submission will remain under review, but will not be canceled. Start a separate ad submission?'
+      )
+    ) {
+      return;
+    }
+
     clearPersistedSubmission();
     setSubmissionId('');
     setPaymentStatus('unpaid');
@@ -1134,8 +1143,8 @@ export default function AdvertisePage() {
                     </Link>
                   )}
 
-                  {!receiptSubmittedAt && paymentStatus !== 'paid' ? (
-                    <div className="mt-5 flex justify-center border-t border-slate-200 pt-4">
+                  {paymentStatus !== 'paid' ? (
+                    <div className="mt-5 flex flex-col items-center border-t border-slate-200 pt-4">
                       <button
                         type="button"
                         onClick={handleStartOver}
@@ -1143,6 +1152,11 @@ export default function AdvertisePage() {
                       >
                         Submit a different ad
                       </button>
+                      {receiptSubmittedAt && (
+                        <p className="mt-2 text-center text-xs text-slate-500">
+                          Your current submission and receipt will remain under review.
+                        </p>
+                      )}
                     </div>
                   ) : null}
                 </div>
