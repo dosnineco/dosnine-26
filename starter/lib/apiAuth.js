@@ -46,23 +46,19 @@ export function getClerkUserContext(req) {
   const auth = getAuth(req);
   const sessionClaims = auth?.sessionClaims || {};
 
-  const headerClerkId = getHeaderValue(req, 'x-clerk-user-id');
-  const headerEmail = getHeaderValue(req, 'x-clerk-user-email');
-  const headerName = getHeaderValue(req, 'x-clerk-user-name');
-
   const email = typeof sessionClaims.email === 'string'
     ? sessionClaims.email
-    : headerEmail || null;
+    : null;
   const firstName = typeof sessionClaims.first_name === 'string'
     ? sessionClaims.first_name
     : '';
   const lastName = typeof sessionClaims.last_name === 'string'
     ? sessionClaims.last_name
     : '';
-  const fullName = `${firstName} ${lastName}`.trim() || headerName || null;
+  const fullName = `${firstName} ${lastName}`.trim() || null;
 
   return {
-    clerkId: auth?.userId || headerClerkId || null,
+    clerkId: auth?.userId || null,
     email,
     fullName,
   };
