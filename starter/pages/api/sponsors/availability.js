@@ -47,7 +47,7 @@ export default async function handler(req, res) {
     }
     if (error) throw error;
 
-    let adPlanPrices = { '14-day': 17999, '30-day': 52499 };
+    let adPlanPrices = { '14-day': 17999, '30-day': 52499, pro: 90999 };
     const { data: pricing, error: pricingError } = await db
       .from('site_settings')
       .select('value')
@@ -60,7 +60,7 @@ export default async function handler(req, res) {
         throw pricingError;
       }
     } else {
-      adPlanPrices = pricing?.value || adPlanPrices;
+      adPlanPrices = { ...adPlanPrices, ...(pricing?.value || {}) };
     }
 
     res.setHeader('Cache-Control', 'no-store, max-age=0');

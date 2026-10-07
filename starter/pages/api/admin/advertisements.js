@@ -176,14 +176,14 @@ export default async function handler(req, res) {
               warning: capacityWarning,
             },
         capacityWarning,
-        adPlanPrices: pricing?.value || { '14-day': 17999, '30-day': 52499 },
+        adPlanPrices: { '14-day': 17999, '30-day': 52499, pro: 90999, ...(pricing?.value || {}) },
       });
     }
 
     if (req.method === 'PATCH') {
       if (req.body?.adPlanPrices) {
         const { adPlanPrices } = req.body;
-        const planIds = ['14-day', '30-day'];
+        const planIds = ['14-day', '30-day', 'pro'];
         if (
           !adPlanPrices ||
           typeof adPlanPrices !== 'object' ||
@@ -194,7 +194,7 @@ export default async function handler(req, res) {
             Number(adPlanPrices[planId]) > 10000000
           )
         ) {
-          return res.status(400).json({ error: 'Enter valid prices for both ad plans.' });
+          return res.status(400).json({ error: 'Enter valid prices for all ad plans.' });
         }
 
         const { error } = await db.from('site_settings').upsert(

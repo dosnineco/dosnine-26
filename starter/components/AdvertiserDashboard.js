@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
+import { useAuth } from '@clerk/nextjs';
 import { BarChart3, CalendarDays, Eye, MousePointer2, Plus, Trash2 } from 'lucide-react';
 
 const formatDate = (value) => {
@@ -12,8 +13,19 @@ const formatDate = (value) => {
 };
 
 const formatMoney = (value) => `J$${Number(value || 0).toLocaleString()}`;
+const PLACEMENT_LABELS = {
+  newsletter: 'Newsletter',
+  popup: 'Pop-up',
+  display: 'Display',
+  infeed: 'In-feed',
+};
+const formatPlacements = (placements) =>
+  Array.isArray(placements)
+    ? placements.map((placement) => PLACEMENT_LABELS[placement]).filter(Boolean).join(' · ')
+    : '';
 
 export default function AdvertiserDashboard({ overview, isAdmin = false, onRefresh }) {
+  const { getToken } = useAuth();
   const [editingAdId, setEditingAdId] = useState(null);
   const [editValues, setEditValues] = useState({});
   const [saving, setSaving] = useState(false);
@@ -39,13 +51,18 @@ export default function AdvertiserDashboard({ overview, isAdmin = false, onRefre
     setSaving(true);
     setNotice('');
     try {
+      const token = await getToken();
+      if (!token) throw new Error('Your session has expired. Please sign in again.');
       const response = await fetch('/api/advertisements/update', {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
         credentials: 'include',
         body: JSON.stringify({ id: adId, ...editValues }),
       });
-      const payload = await response.json();
+      const payload = await response.json().catch(() => null);
       if (!response.ok || !payload?.success) {
         throw new Error(payload?.error || 'Unable to update this ad.');
       }
@@ -64,13 +81,18 @@ export default function AdvertiserDashboard({ overview, isAdmin = false, onRefre
     setSaving(true);
     setNotice('');
     try {
+      const token = await getToken();
+      if (!token) throw new Error('Your session has expired. Please sign in again.');
       const response = await fetch('/api/advertisements/delete', {
         method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
         credentials: 'include',
         body: JSON.stringify({ id: adId }),
       });
-      const payload = await response.json();
+      const payload = await response.json().catch(() => null);
       if (!response.ok || !payload?.success) {
         throw new Error(payload?.error || 'Unable to delete this ad.');
       }
@@ -200,6 +222,11 @@ export default function AdvertiserDashboard({ overview, isAdmin = false, onRefre
                         <p><span className="text-gray-500">Views:</span> {Number(ad.impressions || 0).toLocaleString()}</p>
                         <p><span className="text-gray-500">Clicks:</span> {Number(ad.clicks || 0).toLocaleString()}</p>
                       </div>
+                      {formatPlacements(ad.placement_types) && (
+                        <p className="mt-3 text-sm text-gray-600">
+                          <span className="font-medium text-gray-800">Placements:</span> {formatPlacements(ad.placement_types)}
+                        </p>
+                      )}
                       <div className="mt-4 flex flex-wrap gap-2">
                         <button type="button" disabled={saving} onClick={() => startEditing(ad)} className="rounded-lg bg-gray-100 px-4 py-2 text-sm font-semibold text-gray-800">
                           Edit ad
@@ -240,7 +267,19 @@ export default function AdvertiserDashboard({ overview, isAdmin = false, onRefre
                     <tr key={submission.id}>
                       <td className="px-4 py-3 font-medium text-gray-900">{submission.company_name}</td>
                       <td className="px-4 py-3 text-gray-600">{formatDate(submission.submitted_at)}</td>
-                      <td className="px-4 py-3 text-gray-600">{submission.plan_name || submission.plan_id || '—'}{submission.duration_days ? ` · ${submission.duration_days} days` : ''}</td>
+                      <td className="px-4 py-3 text-gray-600">
+                        {submission.plan_name || submission.plan_id || '—'}
+                        {submission.duration_months
+                          ? ` · ${submission.duration_months} ${submission.duration_months === 1 ? 'month' : 'months'}`
+                          : submission.duration_days
+                            ? ` · ${submission.duration_days} days`
+                            : ''}
+                        {formatPlacements(submission.placement_types) && (
+                          <span className="mt-1 block text-xs text-gray-500">
+                            {formatPlacements(submission.placement_types)}
+                          </span>
+                        )}
+                      </td>
                       <td className="px-4 py-3 text-gray-600">{submission.scheduled_month || 'Not scheduled'}</td>
                       <td className="px-4 py-3 text-gray-600">{formatMoney(submission.amount)}</td>
                       <td className="px-4 py-3 capitalize text-gray-700">{String(submission.payment_status || submission.status || 'unknown').replaceAll('_', ' ')}</td>

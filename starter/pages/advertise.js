@@ -26,6 +26,7 @@ const plans = [
     price: 17999,
     badge: 'Most Popular',
     popular: true,
+    placements: ['Pop-up ads', 'Display ads', 'In-feed ads'],
   },
   {
     id: '30-day',
@@ -33,6 +34,15 @@ const plans = [
     duration: '30 Days',
     price: 52499,
     badge: 'Elite',
+    placements: ['Pop-up ads', 'Display ads', 'In-feed ads'],
+  },
+  {
+    id: 'pro',
+    name: 'Pro',
+    duration: 'Custom monthly term',
+    price: 90999,
+    badge: 'Enterprise',
+    placements: ['Newsletter ads', 'Pop-up ads', 'Display ads', 'In-feed ads'],
   },
 ];
 
@@ -323,7 +333,7 @@ const categories = [
 ];
 
 const formatMoney = (value) => `J$${Number(value || 0).toLocaleString()}`;
-const DEFAULT_AD_PLAN_PRICES = { '14-day': 17999, '30-day': 52499 };
+const DEFAULT_AD_PLAN_PRICES = { '14-day': 17999, '30-day': 52499, pro: 90999 };
 
 const MAX_IMAGE_SIZE_KB = 250;
 const MONTHLY_VISITORS = '57K+';
@@ -335,6 +345,183 @@ const isValidSubmissionId = (value) =>
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
     String(value || '').trim()
   );
+
+const PreviewPlaceholder = ({ className = '' }) => (
+  <span className={`block animate-pulse rounded bg-slate-200 ${className}`} aria-hidden="true" />
+);
+
+function CampaignAdPreview({ format, campaign, blank, locked }) {
+  const image = campaign.imageUrl && !blank;
+  const company = blank ? '' : campaign.company;
+  const title = blank ? '' : campaign.title;
+  const description = blank ? '' : campaign.description;
+  const category = blank ? '' : campaign.category;
+  const imageBlock = (className) => (
+    <div className={`relative flex shrink-0 items-center justify-center overflow-hidden bg-gray-100 ${className}`}>
+      {image ? (
+        <Image src={campaign.imageUrl} alt="" fill unoptimized sizes="(max-width: 768px) 100vw, 50vw" className="object-contain" />
+      ) : blank ? (
+        <PreviewPlaceholder className="h-2/3 w-2/3 rounded-lg" />
+      ) : (
+        <span className="text-2xl font-bold text-gray-600">
+          {company.slice(0, 1).toUpperCase() || 'A'}
+        </span>
+      )}
+    </div>
+  );
+  const textLines = (count = 2) => (
+    <div className="space-y-2">
+      {Array.from({ length: count }, (_, index) => (
+        <PreviewPlaceholder
+          key={index}
+          className={`h-3 ${index === count - 1 ? 'w-2/3' : 'w-full'}`}
+        />
+      ))}
+    </div>
+  );
+  const heading = blank ? (
+    <PreviewPlaceholder className="h-4 w-3/4" />
+  ) : (
+    <span className="block truncate">{title || category || 'Discover more'}</span>
+  );
+  const body = blank ? (
+    textLines(2)
+  ) : (
+    <span className="line-clamp-2 block">{description || 'Learn more about this business.'}</span>
+  );
+  const companyLabel = blank ? (
+    <PreviewPlaceholder className="mb-2 h-3 w-1/3" />
+  ) : (
+    <p className="mb-1 truncate text-xs font-semibold text-gray-500">{company}</p>
+  );
+
+  const formatLabel = {
+    banner: 'Banner',
+    display: 'Display',
+    infeed: 'In-feed',
+    popup: 'Pop-up',
+    newsletter: 'Newsletter',
+  }[format];
+
+  return (
+    <article className={`overflow-hidden rounded-2xl bg-white ring-1 ring-gray-200 ${locked ? 'opacity-75' : ''}`}>
+      <div className="flex items-center justify-between bg-gray-50 px-4 py-3">
+        <h3 className="text-sm font-semibold text-gray-900">{formatLabel} ad</h3>
+        {locked ? (
+          <span className="rounded-full bg-violet-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-violet-700">
+            Pro plan
+          </span>
+        ) : (
+          <span className="text-[10px] font-medium uppercase tracking-wider text-gray-400">Sponsored preview</span>
+        )}
+      </div>
+
+      {format === 'banner' && (
+        <div className="bg-gray-50 p-4">
+          <div className="mb-1 text-[9px] font-medium uppercase tracking-wider text-gray-400">Sponsored</div>
+          <div className="flex min-h-[76px] items-center gap-3 rounded-xl border border-gray-200 bg-white p-2.5 sm:min-h-[100px] sm:p-3">
+            {imageBlock('h-14 w-14 rounded-lg sm:h-20 sm:w-20')}
+            <div className="min-w-0 flex-1">
+              {companyLabel}
+              <div className="text-sm font-semibold leading-tight text-gray-900 sm:text-base">{heading}</div>
+              <div className="mt-1 truncate text-[11px] leading-tight text-gray-500 sm:text-sm">{body}</div>
+            </div>
+            <span className="hidden shrink-0 rounded-full border border-gray-300 px-3 py-2 text-xs font-semibold text-gray-700 sm:inline-flex">
+              Learn more
+            </span>
+          </div>
+        </div>
+      )}
+
+      {format === 'display' && (
+        <div className="bg-gray-100 p-4 sm:p-6">
+          <div className="mx-auto max-w-xl rounded-xl border border-gray-200 bg-white p-4">
+            <p className="mb-3 text-[9px] font-medium uppercase tracking-wider text-gray-400">Sponsored</p>
+            <div className="flex min-h-[120px] items-center gap-4 sm:gap-5">
+              {imageBlock('h-[90px] w-24 rounded-lg sm:w-[140px]')}
+              <div className="min-w-0 flex-1">
+                {companyLabel}
+                <div className="text-lg font-semibold text-gray-900">{heading}</div>
+                <div className="mt-1 text-sm text-gray-500">{body}</div>
+              </div>
+              <span className="hidden shrink-0 rounded-lg border border-gray-300 px-4 py-2 text-xs font-semibold text-gray-800 sm:inline-flex">
+                Learn more
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {format === 'infeed' && (
+        <div className="bg-gray-50 p-4">
+          <div className="mx-auto flex min-h-80 max-w-sm flex-col overflow-hidden rounded-xl border border-gray-200 bg-white">
+            <span className="self-start rounded-full bg-gray-900/80 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-white">
+              Sponsored
+            </span>
+            <div className="flex h-48 items-center justify-center bg-white p-3 sm:h-52">
+              {imageBlock('h-full w-full')}
+            </div>
+            <div className="flex-1 p-3">
+              <div className="mb-2 text-sm font-semibold leading-6 text-gray-900">{heading}</div>
+              <div className="text-sm leading-5 text-gray-500">{body}</div>
+              <div className="mt-2 truncate text-xs font-bold text-gray-500">
+                {blank ? <PreviewPlaceholder className="h-3 w-1/3" /> : company}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {format === 'popup' && (
+        <div className="bg-gray-900/10 p-4 sm:p-6">
+          <div className="mx-auto max-w-md overflow-hidden rounded-2xl bg-white">
+            <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3">
+              <span className="text-[10px] font-bold uppercase tracking-[0.22em] text-gray-400">Sponsored</span>
+              <span className="text-xs font-semibold text-gray-500">×</span>
+            </div>
+            <div className="h-32 bg-gray-50 sm:h-40">
+              {imageBlock('h-full w-full bg-gray-50')}
+            </div>
+            <div className="space-y-3 p-4">
+              {companyLabel}
+              <div className="text-lg font-bold text-gray-900">{heading}</div>
+              <div className="text-sm leading-relaxed text-gray-600">{body}</div>
+              <span className="inline-flex rounded-full bg-gray-900 px-4 py-2 text-xs font-semibold text-white">
+                Learn more ↗
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {format === 'newsletter' && (
+        <div className="bg-slate-100 p-4 sm:p-6">
+          <div className="mx-auto max-w-md border border-slate-200 bg-white p-5">
+            <div className="mb-4 border-b border-slate-100 pb-3">
+              <PreviewPlaceholder className="h-3 w-1/3" />
+              <PreviewPlaceholder className="mt-2 h-2 w-2/3" />
+            </div>
+            {image && (
+              <div className="relative mb-4 h-40 w-full">
+                <Image src={campaign.imageUrl} alt="" fill unoptimized sizes="(max-width: 768px) 100vw, 50vw" className="object-contain" />
+              </div>
+            )}
+            {blank && <PreviewPlaceholder className="mb-4 h-20 w-full rounded-none" />}
+            <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400">
+              Sponsored{category ? ` · ${category}` : ''}
+            </p>
+            <div className="mt-2 text-lg font-bold leading-snug text-slate-900">{heading}</div>
+            {!blank && company && <p className="mt-1 text-sm font-semibold text-slate-500">{company}</p>}
+            <div className="mt-3 text-sm leading-6 text-slate-600">{body}</div>
+            <span className="mt-4 inline-flex rounded-lg bg-accent px-4 py-2.5 text-xs font-semibold text-white">
+              View advertisement →
+            </span>
+          </div>
+        </div>
+      )}
+    </article>
+  );
+}
 
 const normalizeWebsite = (value) => {
   const trimmed = String(value || '').trim();
@@ -497,6 +684,7 @@ export default function AdvertisePage() {
     contact_name: '',
     location: '',
     plan_id: '14-day',
+    duration_months: 1,
     is_featured: false,
   });
 
@@ -505,7 +693,22 @@ export default function AdvertisePage() {
     [form.plan_id]
   );
 
-  const totalAmount = Number(planPrices[selectedPlan.id] || selectedPlan.price);
+  const durationMonths = selectedPlan.id === 'pro' ? Number(form.duration_months) || 1 : 1;
+  const totalAmount = Number(planPrices[selectedPlan.id] || selectedPlan.price) * durationMonths;
+  const hasPreviewContent = Boolean(
+    String(form.company_name || '').trim() ||
+    String(form.title || '').trim() ||
+    String(form.description || '').trim() ||
+    imagePreviews.length
+  );
+  const blankPreview = !isSignedIn || !hasPreviewContent;
+  const campaignPreview = {
+    company: form.company_name,
+    title: form.title,
+    description: form.description,
+    category: categories.find((category) => category.value === form.category)?.label || '',
+    imageUrl: imagePreviews[0] || '',
+  };
   /* -------------------- Restore on mount -------------------- */
   useEffect(() => {
     const persisted = loadPersistedSubmission();
@@ -687,6 +890,12 @@ export default function AdvertisePage() {
     if (!String(form.phone || '').trim()) errors.phone = 'Enter a phone number customers can use.';
     if (!String(form.description || '').trim()) errors.description = 'Describe your services.';
     if (!String(form.location || '').trim()) errors.location = 'Enter the area where you serve customers.';
+    if (
+      selectedPlan.id === 'pro' &&
+      (!Number.isSafeInteger(Number(form.duration_months)) || Number(form.duration_months) < 1)
+    ) {
+      errors.duration_months = 'Choose at least one whole month for a Pro campaign.';
+    }
     if (form.email && !/^\S+@\S+\.\S+$/.test(form.email.trim())) errors.email = 'Enter a valid email address.';
     if (form.website && !isValidWebsite(form.website)) {
       errors.website = 'Enter a valid website, e.g. example.com or https://example.com.';
@@ -738,7 +947,7 @@ export default function AdvertisePage() {
         email: form.email || user?.primaryEmailAddress?.emailAddress || 'no-email@dosnine.local',
         image_url: uploadedImageUrls[0] || null,
         image_urls: uploadedImageUrls,
-        is_featured: Boolean(selectedPlan.id === '14-day' || selectedPlan.id === '30-day'),
+        is_featured: Boolean(selectedPlan.id === '14-day' || selectedPlan.id === '30-day' || selectedPlan.id === 'pro'),
       };
 
       const token = await getToken();
@@ -1013,14 +1222,20 @@ export default function AdvertisePage() {
                           {selectedPlan.name}
                         </p>
                         <p className="mt-1 text-sm text-slate-600">
-                          {selectedPlan.duration} of premium placement
+                          {selectedPlan.id === 'pro'
+                            ? `${durationMonths} ${durationMonths === 1 ? 'month' : 'months'} of Pro placements`
+                            : `${selectedPlan.duration} of premium placement`}
                         </p>
                       </div>
                       <div className="text-right">
                         <p className="text-2xl font-semibold tracking-tight text-slate-900">
                           {formatMoney(totalAmount)}
                         </p>
-                        <p className="mt-1 text-xs text-slate-500">One-time bank transfer</p>
+                        <p className="mt-1 text-xs text-slate-500">
+                          {selectedPlan.id === 'pro'
+                            ? `${formatMoney(planPrices.pro || selectedPlan.price)} per month · one-time bank transfer`
+                            : 'One-time bank transfer'}
+                        </p>
                       </div>
                     </div>
 
@@ -1250,6 +1465,59 @@ export default function AdvertisePage() {
                 </div>
               </div>
             </section>
+             {/* ---------- AD PREVIEWS ---------- */}
+            <section id="ad-previews" className="border-b border-slate-100 bg-slate-50">
+              <div className="mx-auto max-w-5xl px-4 py-16 sm:px-6 sm:py-20 lg:px-8">
+                <p className="text-xs font-semibold uppercase tracking-[0.22em] text-accent">
+                  Placement previews
+                </p>
+                <h2 className="mt-4 max-w-3xl text-2xl font-semibold leading-snug tracking-tight text-slate-900 sm:text-3xl">
+                  See how your campaign can appear across Dosnine.
+                </h2>
+                <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600">
+                  {blankPreview
+                    ? 'Sample templates are shown below. Sign in and add your business details and image to preview your own creative.'
+                    : 'Your previews use your campaign name, title, description, category, and uploaded image. Final placements follow these live site formats.'}
+                </p>
+
+                <div className="mt-8 grid gap-5 lg:grid-cols-2">
+                  <CampaignAdPreview
+                    format="banner"
+                    campaign={campaignPreview}
+                    blank={blankPreview}
+                  />
+                  <CampaignAdPreview
+                    format="display"
+                    campaign={campaignPreview}
+                    blank={blankPreview}
+                  />
+                  <CampaignAdPreview
+                    format="infeed"
+                    campaign={campaignPreview}
+                    blank={blankPreview}
+                  />
+                  <CampaignAdPreview
+                    format="popup"
+                    campaign={campaignPreview}
+                    blank={blankPreview}
+                  />
+                  <CampaignAdPreview
+                    format="newsletter"
+                    campaign={campaignPreview}
+                    blank={blankPreview}
+                    locked={selectedPlan.id !== 'pro'}
+                  />
+                </div>
+
+                <a
+                  href="#advertise-form"
+                  className="mt-8 inline-flex items-center gap-2 rounded-full bg-accent px-5 py-3 text-sm font-semibold text-white transition hover:bg-accent/90"
+                >
+                  {isSignedIn ? 'Add campaign details' : 'Sign in to build your ad'}
+                  <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                </a>
+              </div>
+            </section>
 
             {/* ---------- PRICING ---------- */}
             <section id="plans" className="border-b border-slate-100">
@@ -1258,14 +1526,13 @@ export default function AdvertisePage() {
                   Pricing
                 </h2>
                 <p className="mt-6 max-w-2xl text-2xl font-semibold leading-snug tracking-tight text-slate-900 sm:text-3xl">
-                  One-time payment. No subscriptions.
+                  One-time payment for your selected campaign term.
                 </p>
                 <p className="mt-3 max-w-2xl text-base leading-7 text-slate-600">
-                  Choose how long you want your ad in rotation. Both plans include the same
-                  placement — you are only choosing duration.
+                  Professional and Elite include pop-up, display, and in-feed ads. Pro adds a sponsored newsletter placement at a monthly rate, paid upfront for your selected term.
                 </p>
 
-                <div className="mt-12 grid grid-cols-1 gap-5 md:grid-cols-2">
+                <div className="mt-12 grid grid-cols-1 gap-5 md:grid-cols-3">
                   {plans.map((plan) => {
                     const selected = form.plan_id === plan.id;
                     return (
@@ -1320,8 +1587,18 @@ export default function AdvertisePage() {
                             selected ? 'text-white/70' : 'text-slate-500'
                           }`}
                         >
-                          for {plan.duration.toLowerCase()}
+                          {plan.id === 'pro'
+                            ? 'per month · choose your term'
+                            : `for ${plan.duration.toLowerCase()}`}
                         </p>
+                        <ul className={`mt-5 space-y-2 text-sm ${selected ? 'text-white/90' : 'text-slate-600'}`}>
+                          {plan.placements.map((placement) => (
+                            <li key={placement} className="flex items-center gap-2">
+                              <Check className="h-4 w-4 shrink-0" aria-hidden="true" />
+                              {placement}
+                            </li>
+                          ))}
+                        </ul>
 
                         <div
                           className={`mt-6 inline-flex items-center justify-center gap-2 rounded-full px-5 py-3 text-sm font-semibold transition ${
@@ -1347,6 +1624,35 @@ export default function AdvertisePage() {
                   })}
                 </div>
 
+                {selectedPlan.id === 'pro' && (
+                  <div className="mt-6 max-w-sm">
+                    <label htmlFor="ad-duration_months" className="block text-sm font-semibold text-slate-700">
+                      Pro campaign length (months)
+                    </label>
+                    <input
+                      id="ad-duration_months"
+                      type="number"
+                      min="1"
+                      step="1"
+                      value={form.duration_months}
+                      onChange={(event) =>
+                        setForm((prev) => ({ ...prev, duration_months: event.target.value }))
+                      }
+                      className={`mt-2 w-full rounded-lg border bg-white px-4 py-3 text-slate-900 outline-none focus:border-accent focus:ring-2 focus:ring-accent/20 ${
+                        fieldErrors.duration_months ? 'border-red-500' : 'border-slate-200'
+                      }`}
+                      aria-invalid={Boolean(fieldErrors.duration_months)}
+                    />
+                    {fieldErrors.duration_months ? (
+                      <p className="mt-1 text-sm text-red-600">{fieldErrors.duration_months}</p>
+                    ) : (
+                      <p className="mt-1 text-sm text-slate-500">
+                        Minimum 1 month at {formatMoney(planPrices.pro || selectedPlan.price)} per month. Total: {formatMoney(totalAmount)}.
+                      </p>
+                    )}
+                  </div>
+                )}
+
                 <p className="mt-8 max-w-2xl text-sm text-slate-500">
                   {spotsLeft === null
                     ? `There are ${SPOTS_TOTAL} paid sponsor slots each month. Submissions stay open when they fill and paid ads are queued for the next available month.`
@@ -1357,7 +1663,6 @@ export default function AdvertisePage() {
                 </p>
               </div>
             </section>
-
             {/* ---------- FORM ---------- */}
             <section id="advertise-form" className="border-b border-slate-100">
               <div className="mx-auto max-w-5xl px-4 py-20 sm:px-6 sm:py-24 lg:px-8">

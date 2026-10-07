@@ -152,6 +152,7 @@ export default function SponsoredAdBanner({ compact = false }) {
         .from('advertisements')
         .select('*')
         .eq('is_active', true)
+        .contains('placement_types', ['display'])
         .or('expires_at.is.null,expires_at.gt.now()')
         .limit(MAX_AD_SLOTS)
 

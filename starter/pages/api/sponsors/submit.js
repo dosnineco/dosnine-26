@@ -3,10 +3,19 @@ import { getDbClient, requireDbUser } from '@/lib/apiAuth';
 import * as SibApiV3Sdk from '@getbrevo/brevo';
 
 const AD_PLANS = {
-  '3-day': { id: '3-day', name: '3-Day Ad', amount: 5249, durationDays: 3 },
-  '7-day': { id: '7-day', name: '7-Day Ad', amount: 11999, durationDays: 7 },
-  '14-day': { id: '14-day', name: '14-Day Ad', amount: 17999, durationDays: 14 },
-  '30-day': { id: '30-day', name: '30-Day Ad', amount: 52499, durationDays: 30 },
+  '14-day': { id: '14-day', name: 'Professional', amount: 17999, durationDays: 14 },
+  '30-day': { id: '30-day', name: 'Elite', amount: 52499, durationDays: 30 },
+  pro: { id: 'pro', name: 'Pro', amount: 90999, durationDays: 30 },
+};
+
+const STANDARD_PLACEMENTS = ['popup', 'display', 'infeed'];
+const PRO_PLACEMENTS = [...STANDARD_PLACEMENTS, 'newsletter'];
+const MAX_DATABASE_INTEGER = 2147483647;
+const PLACEMENT_LABELS = {
+  popup: 'Pop-up',
+  display: 'Display',
+  infeed: 'In-feed',
+  newsletter: 'Newsletter',
 };
 
 const ALLOWED_AD_CATEGORIES = new Set([
@@ -67,6 +76,9 @@ async function sendAdminAdSubmissionEmail({
 
   const apiInstance = new SibApiV3Sdk.TransactionalEmailsApi();
   apiInstance.setApiKey(SibApiV3Sdk.TransactionalEmailsApiApiKeys.apiKey, apiKey);
+  const planDuration = selectedPlan?.durationMonths
+    ? `${selectedPlan.durationMonths} ${selectedPlan.durationMonths === 1 ? 'month' : 'months'}`
+    : `${selectedPlan?.durationDays || 0} days`;
 
   const htmlContent = `
     <h2>New Ad Submission Received</h2>
@@ -85,8 +97,9 @@ async function sendAdminAdSubmissionEmail({
     <ul>
       ${(Array.isArray(image_urls) ? image_urls : []).map((url) => `<li>${url}</li>`).join('')}
     </ul>
-    <p><strong>Plan:</strong> ${selectedPlan?.name || ''} (${selectedPlan?.durationDays || 0} days)</p>
+    <p><strong>Plan:</strong> ${selectedPlan?.name || ''} (${planDuration})</p>
     <p><strong>Amount:</strong> JMD $${Number(selectedPlan?.amount || 0).toLocaleString()}</p>
+    <p><strong>Placements:</strong> ${(selectedPlan?.placements || []).map((placement) => PLACEMENT_LABELS[placement]).join(', ')}</p>
     <hr />
     <p><strong>Description:</strong></p>
     <p>${String(description || '').replace(/\n/g, '<br/>')}</p>
@@ -127,6 +140,7 @@ export default async function handler(req, res) {
     image_urls,
     is_featured,
     plan_id,
+    duration_months,
     title,
     contact_name,
   } = req.body || {};
@@ -176,7 +190,16 @@ export default async function handler(req, res) {
       return res.status(403).json({ error: 'A verified Dosnine account is required to submit an advertisement.' });
     }
 
-    const defaultPlan = AD_PLANS[plan_id] || AD_PLANS['7-day'];
+    const defaultPlan = AD_PLANS[plan_id];
+    if (!defaultPlan) {
+      return res.status(400).json({ error: 'Select a valid advertisement plan.' });
+    }
+
+    const durationMonths = plan_id === 'pro' ? Number(duration_months) : null;
+    if (plan_id === 'pro' && (!Number.isSafeInteger(durationMonths) || durationMonths < 1)) {
+      return res.status(400).json({ error: 'Pro campaigns must run for at least one whole month.' });
+    }
+
     const { data: pricing, error: pricingError } = await db
       .from('site_settings')
       .select('value')
@@ -184,11 +207,28 @@ export default async function handler(req, res) {
       .maybeSingle();
     if (pricingError) throw pricingError;
     const configuredPrice = Number(pricing?.value?.[defaultPlan.id]);
+    const monthlyPrice = Number.isInteger(configuredPrice) && configuredPrice > 0 &&
+      configuredPrice <= 10000000
+      ? configuredPrice
+      : defaultPlan.amount;
+    const amount = plan_id === 'pro' ? monthlyPrice * durationMonths : monthlyPrice;
+    const durationDays = plan_id === 'pro' ? durationMonths * 30 : defaultPlan.durationDays;
+    if (
+      !Number.isSafeInteger(amount) ||
+      amount > MAX_DATABASE_INTEGER ||
+      !Number.isSafeInteger(durationDays) ||
+      durationDays > MAX_DATABASE_INTEGER
+    ) {
+      return res.status(400).json({ error: 'The selected campaign duration exceeds the supported limit.' });
+    }
+
+    const placements = plan_id === 'pro' ? PRO_PLACEMENTS : STANDARD_PLACEMENTS;
     const selectedPlan = {
       ...defaultPlan,
-      amount: Number.isInteger(configuredPrice) && configuredPrice > 0
-        ? configuredPrice
-        : defaultPlan.amount,
+      amount,
+      durationDays,
+      durationMonths,
+      placements,
     };
     const submittedAt = new Date().toISOString();
     const createdByClerkId = resolved.clerkId;
@@ -211,6 +251,10 @@ export default async function handler(req, res) {
       plan_name: selectedPlan.name,
       amount: selectedPlan.amount,
       duration_days: selectedPlan.durationDays,
+      duration_months: selectedPlan.durationMonths,
+      placement_types: selectedPlan.placements,
+      title: title || company_name,
+      contact_name: contact_name || null,
       created_by_clerk_id: resolved.clerkId,
     };
 
@@ -245,6 +289,10 @@ export default async function handler(req, res) {
       advertiser_id: resolved.user.id,
       expires_at: null,
       is_featured: Boolean(is_featured),
+      plan_id: selectedPlan.id,
+      plan_name: selectedPlan.name,
+      duration_months: selectedPlan.durationMonths,
+      placement_types: selectedPlan.placements,
     };
 
     const adInsert = await db.from('advertisements').insert([adDraft]);
@@ -281,6 +329,8 @@ export default async function handler(req, res) {
         name: selectedPlan.name,
         amount: selectedPlan.amount,
         durationDays: selectedPlan.durationDays,
+        durationMonths: selectedPlan.durationMonths,
+        placements: selectedPlan.placements,
       },
     });
   } catch (error) {

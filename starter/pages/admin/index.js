@@ -31,6 +31,7 @@ const AD_PRICING = {
   '7-day': 11999,
   '14-day': 17999,
   '30-day': 52499,
+  pro: 90999,
 };
 
 const LEGACY_FEATURED_PRICE = 14970;

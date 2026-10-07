@@ -38,6 +38,7 @@ export default function PropertyPopupAd({ propertyId, show = true, onDismiss }) 
           .from('advertisements')
           .select('*')
           .eq('is_active', true)
+          .contains('placement_types', ['popup'])
           .or('expires_at.is.null,expires_at.gt.now()')
           .limit(MAX_POOL)
 
@@ -164,7 +165,7 @@ export default function PropertyPopupAd({ propertyId, show = true, onDismiss }) 
 
       <div
         onClick={(e) => e.stopPropagation()}
-        className="relative w-full max-w-3xl overflow-hidden rounded-3xl bg-white shadow-[0_24px_80px_-20px_rgba(0,0,0,0.6)]"
+        className="relative flex h-[100dvh] w-full flex-col overflow-y-auto bg-white sm:h-[82dvh] sm:max-h-[820px] sm:max-w-3xl sm:rounded-2xl"
       >
         <div className="flex items-center justify-between border-b border-gray-100 px-5 py-3 sm:px-6">
           <div className="flex items-center gap-2">
@@ -197,14 +198,14 @@ export default function PropertyPopupAd({ propertyId, show = true, onDismiss }) 
         <Link
           href={`/ads/${ad.id}`}
           onClick={dismiss}
-          className="group block"
+          className="group min-h-0 flex-1 overflow-y-auto"
         >
-          <div className="relative flex h-64 items-center justify-center bg-gray-50 sm:h-80">
+          <div className="relative flex h-[28vh] min-h-[180px] max-h-[240px] shrink-0 items-center justify-center bg-gray-50 sm:h-[30vh] sm:min-h-[220px] sm:max-h-[280px]">
             {imageUrl ? (
               <img
                 src={imageUrl}
                 alt={ad.company_name || 'Advertisement'}
-                className="h-full w-full object-contain p-6 transition duration-500 group-hover:scale-[1.03]"
+                className="h-full w-full object-contain p-4 transition duration-500 group-hover:scale-[1.03]"
                 loading="eager"
               />
             ) : (
@@ -214,7 +215,7 @@ export default function PropertyPopupAd({ propertyId, show = true, onDismiss }) 
             )}
           </div>
 
-          <div className="space-y-3 px-5 py-5 sm:px-6 sm:py-6">
+          <div className="space-y-4 p-5 sm:p-6">
             <div className="flex items-center gap-2 text-xs">
               <span className="font-semibold uppercase tracking-wider text-gray-500">
                 {ad.company_name}
@@ -232,31 +233,31 @@ export default function PropertyPopupAd({ propertyId, show = true, onDismiss }) 
             </h2>
 
             {ad.description && (
-              <p className="line-clamp-3 text-sm leading-relaxed text-gray-600">
+              <p className="line-clamp-3 text-sm leading-relaxed text-gray-600 sm:text-base">
                 {ad.description}
               </p>
             )}
 
-            <div className="flex items-center justify-between gap-3 pt-2">
-              <span className="inline-flex items-center gap-2 rounded-full bg-gray-900 px-5 py-2.5 text-sm font-semibold text-white transition group-hover:bg-accent">
-                Learn more
-                <ExternalLink size={14} />
-              </span>
-
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.preventDefault()
-                  e.stopPropagation()
-                  dismiss()
-                }}
-                className="text-xs font-semibold text-gray-400 transition hover:text-gray-700"
-              >
-                Skip ad
-              </button>
             </div>
-          </div>
         </Link>
+
+        <div className="mt-auto flex shrink-0 items-center justify-between gap-3 border-t border-gray-100 bg-white p-4 sm:px-6">
+            <Link
+              href={`/ads/${ad.id}`}
+              onClick={dismiss}
+              className="inline-flex items-center gap-2 rounded-full bg-gray-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-accent"
+            >
+              Learn more
+              <ExternalLink size={14} />
+            </Link>
+            <button
+              type="button"
+              onClick={dismiss}
+              className="text-xs font-semibold text-gray-500 transition hover:text-gray-900"
+            >
+              Skip ad
+            </button>
+        </div>
       </div>
 
       <style jsx>{`

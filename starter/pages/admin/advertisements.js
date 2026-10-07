@@ -399,7 +399,7 @@ export default function AdminAdvertisements() {
   const [submissionFilter, setSubmissionFilter] = useState('all')
   const [submissionActionId, setSubmissionActionId] = useState(null)
   const [showForm, setShowForm] = useState(false)
-  const [adPlanPrices, setAdPlanPrices] = useState({ '14-day': 17999, '30-day': 52499 })
+  const [adPlanPrices, setAdPlanPrices] = useState({ '14-day': 17999, '30-day': 52499, pro: 90999 })
   const [savingPrices, setSavingPrices] = useState(false)
   const [selectedReceipt, setSelectedReceipt] = useState(null)
   const [monthlyCapacity, setMonthlyCapacity] = useState(null)
@@ -500,7 +500,7 @@ export default function AdminAdvertisements() {
       }
       setSubmissions(payload.submissions || [])
       setSubmissionsLoadError('')
-      setAdPlanPrices({ '14-day': 17999, '30-day': 52499, ...payload.adPlanPrices })
+      setAdPlanPrices({ '14-day': 17999, '30-day': 52499, pro: 90999, ...payload.adPlanPrices })
       if (payload.monthlyCapacity) {
         setMonthlyCapacity(payload.monthlyCapacity)
         setMonthlyCapacityError(payload.capacityWarning || '')
@@ -802,6 +802,7 @@ export default function AdminAdvertisements() {
       setAdPlanPrices({
         '14-day': Number(adPlanPrices['14-day']),
         '30-day': Number(adPlanPrices['30-day']),
+        pro: Number(adPlanPrices.pro),
       })
       toast.success('Ad prices updated.')
     } catch (error) {
@@ -1697,6 +1698,22 @@ export default function AdminAdvertisements() {
                               </span>
                             )}
                           </p>
+                          <p className="mt-1 text-xs text-slate-500">
+                            {sub.plan_name || sub.plan_id || 'Plan'}
+                            {sub.duration_months
+                              ? ` · ${sub.duration_months} ${sub.duration_months === 1 ? 'month' : 'months'}`
+                              : sub.duration_days
+                                ? ` · ${sub.duration_days} days`
+                                : ''}
+                            {Array.isArray(sub.placement_types) && sub.placement_types.length
+                              ? ` · ${sub.placement_types.map((placement) => ({
+                                newsletter: 'Newsletter',
+                                popup: 'Pop-up',
+                                display: 'Display',
+                                infeed: 'In-feed',
+                              })[placement]).filter(Boolean).join(', ')}`
+                              : ''}
+                          </p>
                         </div>
                         <div className="flex items-center gap-2">
                           <span
@@ -2015,6 +2032,7 @@ export default function AdminAdvertisements() {
             {[
               ['14-day', 'Professional · 14 days'],
               ['30-day', 'Elite · 30 days'],
+              ['pro', 'Pro · per month'],
             ].map(([planId, label]) => (
               <label key={planId} className="block">
                 <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-600">

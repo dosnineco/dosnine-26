@@ -481,9 +481,11 @@ export default function AdminNewsletterPage() {
       const { data, error } = await supabase
         .from('advertisements')
         .select(
-          'id, title, company_name, category, description, image_url, image_urls, is_active'
+          'id, title, company_name, category, description, image_url, image_urls, is_active, placement_types'
         )
         .eq('is_active', true)
+        .contains('placement_types', ['newsletter'])
+        .or('expires_at.is.null,expires_at.gt.now()')
         .order('created_at', { ascending: false });
 
       if (error) throw error;

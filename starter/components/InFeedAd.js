@@ -20,10 +20,15 @@ export default function InFeedAd() {
         .from('advertisements')
         .select('*')
         .eq('is_active', true)
+        .contains('placement_types', ['infeed'])
         .or('expires_at.is.null,expires_at.gt.now()')
         .limit(20)
 
-      if (error || !data?.length) return
+      if (error) {
+        console.error('Failed to load in-feed advertisements:', error)
+        return
+      }
+      if (!data?.length) return
 
       const available = data.filter((item) => !adsInUse.has(item.id))
       const pool = available.length ? available : data
@@ -73,13 +78,13 @@ export default function InFeedAd() {
     <Link
       ref={cardRef}
       href={`/ads/${ad.id}`}
-      className="w-full h-full min-h-80 lg:max-w-md bg-white border border-gray-200 rounded-xl flex flex-col overflow-hidden relative group"
+      className="group mx-auto flex min-h-80 w-full max-w-sm flex-col overflow-hidden rounded-xl border border-gray-200 bg-white"
     >
-      <span className="absolute left-3 top-3 z-10 bg-gray-900/80 text-white text-[9px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full">
+      <span className="self-start rounded-full bg-gray-900/80 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-white">
         Sponsored
       </span>
 
-      <div className="relative flex h-48 w-full flex-shrink-0 items-center justify-center overflow-hidden bg-white p-3 sm:h-52 lg:h-56">
+      <div className="relative flex h-48 w-full flex-shrink-0 items-center justify-center overflow-hidden bg-white p-3 sm:h-52">
         {imageUrl ? (
           <img
             src={imageUrl}
@@ -95,20 +100,15 @@ export default function InFeedAd() {
       </div>
 
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden p-3">
-        <div className="flex-1">
-          <div className="mb-2 min-w-0 overflow-hidden break-words text-md font-semibold leading-6 line-clamp-2">
-            {ad.title || ad.headline || 'Discover more'}
-          </div>
-          <div className="min-w-0 overflow-hidden break-words text-sm leading-5 text-gray-500 line-clamp-2">
-            {ad.description || 'Learn more about this business.'}
-          </div>
-          <div className="mt-1 min-w-0 truncate text-xs font-bold text-gray-500">{ad.company_name}</div>
-
+        <div className="mb-2 min-w-0 overflow-hidden break-words text-sm font-semibold leading-6 text-gray-900 line-clamp-2">
+          {ad.title || ad.headline || ad.category?.replaceAll('_', ' ') || 'Discover more'}
         </div>
-
-        {/* <div className="mt-auto pt-2 border-t">
-          <span className="text-accent font-semibold text-sm">Learn more →</span>
-        </div> */}
+        <div className="min-w-0 overflow-hidden break-words text-sm leading-5 text-gray-500 line-clamp-2">
+          {ad.description || 'Learn more about this business.'}
+        </div>
+        <div className="mt-2 min-w-0 truncate text-xs font-bold text-gray-500">
+          {ad.company_name || 'Business name'}
+        </div>
       </div>
     </Link>
   )

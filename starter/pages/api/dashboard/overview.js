@@ -45,12 +45,12 @@ export default async function handler(req, res) {
       ] = await Promise.all([
         db
           .from('advertisements')
-          .select('id, title, company_name, category, description, phone, email, website, image_url, image_urls, is_active, is_featured, impressions, clicks, expires_at, created_at, updated_at, created_by_clerk_id')
+          .select('id, title, company_name, category, description, phone, email, website, image_url, image_urls, is_active, is_featured, impressions, clicks, expires_at, created_at, updated_at, created_by_clerk_id, plan_id, plan_name, duration_months, placement_types')
           .eq('created_by_clerk_id', resolved.clerkId)
           .order('created_at', { ascending: false }),
         db
           .from('sponsor_submissions')
-          .select('id, company_name, status, payment_status, submitted_at, verified_at, scheduled_month, plan_id, plan_name, amount, duration_days, payment_receipt_submitted_at')
+          .select('id, company_name, status, payment_status, submitted_at, verified_at, scheduled_month, plan_id, plan_name, amount, duration_days, duration_months, placement_types, payment_receipt_submitted_at')
           .eq('created_by_clerk_id', resolved.clerkId)
           .order('submitted_at', { ascending: false }),
         db

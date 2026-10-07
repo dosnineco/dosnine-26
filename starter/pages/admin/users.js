@@ -130,27 +130,14 @@ export default function AdminUsersPage() {
   const [activeTab, setActiveTab] = useState('users');
 
   /* -------------------- Shared auth helpers -------------------- */
-  const buildAuthHeaders = () => {
-    const headers = {};
-    if (user?.id) headers['x-clerk-user-id'] = user.id;
-    const primaryEmail =
-      user?.emailAddresses?.[0]?.emailAddress ||
-      user?.primaryEmailAddress?.emailAddress ||
-      '';
-    if (primaryEmail) headers['x-clerk-user-email'] = primaryEmail;
-    const fullName = [user?.firstName, user?.lastName]
-      .filter(Boolean)
-      .join(' ')
-      .trim();
-    if (fullName) headers['x-clerk-user-name'] = fullName;
-    return headers;
-  };
-
   const getAuthConfig = async () => {
     if (!authLoaded || !userId) {
       throw new Error('Session expired. Please sign in again.');
     }
     const token = await getToken();
+    if (!token) {
+      throw new Error('Session expired. Please sign in again.');
+    }
     return {
       withCredentials: true,
       headers: token ? { Authorization: `Bearer ${token}` } : undefined,
@@ -215,8 +202,9 @@ export default function AdminUsersPage() {
     const checkAdminAccess = async () => {
       if (!user) return;
       try {
+        const authConfig = await getAuthConfig();
         const response = await fetch('/api/admin/verify-admin', {
-          headers: buildAuthHeaders(),
+          headers: authConfig.headers,
           credentials: 'include',
         });
         const payload = await response.json();
@@ -234,7 +222,7 @@ export default function AdminUsersPage() {
     };
     checkAdminAccess();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user]);
+  }, [user, authLoaded, userId]);
 
   /* ----------------------------------------------------------
    * Fetch users
@@ -242,8 +230,9 @@ export default function AdminUsersPage() {
   const fetchUsers = async ({ silent = false } = {}) => {
     try {
       if (!silent) setRefreshingUsers(true);
+      const authConfig = await getAuthConfig();
       const response = await fetch('/api/admin/users', {
-        headers: buildAuthHeaders(),
+        headers: authConfig.headers,
         credentials: 'include',
       });
       const payload = await response.json();
@@ -365,9 +354,10 @@ export default function AdminUsersPage() {
     new Date(u.premium_service_request_expires) > new Date();
 
   const runUserPatch = async (payload, successMsg) => {
+    const authConfig = await getAuthConfig();
     const response = await fetch('/api/admin/users', {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json', ...buildAuthHeaders() },
+      headers: { 'Content-Type': 'application/json', ...authConfig.headers },
       credentials: 'include',
       body: JSON.stringify(payload),
     });
@@ -493,9 +483,10 @@ export default function AdminUsersPage() {
 
     setPendingUserId(userId);
     try {
+      const authConfig = await getAuthConfig();
       const response = await fetch('/api/admin/users', {
         method: 'DELETE',
-        headers: { 'Content-Type': 'application/json', ...buildAuthHeaders() },
+        headers: { 'Content-Type': 'application/json', ...authConfig.headers },
         credentials: 'include',
         body: JSON.stringify({ id: userId }),
       });
@@ -518,9 +509,10 @@ export default function AdminUsersPage() {
     if (path.includes('agent-documents/')) {
       path = path.split('agent-documents/')[1].split('?')[0];
     }
+    const authConfig = await getAuthConfig();
     const response = await fetch(
       `/api/admin/agents/get-document?path=${encodeURIComponent(path)}`,
-      { headers: buildAuthHeaders(), credentials: 'include' }
+      { headers: authConfig.headers, credentials: 'include' }
     );
     const payload = await response.json();
     if (!response.ok || !payload?.signedUrl) {
