@@ -21,6 +21,18 @@ import { Toaster } from 'react-hot-toast';
 import toast from 'react-hot-toast';
 import { useAnalyticsTracking } from '../lib/useAnalyticsTracking';
 import Clarity from '@microsoft/clarity';
+import {
+  ShieldCheck,
+  MessageSquare,
+  MapPin,
+  CheckCircle2,
+} from 'lucide-react';
+
+/* ============================================================
+ * Static assets
+ * ============================================================ */
+const HERO_IMAGE =
+  'https://etikxypnxjsonefwnzkr.supabase.co/storage/v1/object/public/property-images/hero.jpg';
 
 // Public routes that don't require sign-in
 const PUBLIC_ROUTES = [
@@ -54,7 +66,14 @@ const PUBLIC_ROUTES = [
 ];
 
 // Pages that should not have header/footer
-const NO_LAYOUT_PAGES = ['/ads/request-agent', '/course', '/logo', '/ads-course',  '/fin', '/invest', '/chargeback',
+const NO_LAYOUT_PAGES = [
+  '/ads/request-agent',
+  '/course',
+  '/logo',
+  '/ads-course',
+  '/fin',
+  '/invest',
+  '/chargeback',
 ];
 
 /* ============================================================
@@ -85,9 +104,8 @@ const NO_SPONSORED_BANNER_ROUTES = [
   '/about',
   '/advertise',
   '/chargeback',
-    '/fin',
-    '/verify'
-
+  '/fin',
+  '/verify',
 ];
 
 const NO_SPONSORED_BANNER_PREFIXES = [
@@ -96,8 +114,7 @@ const NO_SPONSORED_BANNER_PREFIXES = [
   '/landlord',
   '/tenant',
   '/chargeback',
-    '/fin',
-
+  '/fin',
 ];
 
 const shouldHideSponsoredBanner = (pathname) => {
@@ -147,10 +164,14 @@ const syncUserWithRetry = async (maxRetries = 3) => {
       console.error(`Sync attempt ${attempt}/${maxRetries} failed:`, err);
 
       if (attempt === maxRetries) {
-        throw new Error(`Failed to sync user after ${maxRetries} attempts: ${err.message}`);
+        throw new Error(
+          `Failed to sync user after ${maxRetries} attempts: ${err.message}`
+        );
       }
 
-      await new Promise((resolve) => setTimeout(resolve, Math.pow(2, attempt) * 1000));
+      await new Promise((resolve) =>
+        setTimeout(resolve, Math.pow(2, attempt) * 1000)
+      );
     }
   }
 };
@@ -198,10 +219,6 @@ function AppContent({ Component, pageProps }) {
     router.pathname !== '/ads/[id]' &&
     !shouldHideSponsoredBanner(router.pathname);
 
-  /* ----------------------------------------------------------
-   * Header offset — applied to a wrapper around the banner
-   * AND the page content, so both clear the fixed header.
-   * ---------------------------------------------------------- */
   const needsHeaderOffset =
     !hideLayout && !PAGES_WITH_OWN_HEADER_OFFSET.includes(router.pathname);
 
@@ -257,7 +274,9 @@ function AppContent({ Component, pageProps }) {
         console.error('Failed to sync user to Supabase:', err);
         setSyncError(err.message || 'Failed to sync user data');
         setIsSynced(true);
-        toast.error('There was an issue setting up your account. Please refresh the page.');
+        toast.error(
+          'There was an issue setting up your account. Please refresh the page.'
+        );
       } finally {
         if (isInitialSync) setShowLoadingState(false);
       }
@@ -280,10 +299,6 @@ function AppContent({ Component, pageProps }) {
     }
   }, [isSignedIn, isSynced, profileData, router, user]);
 
-  /**
-   * Render the page content only — the wrapper handles the
-   * fixed-header offset for both the banner and the page.
-   */
   const renderPage = () => {
     const page = <Component {...pageProps} />;
     if (isAdminRoute) {
@@ -297,7 +312,9 @@ function AppContent({ Component, pageProps }) {
     return getLayout(
       <>
         <Head>
-          {!isCurrentPagePublic && <meta name="robots" content="noindex, nofollow" />}
+          {!isCurrentPagePublic && (
+            <meta name="robots" content="noindex, nofollow" />
+          )}
         </Head>
         <Seo />
         <SiteProtection />
@@ -314,21 +331,16 @@ function AppContent({ Component, pageProps }) {
         <Seo />
         <SiteProtection />
         <Toaster position="top-center" />
-        <div className="flex items-center justify-center min-h-screen">
+        <div className="flex min-h-screen items-center justify-center">
           <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-accent mx-auto mb-4"></div>
-            <p className="text-gray-600">Loading...</p>
+            <div className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-b-2 border-accent" />
+            <p className="text-sm text-slate-600">Loading…</p>
           </div>
         </div>
       </>
     );
   }
 
-  /* ----------------------------------------------------------
-   * Public page branch — the wrapper handles the header offset
-   * for both the sponsored banner and the page content, so the
-   * banner no longer sits behind the fixed header.
-   * ---------------------------------------------------------- */
   const renderPublicContent = () => (
     <div className={needsHeaderOffset ? HEADER_HEIGHT_CLASS : ''}>
       {showAdvertisements && <SponsoredAdBanner compact />}
@@ -340,7 +352,9 @@ function AppContent({ Component, pageProps }) {
   return (
     <>
       <Head>
-        {!isCurrentPagePublic && <meta name="robots" content="noindex, nofollow" />}
+        {!isCurrentPagePublic && (
+          <meta name="robots" content="noindex, nofollow" />
+        )}
       </Head>
       <Seo />
       <SiteProtection />
@@ -354,10 +368,12 @@ function AppContent({ Component, pageProps }) {
           {isSignedIn ? (
             <>
               {showLoadingState && (
-                <div className="flex items-center justify-center min-h-screen">
+                <div className="flex min-h-screen items-center justify-center">
                   <div className="text-center">
-                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-accent mx-auto mb-4"></div>
-                    <p className="text-gray-600">Setting up your account...</p>
+                    <div className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-b-2 border-accent" />
+                    <p className="text-sm text-slate-600">
+                      Setting up your account…
+                    </p>
                   </div>
                 </div>
               )}
@@ -374,17 +390,23 @@ function AppContent({ Component, pageProps }) {
 
                     if (!isAllowed) {
                       return (
-                        <div className="flex items-center justify-center min-h-screen">
+                        <div className="flex min-h-screen items-center justify-center">
                           <div className="text-center">
-                            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-accent mx-auto mb-4"></div>
-                            <p className="text-gray-600">Redirecting to identity verification…</p>
+                            <div className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-b-2 border-accent" />
+                            <p className="text-sm text-slate-600">
+                              Redirecting to identity verification…
+                            </p>
                           </div>
                         </div>
                       );
                     }
 
                     return (
-                      <div className={needsHeaderOffset ? HEADER_HEIGHT_CLASS : ''}>
+                      <div
+                        className={
+                          needsHeaderOffset ? HEADER_HEIGHT_CLASS : ''
+                        }
+                      >
                         {renderPage()}
                       </div>
                     );
@@ -395,28 +417,150 @@ function AppContent({ Component, pageProps }) {
           ) : (
             <SignedOut>
               <div
-                className="flex items-center justify-center min-h-screen bg-cover bg-center bg-no-repeat relative"
-                style={{
-                  backgroundImage:
-                    "url('https://etikxypnxjsonefwnzkr.supabase.co/storage/v1/object/public/property-images/newsletter-images/clay-leconey--cE_WYFod6g-unsplash.jpg')",
-                }}
+                className="relative flex min-h-screen items-center justify-center bg-cover bg-center bg-no-repeat px-5 py-10 sm:px-6 lg:px-8"
+                style={{ backgroundImage: `url('${HERO_IMAGE}')` }}
               >
-                <div className="absolute inset-0 bg-black bg-opacity-50"></div>
+                {/* Layered scrim: darker on the left for text, softer on the right */}
+                <div
+                  className="absolute inset-0 bg-gradient-to-r from-slate-900/80 via-slate-900/60 to-slate-900/30"
+                  aria-hidden="true"
+                />
 
-                <div className="relative z-10 bg-black/95 backdrop-blur-md rounded-2xl shadow-2xl p-8 max-w-lg w-full mx-4 text-center border border-white/20">
-                  <h1 className="text-4xl font-bold text-gray-200 mb-2">Dosnine Limited</h1>
-                  <p className="text-lg text-gray-200 mb-8">Sign in to access your properties.</p>
-                  <div className="flex flex-row gap-4">
-                    <SignInButton>
-                      <button className="flex-1 px-6 py-4 font-bold text-lg rounded-lg shadow-lg hover:shadow-xl transition duration-200 transform hover:scale-105 btn-accent">
-                        Sign In
-                      </button>
-                    </SignInButton>
-                    <SignUpButton>
-                      <button className="flex-1 px-6 py-4 font-bold text-lg rounded-lg shadow-md hover:shadow-lg transition duration-200 transform hover:scale-105 btn-accent-outline">
-                        Sign Up
-                      </button>
-                    </SignUpButton>
+                {/* Content */}
+                <div className="relative z-10 grid w-full max-w-6xl grid-cols-1 items-center gap-10 lg:grid-cols-2 lg:gap-16">
+                  {/* ---------- Left: brand + value props (desktop) ---------- */}
+                  <div className="hidden text-white lg:block">
+                    <div className="flex items-center gap-3">
+                      <img
+                        src="/logo.png"
+                        alt="Dosnine"
+                        className="h-10 w-auto"
+                      />
+                    
+                    </div>
+
+                    <h1 className="mt-6 text-4xl font-bold leading-tight tracking-tight sm:text-5xl">
+                      Jamaica&apos;s property platform, built for people who
+                      move fast.
+                    </h1>
+
+                    <p className="mt-4 max-w-lg text-base text-slate-200">
+                      Verified listings, direct agent connections, and a
+                      marketplace that keeps your search moving — all in one
+                      place.
+                    </p>
+
+                    <ul className="mt-8 space-y-4">
+                      {[
+                        {
+                          icon: ShieldCheck,
+                          title: 'Verified listings only',
+                          body: 'Every property and agent is checked before it goes live.',
+                        },
+                        {
+                          icon: MessageSquare,
+                          title: 'Direct agent contact',
+                          body: 'Message vetted agents without a middleman.',
+                        },
+                        {
+                          icon: MapPin,
+                          title: 'Island-wide coverage',
+                          body: 'From Kingston to Montego Bay and every parish in between.',
+                        },
+                      ].map(({ icon: Icon, title, body }) => (
+                        <li key={title} className="flex items-start gap-3.5">
+                          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white/10 text-accent backdrop-blur">
+                            <Icon size={16} />
+                          </span>
+                          <div>
+                            <p className="text-sm font-semibold text-white">
+                              {title}
+                            </p>
+                            <p className="mt-0.5 text-xs leading-relaxed text-slate-300">
+                              {body}
+                            </p>
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+
+                    <div className="mt-10 flex flex-wrap items-center gap-x-5 gap-y-2 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+                      <span>Trusted by Jamaican agents</span>
+                      <span className="h-1 w-1 rounded-full bg-slate-500" />
+                      <span>Secure payments</span>
+                      <span className="h-1 w-1 rounded-full bg-slate-500" />
+                      <span>Locally owned</span>
+                    </div>
+                  </div>
+
+                  {/* ---------- Right: auth card ---------- */}
+                  <div className="mx-auto w-full max-w-md lg:mx-0 lg:ml-auto">
+                    {/* Mobile brand strip */}
+                    <div className="mb-6 flex flex-col items-center text-center lg:hidden">
+                      <img
+                        src="/logo.png"
+                        alt="Dosnine"
+                        className="h-10 w-auto"
+                      />
+                   
+                    </div>
+
+                    <div className="rounded-2xl border border-slate-200 bg-white/95 p-6 backdrop-blur sm:p-8">
+                      <h2 className="text-xl font-bold tracking-tight text-slate-900 sm:text-2xl">
+                        Welcome back
+                      </h2>
+                      <p className="mt-1.5 text-sm text-slate-600">
+                        Sign in to access your dashboard, listings, and requests.
+                      </p>
+
+                      <div className="mt-6 space-y-3">
+                        <SignInButton mode="modal">
+                          <button
+                            type="button"
+                            className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-accent px-5 py-3 text-sm font-semibold text-white transition hover:bg-accent/90"
+                          >
+                            Sign in
+                          </button>
+                        </SignInButton>
+
+                        <SignUpButton mode="modal">
+                          <button
+                            type="button"
+                            className="inline-flex w-full items-center justify-center gap-2 rounded-full border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
+                          >
+                            Create a free account
+                          </button>
+                        </SignUpButton>
+                      </div>
+
+                      <div className="my-5 flex items-center gap-3">
+                        <span className="h-px flex-1 bg-slate-100" />
+                        <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                          Takes under a minute
+                        </span>
+                        <span className="h-px flex-1 bg-slate-100" />
+                      </div>
+
+                    
+                    </div>
+
+                    <p className="mt-4 text-center text-[11px] text-slate-400 lg:text-left">
+                      By continuing you agree to our{' '}
+                      <a
+                        href="/terms-of-service"
+                        className="font-semibold text-slate-300 hover:text-white"
+                      >
+                        Terms
+                      </a>{' '}
+                      and{' '}
+                      <a
+                        href="/privacy-policy"
+                        className="font-semibold text-slate-300 hover:text-white"
+                      >
+                        Privacy Policy
+                      </a>
+                      .
+                    </p>
                   </div>
                 </div>
               </div>
