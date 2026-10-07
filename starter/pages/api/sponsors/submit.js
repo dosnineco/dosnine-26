@@ -1,6 +1,6 @@
+// pages/api/sponsors/submit.js
 import { enforceRateLimit } from '@/lib/rateLimit';
-import { getDbClient, requireDbUser } from '@/lib/apiAuth';
-import * as SibApiV3Sdk from '@getbrevo/brevo';
+import { getDbClient, isAdvertiserAccount, requireDbUser } from '@/lib/apiAuth';
 
 const AD_PLANS = {
   '14-day': { id: '14-day', name: 'Professional', amount: 17999, durationDays: 14 },
@@ -52,6 +52,28 @@ function normalizeCategory(value) {
   return CATEGORY_ALIASES[normalized] || 'other';
 }
 
+/**
+ * Lazily resolve the Brevo SDK. Supports both the legacy namespace shape
+ * (v1.x) and the newer ESM shape (v2.x) so this never throws at module load.
+ */
+async function loadBrevoSdk() {
+  const mod = await import('@getbrevo/brevo');
+  const sdk =
+    mod?.default && typeof mod.default === 'object'
+      ? { ...mod, ...mod.default }
+      : mod;
+
+  const TransactionalEmailsApi = sdk.TransactionalEmailsApi;
+  const TransactionalEmailsApiApiKeys = sdk.TransactionalEmailsApiApiKeys;
+  const SendSmtpEmail = sdk.SendSmtpEmail;
+
+  if (!TransactionalEmailsApi || !TransactionalEmailsApiApiKeys || !SendSmtpEmail) {
+    throw new Error('Brevo SDK is missing required exports.');
+  }
+
+  return { TransactionalEmailsApi, TransactionalEmailsApiApiKeys, SendSmtpEmail };
+}
+
 async function sendAdminAdSubmissionEmail({
   company_name,
   title,
@@ -70,14 +92,21 @@ async function sendAdminAdSubmissionEmail({
   const apiKey = process.env.BREVO_API_KEY;
   if (!apiKey) return;
 
-  const adminEmail = process.env.ADMIN_NOTIFICATION_EMAIL || process.env.ADMIN_EMAIL || 'admin@dosnine.com';
+  const adminEmail =
+    process.env.ADMIN_NOTIFICATION_EMAIL || process.env.ADMIN_EMAIL || 'admin@dosnine.com';
   const senderEmail = process.env.BREVO_FROM_EMAIL || 'admin@dosnine.com';
   const senderName = process.env.BREVO_FROM_NAME || 'Dosnine';
 
-  const apiInstance = new SibApiV3Sdk.TransactionalEmailsApi();
-  apiInstance.setApiKey(SibApiV3Sdk.TransactionalEmailsApiApiKeys.apiKey, apiKey);
+  const { TransactionalEmailsApi, TransactionalEmailsApiApiKeys, SendSmtpEmail } =
+    await loadBrevoSdk();
+
+  const apiInstance = new TransactionalEmailsApi();
+  apiInstance.setApiKey(TransactionalEmailsApiApiKeys.apiKey, apiKey);
+
   const planDuration = selectedPlan?.durationMonths
-    ? `${selectedPlan.durationMonths} ${selectedPlan.durationMonths === 1 ? 'month' : 'months'}`
+    ? `${selectedPlan.durationMonths} ${
+        selectedPlan.durationMonths === 1 ? 'month' : 'months'
+      }`
     : `${selectedPlan?.durationDays || 0} days`;
 
   const htmlContent = `
@@ -95,17 +124,21 @@ async function sendAdminAdSubmissionEmail({
     <p><strong>Primary Image URL:</strong> ${image_url || ''}</p>
     <p><strong>All Images:</strong></p>
     <ul>
-      ${(Array.isArray(image_urls) ? image_urls : []).map((url) => `<li>${url}</li>`).join('')}
+      ${(Array.isArray(image_urls) ? image_urls : [])
+        .map((url) => `<li>${url}</li>`)
+        .join('')}
     </ul>
     <p><strong>Plan:</strong> ${selectedPlan?.name || ''} (${planDuration})</p>
     <p><strong>Amount:</strong> JMD $${Number(selectedPlan?.amount || 0).toLocaleString()}</p>
-    <p><strong>Placements:</strong> ${(selectedPlan?.placements || []).map((placement) => PLACEMENT_LABELS[placement]).join(', ')}</p>
+    <p><strong>Placements:</strong> ${(selectedPlan?.placements || [])
+      .map((placement) => PLACEMENT_LABELS[placement])
+      .join(', ')}</p>
     <hr />
     <p><strong>Description:</strong></p>
     <p>${String(description || '').replace(/\n/g, '<br/>')}</p>
   `;
 
-  const emailPayload = new SibApiV3Sdk.SendSmtpEmail();
+  const emailPayload = new SendSmtpEmail();
   emailPayload.sender = { name: senderName, email: senderEmail };
   emailPayload.to = [{ email: adminEmail, name: 'Dosnine Admin' }];
   emailPayload.subject = `New Ad Submission: ${company_name || 'Unknown Business'}`;
@@ -115,71 +148,102 @@ async function sendAdminAdSubmissionEmail({
 }
 
 export default async function handler(req, res) {
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
-  }
-
-  const rate = enforceRateLimit(req, res, {
-    keyPrefix: 'sponsor-submit',
-    maxRequests: 6,
-    windowMs: 60_000,
-  });
-
-  if (!rate.allowed) {
-    return res.status(429).json({ error: 'Too many requests. Please try again shortly.' });
-  }
-
-  const {
-    company_name,
-    category,
-    description,
-    phone,
-    email,
-    website,
-    image_url,
-    image_urls,
-    is_featured,
-    plan_id,
-    duration_months,
-    title,
-    contact_name,
-  } = req.body || {};
-
-  if (!company_name || !description || !phone) {
-    return res.status(400).json({ error: 'Missing required fields' });
-  }
-
-  if (
-    String(company_name).length > 150 ||
-    String(description).length > 5000 ||
-    String(phone).length > 40 ||
-    (email && String(email).length > 254) ||
-    (website && String(website).length > 500) ||
-    (image_url && String(image_url).length > 2000)
-  ) {
-    return res.status(400).json({ error: 'One or more fields exceed allowed length' });
-  }
-
-  const normalizedImageUrls = Array.isArray(image_urls)
-    ? image_urls
-      .map((url) => String(url || '').trim())
-      .filter(Boolean)
-      .slice(0, 3)
-    : [];
-
-  if (normalizedImageUrls.some((url) => url.length > 2000)) {
-    return res.status(400).json({ error: 'One or more image URLs exceed allowed length' });
-  }
-
-  const primaryImageUrl = normalizedImageUrls[0] || image_url || null;
-
+  // Guarantee a JSON response, even if something blows up above/below.
   try {
-    const resolved = await requireDbUser(req, res);
-    if (!resolved) return;
+    if (req.method !== 'POST') {
+      return res.status(405).json({ error: 'Method not allowed' });
+    }
+
+    // Rate limit: fail-open if the backing store is unavailable, so a bad
+    // rate-limit config never turns into a 500 HTML page for the client.
+    let rate = { allowed: true };
+    try {
+      const rateResult = enforceRateLimit(req, res, {
+        keyPrefix: 'sponsor-submit',
+        maxRequests: 6,
+        windowMs: 60_000,
+      });
+      if (rateResult && typeof rateResult === 'object') rate = rateResult;
+    } catch (rateError) {
+      console.error('Rate limit check failed:', rateError);
+    }
+
+    if (!rate.allowed) {
+      if (!res.headersSent) {
+        return res
+          .status(429)
+          .json({ error: 'Too many requests. Please try again shortly.' });
+      }
+      return undefined;
+    }
+
+    const {
+      company_name,
+      category,
+      description,
+      phone,
+      email,
+      website,
+      image_url,
+      image_urls,
+      is_featured,
+      plan_id,
+      duration_months,
+      title,
+      contact_name,
+    } = req.body || {};
+
+    if (!company_name || !description || !phone) {
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
+
+    if (
+      String(company_name).length > 150 ||
+      String(description).length > 5000 ||
+      String(phone).length > 40 ||
+      (email && String(email).length > 254) ||
+      (website && String(website).length > 500) ||
+      (image_url && String(image_url).length > 2000)
+    ) {
+      return res.status(400).json({ error: 'One or more fields exceed allowed length' });
+    }
+
+    const normalizedImageUrls = Array.isArray(image_urls)
+      ? image_urls
+          .map((url) => String(url || '').trim())
+          .filter(Boolean)
+          .slice(0, 3)
+      : [];
+
+    if (normalizedImageUrls.some((url) => url.length > 2000)) {
+      return res
+        .status(400)
+        .json({ error: 'One or more image URLs exceed allowed length' });
+    }
+
+    const primaryImageUrl = normalizedImageUrls[0] || image_url || null;
+
+    // requireDbUser may write its own response and return null.
+    let resolved;
+    try {
+      resolved = await requireDbUser(req, res);
+    } catch (authError) {
+      console.error('requireDbUser threw:', authError);
+      if (!res.headersSent) {
+        return res
+          .status(500)
+          .json({ error: 'Failed to authenticate request.' });
+      }
+      return undefined;
+    }
+    if (!resolved) return undefined;
+
     const db = getDbClient();
 
-    if (resolved.user.account_type !== 'advertiser') {
-      return res.status(403).json({ error: 'Select the Advertiser account type before submitting an ad.' });
+    if (!isAdvertiserAccount(resolved.user)) {
+      return res
+        .status(403)
+        .json({ error: 'Select the Advertiser account type before submitting an ad.' });
     }
 
     const accountVerified =
@@ -187,7 +251,9 @@ export default async function handler(req, res) {
       resolved.user.id_verification_status === 'approved';
 
     if (!accountVerified) {
-      return res.status(403).json({ error: 'A verified Dosnine account is required to submit an advertisement.' });
+      return res.status(403).json({
+        error: 'A verified Dosnine account is required to submit an advertisement.',
+      });
     }
 
     const defaultPlan = AD_PLANS[plan_id];
@@ -196,30 +262,49 @@ export default async function handler(req, res) {
     }
 
     const durationMonths = plan_id === 'pro' ? Number(duration_months) : null;
-    if (plan_id === 'pro' && (!Number.isSafeInteger(durationMonths) || durationMonths < 1)) {
-      return res.status(400).json({ error: 'Pro campaigns must run for at least one whole month.' });
+    if (
+      plan_id === 'pro' &&
+      (!Number.isSafeInteger(durationMonths) || durationMonths < 1)
+    ) {
+      return res
+        .status(400)
+        .json({ error: 'Pro campaigns must run for at least one whole month.' });
     }
 
-    const { data: pricing, error: pricingError } = await db
-      .from('site_settings')
-      .select('value')
-      .eq('key', 'ad_plan_prices')
-      .maybeSingle();
-    if (pricingError) throw pricingError;
-    const configuredPrice = Number(pricing?.value?.[defaultPlan.id]);
-    const monthlyPrice = Number.isInteger(configuredPrice) && configuredPrice > 0 &&
+    let configuredPrice;
+    try {
+      const { data: pricing, error: pricingError } = await db
+        .from('site_settings')
+        .select('value')
+        .eq('key', 'ad_plan_prices')
+        .maybeSingle();
+      if (pricingError) throw pricingError;
+      configuredPrice = Number(pricing?.value?.[defaultPlan.id]);
+    } catch (pricingError) {
+      console.error('Failed to load ad plan pricing:', pricingError);
+      configuredPrice = NaN;
+    }
+
+    const monthlyPrice =
+      Number.isInteger(configuredPrice) &&
+      configuredPrice > 0 &&
       configuredPrice <= 10000000
-      ? configuredPrice
-      : defaultPlan.amount;
+        ? configuredPrice
+        : defaultPlan.amount;
+
     const amount = plan_id === 'pro' ? monthlyPrice * durationMonths : monthlyPrice;
-    const durationDays = plan_id === 'pro' ? durationMonths * 30 : defaultPlan.durationDays;
+    const durationDays =
+      plan_id === 'pro' ? durationMonths * 30 : defaultPlan.durationDays;
+
     if (
       !Number.isSafeInteger(amount) ||
       amount > MAX_DATABASE_INTEGER ||
       !Number.isSafeInteger(durationDays) ||
       durationDays > MAX_DATABASE_INTEGER
     ) {
-      return res.status(400).json({ error: 'The selected campaign duration exceeds the supported limit.' });
+      return res.status(400).json({
+        error: 'The selected campaign duration exceeds the supported limit.',
+      });
     }
 
     const placements = plan_id === 'pro' ? PRO_PLACEMENTS : STANDARD_PLACEMENTS;
@@ -232,7 +317,9 @@ export default async function handler(req, res) {
     };
     const submittedAt = new Date().toISOString();
     const createdByClerkId = resolved.clerkId;
-    const normalizedEmail = String(email || resolved.user.email || '').trim() || 'no-email@dosnine.local';
+    const normalizedEmail =
+      String(email || resolved.user.email || '').trim() ||
+      'no-email@dosnine.local';
     const normalizedCategory = normalizeCategory(category);
 
     const payload = {
@@ -263,13 +350,16 @@ export default async function handler(req, res) {
       .insert(payload)
       .select('id')
       .single();
+
     if (error) {
       return res.status(500).json({
         error: error.message || 'Failed to submit sponsor application',
       });
     }
     if (!submission?.id) {
-      return res.status(500).json({ error: 'Sponsor submission was saved without a returned ID.' });
+      return res
+        .status(500)
+        .json({ error: 'Sponsor submission was saved without a returned ID.' });
     }
 
     const adDraft = {
@@ -295,10 +385,16 @@ export default async function handler(req, res) {
       placement_types: selectedPlan.placements,
     };
 
-    const adInsert = await db.from('advertisements').insert([adDraft]);
-
-    if (adInsert.error && !String(adInsert.error?.code || '').includes('23505')) {
-      console.error('Failed to create advertisement draft:', adInsert.error);
+    try {
+      const adInsert = await db.from('advertisements').insert([adDraft]);
+      if (
+        adInsert.error &&
+        !String(adInsert.error?.code || '').includes('23505')
+      ) {
+        console.error('Failed to create advertisement draft:', adInsert.error);
+      }
+    } catch (draftError) {
+      console.error('Failed to create advertisement draft:', draftError);
     }
 
     try {
@@ -318,7 +414,10 @@ export default async function handler(req, res) {
         submissionId: submission.id,
       });
     } catch (emailError) {
-      console.error('Failed to send admin ad submission email:', emailError?.message || emailError);
+      console.error(
+        'Failed to send admin ad submission email:',
+        emailError?.message || emailError
+      );
     }
 
     return res.status(200).json({
@@ -334,6 +433,12 @@ export default async function handler(req, res) {
       },
     });
   } catch (error) {
-    return res.status(500).json({ error: error?.message || 'Internal server error' });
+    console.error('sponsor/submit handler failed:', error);
+    if (!res.headersSent) {
+      return res
+        .status(500)
+        .json({ error: error?.message || 'Internal server error' });
+    }
+    return undefined;
   }
 }

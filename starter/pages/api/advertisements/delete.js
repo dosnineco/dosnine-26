@@ -1,4 +1,4 @@
-import { getDbClient, requireDbUser } from '@/lib/apiAuth';
+import { getDbClient, isAdvertiserAccount, requireDbUser } from '@/lib/apiAuth';
 
 export default async function handler(req, res) {
   if (req.method !== 'DELETE') {
@@ -8,7 +8,7 @@ export default async function handler(req, res) {
   try {
     const resolved = await requireDbUser(req, res, { createIfMissing: true });
     if (!resolved) return;
-    if (resolved.user.account_type !== 'advertiser') {
+    if (!isAdvertiserAccount(resolved.user)) {
       return res.status(403).json({ error: 'Advertiser account required.' });
     }
     const verified = Boolean(

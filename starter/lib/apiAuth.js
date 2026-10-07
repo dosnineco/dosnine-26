@@ -16,6 +16,10 @@ export function isPlaceholderUser(user) {
   );
 }
 
+export function isAdvertiserAccount(user) {
+  return Boolean(user && (user.account_type === 'advertiser' || (!user.account_type && user.user_type === 'advertiser')));
+}
+
 export function getDbClient() {
   if (supabaseAdmin) {
     return supabaseAdmin;
@@ -278,6 +282,18 @@ export async function requireAgentAccountUser(req, res) {
     (!resolved.user.account_type && resolved.user.user_type === 'agent');
   if (!isAgentAccount) {
     res.status(403).json({ error: 'An Agent account is required to access this resource.' });
+    return null;
+  }
+
+  return resolved;
+}
+
+export async function requireAdvertiserAccountUser(req, res) {
+  const resolved = await requireDbUser(req, res);
+  if (!resolved) return null;
+
+  if (!isAdvertiserAccount(resolved.user)) {
+    res.status(403).json({ error: 'Select the Advertiser account type before submitting an ad.' });
     return null;
   }
 

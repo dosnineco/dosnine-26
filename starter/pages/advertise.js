@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Image from 'next/image';
 import Head from 'next/head';
 import Link from 'next/link';
+import { useRouter } from 'next/router';
+import axios from 'axios';
 import { SignInButton, SignUpButton, useAuth, useUser } from '@clerk/nextjs';
 import {
   ArrowRight,
@@ -13,10 +15,28 @@ import {
   MessageCircle,
   MapPin,
   Phone,
+  RefreshCw,
   ShieldCheck,
+  Trash2,
   UploadCloud,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+
+async function readApiResponse(response, endpoint) {
+  const responseText = await response.text();
+
+  try {
+    return responseText ? JSON.parse(responseText) : null;
+  } catch {
+    const contentType = response.headers.get('content-type') || '';
+    const responseFormat = contentType.includes('text/html') || /^\s*</.test(responseText)
+      ? 'HTML'
+      : 'invalid JSON';
+    throw new Error(
+      `${endpoint} returned ${responseFormat} instead of JSON (HTTP ${response.status}).`
+    );
+  }
+}
 
 const plans = [
   {
@@ -649,6 +669,7 @@ const compressImageFiles = async (files) => {
 };
 
 export default function AdvertisePage() {
+  const router = useRouter();
   const { user, isSignedIn } = useUser();
   const { getToken } = useAuth();
   const [step, setStep] = useState(1);
@@ -671,6 +692,8 @@ export default function AdvertisePage() {
   const [imageFiles, setImageFiles] = useState([]);
   const [imagePreviews, setImagePreviews] = useState([]);
   const [restoredFromStorage, setRestoredFromStorage] = useState(false);
+  const [replacingIndex, setReplacingIndex] = useState(null);
+  const replaceInputRef = useRef(null);
   const [form, setForm] = useState({
     company_name: '',
     business_logo: '',
@@ -709,6 +732,7 @@ export default function AdvertisePage() {
     category: categories.find((category) => category.value === form.category)?.label || '',
     imageUrl: imagePreviews[0] || '',
   };
+
   /* -------------------- Restore on mount -------------------- */
   useEffect(() => {
     const persisted = loadPersistedSubmission();
@@ -734,7 +758,7 @@ export default function AdvertisePage() {
     const loadAvailability = async () => {
       try {
         const response = await fetch('/api/sponsors/availability', { cache: 'no-store' });
-        const payload = await response.json();
+        const payload = await readApiResponse(response, '/api/sponsors/availability');
         if (!response.ok || !payload?.success) {
           throw new Error(payload?.error || 'Unable to load sponsor availability.');
         }
@@ -773,6 +797,30 @@ export default function AdvertisePage() {
   }, [user, form.email, isSignedIn]);
 
   useEffect(() => {
+    if (!isSignedIn || !user?.id) return;
+
+    let active = true;
+    const ensureAdvertiserAccess = async () => {
+      try {
+        const { data } = await axios.get('/api/user/profile', { withCredentials: true });
+        const accountType = data?.account_type || (data?.user_type === 'advertiser' ? 'advertiser' : null);
+        if (!active) return;
+        if (accountType !== 'advertiser') {
+          toast.error('Select the Advertiser account type before submitting an ad.');
+          router.replace('/verify?role=advertiser');
+        }
+      } catch (error) {
+        console.error('Failed to verify advertiser access:', error);
+      }
+    };
+
+    ensureAdvertiserAccess();
+    return () => {
+      active = false;
+    };
+  }, [isSignedIn, user?.id, router]);
+
+  useEffect(() => {
     return () => {
       imagePreviews.forEach((url) => URL.revokeObjectURL(url));
     };
@@ -806,6 +854,61 @@ export default function AdvertisePage() {
 
   const getFieldClassName = (field, baseClassName) =>
     `${baseClassName} ${fieldErrors[field] ? 'border-red-500 bg-red-50 focus:border-red-500' : ''}`;
+
+  /* -------------------- Image remove / replace -------------------- */
+
+  const removeImageAt = (index) => {
+    setImageFiles((prev) => prev.filter((_, i) => i !== index));
+    setImagePreviews((prev) => {
+      const target = prev[index];
+      if (target) URL.revokeObjectURL(target);
+      return prev.filter((_, i) => i !== index);
+    });
+  };
+
+  const handleReplaceClick = (index) => {
+    setReplacingIndex(index);
+    if (replaceInputRef.current) replaceInputRef.current.value = '';
+    replaceInputRef.current?.click();
+  };
+
+  const handleReplaceChange = async (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file || replacingIndex === null) {
+      setReplacingIndex(null);
+      return;
+    }
+    if (file.size > 8 * 1024 * 1024) {
+      toast.error('Image must be 8MB or less.');
+      setReplacingIndex(null);
+      return;
+    }
+
+    const loadingId = toast.loading('Replacing image…');
+    try {
+      const [compressed] = await compressImageFiles([file]);
+      setImageFiles((prev) => {
+        const next = [...prev];
+        next[replacingIndex] = compressed;
+        return next;
+      });
+      setImagePreviews((prev) => {
+        const next = [...prev];
+        const old = next[replacingIndex];
+        if (old) URL.revokeObjectURL(old);
+        next[replacingIndex] = URL.createObjectURL(compressed);
+        return next;
+      });
+      toast.dismiss(loadingId);
+      toast.success('Image replaced.');
+    } catch (error) {
+      toast.dismiss(loadingId);
+      toast.error(error?.message || 'Unable to replace image.');
+    } finally {
+      setReplacingIndex(null);
+    }
+  };
 
   const handleStartOver = () => {
     if (
@@ -932,7 +1035,7 @@ export default function AdvertisePage() {
           headers: { 'Content-Type': file.type || 'image/webp' },
           body: file,
         });
-        const uploadPayload = await uploadResponse.json();
+        const uploadPayload = await readApiResponse(uploadResponse, '/api/sponsors/upload-images');
         if (!uploadResponse.ok || !uploadPayload?.success || !uploadPayload?.image_url) {
           throw new Error(uploadPayload?.error || 'Image upload failed.');
         }
@@ -960,12 +1063,7 @@ export default function AdvertisePage() {
         body: JSON.stringify(submissionPayload),
       });
 
-      let payload = null;
-      try {
-        payload = await response.json();
-      } catch {
-        payload = null;
-      }
+      const payload = await readApiResponse(response, '/api/sponsors/submit');
 
       if (!response.ok || !payload?.success) {
         throw new Error(payload?.error || `Unable to submit ad request. Server returned ${response.status}.`);
@@ -1015,7 +1113,7 @@ export default function AdvertisePage() {
           headers: token ? { Authorization: 'Bearer ' + token } : {},
         }
       );
-      const payload = await response.json();
+      const payload = await readApiResponse(response, '/api/sponsors/payment-status');
       if (!response.ok || !payload?.success) {
         throw new Error(payload?.error || 'Unable to check payment status.');
       }
@@ -1069,7 +1167,7 @@ export default function AdvertisePage() {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
         body,
       });
-      const payload = await response.json();
+      const payload = await readApiResponse(response, '/api/sponsors/payment-receipt');
       if (!response.ok || !payload?.success) {
         throw new Error(payload?.error || 'Unable to submit payment receipt.');
       }
@@ -1110,7 +1208,7 @@ export default function AdvertisePage() {
           `/api/sponsors/payment-status?submission_id=${encodeURIComponent(submissionId)}`,
           { headers: token ? { Authorization: `Bearer ${token}` } : {} }
         );
-        const payload = await response.json();
+        const payload = await readApiResponse(response, '/api/sponsors/payment-status');
         if (!response.ok || !payload?.success) {
           throw new Error(payload?.error || 'Unable to retrieve submission status.');
         }
@@ -1433,6 +1531,43 @@ export default function AdvertisePage() {
               </div>
             </section>
 
+            {/* ---------- TEMPLATE AD PREVIEWS (moved to the top) ---------- */}
+            <section id="ad-previews" className="border-b border-slate-100 bg-slate-50">
+              <div className="mx-auto max-w-5xl px-4 py-16 sm:px-6 sm:py-20 lg:px-8">
+                <p className="text-xs font-semibold uppercase tracking-[0.22em] text-accent">
+                  Placement previews
+                </p>
+                <h2 className="mt-4 max-w-3xl text-2xl font-semibold leading-snug tracking-tight text-slate-900 sm:text-3xl">
+                  See how your campaign can appear across Dosnine.
+                </h2>
+                <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600">
+                  Sample templates below show every placement format. Fill out the form and your
+                  own creative will appear in the live preview section underneath it.
+                </p>
+
+                <div className="mt-8 grid gap-5 lg:grid-cols-2">
+                  <CampaignAdPreview format="banner" campaign={campaignPreview} blank />
+                  <CampaignAdPreview format="display" campaign={campaignPreview} blank />
+                  <CampaignAdPreview format="infeed" campaign={campaignPreview} blank />
+                  <CampaignAdPreview format="popup" campaign={campaignPreview} blank />
+                  <CampaignAdPreview
+                    format="newsletter"
+                    campaign={campaignPreview}
+                    blank
+                    locked={selectedPlan.id !== 'pro'}
+                  />
+                </div>
+
+                <a
+                  href="#advertise-form"
+                  className="mt-8 inline-flex items-center gap-2 rounded-full bg-accent px-5 py-3 text-sm font-semibold text-white transition hover:bg-accent/90"
+                >
+                  {isSignedIn ? 'Add campaign details' : 'Sign in to build your ad'}
+                  <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                </a>
+              </div>
+            </section>
+
             {/* ---------- HOW IT WORKS ---------- */}
             <section className="border-b border-slate-100">
               <div className="mx-auto max-w-5xl px-4 py-20 sm:px-6 sm:py-24 lg:px-8">
@@ -1463,59 +1598,6 @@ export default function AdvertisePage() {
                     </div>
                   ))}
                 </div>
-              </div>
-            </section>
-             {/* ---------- AD PREVIEWS ---------- */}
-            <section id="ad-previews" className="border-b border-slate-100 bg-slate-50">
-              <div className="mx-auto max-w-5xl px-4 py-16 sm:px-6 sm:py-20 lg:px-8">
-                <p className="text-xs font-semibold uppercase tracking-[0.22em] text-accent">
-                  Placement previews
-                </p>
-                <h2 className="mt-4 max-w-3xl text-2xl font-semibold leading-snug tracking-tight text-slate-900 sm:text-3xl">
-                  See how your campaign can appear across Dosnine.
-                </h2>
-                <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600">
-                  {blankPreview
-                    ? 'Sample templates are shown below. Sign in and add your business details and image to preview your own creative.'
-                    : 'Your previews use your campaign name, title, description, category, and uploaded image. Final placements follow these live site formats.'}
-                </p>
-
-                <div className="mt-8 grid gap-5 lg:grid-cols-2">
-                  <CampaignAdPreview
-                    format="banner"
-                    campaign={campaignPreview}
-                    blank={blankPreview}
-                  />
-                  <CampaignAdPreview
-                    format="display"
-                    campaign={campaignPreview}
-                    blank={blankPreview}
-                  />
-                  <CampaignAdPreview
-                    format="infeed"
-                    campaign={campaignPreview}
-                    blank={blankPreview}
-                  />
-                  <CampaignAdPreview
-                    format="popup"
-                    campaign={campaignPreview}
-                    blank={blankPreview}
-                  />
-                  <CampaignAdPreview
-                    format="newsletter"
-                    campaign={campaignPreview}
-                    blank={blankPreview}
-                    locked={selectedPlan.id !== 'pro'}
-                  />
-                </div>
-
-                <a
-                  href="#advertise-form"
-                  className="mt-8 inline-flex items-center gap-2 rounded-full bg-accent px-5 py-3 text-sm font-semibold text-white transition hover:bg-accent/90"
-                >
-                  {isSignedIn ? 'Add campaign details' : 'Sign in to build your ad'}
-                  <ArrowRight className="h-4 w-4" aria-hidden="true" />
-                </a>
               </div>
             </section>
 
@@ -1663,6 +1745,7 @@ export default function AdvertisePage() {
                 </p>
               </div>
             </section>
+
             {/* ---------- FORM ---------- */}
             <section id="advertise-form" className="border-b border-slate-100">
               <div className="mx-auto max-w-5xl px-4 py-20 sm:px-6 sm:py-24 lg:px-8">
@@ -1928,65 +2011,95 @@ export default function AdvertisePage() {
                       <label className="mb-1.5 block text-sm font-semibold text-slate-700">
                         Upload Images
                       </label>
-                      <label
-                        id="ad-imageFiles"
-                        tabIndex={-1}
-                        className={`flex cursor-pointer flex-col items-center justify-center rounded-xl border border-dashed px-6 py-10 text-center transition hover:border-accent hover:bg-accent/5 ${
-                          fieldErrors.imageFiles ? 'border-red-500 bg-red-50' : 'border-slate-300 bg-slate-50'
-                        }`}
-                      >
-                        <UploadCloud className="h-8 w-8 text-accent" />
-                        <span className="mt-3 text-sm font-semibold text-slate-900">
-                          Upload up to 3 images
-                        </span>
-                        <span className="mt-1 text-sm text-slate-500">
-                          PNG, JPG or WebP up to 8MB each
-                        </span>
-                        <input
-                          type="file"
-                          accept="image/png,image/jpeg,image/jpg,image/webp"
-                          multiple
-                          required
-                          onChange={async (event) => {
-                            const selectedFiles = Array.from(event.target.files || []).slice(0, 3);
-                            if (selectedFiles.length === 0) return;
-                            clearFieldError('imageFiles');
 
-                            const oversized = selectedFiles.find((file) => file.size > 8 * 1024 * 1024);
-                            if (oversized) {
-                              toast.error('Each image must be 8MB or less.');
-                              return;
-                            }
+                      {imageFiles.length < 3 ? (
+                        <label
+                          id="ad-imageFiles"
+                          tabIndex={-1}
+                          className={`flex cursor-pointer flex-col items-center justify-center rounded-xl border border-dashed px-6 py-10 text-center transition hover:border-accent hover:bg-accent/5 ${
+                            fieldErrors.imageFiles ? 'border-red-500 bg-red-50' : 'border-slate-300 bg-slate-50'
+                          }`}
+                        >
+                          <UploadCloud className="h-8 w-8 text-accent" />
+                          <span className="mt-3 text-sm font-semibold text-slate-900">
+                            {imageFiles.length === 0
+                              ? 'Upload up to 3 images'
+                              : `Add another image (${imageFiles.length}/3)`}
+                          </span>
+                          <span className="mt-1 text-sm text-slate-500">
+                            PNG, JPG or WebP up to 8MB each
+                          </span>
+                          <input
+                            type="file"
+                            accept="image/png,image/jpeg,image/jpg,image/webp"
+                            multiple
+                            required={imageFiles.length === 0}
+                            onChange={async (event) => {
+                              const existingCount = imageFiles.length;
+                              const remaining = Math.max(0, 3 - existingCount);
+                              if (remaining === 0) {
+                                toast.error('You already have 3 images. Remove one to add another.');
+                                event.target.value = '';
+                                return;
+                              }
+                              const selectedFiles = Array.from(event.target.files || []).slice(0, remaining);
+                              event.target.value = '';
+                              if (selectedFiles.length === 0) return;
+                              clearFieldError('imageFiles');
 
-                            const loadingId = toast.loading('Cropping to square and compressing images…');
-                            try {
-                              const compressedFiles = await compressImageFiles(selectedFiles);
-                              imagePreviews.forEach((url) => URL.revokeObjectURL(url));
-                              setImageFiles(compressedFiles);
-                              setImagePreviews(compressedFiles.map((file) => URL.createObjectURL(file)));
-                              toast.dismiss(loadingId);
-                              toast.success('Images ready.');
-                            } catch (error) {
-                              toast.dismiss(loadingId);
-                              toast.error(error?.message || 'Unable to process images.');
-                            }
+                              const oversized = selectedFiles.find((file) => file.size > 8 * 1024 * 1024);
+                              if (oversized) {
+                                toast.error('Each image must be 8MB or less.');
+                                return;
+                              }
 
-                            if ((event.target.files || []).length > 3) {
-                              toast('Only the first 3 images were selected.');
-                            }
-                          }}
-                          className="hidden"
-                        />
-                      </label>
+                              const loadingId = toast.loading('Cropping to square and compressing images…');
+                              try {
+                                const compressedFiles = await compressImageFiles(selectedFiles);
+                                setImageFiles((prev) => [...prev, ...compressedFiles].slice(0, 3));
+                                setImagePreviews((prev) => [
+                                  ...prev,
+                                  ...compressedFiles.map((file) => URL.createObjectURL(file)),
+                                ]);
+                                toast.dismiss(loadingId);
+                                toast.success(
+                                  compressedFiles.length === 1
+                                    ? 'Image added.'
+                                    : `${compressedFiles.length} images added.`
+                                );
+                              } catch (error) {
+                                toast.dismiss(loadingId);
+                                toast.error(error?.message || 'Unable to process images.');
+                              }
+                            }}
+                            className="hidden"
+                          />
+                        </label>
+                      ) : (
+                        <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-6 py-4 text-center text-sm text-slate-500">
+                          You&apos;ve reached the 3-image limit. Remove an image below to upload another.
+                        </div>
+                      )}
+
                       {fieldErrors.imageFiles ? (
                         <p className="mt-1 text-sm text-red-600">{fieldErrors.imageFiles}</p>
                       ) : null}
+
+                      {/* Hidden input used when replacing an existing image */}
+                      <input
+                        ref={replaceInputRef}
+                        type="file"
+                        accept="image/png,image/jpeg,image/jpg,image/webp"
+                        className="hidden"
+                        onChange={handleReplaceChange}
+                      />
+
                       {imagePreviews.length > 0 ? (
                         <div className="mt-4 grid gap-3 sm:grid-cols-3">
                           {imagePreviews.map((preview, index) => (
                             <div
                               key={`${preview}-${index}`}
-                              className="relative aspect-square w-full overflow-hidden rounded-lg border border-slate-200 bg-slate-100"
+                              className="group relative aspect-square w-full overflow-hidden rounded-lg border border-slate-200 bg-slate-100"
                             >
                               <Image
                                 src={preview}
@@ -1995,6 +2108,32 @@ export default function AdvertisePage() {
                                 unoptimized
                                 className="object-cover"
                               />
+
+                              {index === 0 && (
+                                <span className="absolute left-2 top-2 rounded-full bg-accent px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white shadow">
+                                  Primary
+                                </span>
+                              )}
+
+                              {/* Hover controls */}
+                              <div className="absolute inset-0 flex items-end justify-center gap-2 bg-gradient-to-t from-black/70 via-black/10 to-transparent p-2 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
+                                <button
+                                  type="button"
+                                  onClick={() => handleReplaceClick(index)}
+                                  className="inline-flex items-center gap-1 rounded-full bg-white/95 px-3 py-1.5 text-[11px] font-semibold text-slate-800 shadow hover:bg-white"
+                                >
+                                  <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
+                                  Replace
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => removeImageAt(index)}
+                                  className="inline-flex items-center gap-1 rounded-full bg-red-600 px-3 py-1.5 text-[11px] font-semibold text-white shadow hover:bg-red-700"
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+                                  Remove
+                                </button>
+                              </div>
                             </div>
                           ))}
                         </div>
@@ -2052,6 +2191,67 @@ export default function AdvertisePage() {
                 )}
               </div>
             </section>
+
+            {/* ---------- LIVE PREVIEW (after form, only when form is available) ---------- */}
+            {isSignedIn ? (
+              <section id="live-preview" className="border-b border-slate-100 bg-slate-50">
+                <div className="mx-auto max-w-5xl px-4 py-16 sm:px-6 sm:py-20 lg:px-8">
+                  <p className="text-xs font-semibold uppercase tracking-[0.22em] text-accent">
+                    Your live preview
+                  </p>
+                  <h2 className="mt-4 max-w-3xl text-2xl font-semibold leading-snug tracking-tight text-slate-900 sm:text-3xl">
+                    See your ad as you build it.
+                  </h2>
+                  <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600">
+                    {blankPreview
+                      ? 'Start filling out the form above — your business name, description, category, and uploaded image will appear here as you type.'
+                      : 'These previews update automatically from the details and image you entered in the form above.'}
+                  </p>
+
+                  <div className="mt-8 grid gap-5 lg:grid-cols-2">
+                    <CampaignAdPreview
+                      format="banner"
+                      campaign={campaignPreview}
+                      blank={blankPreview}
+                    />
+                    <CampaignAdPreview
+                      format="display"
+                      campaign={campaignPreview}
+                      blank={blankPreview}
+                    />
+                    <CampaignAdPreview
+                      format="infeed"
+                      campaign={campaignPreview}
+                      blank={blankPreview}
+                    />
+                    <CampaignAdPreview
+                      format="popup"
+                      campaign={campaignPreview}
+                      blank={blankPreview}
+                    />
+                    <CampaignAdPreview
+                      format="newsletter"
+                      campaign={campaignPreview}
+                      blank={blankPreview}
+                      locked={selectedPlan.id !== 'pro'}
+                    />
+                  </div>
+
+                  <div className="mt-8 flex flex-col items-start gap-3 sm:flex-row sm:items-center">
+                    <a
+                      href="#advertise-form"
+                      className="inline-flex items-center gap-2 rounded-full border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                    >
+                      Back to the form
+                      <ArrowRight className="h-4 w-4 rotate-180" aria-hidden="true" />
+                    </a>
+                    <p className="text-xs text-slate-500">
+                      Tip: upload a square image for the cleanest look across all placements.
+                    </p>
+                  </div>
+                </div>
+              </section>
+            ) : null}
           </>
         )}
       </div>
