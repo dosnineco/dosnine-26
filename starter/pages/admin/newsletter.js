@@ -24,6 +24,10 @@ import {
   Info,
   Loader2,
   ChevronDown,
+  Sparkles,
+  Wand2,
+  Plus as PlusIcon,
+  X as XIcon,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useEditor, EditorContent } from '@tiptap/react';
@@ -86,6 +90,92 @@ const RECIPIENT_OPTIONS = [
   },
 ];
 
+/* ----------------------------------------------------------
+ * Inline email styles.
+ * Gmail/Outlook strip <style> blocks, so every tag must carry
+ * its own inline style. We apply these AFTER the AI returns
+ * clean semantic HTML, and BEFORE wrapping in the shell.
+ * ---------------------------------------------------------- */
+const EMAIL_INLINE_STYLES = {
+  h1: 'font-family:Georgia,"Times New Roman",serif;font-size:26px;line-height:1.25;font-weight:700;color:#0f172a;margin:32px 0 14px;letter-spacing:-0.01em;',
+  h2: 'font-family:Georgia,"Times New Roman",serif;font-size:21px;line-height:1.3;font-weight:700;color:#0f172a;margin:36px 0 14px;letter-spacing:-0.01em;padding-bottom:8px;border-bottom:2px solid #F55353;',
+  h3: 'font-family:Georgia,"Times New Roman",serif;font-size:17px;line-height:1.35;font-weight:700;color:#0f172a;margin:24px 0 10px;',
+  p: 'margin:0 0 16px;font-size:16px;line-height:1.7;color:#334155;',
+  ul: 'margin:0 0 18px;padding-left:22px;font-size:16px;line-height:1.7;color:#334155;',
+  ol: 'margin:0 0 18px;padding-left:22px;font-size:16px;line-height:1.7;color:#334155;',
+  li: 'margin:0 0 8px;font-size:16px;line-height:1.7;color:#334155;',
+  strong: 'color:#0f172a;font-weight:700;',
+  em: 'font-style:italic;color:#334155;',
+  a: 'color:#F55353;text-decoration:underline;font-weight:600;',
+  blockquote:
+    'margin:24px 0;padding:16px 20px;border-left:3px solid #F55353;background:#f8fafc;color:#475569;font-style:italic;font-size:15px;line-height:1.7;',
+};
+
+function applyInlineEmailStyles(html) {
+  if (typeof window === 'undefined' || !html) return html;
+  try {
+    const doc = new DOMParser().parseFromString(
+      `<div id="__nlwrap">${html}</div>`,
+      'text/html'
+    );
+    const root = doc.getElementById('__nlwrap');
+    if (!root) return html;
+
+    Object.entries(EMAIL_INLINE_STYLES).forEach(([tag, style]) => {
+      root.querySelectorAll(tag).forEach((el) => {
+        const existing = el.getAttribute('style') || '';
+        // Preserve any styles the user manually added on top
+        el.setAttribute('style', `${style}${existing}`);
+      });
+    });
+
+    return root.innerHTML;
+  } catch {
+    return html;
+  }
+}
+
+/* ----------------------------------------------------------
+ * Auto-promote orphan heading-like paragraphs to <h2>.
+ * Safety net when the model returns flatter structure than
+ * the prompt asked for.
+ * ---------------------------------------------------------- */
+function autoPromoteHeadings(html) {
+  if (!html) return html;
+  try {
+    const doc = new DOMParser().parseFromString(
+      `<div id="__nlwrap">${html}</div>`,
+      'text/html'
+    );
+    const root = doc.getElementById('__nlwrap');
+    if (!root) return html;
+
+    root.querySelectorAll('p').forEach((p) => {
+      const text = (p.textContent || '').trim();
+      if (!text) return;
+      if (p.querySelector('a, strong, em, img, br')) return;
+
+      const wordCount = text.split(/\s+/).length;
+      const endsWithQuestion = /\?\s*$/.test(text);
+      const isShortTitle =
+        wordCount >= 2 &&
+        wordCount <= 9 &&
+        /^[A-Z0-9]/.test(text) &&
+        !/[.!]$/.test(text);
+
+      if (isShortTitle || (endsWithQuestion && wordCount <= 12)) {
+        const h2 = doc.createElement('h2');
+        h2.textContent = text;
+        p.replaceWith(h2);
+      }
+    });
+
+    return root.innerHTML;
+  } catch {
+    return html;
+  }
+}
+
 const escapeHtml = (value) =>
   String(value || '')
     .replace(/&/g, '&amp;')
@@ -100,30 +190,18 @@ const escapeHtml = (value) =>
  * ---------------------------------------------------------- */
 const BRAND = {
   name: 'Dosnine Limited',
-  navy: '#0f172a',       // header background
+  navy: '#0f172a',
   navyHover: '#1e293b',
-  accent: '#F55353',      // CTA button
-  text: '#0f172a',        // body text
-  muted: '#475569',       // secondary text
+  accent: '#F55353',
+  text: '#0f172a',
+  muted: '#475569',
   border: '#e2e8f0',
-  soft: '#f8fafc',        // footer background
-  pageBg: '#f1f5f9',      // outer background
+  soft: '#f8fafc',
+  pageBg: '#f1f5f9',
 };
 
 /* ============================================================
- * Build the full email — wraps the editor content in a
- * table-based shell so it renders consistently across Gmail,
- * Apple Mail, Outlook, and Yahoo.
- * ============================================================ */
-/* ============================================================
- * Build the full email — wraps the editor content in a
- * table-based shell with the Dosnine logo, brand accent,
- * and a clean footer.
- *
- * Mobile behaviour: the card fills the full viewport width
- * (no gutters, no rounded corners, no side borders) so the
- * email reads like a native app screen rather than a boxed
- * card floating in gray.
+ * Build the full email — table-based shell for inbox clients
  * ============================================================ */
 function buildEmailHtml({ subject, previewText, bodyHtml }) {
   const siteUrl =
@@ -136,7 +214,6 @@ function buildEmailHtml({ subject, previewText, bodyHtml }) {
   const fontStack =
     "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif";
 
-  // Hidden preheader — the snippet that appears next to the subject in the inbox
   const preheaderText = String(previewText || '').trim();
   const preheader = preheaderText
     ? `<div style="display:none;font-size:1px;color:${BRAND.pageBg};line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;mso-hide:all;">${escapeHtml(
@@ -155,11 +232,10 @@ function buildEmailHtml({ subject, previewText, bodyHtml }) {
   <meta name="supported-color-schemes" content="light">
   <title>${escapeHtml(subject || BRAND.name)}</title>
   <style>
-    /* Progressive enhancement — most modern clients honour these */
     .email-body a { color:${BRAND.accent}; text-decoration:underline; }
     .email-body h1, .email-body h2, .email-body h3 {
       font-family: Georgia, 'Times New Roman', serif;
-      color:${BRAND.ink};
+      color:${BRAND.text};
       font-weight: 700;
       letter-spacing: -0.01em;
       line-height: 1.25;
@@ -179,8 +255,6 @@ function buildEmailHtml({ subject, previewText, bodyHtml }) {
       color: ${BRAND.muted};
       font-style: italic;
     }
-
-    /* ---- MOBILE: full-bleed layout, no card, no gutters ---- */
     @media (max-width:620px) {
       .email-outer-pad   { padding: 0 !important; }
       .email-container   {
@@ -206,47 +280,35 @@ function buildEmailHtml({ subject, previewText, bodyHtml }) {
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:${BRAND.pageBg};">
     <tr>
       <td class="email-outer-pad" align="center" style="padding:40px 16px;">
-
         <table role="presentation" class="email-container" width="600" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:600px;background:#ffffff;border-radius:16px;overflow:hidden;border:1px solid ${BRAND.border};">
-
-          <!-- ============ ACCENT TOP BAR ============ -->
- 
-
-          <!-- ============ DIVIDER ============ -->
           <tr>
             <td style="padding:0 40px;">
               <div style="height:1px;background:${BRAND.border};line-height:0;font-size:0;">&nbsp;</div>
             </td>
           </tr>
-
-          <!-- ============ BODY ============ -->
           <tr>
             <td class="email-body-pad email-body" style="padding:36px 40px 40px;font-family:${fontStack};font-size:16px;line-height:1.7;color:${BRAND.text};">
               ${bodyHtml}
             </td>
           </tr>
-
-          <!-- ============ FOOTER ============ -->
           <tr>
             <td class="email-footer-pad" style="padding:28px 40px 32px;background:${BRAND.soft};border-top:1px solid ${BRAND.border};font-family:${fontStack};">
               <p style="margin:0 0 14px;font-size:12px;line-height:1.65;color:${BRAND.muted};">
                 You received this email because you signed up or submitted a request on Dosnine.
               </p>
               <p style="margin:0 0 18px;font-size:12px;line-height:1.65;color:${BRAND.muted};">
-                <a href="${cleanSiteUrl}" style="color:${BRAND.ink};text-decoration:none;font-weight:600;">Dosnine.com</a>
+                <a href="${cleanSiteUrl}" style="color:${BRAND.text};text-decoration:none;font-weight:600;">Dosnine.com</a>
                 <span style="color:#cbd5e1;">&nbsp;·&nbsp;</span>
-                <a href="${cleanSiteUrl}/contact" style="color:${BRAND.ink};text-decoration:none;font-weight:600;">Contact</a>
+                <a href="${cleanSiteUrl}/contact" style="color:${BRAND.text};text-decoration:none;font-weight:600;">Contact</a>
                 <span style="color:#cbd5e1;">&nbsp;·&nbsp;</span>
-                <a href="${cleanSiteUrl}/newsletter/unsubscribe" style="color:${BRAND.ink};text-decoration:none;font-weight:600;">Unsubscribe</a>
+                <a href="${cleanSiteUrl}/newsletter/unsubscribe" style="color:${BRAND.text};text-decoration:none;font-weight:600;">Unsubscribe</a>
               </p>
-              <p style="margin:0;font-size:11px;line-height:1.6;color:${BRAND.subtle};">
+              <p style="margin:0;font-size:11px;line-height:1.6;color:#94a3b8;">
                 © ${year} ${BRAND.name} · Jamaica
               </p>
             </td>
           </tr>
-
         </table>
-
       </td>
     </tr>
   </table>
@@ -366,6 +428,19 @@ export default function AdminNewsletterPage() {
   const [showLinkInput, setShowLinkInput] = useState(false);
   const [advertisements, setAdvertisements] = useState([]);
   const [selectedAdvertisementId, setSelectedAdvertisementId] = useState('');
+
+  /* ---------- AI generator state ---------- */
+  const [aiForm, setAiForm] = useState({
+    topic: '',
+    tone: 'professional',
+    audience: 'general',
+    length: 'medium',
+    keywords: '',
+    additionalInstructions: '',
+    advertisementIds: [],
+  });
+  const [generating, setGenerating] = useState(false);
+  const [aiOpen, setAiOpen] = useState(true);
 
   const uploadInputRef = useRef(null);
 
@@ -625,6 +700,96 @@ export default function AdminNewsletterPage() {
   };
 
   /* ----------------------------------------------------------
+   * AI generation
+   * ---------------------------------------------------------- */
+  const toggleAdSelection = (id) => {
+    setAiForm((prev) => {
+      const has = prev.advertisementIds.some((x) => String(x) === String(id));
+      return {
+        ...prev,
+        advertisementIds: has
+          ? prev.advertisementIds.filter((x) => String(x) !== String(id))
+          : [...prev.advertisementIds, id],
+      };
+    });
+  };
+
+  const handleGenerateWithAI = async () => {
+    if (!aiForm.topic.trim()) {
+      toast.error('Enter a topic to generate a newsletter.');
+      return;
+    }
+    setGenerating(true);
+    try {
+      const response = await fetch('/api/newsletter/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...buildAuthHeaders() },
+        credentials: 'include',
+        body: JSON.stringify({
+          topic: aiForm.topic,
+          tone: aiForm.tone,
+          audience: aiForm.audience,
+          length: aiForm.length,
+          keywords: aiForm.keywords
+            .split(',')
+            .map((k) => k.trim())
+            .filter(Boolean),
+          advertisementIds: aiForm.advertisementIds,
+          additionalInstructions: aiForm.additionalInstructions,
+        }),
+      });
+
+      const payload = await response.json();
+      if (!response.ok || !payload?.success) {
+        throw new Error(payload?.error || 'Failed to generate newsletter');
+      }
+
+      const { subject, previewText, bodyHtml, adSlots = [] } = payload.data;
+
+      // 1) Replace {{AD_n}} tokens with real ad blocks.
+      const siteUrl =
+        process.env.NEXT_PUBLIC_SITE_URL || window.location.origin;
+      let finalHtml = bodyHtml;
+
+      for (const slot of adSlots) {
+        const ad = advertisements.find(
+          (a) => String(a.id) === String(slot.advertisementId)
+        );
+        if (!ad) continue;
+        const adHtml = buildAdvertisementHtml({ advertisement: ad, siteUrl });
+        finalHtml = finalHtml.split(slot.token).join(adHtml);
+      }
+
+      // 2) Clean up any leftover tokens the model forgot to use.
+      finalHtml = finalHtml.replace(/\{\{AD_\d+\}\}/g, '');
+
+      // 3) Auto-promote heading-like paragraphs to <h2> as a safety net.
+      finalHtml = autoPromoteHeadings(finalHtml);
+
+      // 4) Apply inline email styles so what the admin sees matches
+      //    exactly what the recipient will see.
+      finalHtml = applyInlineEmailStyles(finalHtml);
+
+      setNewsletter({
+        subject,
+        previewText,
+        htmlContent: finalHtml,
+      });
+
+      if (editor) {
+        editor.commands.setContent(finalHtml, false);
+      }
+
+      toast.success('Newsletter generated');
+    } catch (err) {
+      console.error('AI generation error:', err);
+      toast.error(err.message || 'Generation failed');
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  /* ----------------------------------------------------------
    * Image upload
    * ---------------------------------------------------------- */
   const compressImage = (file) =>
@@ -727,10 +892,11 @@ export default function AdminNewsletterPage() {
 
   const buildWrappedHtml = () => {
     const sanitizedBody = DOMPurify.sanitize(newsletter.htmlContent);
+    const inlined = applyInlineEmailStyles(sanitizedBody);
     return buildEmailHtml({
       subject: newsletter.subject,
       previewText: newsletter.previewText,
-      bodyHtml: sanitizedBody,
+      bodyHtml: inlined,
     });
   };
 
@@ -859,10 +1025,11 @@ export default function AdminNewsletterPage() {
   const previewHtml = useMemo(() => {
     if (!showPreview) return '';
     try {
+      const sanitized = DOMPurify.sanitize(newsletter.htmlContent);
       return buildEmailHtml({
         subject: newsletter.subject,
         previewText: newsletter.previewText,
-        bodyHtml: DOMPurify.sanitize(newsletter.htmlContent),
+        bodyHtml: applyInlineEmailStyles(sanitized),
       });
     } catch {
       return '';
@@ -906,6 +1073,60 @@ export default function AdminNewsletterPage() {
     <>
       <Head>
         <title>Newsletter Manager — Admin</title>
+        <style jsx global>{`
+          /* Newsletter editor preview — matches the email look */
+          .tiptap h2 {
+            font-family: Georgia, 'Times New Roman', serif;
+            font-size: 21px;
+            font-weight: 700;
+            color: #0f172a;
+            margin: 32px 0 12px;
+            padding-bottom: 6px;
+            border-bottom: 2px solid #f55353;
+          }
+          .tiptap h3 {
+            font-family: Georgia, 'Times New Roman', serif;
+            font-size: 17px;
+            font-weight: 700;
+            color: #0f172a;
+            margin: 22px 0 10px;
+          }
+          .tiptap p {
+            margin: 0 0 14px;
+            font-size: 15px;
+            line-height: 1.7;
+            color: #334155;
+          }
+          .tiptap ul,
+          .tiptap ol {
+            margin: 0 0 16px;
+            padding-left: 22px;
+            font-size: 15px;
+            line-height: 1.7;
+            color: #334155;
+          }
+          .tiptap li {
+            margin: 0 0 6px;
+          }
+          .tiptap blockquote {
+            margin: 20px 0;
+            padding: 14px 20px;
+            border-left: 3px solid #f55353;
+            background: #f8fafc;
+            color: #475569;
+            font-style: italic;
+            border-radius: 0 8px 8px 0;
+          }
+          .tiptap a {
+            color: #f55353;
+            text-decoration: underline;
+            font-weight: 600;
+          }
+          .tiptap strong {
+            color: #0f172a;
+            font-weight: 700;
+          }
+        `}</style>
       </Head>
 
       <div className="space-y-6">
@@ -995,6 +1216,227 @@ export default function AdminNewsletterPage() {
         <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
           {/* LEFT: composer */}
           <div className="space-y-6">
+            {/* ============ AI GENERATOR ============ */}
+            <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+              <button
+                type="button"
+                onClick={() => setAiOpen((v) => !v)}
+                className="flex w-full items-center justify-between gap-3 px-5 py-4 text-left transition hover:bg-slate-50"
+              >
+                <div className="flex items-center gap-3">
+                  <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-accent/10 text-accent">
+                    <Sparkles size={16} />
+                  </span>
+                  <div>
+                    <p className="text-sm font-bold text-slate-900">
+                      Generate with AI
+                    </p>
+                    <p className="text-xs text-slate-500">
+                      Pick a topic — we&apos;ll write the issue and drop ads where
+                      they fit.
+                    </p>
+                  </div>
+                </div>
+                <ChevronDown
+                  size={16}
+                  className={`text-slate-400 transition ${
+                    aiOpen ? 'rotate-180' : ''
+                  }`}
+                />
+              </button>
+
+              {aiOpen && (
+                <div className="space-y-4 border-t border-slate-100 p-5 sm:p-6">
+                  <div>
+                    <label className={labelClass}>Topic *</label>
+                    <textarea
+                      value={aiForm.topic}
+                      onChange={(e) =>
+                        setAiForm((prev) => ({ ...prev, topic: e.target.value }))
+                      }
+                      rows={2}
+                      placeholder="e.g. Why Kingston renters are moving to Portmore in 2026"
+                      className={`${inputClass} resize-none`}
+                    />
+                  </div>
+
+                  <div className="grid gap-3 sm:grid-cols-3">
+                    <div>
+                      <label className={labelClass}>Tone</label>
+                      <select
+                        value={aiForm.tone}
+                        onChange={(e) =>
+                          setAiForm((prev) => ({ ...prev, tone: e.target.value }))
+                        }
+                        className={inputClass}
+                      >
+                        <option value="professional">Professional</option>
+                        <option value="friendly">Friendly</option>
+                        <option value="urgent">Urgent</option>
+                        <option value="informative">Informative</option>
+                        <option value="luxury">Luxury</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className={labelClass}>Audience</label>
+                      <select
+                        value={aiForm.audience}
+                        onChange={(e) =>
+                          setAiForm((prev) => ({
+                            ...prev,
+                            audience: e.target.value,
+                          }))
+                        }
+                        className={inputClass}
+                      >
+                        <option value="general">General</option>
+                        <option value="buyers">Buyers</option>
+                        <option value="sellers">Sellers</option>
+                        <option value="renters">Renters</option>
+                        <option value="landlords">Landlords</option>
+                        <option value="advertisers">Advertisers</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className={labelClass}>Length</label>
+                      <select
+                        value={aiForm.length}
+                        onChange={(e) =>
+                          setAiForm((prev) => ({
+                            ...prev,
+                            length: e.target.value,
+                          }))
+                        }
+                        className={inputClass}
+                      >
+                        <option value="short">Short</option>
+                        <option value="medium">Medium</option>
+                        <option value="long">Long</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className={labelClass}>
+                      Keywords (comma separated)
+                    </label>
+                    <input
+                      type="text"
+                      value={aiForm.keywords}
+                      onChange={(e) =>
+                        setAiForm((prev) => ({
+                          ...prev,
+                          keywords: e.target.value,
+                        }))
+                      }
+                      placeholder="kingston, family homes, mortgage, 2026"
+                      className={inputClass}
+                    />
+                  </div>
+
+                  <div>
+                    <label className={labelClass}>
+                      Extra instructions (optional)
+                    </label>
+                    <input
+                      type="text"
+                      value={aiForm.additionalInstructions}
+                      onChange={(e) =>
+                        setAiForm((prev) => ({
+                          ...prev,
+                          additionalInstructions: e.target.value,
+                        }))
+                      }
+                      placeholder="Mention our new parish search feature."
+                      className={inputClass}
+                    />
+                  </div>
+
+                  {/* Ads to weave in */}
+                  <div>
+                    <div className="mb-2 flex items-center justify-between">
+                      <label className={labelClass}>
+                        Ads to weave in ({aiForm.advertisementIds.length} selected)
+                      </label>
+                      {aiForm.advertisementIds.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setAiForm((prev) => ({
+                              ...prev,
+                              advertisementIds: [],
+                            }))
+                          }
+                          className="text-[11px] font-semibold text-slate-500 hover:text-slate-800"
+                        >
+                          Clear
+                        </button>
+                      )}
+                    </div>
+
+                    {advertisements.length === 0 ? (
+                      <p className="rounded-lg border border-dashed border-slate-200 bg-slate-50 py-3 text-center text-xs text-slate-500">
+                        No active newsletter ads available
+                      </p>
+                    ) : (
+                      <div className="flex max-h-44 flex-wrap gap-2 overflow-y-auto rounded-lg border border-slate-200 bg-slate-50 p-2.5">
+                        {advertisements.map((ad) => {
+                          const selected = aiForm.advertisementIds.some(
+                            (x) => String(x) === String(ad.id)
+                          );
+                          return (
+                            <button
+                              key={ad.id}
+                              type="button"
+                              onClick={() => toggleAdSelection(ad.id)}
+                              className={`inline-flex max-w-full items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
+                                selected
+                                  ? 'border-accent bg-accent text-white'
+                                  : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300'
+                              }`}
+                            >
+                              {selected ? (
+                                <XIcon size={11} />
+                              ) : (
+                                <PlusIcon size={11} />
+                              )}
+                              <span className="truncate">
+                                {ad.title || ad.company_name || 'Advertisement'}
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                    <p className="mt-2 text-[11px] text-slate-500">
+                      The AI will place each selected ad at the most relevant
+                      point in the body.
+                    </p>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-2 border-t border-slate-100 pt-4">
+                    <button
+                      type="button"
+                      onClick={handleGenerateWithAI}
+                      disabled={generating || !aiForm.topic.trim()}
+                      className="inline-flex items-center gap-2 rounded-full bg-accent px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-accent/90 disabled:opacity-60"
+                    >
+                      {generating ? (
+                        <Loader2 size={14} className="animate-spin" />
+                      ) : (
+                        <Wand2 size={14} />
+                      )}
+                      {generating ? 'Generating…' : 'Generate newsletter'}
+                    </button>
+                    <p className="text-xs text-slate-500">
+                      Fills the subject, preview text, and body — you can still
+                      edit before sending.
+                    </p>
+                  </div>
+                </div>
+              )}
+            </section>
+
             {/* Compose */}
             <section className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6">
               <h2 className="text-lg font-bold text-slate-900">Compose</h2>
@@ -1006,7 +1448,10 @@ export default function AdminNewsletterPage() {
                     type="text"
                     value={newsletter.subject}
                     onChange={(e) =>
-                      setNewsletter((prev) => ({ ...prev, subject: e.target.value }))
+                      setNewsletter((prev) => ({
+                        ...prev,
+                        subject: e.target.value,
+                      }))
                     }
                     placeholder="Newsletter subject"
                     className={inputClass}
@@ -1050,8 +1495,8 @@ export default function AdminNewsletterPage() {
                     )}
                   </div>
                   <p className="mt-2 text-xs text-slate-500">
-                    Use these in the subject or body. Missing values fall back to a
-                    friendly default.
+                    Use these in the subject or body. Missing values fall back to
+                    a friendly default.
                   </p>
                 </div>
 
@@ -1074,14 +1519,18 @@ export default function AdminNewsletterPage() {
                       <Bold size={13} />
                     </ToolbarButton>
                     <ToolbarButton
-                      onClick={() => editor?.chain().focus().toggleItalic().run()}
+                      onClick={() =>
+                        editor?.chain().focus().toggleItalic().run()
+                      }
                       active={editor?.isActive('italic')}
                       title="Italic"
                     >
                       <Italic size={13} />
                     </ToolbarButton>
                     <ToolbarButton
-                      onClick={() => editor?.chain().focus().toggleStrike().run()}
+                      onClick={() =>
+                        editor?.chain().focus().toggleStrike().run()
+                      }
                       active={editor?.isActive('strike')}
                       title="Strikethrough"
                     >
@@ -1112,7 +1561,10 @@ export default function AdminNewsletterPage() {
                     >
                       <LinkIcon size={13} />
                     </ToolbarButton>
-                    <ToolbarButton onClick={openImageUpload} title="Insert image">
+                    <ToolbarButton
+                      onClick={openImageUpload}
+                      title="Insert image"
+                    >
                       <ImageIcon size={13} />
                     </ToolbarButton>
                   </div>
