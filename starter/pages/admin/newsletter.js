@@ -365,11 +365,7 @@ function buildAdvertisementHtml({ advertisement, siteUrl }) {
                 ? `<p style="margin:0 0 14px;font-size:14px;font-weight:600;color:${BRAND.muted};">${companyName}</p>`
                 : ''
             }
-            ${
-              description
-                ? `<p style="margin:0 0 20px;font-size:15px;line-height:1.6;color:${BRAND.muted};">${description}</p>`
-                : ''
-            }
+           
             <table role="presentation" cellpadding="0" cellspacing="0" border="0">
               <tr>
                 <td style="border-radius:8px;background:${BRAND.accent};">
