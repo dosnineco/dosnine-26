@@ -196,26 +196,22 @@ const fileToDataUrl = (file) =>
  * ============================================================ */
 
 export default function LogoPage() {
-  const [step, setStep] = useState(1);
-  const [quantity, setQuantity] = useState(null);
-  const [customQuantity, setCustomQuantity] = useState('');
-  const [showMinQtyNotice, setShowMinQtyNotice] = useState(false);
-  const [size, setSize] = useState(null);
-  const [color, setColor] = useState(null);
-  const [logoFile, setLogoFile] = useState(null);
-  const [logoPreview, setLogoPreview] = useState(null);
-  const [customerName, setCustomerName] = useState('');
-  const [deliveryLocation, setDeliveryLocation] = useState('');
-  const [phone, setPhone] = useState('');
-  const [submitting, setSubmitting] = useState(false);
-  const [copied, setCopied] = useState(false);
-  const [orderPlaced, setOrderPlaced] = useState(false);
-  const [orderId, setOrderId] = useState(null);
-  const [openFaq, setOpenFaq] = useState(null);
-  const [showStickyCta, setShowStickyCta] = useState(false);
-
-  const fileInputRef = useRef(null);
-  const formTopRef = useRef(null);
+  const [step, setStep] = useState(1)
+  const [quantity, setQuantity] = useState(null)
+  const [customQuantity, setCustomQuantity] = useState('')
+  const [showMinQtyNotice, setShowMinQtyNotice] = useState(false)
+  const [size, setSize] = useState(null)
+  const [color, setColor] = useState(null)
+  const [logoFile, setLogoFile] = useState(null)
+  const [logoPreview, setLogoPreview] = useState(null)
+  const [customerName, setCustomerName] = useState('')
+  const [customerEmail, setCustomerEmail] = useState('')
+  const [deliveryLocation, setDeliveryLocation] = useState('')
+  const [phone, setPhone] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+  const [copied, setCopied] = useState(false)
+  const [orderPlaced, setOrderPlaced] = useState(false)
+  const fileInputRef = useRef(null)
 
   const price = computePrice(size, quantity);
   const total = price + CONVERSION_CHARGE;
@@ -237,6 +233,7 @@ export default function LogoPage() {
         return;
       }
       if (saved.customerName) setCustomerName(saved.customerName);
+      if (saved.customerEmail) setCustomerEmail(saved.customerEmail);
       if (saved.phone) setPhone(saved.phone);
       if (saved.deliveryLocation) setDeliveryLocation(saved.deliveryLocation);
     } catch {
@@ -246,12 +243,13 @@ export default function LogoPage() {
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    if (!customerName && !phone && !deliveryLocation) return;
+    if (!customerName && !customerEmail && !phone && !deliveryLocation) return;
     try {
       window.localStorage.setItem(
         STORAGE_KEY,
         JSON.stringify({
           customerName,
+          customerEmail,
           phone,
           deliveryLocation,
           savedAt: Date.now(),
@@ -260,7 +258,7 @@ export default function LogoPage() {
     } catch {
       /* ignore */
     }
-  }, [customerName, phone, deliveryLocation]);
+  }, [customerName, customerEmail, phone, deliveryLocation]);
 
   /* ----------------------------------------------------------
    * Sticky CTA on scroll (step 1 only)
@@ -313,6 +311,10 @@ export default function LogoPage() {
       toast.error('Enter your name');
       return;
     }
+    if (!customerEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customerEmail.trim())) {
+      toast.error('Enter a valid email address')
+      return
+    }
     if (!deliveryLocation) {
       toast.error('Pick a Knutsford Express pickup location');
       return;
@@ -354,9 +356,9 @@ export default function LogoPage() {
       const cleanName = escapeHtml(customerName.trim());
 
       const payload = {
-        business_name: cleanName,
-        phone: sanitizeInput(cleanPhone),
-        email: '',
+        business_name: escapeHtml(customerName.trim()),
+        phone: sanitizeInput(phone),
+        email: customerEmail.trim(),
         location: escapeHtml(deliveryLocation),
         color,
         size,
@@ -387,39 +389,11 @@ export default function LogoPage() {
         throw new Error(data?.error || 'Failed to submit order');
       }
 
-      const createdId = data.order?.id || data.id || null;
-      setOrderId(createdId);
-      setOrderPlaced(true);
-      setStep(5);
-
-      try {
-        window.localStorage.removeItem(STORAGE_KEY);
-      } catch {
-        /* ignore */
+      if (!data.clientEmailSent) {
+        toast.error('Order placed, but the confirmation email could not be sent. Please contact us on WhatsApp.');
       }
-
-      // Fire admin notification email (non-blocking)
-      fetch('/api/logo/notify-admin', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          orderId: createdId,
-          customerName: customerName.trim(),
-          phone: cleanPhone,
-          deliveryLocation,
-          size,
-          sizeLabel: SIZES[size]?.sub,
-          sizeInches: SIZES[size]?.label,
-          color,
-          quantity,
-          price,
-          conversionCharge: CONVERSION_CHARGE,
-          total,
-          logoUrl,
-        }),
-      }).catch((err) => {
-        console.error('Admin notification failed:', err);
-      });
+      setOrderPlaced(true)
+      setStep(5)
     } catch (err) {
       console.error('Order submission failed', err);
       toast.error(err.message || 'Failed to submit order');
@@ -867,7 +841,19 @@ export default function LogoPage() {
                     className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-base text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-accent focus:bg-white focus:ring-2 focus:ring-accent/20"
                   />
                 </div>
-
+                <div>
+                  <label className="block text-sm font-semibold text-slate-900">
+                    Email address
+                  </label>
+                  <input
+                    type="email"
+                    value={customerEmail}
+                    onChange={(e) => setCustomerEmail(e.target.value)}
+                    placeholder="you@example.com"
+                    required
+                    className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-base text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-accent focus:bg-white focus:ring-2 focus:ring-accent/20"
+                  />
+                </div>
                 <div>
                   <label className="block text-sm font-semibold text-slate-900">
                     WhatsApp number

@@ -1,4 +1,13 @@
 import { getDbClient, requireDbUser } from '@/lib/apiAuth';
+import { sendBrevoEmail } from '@/lib/serviceRequestAllocation';
+
+const escapeHtml = (value) => String(value || '').replace(/[&<>"']/g, (character) => ({
+  '&': '&amp;',
+  '<': '&lt;',
+  '>': '&gt;',
+  '"': '&quot;',
+  "'": '&#39;',
+}[character]));
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -115,10 +124,57 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: 'Failed to create agent profile' });
     }
 
+    let emailSent = false;
+    try {
+      const safeName = escapeHtml(fullName);
+      await sendBrevoEmail({
+        to: resolvedEmail,
+        subject: 'We received your Dosnine agent application',
+        htmlContent: `
+          <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #111827;">
+            <h2>Agent application received</h2>
+            <p>Hi ${safeName},</p>
+            <p>Thank you for applying to become a Dosnine real estate agent. We have received your application and documents.</p>
+            <p>Our team will review your application and contact you with an update, typically within 24-48 hours.</p>
+            <p>Thank you,<br />The Dosnine Team</p>
+          </div>
+        `,
+        textContent: `Hi ${fullName},\n\nThank you for applying to become a Dosnine real estate agent. We have received your application and documents. Our team will review your application and contact you with an update, typically within 24-48 hours.\n\nThank you,\nThe Dosnine Team`,
+      });
+      emailSent = true;
+    } catch (emailError) {
+      console.error('Agent application confirmation email failed:', emailError);
+    }
+
+    let adminEmailSent = false;
+    try {
+      const safeName = escapeHtml(fullName);
+      const safeBusinessName = escapeHtml(businessName);
+      await sendBrevoEmail({
+        to: process.env.ADMIN_NOTIFICATION_EMAIL || process.env.ADMIN_EMAIL || 'admin@dosnine.com',
+        subject: 'New agent application received',
+        htmlContent: `
+          <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #111827;">
+            <h2>New agent application</h2>
+            <p><strong>Applicant:</strong> ${safeName}</p>
+            <p><strong>Email:</strong> ${escapeHtml(resolvedEmail)}</p>
+            <p><strong>Phone:</strong> ${escapeHtml(phone)}</p>
+            <p><strong>Business:</strong> ${safeBusinessName}</p>
+            <p><strong>Submitted:</strong> ${new Date().toISOString()}</p>
+          </div>
+        `,
+        textContent: `New agent application\n\nApplicant: ${fullName}\nEmail: ${resolvedEmail}\nPhone: ${phone}\nBusiness: ${businessName}`,
+      });
+      adminEmailSent = true;
+    } catch (emailError) {
+      console.error('Agent application admin notification failed:', emailError);
+    }
 
     return res.status(200).json({
       success: true,
       message: 'Application submitted! We will review within 24-48 hours.',
+      emailSent,
+      adminEmailSent,
     });
 
   } catch (error) {

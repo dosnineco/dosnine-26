@@ -1,4 +1,5 @@
 import { getDbClient, requireAdminUser } from '@/lib/apiAuth';
+import * as SibApiV3Sdk from '@getbrevo/brevo';
 
 export const config = {
   api: {
@@ -16,7 +17,17 @@ function sanitizeString(input, maxLength = 255) {
 
 function validateEmail(email) {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  return typeof email === 'string';
+  return typeof email === 'string' && email.length <= 254 && emailRegex.test(email);
+}
+
+function escapeHtml(value) {
+  return String(value || '').replace(/[&<>"']/g, (character) => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;',
+  }[character]));
 }
 
 function validatePhone(phone) {
@@ -72,7 +83,7 @@ export default async function handler(req, res) {
       // Validate required fields
       const businessName = sanitizeString(payload.business_name || '', 100);
       const phone = sanitizeString(payload.phone || '', 30);
-      const email = sanitizeString(payload.email || '', 255);
+      const email = sanitizeString(payload.email || '', 254).toLowerCase();
       const location = sanitizeString(payload.location || '', 100);
 
       if (!businessName || businessName.length < 2) {
@@ -150,7 +161,89 @@ export default async function handler(req, res) {
         return res.status(500).json({ error: toApiError('Failed to create HTV order', result.error) });
       }
 
-      return res.status(200).json({ success: true, order: result.data });
+      let clientEmailSent = false;
+      let adminEmailSent = false;
+      const apiKey = process.env.BREVO_API_KEY;
+
+      if (!apiKey) {
+        console.error('HTV order emails were not sent: BREVO_API_KEY is not configured');
+      } else {
+        const apiInstance = new SibApiV3Sdk.TransactionalEmailsApi();
+        apiInstance.setApiKey(SibApiV3Sdk.TransactionalEmailsApiApiKeys.apiKey, apiKey);
+        const sender = {
+          name: process.env.BREVO_FROM_NAME || 'Dosnine',
+          email: process.env.BREVO_FROM_EMAIL || 'admin@dosnine.com',
+        };
+        const safeName = escapeHtml(businessName);
+        const safeEmail = escapeHtml(email);
+        const safePhone = escapeHtml(phone);
+        const safeLocation = escapeHtml(location || 'Not provided');
+        const safeSize = escapeHtml(payload.size || 'Not specified');
+        const safeColor = escapeHtml(payload.color || 'Not specified');
+        const safeQuantity = escapeHtml(payload.quantity || 1);
+        const safeTotal = Number.isFinite(total) ? total.toLocaleString() : '0';
+
+        try {
+          const clientEmail = new SibApiV3Sdk.SendSmtpEmail();
+          clientEmail.sender = sender;
+          clientEmail.to = [{ email, name: businessName }];
+          clientEmail.subject = 'We received your Dosnine logo order';
+          clientEmail.htmlContent = `
+            <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #111827;">
+              <h2>Logo order received</h2>
+              <p>Hi ${safeName},</p>
+              <p>Thank you for placing your logo cutting order. We have received it and will contact you to confirm the next steps.</p>
+              <p><strong>Order:</strong> ${safeQuantity} ${safeSize} logos, ${safeColor}</p>
+              <p><strong>Total:</strong> JMD ${safeTotal}</p>
+              <p><strong>Pickup location:</strong> ${safeLocation}</p>
+              <p>Please send your payment proof on WhatsApp so we can begin processing your order.</p>
+              <p>Thank you,<br />The Dosnine Team</p>
+            </div>
+          `;
+          clientEmail.textContent = `Hi ${businessName},\n\nThank you for placing your logo cutting order. We have received it and will contact you to confirm the next steps.\n\nOrder: ${payload.quantity || 1} ${payload.size || 'Not specified'} logos, ${payload.color || 'Not specified'}\nTotal: JMD ${safeTotal}\nPickup location: ${location || 'Not provided'}\n\nPlease send your payment proof on WhatsApp so we can begin processing your order.\n\nThank you,\nThe Dosnine Team`;
+          await apiInstance.sendTransacEmail(clientEmail);
+          clientEmailSent = true;
+        } catch (emailError) {
+          console.error('HTV client confirmation email failed:', emailError?.response?.body || emailError?.message);
+        }
+
+        try {
+          const adminEmail = new SibApiV3Sdk.SendSmtpEmail();
+          adminEmail.sender = sender;
+          adminEmail.to = [{
+            email: process.env.ADMIN_NOTIFICATION_EMAIL || process.env.ADMIN_EMAIL || 'admin@dosnine.com',
+            name: 'Dosnine Admin',
+          }];
+          adminEmail.replyTo = { email, name: businessName };
+          adminEmail.subject = 'New logo cutting order received';
+          adminEmail.htmlContent = `
+            <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #111827;">
+              <h2>New logo cutting order</h2>
+              <p><strong>Customer:</strong> ${safeName}</p>
+              <p><strong>Email:</strong> <a href="mailto:${safeEmail}">${safeEmail}</a></p>
+              <p><strong>Phone:</strong> ${safePhone}</p>
+              <p><strong>Quantity:</strong> ${safeQuantity}</p>
+              <p><strong>Size:</strong> ${safeSize}</p>
+              <p><strong>Color:</strong> ${safeColor}</p>
+              <p><strong>Pickup location:</strong> ${safeLocation}</p>
+              <p><strong>Total:</strong> JMD ${safeTotal}</p>
+              <p><strong>Order ID:</strong> ${escapeHtml(result.data?.id)}</p>
+            </div>
+          `;
+          adminEmail.textContent = `New logo cutting order\n\nCustomer: ${businessName}\nEmail: ${email}\nPhone: ${phone}\nQuantity: ${payload.quantity || 1}\nSize: ${payload.size || 'Not specified'}\nColor: ${payload.color || 'Not specified'}\nPickup location: ${location || 'Not provided'}\nTotal: JMD ${safeTotal}\nOrder ID: ${result.data?.id || 'Unavailable'}`;
+          await apiInstance.sendTransacEmail(adminEmail);
+          adminEmailSent = true;
+        } catch (emailError) {
+          console.error('HTV admin notification email failed:', emailError?.response?.body || emailError?.message);
+        }
+      }
+
+      return res.status(200).json({
+        success: true,
+        order: result.data,
+        clientEmailSent,
+        adminEmailSent,
+      });
     } catch (error) {
       console.error('HTV order create error:', error);
       return res.status(500).json({ error: 'Internal server error' });

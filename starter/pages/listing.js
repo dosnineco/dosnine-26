@@ -8,8 +8,7 @@ import { useUser, useClerk } from '@clerk/clerk-react';
 import { Home as HomeIcon, Users, ArrowRight } from 'lucide-react';
 import { useRouter } from 'next/router';
 import { PARISHES, normalizeParish } from '../lib/normalizeParish';
-import VisitorEmailPopup from '@/components/VisitorEmailPopup';
-import BecomeAgentBanner from '../components/BecomeAgentBanner';
+
 const PROPERTIES_PER_PAGE = 30;
 
 const PARISH_ALIAS_LOOKUP = {

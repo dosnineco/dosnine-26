@@ -45,6 +45,14 @@ const CATEGORY_ALIASES = {
   ac: 'other',
 };
 
+const escapeHtml = (value) => String(value || '').replace(/[&<>"']/g, (character) => ({
+  '&': '&amp;',
+  '<': '&lt;',
+  '>': '&gt;',
+  '"': '&quot;',
+  "'": '&#39;',
+}[character]));
+
 function normalizeCategory(value) {
   const normalized = String(value || '').trim().toLowerCase();
   if (!normalized) return 'contractor';
@@ -90,7 +98,7 @@ async function sendAdminAdSubmissionEmail({
   submissionId,
 }) {
   const apiKey = process.env.BREVO_API_KEY;
-  if (!apiKey) return;
+  if (!apiKey) throw new Error('BREVO_API_KEY not configured');
 
   const adminEmail =
     process.env.ADMIN_NOTIFICATION_EMAIL || process.env.ADMIN_EMAIL || 'admin@dosnine.com';
@@ -143,6 +151,47 @@ async function sendAdminAdSubmissionEmail({
   emailPayload.to = [{ email: adminEmail, name: 'Dosnine Admin' }];
   emailPayload.subject = `New Ad Submission: ${company_name || 'Unknown Business'}`;
   emailPayload.htmlContent = htmlContent;
+
+  await apiInstance.sendTransacEmail(emailPayload);
+}
+
+async function sendAdvertiserConfirmationEmail({ email, companyName, selectedPlan, submissionId }) {
+  const apiKey = process.env.BREVO_API_KEY;
+  if (!apiKey || !email || email.endsWith('@dosnine.local')) return;
+
+  const senderEmail = process.env.BREVO_FROM_EMAIL || 'admin@dosnine.com';
+  const senderName = process.env.BREVO_FROM_NAME || 'Dosnine';
+  const safeCompanyName = escapeHtml(companyName);
+  const safePlanName = escapeHtml(selectedPlan?.name);
+
+  const apiInstance = new SibApiV3Sdk.TransactionalEmailsApi();
+  apiInstance.setApiKey(SibApiV3Sdk.TransactionalEmailsApiApiKeys.apiKey, apiKey);
+
+  const emailPayload = new SibApiV3Sdk.SendSmtpEmail();
+  emailPayload.sender = { name: senderName, email: senderEmail };
+  emailPayload.to = [{ email }];
+  emailPayload.subject = 'We received your Dosnine advertising request';
+  emailPayload.htmlContent = `
+    <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #111827;">
+      <h2>Advertising request received</h2>
+      <p>Thank you for submitting an advertising request for <strong>${safeCompanyName}</strong>.</p>
+      <p>Request ID: <strong>${escapeHtml(submissionId)}</strong></p>
+      <p>Selected plan: <strong>${safePlanName}</strong> (${Number(selectedPlan?.durationDays || 0)} days)</p>
+      <p>Our team will review your request. To activate your ad, please complete the payment steps shown after submission and send your payment proof on WhatsApp.</p>
+      <p>Thank you,<br />The Dosnine Team</p>
+    </div>
+  `;
+  emailPayload.textContent = [
+    'Advertising request received',
+    '',
+    `Thank you for submitting an advertising request for ${companyName}.`,
+    `Request ID: ${submissionId}`,
+    `Selected plan: ${selectedPlan?.name} (${selectedPlan?.durationDays} days)`,
+    'Our team will review your request. To activate your ad, please complete the payment steps shown after submission and send your payment proof on WhatsApp.',
+    '',
+    'Thank you,',
+    'The Dosnine Team',
+  ].join('\n');
 
   await apiInstance.sendTransacEmail(emailPayload);
 }
@@ -397,6 +446,7 @@ export default async function handler(req, res) {
       console.error('Failed to create advertisement draft:', draftError);
     }
 
+    let adminEmailSent = false;
     try {
       await sendAdminAdSubmissionEmail({
         company_name,
@@ -413,6 +463,7 @@ export default async function handler(req, res) {
         submittedAt,
         submissionId: submission.id,
       });
+      adminEmailSent = true;
     } catch (emailError) {
       console.error(
         'Failed to send admin ad submission email:',
@@ -420,9 +471,24 @@ export default async function handler(req, res) {
       );
     }
 
+    let advertiserEmailSent = false;
+    try {
+      await sendAdvertiserConfirmationEmail({
+        email: normalizedEmail,
+        companyName: company_name,
+        selectedPlan,
+        submissionId: submission.id,
+      });
+      advertiserEmailSent = Boolean(process.env.BREVO_API_KEY && !normalizedEmail.endsWith('@dosnine.local'));
+    } catch (emailError) {
+      console.error('Failed to send advertiser confirmation email:', emailError?.message || emailError);
+    }
+
     return res.status(200).json({
       success: true,
       id: submission.id,
+      adminEmailSent,
+      advertiserEmailSent,
       plan: {
         id: selectedPlan.id,
         name: selectedPlan.name,
