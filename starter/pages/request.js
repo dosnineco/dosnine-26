@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { SignUpButton, useUser } from '@clerk/nextjs';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
@@ -257,9 +258,9 @@ export default function RequestAgentPage() {
               A verified agent will contact you soon to help with your {formData.requestType} needs.
             </p>
             <p className="text-center text-gray-600 mb-6">
-              <a className="font-semibold text-accent underline" href="/sign-up">
+              <Link className="font-semibold text-accent underline" href="/dashboard">
                 Create a free account to track your request and access your dashboard.
-              </a>
+              </Link>
             </p>
             {formData.requestType === 'buy' && (
               <section className="space-y-5 rounded-2xl bg-gray-50 p-5 text-left sm:p-6">
@@ -284,7 +285,7 @@ export default function RequestAgentPage() {
                   </p>
                 </div>
                 {!isSignedIn && (
-                  <SignUpButton mode="modal" afterSignUpUrl="/my-requests">
+                  <SignUpButton mode="modal" afterSignUpUrl="/dashboard">
                     <button type="button" className="w-full rounded-xl bg-white px-4 py-3 font-semibold text-accent ring-1 ring-gray-200 hover:bg-gray-100">
                       Create a free account
                     </button>

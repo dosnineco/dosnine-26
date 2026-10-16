@@ -14,7 +14,7 @@ export default async function handler(req, res) {
     const userData = resolved.user || {};
     const propertyCount = Number(userData.property_count || 0);
     if (!canManageProperties(userData)) {
-      return res.status(403).json({ error: 'A regular or agent account is required to post properties.' });
+      return res.status(403).json({ error: 'A verified homeowner or agent account is required to post properties.' });
     }
     if (userData.role === 'admin') {
       return res.status(200).json({ canPost: true, isAdmin: true, unlimited: true });

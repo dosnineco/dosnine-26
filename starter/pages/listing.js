@@ -185,8 +185,7 @@ function RoleCard({ title, subtitle, icon: Icon, bgColor, textColor, link, user,
     if (user) {
       router.push(link);
     } else {
-      sessionStorage.setItem('redirectAfterSignIn', link);
-      redirectToSignIn({ redirectUrl: link });
+      redirectToSignIn({ redirectUrl: '/dashboard' });
     }
   };
 

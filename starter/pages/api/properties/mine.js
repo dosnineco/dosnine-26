@@ -10,7 +10,7 @@ export default async function handler(req, res) {
     const resolved = await requireDbUser(req, res, { createIfMissing: true });
     if (!resolved) return;
     if (!canManageProperties(resolved.user)) {
-      return res.status(403).json({ error: 'A regular or agent account is required to manage properties.' });
+      return res.status(403).json({ error: 'A verified homeowner or agent account is required to manage properties.' });
     }
 
     const db = getDbClient();

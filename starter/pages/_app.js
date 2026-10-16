@@ -7,8 +7,8 @@ import {
   SignInButton,
   SignUpButton,
   useUser,
-} from '@clerk/clerk-react';
-import { useAuth } from '@clerk/nextjs';
+  useAuth,
+} from '@clerk/nextjs';
 import '../styles/globals.css';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
@@ -139,12 +139,6 @@ const isPublicRoute = (pathname) => {
   });
 };
 
-const setRedirectPath = (path) => {
-  if (typeof window !== 'undefined') {
-    sessionStorage.setItem('redirectAfterSignIn', path);
-  }
-};
-
 const syncUserWithRetry = async (maxRetries = 3) => {
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
@@ -233,26 +227,10 @@ function AppContent({ Component, pageProps }) {
   useAnalyticsTracking();
 
   useEffect(() => {
-    if (isClerkLoaded && !isSignedIn && !isCurrentPagePublic) {
-      setRedirectPath(router.asPath);
-    }
-  }, [isClerkLoaded, isSignedIn, isCurrentPagePublic, router.asPath]);
-
-  useEffect(() => {
     if (typeof window !== 'undefined') {
       Clarity.init('ujn9fzt88c');
     }
   }, []);
-
-  useEffect(() => {
-    if (isSignedIn && isClerkLoaded) {
-      const redirectPath = sessionStorage.getItem('redirectAfterSignIn');
-      if (redirectPath) {
-        sessionStorage.removeItem('redirectAfterSignIn');
-        router.push(redirectPath);
-      }
-    }
-  }, [isSignedIn, isClerkLoaded, router]);
 
   useEffect(() => {
     const syncUser = async () => {
@@ -293,15 +271,23 @@ function AppContent({ Component, pageProps }) {
 
   useEffect(() => {
     if (!isSignedIn || !isSynced || !profileData) return;
-    if (['/verify', '/buyer-prequalification', '/my-requests', '/sign-up', '/sign-in'].includes(router.pathname)) return;
+    if (['/verify', '/buyer-prequalification', '/my-requests'].includes(router.pathname)) return;
 
     const isAdmin = profileData.role === 'admin';
     const isVerified =
       Boolean(profileData.identity_verified) ||
       profileData.id_verification_status === 'approved';
+    const accountStatus = String(profileData.account_status || 'active').trim().toLowerCase();
+    const canUseRegularDashboard =
+      profileData.account_type === 'regular' &&
+      ['active', 'approved'].includes(accountStatus) &&
+      ['/dashboard', '/my-requests'].includes(router.pathname);
 
-    if (!isAdmin && !isVerified) {
-      router.replace('/verify');
+    if (!isAdmin && !isVerified && !canUseRegularDashboard) {
+      const verifyUrl = router.pathname.startsWith('/properties/')
+        ? '/verify?role=homeowner'
+        : '/verify';
+      router.replace(verifyUrl);
     }
   }, [isSignedIn, isSynced, profileData, router, user]);
 
@@ -424,8 +410,13 @@ function AppContent({ Component, pageProps }) {
                     const isVerified =
                       Boolean(profileData?.identity_verified) ||
                       profileData?.id_verification_status === 'approved';
+                    const accountStatus = String(profileData?.account_status || 'active').trim().toLowerCase();
+                    const canUseRegularDashboard =
+                      profileData?.account_type === 'regular' &&
+                      ['active', 'approved'].includes(accountStatus) &&
+                      ['/dashboard', '/my-requests'].includes(router.pathname);
                     const isAllowed =
-                      router.pathname === '/verify' || isAdmin || isVerified;
+                      router.pathname === '/verify' || isAdmin || isVerified || canUseRegularDashboard;
 
                     if (!isAllowed) {
                       return (
@@ -553,7 +544,7 @@ function AppContent({ Component, pageProps }) {
                       </p>
 
                       <div className="mt-6 space-y-3">
-                        <SignInButton mode="modal">
+                        <SignInButton mode="modal" afterSignInUrl="/dashboard">
                           <button
                             type="button"
                             className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-accent px-5 py-3 text-sm font-semibold text-white transition hover:bg-accent/90"
@@ -562,7 +553,7 @@ function AppContent({ Component, pageProps }) {
                           </button>
                         </SignInButton>
 
-                        <SignUpButton mode="modal">
+                        <SignUpButton mode="modal" afterSignUpUrl="/dashboard">
                           <button
                             type="button"
                             className="inline-flex w-full items-center justify-center gap-2 rounded-full border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"

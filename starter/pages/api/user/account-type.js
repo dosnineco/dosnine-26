@@ -32,14 +32,6 @@ export default async function handler(req, res) {
     if (existingType && existingType !== accountType) {
       return res.status(409).json({ error: 'Your account type has already been set.' });
     }
-    if (
-      existingType === 'regular' &&
-      resolved.user?.profile_intent &&
-      resolved.user.profile_intent !== profileIntent
-    ) {
-      return res.status(409).json({ error: 'Your regular account profile has already been set.' });
-    }
-
     const updates = {
       account_type: accountType,
       profile_intent: accountType === 'regular' ? profileIntent : null,

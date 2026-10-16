@@ -68,7 +68,7 @@ export default function MyApplicationsPage() {
       const message = err?.message || 'Failed to load applications';
       if (message.toLowerCase().includes('session expired')) {
         toast.error(message);
-        window.location.href = '/sign-in';
+        window.location.href = '/dashboard';
         return;
       }
       toast.error(message);
@@ -88,7 +88,7 @@ export default function MyApplicationsPage() {
     if (!clerkLoaded) return toast.error('Authentication still loading, please try again');
     if (!userId) {
       toast.error('Session expired. Please sign in again.');
-      window.location.href = '/sign-in';
+      window.location.href = '/dashboard';
       return;
     }
 
@@ -114,7 +114,7 @@ export default function MyApplicationsPage() {
       const message = err?.message || 'Failed to withdraw application';
       if (message.toLowerCase().includes('session expired')) {
         toast.error(message, { id: toastId });
-        window.location.href = '/sign-in';
+        window.location.href = '/dashboard';
         return;
       }
       toast.error(message, { id: toastId });

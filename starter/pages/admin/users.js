@@ -150,7 +150,7 @@ export default function AdminUsersPage() {
       error?.message === 'Session expired. Please sign in again.'
     ) {
       toast.error('Session expired. Please sign in again.');
-      router.push('/sign-in');
+      router.push('/dashboard');
       return true;
     }
     return false;

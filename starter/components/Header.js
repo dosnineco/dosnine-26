@@ -156,7 +156,7 @@ export default function Header() {
             ) : (
               <>
                 {/* Sign in — opens Clerk modal */}
-                <SignInButton mode="modal">
+                <SignInButton mode="modal" afterSignInUrl="/dashboard">
                   <button
                     type="button"
                     className={`inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-semibold transition ${signInButtonClasses}`}
@@ -167,7 +167,7 @@ export default function Header() {
                 </SignInButton>
 
                 {/* Sign up — opens Clerk modal */}
-                <SignUpButton mode="modal">
+                <SignUpButton mode="modal" afterSignUpUrl="/dashboard">
                   <button
                     type="button"
                     className="inline-flex items-center gap-1.5 rounded-full bg-accent px-4 py-2 text-sm font-semibold text-white transition hover:bg-accent/90"
@@ -286,7 +286,7 @@ export default function Header() {
             ) : (
               <div className="space-y-2 px-1">
                 {/* Sign in — opens Clerk modal */}
-                <SignInButton mode="modal">
+                <SignInButton mode="modal" afterSignInUrl="/dashboard">
                   <button
                     type="button"
                     className="flex w-full items-center justify-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
@@ -297,7 +297,7 @@ export default function Header() {
                 </SignInButton>
 
                 {/* Sign up — opens Clerk modal */}
-                <SignUpButton mode="modal">
+                <SignUpButton mode="modal" afterSignUpUrl="/dashboard">
                   <button
                     type="button"
                     className="flex w-full items-center justify-center rounded-full bg-accent px-4 py-3 text-sm font-semibold text-white transition hover:bg-accent/90"

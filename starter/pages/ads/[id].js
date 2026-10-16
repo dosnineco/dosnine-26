@@ -131,7 +131,7 @@ export default function AdDetailPage() {
     event.preventDefault()
     if (!isSignedIn) {
       toast.error('Sign in with a verified Dosnine account to contact this advertiser.')
-      router.push(`/sign-in?redirect_url=${encodeURIComponent(router.asPath)}`)
+      router.push('/dashboard')
       return
     }
 

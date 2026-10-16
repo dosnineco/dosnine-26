@@ -36,7 +36,7 @@ export default function NewProperty() {
 
         const profile = profileResponse.data;
         if (!canManageProperties(profile)) {
-          router.replace('/dashboard');
+          router.replace('/verify?role=homeowner');
           return;
         }
 
@@ -47,7 +47,7 @@ export default function NewProperty() {
       } catch (error) {
         if (error?.response?.status === 401) {
           toast.error('Session expired. Please sign in again.');
-          router.push('/sign-in');
+          router.push('/dashboard');
           return;
         }
         toast.error(error?.response?.data?.error || 'Unable to verify your account access.');
@@ -134,7 +134,7 @@ const handleSubmit = async (e) => {
 
   if (!userId) {
     toast.error('Session expired. Please sign in again.');
-    router.push('/sign-in');
+    router.push('/dashboard');
     return;
   }
 
@@ -189,7 +189,7 @@ const handleSubmit = async (e) => {
 
     if (limitError?.response?.status === 401) {
       toast.error('Session expired. Please sign in again.');
-      router.push('/sign-in');
+      router.push('/dashboard');
       return;
     }
 
@@ -251,7 +251,7 @@ const handleSubmit = async (e) => {
     if (!response.ok || !payload?.success) {
       if (response.status === 401) {
         toast.error('Session expired. Please sign in again.');
-        router.push('/sign-in');
+        router.push('/dashboard');
         return;
       }
 

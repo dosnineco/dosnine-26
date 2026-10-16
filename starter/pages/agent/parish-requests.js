@@ -116,7 +116,7 @@ export default function ParishRequests() {
 
     if (!userId) {
       toast.error('Session expired. Please sign in again.')
-      router.push('/sign-in')
+      router.push('/dashboard')
       return
     }
 
@@ -150,7 +150,7 @@ export default function ParishRequests() {
 
         if (response.status === 401) {
           toast.error('Session expired. Please sign in again.')
-          router.push('/sign-in')
+          router.push('/dashboard')
           return
         }
 

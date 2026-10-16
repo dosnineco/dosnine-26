@@ -50,6 +50,16 @@ const nextConfig = {
   },
   async redirects() {
     return [
+      {
+        source: '/sign-in',
+        destination: '/dashboard',
+        permanent: false,
+      },
+      {
+        source: '/sign-up',
+        destination: '/dashboard',
+        permanent: false,
+      },
       // Redirect non-www to www to enforce canonical host
       {
         source: '/:path*',

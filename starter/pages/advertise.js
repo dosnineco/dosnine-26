@@ -788,7 +788,6 @@ export default function AdvertisePage() {
 
   useEffect(() => {
     if (!isSignedIn) {
-      sessionStorage.setItem('redirectAfterSignIn', '/advertise');
       return;
     }
     if (user?.primaryEmailAddress?.emailAddress && !form.email) {
@@ -827,9 +826,7 @@ export default function AdvertisePage() {
   }, [imagePreviews]);
 
   const requireSignIn = () => {
-    if (typeof window !== 'undefined') {
-      sessionStorage.setItem('redirectAfterSignIn', '/advertise');
-    }
+    window.location.assign('/dashboard');
   };
 
   const copyToClipboard = async (value, key) => {
@@ -1776,20 +1773,18 @@ export default function AdvertisePage() {
                       </div>
                     </div>
                     <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-                      <SignInButton mode="modal">
+                      <SignInButton mode="modal" afterSignInUrl="/dashboard">
                         <button
                           type="button"
-                          onClick={requireSignIn}
                           className="inline-flex flex-1 items-center justify-center gap-2 rounded-full bg-accent px-6 py-3.5 text-sm font-semibold text-white transition hover:bg-accent/90"
                         >
                           Sign In
                           <ArrowRight className="h-4 w-4" />
                         </button>
                       </SignInButton>
-                      <SignUpButton mode="redirect" redirectUrl="/advertise" afterSignUpUrl="/advertise">
+                      <SignUpButton mode="redirect" redirectUrl="/dashboard" afterSignUpUrl="/dashboard">
                         <button
                           type="button"
-                          onClick={requireSignIn}
                           className="inline-flex flex-1 items-center justify-center rounded-full border border-slate-300 bg-white px-6 py-3.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
                         >
                           Create Free Account

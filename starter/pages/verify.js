@@ -20,7 +20,9 @@ export default function VerifyIdentityPage() {
   const [role, setRole] = useState('homeowner');
   const [roleLocked, setRoleLocked] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [savingAccount, setSavingAccount] = useState(false);
   const [checking, setChecking] = useState(true);
+  const [identityVerified, setIdentityVerified] = useState(false);
   const [form, setForm] = useState({
     fullName: user?.fullName || '',
     phone: '',
@@ -45,6 +47,7 @@ export default function VerifyIdentityPage() {
   useEffect(() => {
     if (!isLoaded) return;
 
+    const hasRoleSelection = typeof router.query.role === 'string';
     const selectedRole = String(router.query.role || 'homeowner').toLowerCase();
     if (ROLE_OPTIONS.some((option) => option.value === selectedRole)) {
       setRole(selectedRole);
@@ -57,6 +60,7 @@ export default function VerifyIdentityPage() {
           data?.identity_verified ||
           data?.id_verification_status === 'approved'
         );
+        setIdentityVerified(isVerified);
         const savedRole = data?.account_type === 'agent' || data?.user_type === 'agent'
           ? 'agent'
           : data?.account_type === 'advertiser'
@@ -64,16 +68,24 @@ export default function VerifyIdentityPage() {
             : data?.account_type === 'regular'
               ? data?.profile_intent || 'homeowner'
               : null;
+        const isRegularAccount = data?.account_type === 'regular';
+        const isChangingRegularIntent =
+          isRegularAccount &&
+          hasRoleSelection &&
+          ['homeowner', 'tenant'].includes(selectedRole) &&
+          selectedRole !== savedRole;
         if (savedRole && ROLE_OPTIONS.some((option) => option.value === savedRole)) {
-          setRole(savedRole);
-          setRoleLocked(true);
+          setRole(isChangingRegularIntent ? selectedRole : savedRole);
+          setRoleLocked(!isRegularAccount);
         }
         if (isVerified) {
           if (typeof window !== 'undefined' && user?.id) {
             window.localStorage.removeItem(`verification_pending_${user.id}`);
           }
-          router.replace(savedRole === 'agent' ? '/agent/dashboard' : '/dashboard');
-          return;
+          if (!isChangingRegularIntent) {
+            router.replace(savedRole === 'agent' ? '/agent/dashboard' : '/dashboard');
+            return;
+          }
         }
         const pendingLocally = typeof window !== 'undefined' && user?.id
           ? window.localStorage.getItem(`verification_pending_${user.id}`) === 'true'
@@ -139,7 +151,7 @@ export default function VerifyIdentityPage() {
 
     if (!user?.id) {
       toast.error('Please sign in before continuing');
-      router.replace('/sign-in');
+      router.replace('/dashboard');
       return;
     }
     if (!form.fullName?.trim()) {
@@ -206,6 +218,30 @@ export default function VerifyIdentityPage() {
     }
   };
 
+  const continueWithRegularAccount = async () => {
+    if (savingAccount || !['homeowner', 'tenant'].includes(role)) return;
+    if (!user?.id) {
+      toast.error('Please sign in before continuing');
+      router.replace('/dashboard');
+      return;
+    }
+
+    setSavingAccount(true);
+    try {
+      await axios.post(
+        '/api/user/account-type',
+        { accountType: 'regular', profileIntent: role },
+        { withCredentials: true }
+      );
+      clearUserCache(user.id);
+      window.location.assign('/dashboard');
+    } catch (error) {
+      toast.error(error.response?.data?.error || 'Unable to save your account type.');
+    } finally {
+      setSavingAccount(false);
+    }
+  };
+
   if (checking) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -257,11 +293,17 @@ export default function VerifyIdentityPage() {
               <h1 className="text-3xl font-bold">Verify your identity</h1>
             </div>
             <p className="text-white/90 text-sm">
-              Choose your account type and submit your Jamaican ID to finish setting up your Dosnine account.
+              Homeowner accounts need verified ID to post or manage properties. You can use a regular account to manage
+              requests and complete buyer readiness without verifying your ID.
             </p>
           </div>
 
           <form onSubmit={handleSubmit} className="p-6 md:p-8 space-y-6">
+            {identityVerified && role === 'homeowner' && (
+              <div className="rounded-xl bg-green-50 p-4 text-sm text-green-900">
+                Your identity is already verified. Switch to a homeowner account to manage or post properties.
+              </div>
+            )}
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-2">
                 {roleLocked ? 'Your account type' : 'I am joining as'}
@@ -417,7 +459,7 @@ export default function VerifyIdentityPage() {
                   className="mt-1 h-4 w-4 accent-accent"
                 />
                 <span>
-                  I confirm that this ID belongs to me and that Dosnine may use it for identity verification and platform security. I understand that my account must be verified before I can interact with listings, requests, or agent tools.
+                  I confirm that this ID belongs to me and that Dosnine may use it for identity verification and platform security. I understand that identity verification is required to post or manage properties and access certain account features.
                 </span>
               </label>
             </div>
@@ -429,6 +471,20 @@ export default function VerifyIdentityPage() {
             >
               {loading ? 'Submitting…' : 'Submit verification'}
             </button>
+            {['homeowner', 'tenant'].includes(role) && (
+              <button
+                type="button"
+                onClick={continueWithRegularAccount}
+                disabled={savingAccount || loading}
+                className="w-full rounded-xl bg-gray-100 px-4 py-3.5 font-semibold text-gray-800 transition hover:bg-gray-200 disabled:cursor-wait disabled:opacity-60"
+              >
+                {savingAccount
+                  ? 'Updating your account…'
+                  : identityVerified && role === 'homeowner'
+                    ? 'Switch to a homeowner account'
+                    : 'Continue with a regular account'}
+              </button>
+            )}
           </form>
         </div>
       </div>

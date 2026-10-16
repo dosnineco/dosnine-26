@@ -28,20 +28,13 @@ const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => 
   "'": '&#39;',
 })[char]);
 
-const sendDashboardInvitationEmail = async ({ clientName, clientEmail, requestType, requestId }) => {
+const sendDashboardInvitationEmail = async ({ clientName, clientEmail, requestType }) => {
   const apiKey = process.env.BREVO_API_KEY;
   if (!apiKey) throw new Error('BREVO_API_KEY not configured');
 
   const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || 'https://dosnine.com').replace(/\/+$/, '');
   const isBuyRequest = String(requestType || '').toLowerCase() === 'buy';
-  const buyerRequestPath = isBuyRequest && requestId
-    ? `/my-requests?completeBuyerProfile=${encodeURIComponent(requestId)}`
-    : '/my-requests';
-  const authQuery = isBuyRequest && requestId
-    ? `?buyerRequestId=${encodeURIComponent(requestId)}`
-    : '';
-  const signupUrl = new URL(`/sign-up${authQuery}`, `${siteUrl}/`).toString();
-  const signinUrl = new URL(`/sign-in${authQuery}`, `${siteUrl}/`).toString();
+  const dashboardUrl = new URL('/dashboard', `${siteUrl}/`).toString();
   const typeLabel = titleCase(requestType).toLowerCase();
   const apiInstance = new SibApiV3Sdk.TransactionalEmailsApi();
   apiInstance.setApiKey(SibApiV3Sdk.TransactionalEmailsApiApiKeys.apiKey, apiKey);
@@ -52,28 +45,25 @@ const sendDashboardInvitationEmail = async ({ clientName, clientEmail, requestTy
     <div style="font-family:Arial,sans-serif;line-height:1.6;color:#111827">
       <h2>Your request is in. Stay up to date.</h2>
       <p>Hi ${escapeHtml(clientName || 'there')},</p>
-      <p>Thanks for submitting your ${escapeHtml(typeLabel)} request to Dosnine. Create a free account to access your dashboard, follow updates to your request, and keep your information in one place.</p>
+      <p>Thanks for submitting your ${escapeHtml(typeLabel)} request to Dosnine. Visit your dashboard to follow updates to your request and keep your information in one place. Sign in if you already have an account, or create a free account to get started.</p>
       ${isBuyRequest ? `
         <h3>Complete your Buyer Financial Check</h3>
         <p>Tell us about your purchase plan and, if available, provide supporting documents for private review by Dosnine. You do not need to upload every document type. Completing your account and financial check is free.</p>
         <p><strong>Helpful documents may include:</strong> mortgage prequalification or approval, proof of savings or funds, NHT eligibility or financing, family contribution, self-employed income, or bank confirmation. PDF or image files up to 10 MB each.</p>
       ` : ''}
-      <p><a href="${escapeHtml(signupUrl)}" style="display:inline-block;background:#d93636;color:#fff;text-decoration:none;padding:11px 18px;border-radius:8px;font-weight:600">${isBuyRequest ? 'Create a free account and complete your Buyer Financial Check' : 'Create your free account'}</a></p>
-      <p>If you already have an account, <a href="${escapeHtml(signinUrl)}">sign in here</a> to ${isBuyRequest ? 'complete your Buyer Financial Check' : 'view your request'}.</p>
+      <p><a href="${escapeHtml(dashboardUrl)}" style="display:inline-block;background:#d93636;color:#fff;text-decoration:none;padding:11px 18px;border-radius:8px;font-weight:600">Open your Dosnine dashboard</a></p>
       <p>Thank you,<br />Dosnine</p>
     </div>
   `;
   emailPayload.textContent = [
     'Your request is in. Stay up to date.',
     `Hi ${clientName || 'there'},`,
-    `Thanks for submitting your ${typeLabel} request to Dosnine. Create a free account to access your dashboard, follow updates to your request, and keep your information in one place.`,
+    `Thanks for submitting your ${typeLabel} request to Dosnine. Visit your dashboard to follow updates to your request and keep your information in one place. Sign in if you already have an account, or create a free account to get started.`,
     ...(isBuyRequest ? [
       'Complete your Buyer Financial Check: share your purchase plan and, if available, supporting documents for private review by Dosnine. You do not need to upload every document type. The account and financial check are free.',
       'Helpful documents may include mortgage prequalification or approval, proof of savings or funds, NHT eligibility or financing, family contribution, self-employed income, or bank confirmation. PDF or image files up to 10 MB each.',
     ] : []),
-    `Create your free account: ${signupUrl}`,
-    `Already have an account? Sign in: ${signinUrl}`,
-    `After signing in, continue here: ${new URL(buyerRequestPath, `${siteUrl}/`).toString()}`,
+    `Open your Dosnine dashboard: ${dashboardUrl}`,
     'Thank you, Dosnine',
   ].join('\n\n');
   emailPayload.sender = {
@@ -370,7 +360,6 @@ export default async function handler(req, res) {
         clientName: parsedClientName,
         clientEmail: parsedClientEmail,
         requestType: parsedRequestType,
-        requestId: data?.id,
       });
       dashboardInvitationEmailSent = true;
     } catch (emailError) {

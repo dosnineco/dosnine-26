@@ -37,9 +37,10 @@ export default async function handler(req, res) {
     );
     if (
       !isAdmin &&
-      (!identityVerified || ['flagged', 'deactivated'].includes(userData.account_status))
+      ((!identityVerified && accountType !== 'regular') ||
+        ['flagged', 'deactivated'].includes(userData.account_status))
     ) {
-      return res.status(403).json({ error: 'Identity verification is required to view your dashboard.' });
+      return res.status(403).json({ error: 'Identity verification is required to access this account.' });
     }
 
     if (accountType === 'regular') {

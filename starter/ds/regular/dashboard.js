@@ -132,7 +132,7 @@ export default function RegularDashboard() {
     if (!isLoaded) return;
     if (!user?.id) {
       statusCheckUserRef.current = null;
-      router.replace('/sign-in');
+      router.replace('/dashboard');
       return;
     }
     const statusCheckKey = `${user.id}:${router.query.adminView || ''}`;
@@ -238,7 +238,8 @@ export default function RegularDashboard() {
       );
       if (
         !admin &&
-        (!identityVerified || ['flagged', 'deactivated'].includes(account.account_status))
+        ((!identityVerified && selectedType !== 'regular') ||
+          ['flagged', 'deactivated'].includes(account.account_status))
       ) {
         const verificationRole = selectedType === 'regular'
           ? account.profile_intent || 'homeowner'

@@ -50,7 +50,7 @@ export default function AgentSignupPage() {
             </div>
 
             <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-              <SignInButton mode="redirect" redirectUrl="/agent/signup">
+              <SignInButton mode="redirect" redirectUrl="/dashboard">
                 <button
                   type="button"
                   className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-accent px-5 py-3 text-sm font-semibold text-white transition hover:bg-accent/90"
@@ -59,7 +59,7 @@ export default function AgentSignupPage() {
                 </button>
               </SignInButton>
 
-              <SignUpButton mode="redirect" redirectUrl="/agent/signup">
+              <SignUpButton mode="redirect" redirectUrl="/dashboard">
                 <button
                   type="button"
                   className="inline-flex w-full items-center justify-center gap-2 rounded-full border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"

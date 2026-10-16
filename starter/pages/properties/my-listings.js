@@ -42,11 +42,11 @@ export default function MyPropertiesPage() {
       const payload = await response.json();
       if (response.status === 401) {
         toast.error('Session expired. Please sign in again.');
-        window.location.href = '/sign-in';
+        window.location.href = '/dashboard';
         return;
       }
       if (response.status === 403) {
-        router.replace('/dashboard');
+        router.replace('/verify?role=homeowner');
         return;
       }
       if (!response.ok || !payload?.success) throw new Error(payload?.error || 'Failed to fetch properties');
@@ -78,7 +78,7 @@ export default function MyPropertiesPage() {
       const payload = await response.json();
       if (response.status === 401) {
         toast.error('Session expired. Please sign in again.');
-        window.location.href = '/sign-in';
+        window.location.href = '/dashboard';
         return;
       }
       if (!response.ok || !payload?.success) throw new Error(payload?.error || 'Failed to update property');

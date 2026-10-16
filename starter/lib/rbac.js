@@ -90,7 +90,10 @@ export function canAccessAdmin(userData) {
 export function canManageProperties(userData) {
   if (isAdmin(userData)) return true;
   const verified = userData?.identity_verified === true || userData?.id_verification_status === 'approved';
-  const allowedAccount = userData?.account_type === 'regular' ||
+  const allowedAccount = (
+    userData?.account_type === 'regular' &&
+    userData?.profile_intent === 'homeowner'
+  ) ||
     userData?.account_type === 'agent' ||
     (!userData?.account_type && userData?.user_type === 'agent');
   return verified && allowedAccount;
@@ -147,10 +150,11 @@ export function getUserFeatures(userData) {
  */
 export function getDefaultRedirect(userData) {
   if (isAdmin(userData)) return '/admin';
-  if (!isPlatformVerified(userData) || !isAccountActive(userData)) return '/verify';
+  if (!isAccountActive(userData)) return '/verify';
+  if (!isPlatformVerified(userData) && userData?.account_type !== 'regular') return '/verify';
   if (needsAgentPayment(userData)) return '/agent/payment';
   if (isPaidAgent(userData) || isVerifiedAgent(userData) || userData?.user_type === 'agent') return '/agent/dashboard';
-  return '/agent/dashboard';
+  return '/dashboard';
 }
 
 /**

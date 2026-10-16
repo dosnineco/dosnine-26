@@ -61,7 +61,7 @@ export default async function handler(req, res) {
     const accountType = resolved.user.account_type ||
       (resolved.user.user_type === 'agent' ? 'agent' : null);
     if (!canManageProperties(resolved.user)) {
-      return res.status(403).json({ error: 'A regular or agent account is required to post properties.' });
+      return res.status(403).json({ error: 'A verified homeowner or agent account is required to post properties.' });
     }
 
     if (!admin && accountType === 'regular') {

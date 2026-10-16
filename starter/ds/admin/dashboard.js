@@ -22,7 +22,7 @@ export default function AdminDashboardPage() {
 
   const checkAdminAccess = async () => {
     if (!user) {
-      router.replace('/sign-in');
+      router.replace('/dashboard');
       return;
     }
     

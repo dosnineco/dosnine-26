@@ -181,7 +181,7 @@ export default function AgentDashboardPage() {
     } catch (error) {
       if (error.response?.status === 401) {
         toast.error('Session expired. Please sign in again.');
-        router.push('/sign-in');
+        router.push('/dashboard');
       } else if (error.response?.status === 403) {
         toast.error('Agent verification required');
         router.push('/agent/signup');
