@@ -29,6 +29,54 @@ const titleCase = (value) => {
   return text.charAt(0).toUpperCase() + text.slice(1);
 };
 
+const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => ({
+  '&': '&amp;',
+  '<': '&lt;',
+  '>': '&gt;',
+  '"': '&quot;',
+  "'": '&#39;',
+})[char]);
+
+const sendDashboardInvitationEmail = async ({ clientName, clientEmail, requestType }) => {
+  const apiKey = process.env.BREVO_API_KEY;
+  if (!apiKey) throw new Error('BREVO_API_KEY not configured');
+
+  const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || 'https://dosnine.com').replace(/\/+$/, '');
+  const signupUrl = new URL('/sign-up', `${siteUrl}/`).toString();
+  const typeLabel = titleCase(requestType).toLowerCase();
+  const apiInstance = new SibApiV3Sdk.TransactionalEmailsApi();
+  apiInstance.setApiKey(SibApiV3Sdk.TransactionalEmailsApiApiKeys.apiKey, apiKey);
+
+  const emailPayload = new SibApiV3Sdk.SendSmtpEmail();
+  emailPayload.subject = 'Track your Dosnine request with a free account';
+  emailPayload.htmlContent = `
+    <div style="font-family:Arial,sans-serif;line-height:1.6;color:#111827">
+      <h2>Your request is in. Stay up to date.</h2>
+      <p>Hi ${escapeHtml(clientName || 'there')},</p>
+      <p>Thanks for submitting your ${escapeHtml(typeLabel)} request to Dosnine. Create a free account to access your dashboard, follow updates to your request, and keep your information in one place.</p>
+      <p>If you are buying, you can also complete a buyer readiness profile and share helpful qualification details or supporting documents with your agent. Completing your account and buyer profile is free; there is no signup or qualification fee.</p>
+      <p><a href="${escapeHtml(signupUrl)}" style="display:inline-block;background:#d93636;color:#fff;text-decoration:none;padding:11px 18px;border-radius:8px;font-weight:600">Create your free account</a></p>
+      <p>If you already have an account, sign in with the same email address you used for your request to view it in your dashboard.</p>
+      <p>Thank you,<br />Dosnine</p>
+    </div>
+  `;
+  emailPayload.textContent = [
+    'Your request is in. Stay up to date.',
+    `Hi ${clientName || 'there'},`,
+    `Thanks for submitting your ${typeLabel} request to Dosnine. Create a free account to access your dashboard, follow updates to your request, and keep your information in one place.`,
+    'If you are buying, you can also complete a buyer readiness profile and share helpful qualification details or supporting documents with your agent. Completing your account and buyer profile is free; there is no signup or qualification fee.',
+    `Create your free account: ${signupUrl}`,
+    'If you already have an account, sign in with the same email address you used for your request to view it in your dashboard.',
+    'Thank you, Dosnine',
+  ].join('\n\n');
+  emailPayload.sender = {
+    name: process.env.BREVO_FROM_NAME || 'Dosnine',
+    email: process.env.BREVO_FROM_EMAIL || 'admin@dosnine.com',
+  };
+  emailPayload.to = [{ email: clientEmail, name: clientName || 'Dosnine user' }];
+  await apiInstance.sendTransacEmail(emailPayload);
+};
+
 const shouldSendServiceFeeEmail = (requestType) => {
   const normalized = String(requestType || '').toLowerCase();
   return normalized === 'rent' || normalized === 'buy';
@@ -271,12 +319,16 @@ export default async function handler(req, res) {
     url: z.string().optional(),
   });
 
-  let parsed;
-  try {
-    parsed = schema.parse(req.body || {});
-  } catch {
-    return res.status(400).json({ error: 'Invalid request payload' });
+  const validation = schema.safeParse(req.body || {});
+  if (!validation.success) {
+    const details = validation.error.issues.map((issue) => {
+      const field = issue.path.length ? issue.path.join('.') : 'request';
+      return `${field}: ${issue.message}`;
+    });
+    console.warn('Invalid service request payload:', details);
+    return res.status(400).json({ error: 'Invalid request payload', details: details.join('; ') });
   }
+  const parsed = validation.data;
 
   if (isBotLikely(parsed)) {
     return res.status(200).json({ success: true, message: 'Service request submitted successfully' });
@@ -311,7 +363,11 @@ export default async function handler(req, res) {
     const sessionClerkId = getClerkUserId(req);
     if (sessionClerkId) {
       const { user } = await getDbUserByClerkId(sessionClerkId, { createIfMissing: true });
-      clientUserId = user?.id || null;
+      if (sanitizeEmail(user?.email) === parsedClientEmail) {
+        clientUserId = user.id;
+      } else if (user?.id) {
+        console.warn('Service request email differs from signed-in account; leaving request claimable by email');
+      }
     }
 
     let assignedAgentId = null;
@@ -433,9 +489,22 @@ export default async function handler(req, res) {
       }
     }
 
+    let dashboardInvitationEmailSent = false;
+    try {
+      await sendDashboardInvitationEmail({
+        clientName: parsedClientName,
+        clientEmail: parsedClientEmail,
+        requestType: parsedRequestType,
+      });
+      dashboardInvitationEmailSent = true;
+    } catch (emailError) {
+      console.error('Failed to send free dashboard invitation email:', emailError);
+    }
+
     return res.status(200).json({ 
       success: true,
       request: data,
+      dashboardInvitationEmailSent,
       message: 'Service request submitted successfully'
     });
 

@@ -237,8 +237,8 @@ export default function RequestAgentPopup() {
       return;
     }
 
-    if (step === 2 && (!formData.propertyType || !formData.location)) {
-      toast.error('Please fill property type and location');
+    if (step === 2 && (!formData.propertyType || !formData.parish || !formData.location)) {
+      toast.error('Please fill property type, parish and location');
       return;
     }
 
@@ -281,7 +281,7 @@ export default function RequestAgentPopup() {
       }
     }
 
-    setStep(prev => prev + 1);
+    if (step < 3) setStep(prev => prev + 1);
   };
 
   const prevStep = () => setStep(prev => prev - 1);
@@ -323,12 +323,6 @@ if (!formData.name || !formData.email || !formData.phone ||
       return;
     }
 
-    if (step === 2 && (!formData.propertyType || !formData.parish || !formData.location)) {
-      toast.error('Please fill property type, parish and location');
-      return;
-    }
-
-
     setLoading(true);
 
     try {
@@ -359,7 +353,7 @@ if (!formData.name || !formData.email || !formData.phone ||
       }
 
       localStorage.setItem('visitor-lead-submitted', 'true');
-      toast.success('Request submitted successfully! A submission email was sent with your details.', {
+      toast.success('Request submitted successfully!', {
         duration: 5000,
       });
       setSubmitted(true);
@@ -375,24 +369,29 @@ if (!formData.name || !formData.email || !formData.phone ||
   if (!showPopup || submitted) return null;
 
 return (
-  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm sm:p-6">
 
-    <div className="bg-white w-full max-w-4xl sm:rounded-2xl shadow-2xl relative overflow-y-auto max-h-[90vh]">
+    <div className="relative max-h-[90vh] w-full max-w-4xl overflow-y-auto bg-white shadow-2xl sm:rounded-2xl">
 
       {/* CLOSE BUTTON */}
       <button
+        type="button"
         onClick={handleDismiss}
-        className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200"
+        aria-label="Close request form"
+        className="absolute right-4 top-4 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-white/90 text-gray-700 transition hover:bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-white sm:right-6 sm:top-6"
       >
         <X size={18} />
       </button>
 
       {/* HEADER */}
-      <div className="bg-accent text-white p-10">
-        <h2 className="text-2xl font-bold mb-2">What are you looking for?</h2>
+      <div className="bg-accent p-6 text-white sm:p-10">
+        <h2 className="mb-2 text-3xl font-bold">What are you looking for?</h2>
+        <p className="mb-6 opacity-90">
+          Get matched with verified real estate professionals
+        </p>
 
         <div className="flex items-center justify-center gap-4">
-          {[1, 2, 3, 4].map((number, index) => (
+          {[1, 2, 3].map((number, index) => (
             <div key={number} className="flex items-center gap-4">
               <div
                 className={`w-10 h-10 rounded-full flex items-center justify-center font-semibold transition ${
@@ -403,7 +402,7 @@ return (
               >
                 {number}
               </div>
-              {index < 3 && (
+              {index < 2 && (
                 <div
                   className={`h-1 w-10 sm:w-16 transition ${
                     step > number ? 'bg-white' : 'bg-white/40'
@@ -414,103 +413,91 @@ return (
           ))}
         </div>
 
-        <div className="flex justify-between text-xs opacity-90 mt-3 max-w-lg mx-auto">
+        <div className="mx-auto mt-3 flex max-w-md justify-between text-xs opacity-90">
           <span>Your Info</span>
           <span>Property</span>
-          <span>Budget</span>
           <span>Details</span>
         </div>
       </div>
 
       {/* FORM */}
-      <form onSubmit={handleSubmit} className="p-10 space-y-6">
+      <form onSubmit={handleSubmit} className="space-y-6 p-6 sm:p-10">
 
         {/* STEP 1 */}
         {step === 1 && (
-          <div className="grid md:grid-cols-2 gap-10">
-            <div className="space-y-5">
-              <label className="block font-bold mb-1">
-                Full Name <span className="text-red-500">*</span>
-              </label>
-              <input
-                placeholder='eg. John Brown'
-                name="name"
-                value={formData.name}
-                onChange={handleInputChange}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-accent focus:border-accent outline-none"
-                required
-              />
+          <div className="grid gap-10 md:grid-cols-2">
+            <div>
+              <h2 className="mb-2 text-2xl font-bold text-gray-900">Let&apos;s get started</h2>
+              <p className="mb-6 text-gray-600">
+                We need a few details to connect you with the right agent.
+              </p>
+              <div className="space-y-5">
+                {[
+                  ['name', 'Full Name', 'text', 'eg. John Brown'],
+                  ['email', 'Email Address', 'email', 'eg. example@gmail.com'],
+                  ['phone', 'Phone Number', 'tel', 'eg. 8761234567'],
+                ].map(([name, label, type, placeholder]) => (
+                  <div key={name}>
+                    <label htmlFor={`visitor-${name}`} className="mb-2 block text-sm font-medium text-gray-700">
+                      {label} *
+                    </label>
+                    <input
+                      id={`visitor-${name}`}
+                      type={type}
+                      name={name}
+                      value={formData[name]}
+                      onChange={handleInputChange}
+                      placeholder={placeholder}
+                      className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-accent focus:ring-2 focus:ring-accent"
+                      required
+                    />
+                  </div>
+                ))}
+              </div>
             </div>
 
             <div>
-              <label className="block font-bold mb-1">
-                Email Address <span className="text-red-500">*</span>
+              <label className="mb-4 block text-sm font-medium text-gray-700">
+                What do you need help with? *
               </label>
-              <input
-                placeholder='eg. example@gmail.com'
-                name="email"
-                value={formData.email}
-                onChange={handleInputChange}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-accent focus:border-accent outline-none"
-                required
-              />
-            </div>
-
-            <div>
-              <label className="block font-bold mb-1">
-                Phone Number <span className="text-red-500">*</span>
-              </label>
-              <input
-                placeholder='eg. 8761234567'
-                name="phone"
-                value={formData.phone}
-                onChange={handleInputChange}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-accent focus:border-accent outline-none"
-                required
-              />
-            </div>
-
-            <div>
-              <label className="block font-bold mb-3">
-                What do you need help with? <span className="text-red-500">*</span>
-              </label>
-
-              <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
-                {["buy","rent","sell","lease","valuation"].map(type => (
+              <div className="grid grid-cols-2 gap-4">
+                {["buy", "rent", "sell", "lease", "valuation"].map(type => (
                   <button
                     key={type}
                     type="button"
                     onClick={() => setFormData(prev => ({ ...prev, requestType: type }))}
-                    className={`py-4 px-5 rounded-lg border-2 text-base font-semibold transition-colors ${
+                    className={`rounded-lg border-2 px-5 py-4 font-semibold transition ${
                       formData.requestType === type
-                        ? 'border-accent bg-accent/10 text-accent'
-                        : 'border-gray-300 text-gray-700 hover:border-accent hover:bg-accent/5'
+                        ? "border-accent bg-accent/10 text-accent"
+                        : "border-gray-300 text-gray-700 hover:border-accent hover:bg-accent/5"
                     }`}
                   >
                     {type.charAt(0).toUpperCase() + type.slice(1)}
                   </button>
                 ))}
               </div>
+              <button type="button" onClick={nextStep} className="mt-8 w-full rounded-lg bg-accent py-4 font-semibold text-white transition hover:opacity-90">
+                Continue
+              </button>
             </div>
-
-            <button type="button" onClick={nextStep} className="mt-8 w-full bg-accent text-white py-4 rounded-lg font-semibold text-base hover:opacity-90 transition">
-              Continue
-            </button>
           </div>
         )}
 
         {/* STEP 2 */}
         {step === 2 && (
-          <>
+          <div className="mx-auto max-w-2xl space-y-6">
+            <h2 className="text-center text-2xl font-bold text-gray-900">
+              Property Details
+            </h2>
             <div>
-              <label className="block font-bold mb-1">
+              <label className="mb-2 block text-sm font-medium text-gray-700">
                 Property Type <span className="text-red-500">*</span>
               </label>
               <select
                 name="propertyType"
                 value={formData.propertyType}
                 onChange={handleInputChange}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-accent focus:border-accent outline-none"
+                className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-accent focus:ring-2 focus:ring-accent"
               >
                 <option value="house">House</option>
                 <option value="apartment">Apartment</option>
@@ -521,44 +508,43 @@ return (
             </div>
 
             <div>
-  <label className="block font-bold mb-1">
-    Parish <span className="text-red-500">*</span>
-  </label>
-
-  <select
-    name="parish"
-    value={formData.parish}
-    onChange={handleInputChange}
-    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-accent focus:border-accent outline-none"
-    required
-  >
-    <option value="">Select Parish</option>
-    {[
-      "Kingston",
-      "St. Andrew",
-      "St. Thomas",
-      "Portland",
-      "St. Mary",
-      "St. Ann",
-      "Trelawny",
-      "St. James",
-      "Hanover",
-      "Westmoreland",
-      "St. Elizabeth",
-      "Manchester",
-      "Clarendon",
-      "St. Catherine"
-    ].map(parish => (
-      <option key={parish} value={parish}>
-        {parish}
-      </option>
-    ))}
-  </select>
-</div>
+              <label className="mb-2 block text-sm font-medium text-gray-700">
+                Parish <span className="text-red-500">*</span>
+              </label>
+              <select
+                name="parish"
+                value={formData.parish}
+                onChange={handleInputChange}
+                className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-accent focus:ring-2 focus:ring-accent"
+                required
+              >
+                <option value="">Select Parish</option>
+                {[
+                  'Kingston',
+                  'St. Andrew',
+                  'St. Thomas',
+                  'Portland',
+                  'St. Mary',
+                  'St. Ann',
+                  'Trelawny',
+                  'St. James',
+                  'Hanover',
+                  'Westmoreland',
+                  'St. Elizabeth',
+                  'Manchester',
+                  'Clarendon',
+                  'St. Catherine',
+                ].map((parish) => (
+                  <option key={parish} value={parish}>
+                    {parish}
+                  </option>
+                ))}
+              </select>
+            </div>
 
 
             <div>
-              <label className="block font-bold mb-1">
+              <label className="mb-2 block text-sm font-medium text-gray-700">
                 Location / Area <span className="text-red-500">*</span>
               </label>
               <input
@@ -566,14 +552,14 @@ return (
                 name="location"
                 value={formData.location}
                 onChange={handleInputChange}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-accent focus:border-accent outline-none"
+                className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-accent focus:ring-2 focus:ring-accent"
                 required
               />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block font-semibold mb-1">
+                <label className="mb-2 block text-sm font-medium text-gray-700">
                   Bedrooms
                 </label>
                 <input
@@ -582,12 +568,12 @@ return (
                   value={formData.bedrooms}
                   onChange={handleInputChange}
                   placeholder="Bedrooms"
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-accent focus:border-accent outline-none"
+                  className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-accent focus:ring-2 focus:ring-accent"
                 />
               </div>
 
               <div>
-                <label className="block font-semibold mb-1">
+                <label className="mb-2 block text-sm font-medium text-gray-700">
                   Bathrooms
                 </label>
                 <input
@@ -596,58 +582,65 @@ return (
                   value={formData.bathrooms}
                   onChange={handleInputChange}
                   placeholder="Bathrooms"
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-accent focus:border-accent outline-none"
+                  className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-accent focus:ring-2 focus:ring-accent"
                 />
               </div>
             </div>
 
             <div className="flex gap-4">
-              <button type="button" onClick={prevStep} className="flex-1 border border-gray-300 py-4 rounded-lg font-semibold text-base hover:bg-gray-100 transition">
+              <button type="button" onClick={prevStep} className="flex-1 rounded-lg border border-gray-300 py-4 font-semibold transition hover:bg-gray-100">
                 Back
               </button>
-              <button type="button" onClick={nextStep} className="flex-1 bg-accent text-white py-4 rounded-lg font-semibold text-base hover:opacity-90 transition">
+              <button type="button" onClick={nextStep} className="flex-1 rounded-lg bg-accent py-4 font-semibold text-white transition hover:opacity-90">
                 Continue
               </button>
             </div>
-          </>
+          </div>
         )}
 
         {/* STEP 3 */}
         {step === 3 && (
-          <>
-            <label className="block font-bold mb-1">Urgency Level</label>
-            <div className="grid grid-cols-2 gap-2 mb-4 sm:grid-cols-4">
-              {URGENCY_OPTIONS.map((option) => (
-                <button
-                  key={option.value}
-                  type="button"
-                  onClick={() => setFormData(prev => ({ ...prev, urgency: option.value }))}
-                  className={`py-2 px-3 rounded-full text-sm font-semibold border ${
-                    formData.urgency === option.value
-                      ? 'bg-accent text-white border-transparent'
-                      : option.classes
-                  }`}
-                >
-                  {option.label}
-                </button>
-              ))}
+          <div className="mx-auto max-w-3xl space-y-6">
+            <h2 className="text-center text-2xl font-bold text-gray-900">
+              Additional Details
+            </h2>
+
+            <div>
+              <label className="mb-3 block text-sm font-medium text-gray-700">Urgency Level</label>
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                {URGENCY_OPTIONS.map((option) => (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() => setFormData(prev => ({ ...prev, urgency: option.value }))}
+                    className={`rounded-full border px-3 py-2 text-sm font-semibold ${
+                      formData.urgency === option.value
+                        ? 'border-transparent bg-accent text-white'
+                        : option.classes
+                    }`}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
             </div>
 
-            <div className="text-sm text-gray-600 mb-4">
-              Budget sliders are required. Maximum budget must be larger than minimum budget.
-            </div>
-
-            <div className="bg-gray-50 rounded-lg p-5 space-y-5">
-              <div className="flex flex-wrap justify-between gap-2 text-sm text-gray-700">
-                <span>Use sliders to set budget quickly</span>
-                <span className="font-medium">
-                  Range: {formatJmd(budgetRange.min)} - {formatJmd(budgetRange.max)}
+            <div className="space-y-5 rounded-2xl bg-gray-50 p-5 sm:p-6">
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <div>
+                  <h3 className="font-semibold text-gray-900">Your budget</h3>
+                  <p className="mt-1 text-sm text-gray-600">
+                    Use the sliders to set your minimum and maximum budget in Jamaican dollars.
+                  </p>
+                </div>
+                <span className="text-xs font-medium text-gray-600">
+                  {formatJmd(budgetRange.min)} – {formatJmd(budgetRange.max)}
                 </span>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Minimum Budget: {formData.budgetMin ? formatJmd(formData.budgetMin) : 'Not set'}
+                <label className="mb-2 block text-sm font-medium text-gray-700">
+                  Minimum budget: {formData.budgetMin ? formatJmd(formData.budgetMin) : 'Not set'}
                 </label>
                 <input
                   type="range"
@@ -661,8 +654,8 @@ return (
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Maximum Budget: {formData.budgetMax ? formatJmd(formData.budgetMax) : 'Not set'}
+                <label className="mb-2 block text-sm font-medium text-gray-700">
+                  Maximum budget: {formData.budgetMax ? formatJmd(formData.budgetMax) : 'Not set'}
                 </label>
                 <input
                   type="range"
@@ -676,44 +669,34 @@ return (
               </div>
             </div>
 
-            <div className="flex gap-4">
-              <button type="button" onClick={prevStep} className="flex-1 border border-gray-300 py-4 rounded-lg font-semibold text-base hover:bg-gray-100 transition">
-                Back
-              </button>
-              <button type="button" onClick={nextStep} className="flex-1 bg-accent text-white py-4 rounded-lg font-semibold text-base hover:opacity-90 transition">
-                Continue
-              </button>
+            <div>
+              <label htmlFor="visitor-request-details" className="mb-2 block text-sm font-medium text-gray-700">
+                Additional details (optional)
+              </label>
+              <textarea
+                id="visitor-request-details"
+                name="description"
+                value={formData.description}
+                onChange={handleInputChange}
+                rows={4}
+                placeholder="Any additional requirements, such as monthly income, occupation, or family size."
+                className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-accent focus:ring-2 focus:ring-accent"
+              />
             </div>
-          </>
-        )}
-
-        {/* STEP 4 */}
-        {step === 4 && (
-          <>
-            <label className="block font-bold mb-1">
-              Additional details (optional)
-            </label>
-            <textarea
-              name="description"
-              value={formData.description}
-              onChange={handleInputChange}
-              placeholder="Additional details eg. Monthly income, Occupation(Job), family size, etc. (optional)"
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-accent focus:border-accent outline-none h-40"
-            />
 
             <div className="flex gap-4">
-              <button type="button" onClick={prevStep} className="flex-1 border border-gray-300 py-4 rounded-lg font-semibold text-base hover:bg-gray-100 transition">
+              <button type="button" onClick={prevStep} className="flex-1 rounded-lg border border-gray-300 py-4 font-semibold transition hover:bg-gray-100">
                 Back
               </button>
               <button
                 type="submit"
                 disabled={loading}
-                className="flex-1 bg-accent text-white py-4 rounded-lg font-semibold text-base hover:opacity-90 transition disabled:opacity-50"
+                className="flex-1 rounded-lg bg-accent py-4 font-semibold text-white transition hover:opacity-90 disabled:opacity-50"
               >
                 {loading ? "Submitting..." : "Submit Request"}
               </button>
             </div>
-          </>
+          </div>
         )}
 
       </form>

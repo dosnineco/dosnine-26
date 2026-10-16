@@ -1,4 +1,5 @@
 import { getDbClient, requireAgentAccountUser } from '@/lib/apiAuth';
+import { addAgentBuyerReadiness } from '@/lib/buyerPrequalification';
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') {
@@ -114,7 +115,9 @@ export default async function handler(req, res) {
       created_at: visitor.created_at,
     }));
 
-    const requests = [...serviceData, ...visitorData].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    const serviceDataWithReadiness = await addAgentBuyerReadiness(db, serviceData);
+    const requests = [...serviceDataWithReadiness, ...visitorData]
+      .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
     const areasSet = new Set();
     (srRes.data || []).forEach((request) => request.location && areasSet.add(request.location));
     (veRes.data || []).forEach((visitor) => visitor.area && areasSet.add(visitor.area));

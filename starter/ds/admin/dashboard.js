@@ -2,12 +2,14 @@ import { useEffect, useState } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
 import { useUser } from '@clerk/nextjs';
+import { useRouter } from 'next/router';
 import toast from 'react-hot-toast';
 import { FiStar, FiTrash2, FiEye, FiGrid, FiUsers, FiZap, FiDollarSign, FiClock, FiTrendingUp, FiMail, FiPackage } from 'react-icons/fi';
 import { formatJMD, formatMoney } from '../../lib/formatMoney';
 
-export default function AdminDashboard() {
+export default function AdminDashboardPage() {
   const { user } = useUser();
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState('emails');
   const [users, setUsers] = useState([]);
   const [visitorEmails, setVisitorEmails] = useState([]);
@@ -19,7 +21,10 @@ export default function AdminDashboard() {
   }, [user]);
 
   const checkAdminAccess = async () => {
-    if (!user) return;
+    if (!user) {
+      router.replace('/sign-in');
+      return;
+    }
     
     try {
       const response = await fetch('/api/admin/verify-admin');
@@ -174,6 +179,7 @@ export default function AdminDashboard() {
       <div className="container mx-auto px-4 py-6 max-w-7xl">
  
 
+    
 
       {loading ? (
         <div className="text-center py-12 text-gray-500">Loading...</div>

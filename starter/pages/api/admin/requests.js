@@ -1,4 +1,5 @@
 import { getDbClient, requireAdminUser } from '../../../lib/apiAuth';
+import { addAdminBuyerDocuments } from '@/lib/buyerPrequalification';
 
 export default async function handler(req, res) {
   try {
@@ -28,19 +29,30 @@ export default async function handler(req, res) {
         }
       });
 
-      const requests = (requestsData || []).map((req) => ({
-        ...req,
-        budget_min: req.budget_min ?? visitorBudgetMap[String(req.client_email || '').toLowerCase()] ?? null,
-        budget_max: req.budget_max ?? req.budget_min ?? visitorBudgetMap[String(req.client_email || '').toLowerCase()] ?? null,
-        agent: req.agent
-          ? {
-              id: req.agent.id,
-              business_name: req.agent.business_name,
-              full_name: req.agent.users?.full_name || req.agent.business_name || 'Unknown Agent',
-              email: req.agent.users?.email || 'No email',
-            }
-          : null,
-      }));
+      let requestsWithBuyerDocuments = requestsData || [];
+      let buyerDocumentsWarning = null;
+      try {
+        requestsWithBuyerDocuments = await addAdminBuyerDocuments(db, requestsWithBuyerDocuments);
+      } catch (error) {
+        console.error('Admin buyer document enrichment failed:', error);
+        buyerDocumentsWarning = error?.message || 'Buyer documents could not be loaded';
+      }
+      const requests = requestsWithBuyerDocuments.map((req) => {
+        const email = String(req.client_email || '').trim().toLowerCase();
+        return {
+          ...req,
+          budget_min: req.budget_min ?? visitorBudgetMap[email] ?? null,
+          budget_max: req.budget_max ?? req.budget_min ?? visitorBudgetMap[email] ?? null,
+          agent: req.agent
+            ? {
+                id: req.agent.id,
+                business_name: req.agent.business_name,
+                full_name: req.agent.users?.full_name || req.agent.business_name || 'Unknown Agent',
+                email: req.agent.users?.email || 'No email',
+              }
+            : null,
+        };
+      });
 
       const { data: agentsData, error: agentsError } = await db
         .from('agents')
@@ -60,7 +72,12 @@ export default async function handler(req, res) {
         service_areas: agent.service_areas || '',
       }));
 
-      return res.status(200).json({ success: true, requests, agents });
+      return res.status(200).json({
+        success: true,
+        requests,
+        agents,
+        buyerDocumentsWarning,
+      });
     }
 
     if (req.method === 'POST') {

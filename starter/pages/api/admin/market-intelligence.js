@@ -25,7 +25,15 @@ export default async function handler(req, res) {
 
     if (error) throw error;
 
+    const { data: buyerRows, error: buyerError } = await db
+      .from('buyer_prequalifications')
+      .select('status, qualification_level, verified_budget_min, verified_budget_max, verification_expires_at, consent_to_share')
+      .limit(50000);
+
+    if (buyerError) throw buyerError;
+
     const requests = Array.isArray(rows) ? rows : [];
+    const buyerAssessments = Array.isArray(buyerRows) ? buyerRows : [];
     const totalRequests = requests.length;
 
     const now = new Date();
@@ -41,6 +49,15 @@ export default async function handler(req, res) {
     const urgencyCounts = { low: 0, normal: 0, high: 0, urgent: 0 };
     const rentBudgetCounts = { '<75k': 0, '75k-150k': 0, '150k-300k': 0, '300k+': 0 };
     const purchaseBudgetCounts = { '<10M': 0, '10M-20M': 0, '20M-40M': 0, '40M+': 0 };
+    const verificationStatusCounts = {
+      registered: 0,
+      under_review: 0,
+      verified: 0,
+      confirmed: 0,
+      rejected: 0,
+      expired: 0,
+    };
+    const verifiedBudgetCounts = { '<10M': 0, '10M-20M': 0, '20M-40M': 0, '40M+': 0 };
     const trendingMap = {};
     let currentMonthCount = 0;
     let previousMonthCount = 0;
@@ -50,6 +67,41 @@ export default async function handler(req, res) {
     let bedroomCount = 0;
 
     const formatMonthKey = (date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+
+    let activeVerifiedBuyerCount = 0;
+    let verifiedBudgetSum = 0;
+    let verifiedBudgetCount = 0;
+    const timestamp = Date.now();
+
+    buyerAssessments.forEach((assessment) => {
+      const status = String(assessment.status || '').toLowerCase();
+      if (verificationStatusCounts[status] !== undefined) {
+        verificationStatusCounts[status] += 1;
+      }
+
+      const expiresAt = assessment.verification_expires_at
+        ? new Date(assessment.verification_expires_at).getTime()
+        : null;
+      const isActiveVerifiedBuyer =
+        assessment.consent_to_share === true &&
+        ['verified', 'confirmed'].includes(status) &&
+        Number(assessment.qualification_level) >= 3 &&
+        (expiresAt === null || expiresAt > timestamp);
+      if (!isActiveVerifiedBuyer) return;
+
+      activeVerifiedBuyerCount += 1;
+      const budgetMin = formatNumber(assessment.verified_budget_min);
+      const budgetMax = formatNumber(assessment.verified_budget_max);
+      const budgetValue = budgetMax || budgetMin;
+      if (budgetValue <= 0) return;
+
+      verifiedBudgetSum += budgetValue;
+      verifiedBudgetCount += 1;
+      if (budgetValue < 10000000) verifiedBudgetCounts['<10M'] += 1;
+      else if (budgetValue < 20000000) verifiedBudgetCounts['10M-20M'] += 1;
+      else if (budgetValue < 40000000) verifiedBudgetCounts['20M-40M'] += 1;
+      else verifiedBudgetCounts['40M+'] += 1;
+    });
 
     requests.forEach((item) => {
       const created = item.created_at ? new Date(item.created_at) : null;
@@ -144,6 +196,9 @@ export default async function handler(req, res) {
       .map(([month, count]) => ({ month, count }));
 
     const avgBudget = budgetCount > 0 ? Math.round(budgetSum / budgetCount) : 0;
+    const averageVerifiedBudget = verifiedBudgetCount > 0
+      ? Math.round(verifiedBudgetSum / verifiedBudgetCount)
+      : 0;
     const avgBedrooms = bedroomCount > 0 ? Number((bedroomSum / bedroomCount).toFixed(1)) : 0;
 
     const currentMonthLabel = monthStart.toLocaleString('en-US', { month: 'short', year: 'numeric' });
@@ -171,6 +226,17 @@ export default async function handler(req, res) {
         totalRequests,
         requestsThisMonth: currentMonthCount,
         averageBudget: avgBudget,
+        activeVerifiedBuyerCount,
+        averageVerifiedBudget,
+        verifiedBudgetCount,
+        verificationStatusCounts,
+        verifiedBudgetRanges: Object.entries(verifiedBudgetCounts).map(([label, count]) => ({
+          label,
+          count,
+          percentage: verifiedBudgetCount > 0
+            ? Math.round((count / verifiedBudgetCount) * 100)
+            : 0,
+        })),
         mostRequestedParish,
         mostRequestedProperty,
         averageBedrooms: avgBedrooms,

@@ -23,11 +23,10 @@ const TRANSPARENT_HEADER_ROUTES = ['/'];
 
 export default function Header() {
   const router = useRouter();
-  const { isSignedIn, user, isLoaded } = useUser();
+  const { isSignedIn } = useUser();
 
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [isAdmin, setIsAdmin] = useState(false);
 
   const isTransparentEligible = TRANSPARENT_HEADER_ROUTES.includes(
     router.pathname
@@ -58,42 +57,6 @@ export default function Header() {
     };
   }, [mobileOpen]);
 
-  /* ----------------------------------------------------------
-   * Admin role check
-   * ---------------------------------------------------------- */
-  useEffect(() => {
-    let cancelled = false;
-
-    const checkAdmin = async () => {
-      if (!isLoaded || !isSignedIn || !user) {
-        if (!cancelled) setIsAdmin(false);
-        return;
-      }
-
-      try {
-        const response = await fetch('/api/user/profile', {
-          credentials: 'include',
-        });
-        if (!response.ok) {
-          if (!cancelled) setIsAdmin(false);
-          return;
-        }
-        const profile = await response.json();
-        if (!cancelled) {
-          setIsAdmin(profile?.role === 'admin');
-        }
-      } catch {
-        if (!cancelled) setIsAdmin(false);
-      }
-    };
-
-    checkAdmin();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [isLoaded, isSignedIn, user?.id]);
-
   const navItems = [
     { href: '/listing', label: 'Properties', icon: Building2 },
     { href: '/request', label: 'Requests', icon: Search },
@@ -118,10 +81,6 @@ export default function Header() {
   const menuButtonClasses = isTransparent
     ? 'bg-white/20 text-white ring-1 ring-white/40 backdrop-blur-sm hover:bg-white/30'
     : 'bg-gray-100 text-gray-900 hover:bg-gray-200';
-
-  const adminLinkClasses = isTransparent
-    ? 'bg-white/15 text-white ring-1 ring-white/30 backdrop-blur-sm hover:bg-white/25'
-    : 'bg-accent/10 text-accent hover:bg-accent/15';
 
   const signInButtonClasses = isTransparent
     ? 'text-white/90 hover:bg-white/10 hover:text-white'
@@ -180,16 +139,6 @@ export default function Header() {
           <div className="hidden items-center gap-2 lg:flex">
             {isSignedIn ? (
               <>
-                {isAdmin && (
-                  <Link
-                    href="/admin"
-                    className={`inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-semibold transition ${adminLinkClasses}`}
-                    title="Admin dashboard"
-                  >
-                    Admin
-                  </Link>
-                )}
-
                 <Link
                   href="/dashboard"
                   className={`inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-semibold transition ${navLinkClasses}`}
@@ -197,7 +146,6 @@ export default function Header() {
                   <LayoutDashboard size={14} />
                   Dashboard
                 </Link>
-
                 <div className="ml-1">
                   <UserButton
                     afterSignOutUrl="/"
@@ -325,17 +273,6 @@ export default function Header() {
           <div className="mt-4 border-t border-slate-100 pt-4">
             {isSignedIn ? (
               <ul className="space-y-1">
-                {isAdmin && (
-                  <li>
-                    <Link
-                      href="/admin"
-                      className="flex items-center gap-3 rounded-lg bg-accent/10 px-3 py-3 text-sm font-semibold text-accent transition hover:bg-accent/15"
-                    >
-                      Admin dashboard
-                    </Link>
-                  </li>
-                )}
-
                 <li>
                   <Link
                     href="/dashboard"

@@ -8,6 +8,7 @@ import {
   SignUpButton,
   useUser,
 } from '@clerk/clerk-react';
+import { useAuth } from '@clerk/nextjs';
 import '../styles/globals.css';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
@@ -40,6 +41,7 @@ const PUBLIC_ROUTES = [
   '/property',
   '/property/[slug]',
   '/request',
+  '/buyer-prequalification',
   '/onboarding',
   '/market',
   '/advertise',
@@ -106,6 +108,8 @@ const NO_SPONSORED_BANNER_ROUTES = [
   '/chargeback',
   '/fin',
   '/verify',
+  '/request',
+  '/buyer-prequalification',
 ];
 
 const NO_SPONSORED_BANNER_PREFIXES = [
@@ -201,8 +205,10 @@ function MyApp({ Component, pageProps }) {
 
 function AppContent({ Component, pageProps }) {
   const { isSignedIn, user, isLoaded: isClerkLoaded } = useUser();
+  const { getToken } = useAuth();
   const router = useRouter();
   const lastSyncedUserIdRef = useRef(null);
+  const lastClaimedUserIdRef = useRef(null);
   const [isSynced, setIsSynced] = useState(false);
   const [syncError, setSyncError] = useState(null);
   const [showLoadingState, setShowLoadingState] = useState(false);
@@ -287,7 +293,7 @@ function AppContent({ Component, pageProps }) {
 
   useEffect(() => {
     if (!isSignedIn || !isSynced || !profileData) return;
-    if (router.pathname === '/verify') return;
+    if (['/verify', '/buyer-prequalification', '/my-requests', '/sign-up', '/sign-in'].includes(router.pathname)) return;
 
     const isAdmin = profileData.role === 'admin';
     const isVerified =
@@ -298,6 +304,39 @@ function AppContent({ Component, pageProps }) {
       router.replace('/verify');
     }
   }, [isSignedIn, isSynced, profileData, router, user]);
+
+  useEffect(() => {
+    if (!isSignedIn || !isSynced || !user?.id) {
+      lastClaimedUserIdRef.current = null;
+      return;
+    }
+    if (lastClaimedUserIdRef.current === user.id) return;
+    lastClaimedUserIdRef.current = user.id;
+
+    const claimRequests = async () => {
+      try {
+        const token = await getToken();
+        const response = await fetch('/api/buyer/claim-my-requests', {
+          method: 'POST',
+          credentials: 'include',
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+        const payload = await response.json();
+        if (!response.ok || !payload.success) {
+          throw new Error(payload.error || 'Unable to claim guest requests');
+        }
+        if (payload.prequalificationClaimFailed) {
+          toast.error('Your requests were linked, but your buyer assessment could not be linked. Please contact support.');
+        }
+      } catch (error) {
+        lastClaimedUserIdRef.current = null;
+        console.error('Claiming guest buyer requests failed:', error);
+        toast.error(`We could not link your earlier requests: ${error.message || 'Please contact support.'}`);
+      }
+    };
+
+    claimRequests();
+  }, [isSignedIn, isSynced, user?.id, getToken]);
 
   const renderPage = () => {
     const page = <Component {...pageProps} />;

@@ -34,6 +34,7 @@ import {
 } from 'lucide-react';
 import AutoAssignModal from '../../components/AutoAssignModal';
 import BudgetRejectionEmailer from '../../components/BudgetRejectionEmailer';
+import AdminRequestBuyerDocuments from '../../components/AdminRequestBuyerDocuments';
 
 /* ----------------------------------------------------------
  * Tokens
@@ -251,6 +252,9 @@ function AssignRequestsTab({ onCountsChange }) {
 
       const nextRequests = payload.requests || [];
       const nextAgents = payload.agents || [];
+      if (payload.buyerDocumentsWarning) {
+        toast.error(`Buyer documents unavailable: ${payload.buyerDocumentsWarning}`);
+      }
 
       setRequests(nextRequests);
       setAgents(nextAgents);
@@ -262,7 +266,8 @@ function AssignRequestsTab({ onCountsChange }) {
         });
       }
     } catch (err) {
-      toast.error('Failed to load data');
+      console.error('Error fetching client requests:', err);
+      toast.error(err.message || 'Failed to load data');
     } finally {
       setLoading(false);
     }
@@ -864,6 +869,7 @@ function AssignRequestsTab({ onCountsChange }) {
                 onDelete={() => handleDeleteRequest(request.id)}
                 canAgentHandleRequest={canAgentHandleRequest}
                 formatWhatsAppNumber={formatWhatsAppNumber}
+                onBuyerDocumentUpdated={fetchData}
               />
             ))}
           </div>
@@ -1049,6 +1055,9 @@ function ManageRequestsTab({ onCountsChange }) {
       const nextRequests = payload.requests || [];
       setRequests(nextRequests);
       setAgents(payload.agents || []);
+      if (payload.buyerDocumentsWarning) {
+        toast.error(`Buyer documents unavailable: ${payload.buyerDocumentsWarning}`);
+      }
 
       if (onCountsChange) {
         onCountsChange({
@@ -1670,6 +1679,7 @@ function ManageRequestsTab({ onCountsChange }) {
                 onUnassign={() => handleCardUnassign(request)}
                 onToggleContacted={() => handleCardToggleContacted(request)}
                 onDelete={() => handleCardDelete(request)}
+                onBuyerDocumentUpdated={fetchRequests}
               />
             ))}
           </div>
@@ -1746,6 +1756,7 @@ function AssignRequestCard({
   onDelete,
   canAgentHandleRequest,
   formatWhatsAppNumber,
+  onBuyerDocumentUpdated,
 }) {
   const statusStyle = getStatusStyle(request.status);
 
@@ -1823,6 +1834,10 @@ function AssignRequestCard({
             {request.client_phone}
           </a>
         </div>
+        <AdminRequestBuyerDocuments
+          prequalification={request.buyer_prequalification}
+          onUpdated={onBuyerDocumentUpdated}
+        />
       </div>
 
       <div className="border-t border-slate-100 bg-slate-50/70 px-4 py-3 sm:px-5">
@@ -1997,6 +2012,7 @@ function RequestManageCard({
   onUnassign,
   onToggleContacted,
   onDelete,
+  onBuyerDocumentUpdated,
 }) {
   const statusStyle = getStatusStyle(request.status);
   const isCompleted = request.status === 'completed';
@@ -2099,6 +2115,13 @@ function RequestManageCard({
             </div>
           </div>
         </div>
+      </div>
+
+      <div className="px-4 pb-4 sm:px-5">
+        <AdminRequestBuyerDocuments
+          prequalification={request.buyer_prequalification}
+          onUpdated={onBuyerDocumentUpdated}
+        />
       </div>
 
       <div className="flex flex-wrap items-center gap-2 border-t border-slate-100 bg-slate-50/60 px-4 py-3 sm:px-5">

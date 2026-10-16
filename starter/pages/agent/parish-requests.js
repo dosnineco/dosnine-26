@@ -280,6 +280,23 @@ const getTitle = (r) => {
                  
                 </div>
 
+                {r.buyer_readiness && (
+                  <div className="mb-4 rounded-lg bg-emerald-50 p-3">
+                    <p className="text-xs font-bold uppercase text-emerald-800">
+                      Verified buyer · Level {r.buyer_readiness.qualification_level}
+                    </p>
+                    <p className="mt-1 text-sm font-semibold text-emerald-900">
+                      Verified budget: {r.buyer_readiness.verified_budget_min == null
+                        ? '—'
+                        : `J$${Number(r.buyer_readiness.verified_budget_min).toLocaleString()}`}
+                      {' - '}
+                      {r.buyer_readiness.verified_budget_max == null
+                        ? '—'
+                        : `J$${Number(r.buyer_readiness.verified_budget_max).toLocaleString()}`}
+                    </p>
+                  </div>
+                )}
+
                 {/* <div className="flex items-start gap-2 text-gray-600 text-sm mb-5">
                   <span className="font-medium leading-snug">
                     {r.location && r.location !== 'Unknown' ? r.location : 'Area: Not specified'}

@@ -1,5 +1,6 @@
 import { getDbClient, requireAdminUser } from '../../../lib/apiAuth';
 import { enforceRateLimitDistributed } from '../../../lib/rateLimit';
+import { addAdminBuyerDocuments } from '@/lib/buyerPrequalification';
 
 /* ----------------------------------------------------------
  * Validators
@@ -121,10 +122,20 @@ export default async function handler(req, res) {
         email: item.users?.email || 'No email',
       }));
 
+      let requestsWithBuyerDocuments = requests || [];
+      let buyerDocumentsWarning = null;
+      try {
+        requestsWithBuyerDocuments = await addAdminBuyerDocuments(db, requestsWithBuyerDocuments);
+      } catch (error) {
+        console.error('Admin request buyer document enrichment failed:', error);
+        buyerDocumentsWarning = error?.message || 'Buyer documents could not be loaded';
+      }
+
       return res.status(200).json({
         success: true,
-        requests: requests || [],
+        requests: requestsWithBuyerDocuments,
         agents,
+        buyerDocumentsWarning,
       });
     }
 

@@ -1,4 +1,5 @@
-import { getDbClient, requireAgentAccountUser } from '@/lib/apiAuth';
+import { getDbClient, requireDbUser } from '@/lib/apiAuth';
+import { addAgentBuyerReadiness, addAssignedAgentBuyerDocuments } from '@/lib/buyerPrequalification';
 
 // Get service requests for agent
 export default async function handler(req, res) {
@@ -9,8 +10,14 @@ export default async function handler(req, res) {
   const { status } = req.query;
 
   try {
-    const resolved = await requireAgentAccountUser(req, res);
+    const resolved = await requireDbUser(req, res);
     if (!resolved) return;
+    const isAdminDashboardView = resolved.user.role === 'admin' && req.query.adminView === 'agent';
+    const isAgentAccount = resolved.user.account_type === 'agent' ||
+      (!resolved.user.account_type && resolved.user.user_type === 'agent');
+    if (!isAdminDashboardView && !isAgentAccount) {
+      return res.status(403).json({ error: 'An Agent account is required to access this resource.' });
+    }
 
     const db = getDbClient();
 
@@ -19,9 +26,12 @@ export default async function handler(req, res) {
       .from('agents')
       .select('id, verification_status')
       .eq('user_id', resolved.user.id)
-      .single();
+      .maybeSingle();
 
-    if (!agent || agent.verification_status !== 'approved') {
+    if (!agent && isAdminDashboardView) {
+      return res.status(200).json({ requests: [] });
+    }
+    if (!agent || (!isAdminDashboardView && agent.verification_status !== 'approved')) {
       return res.status(403).json({ error: 'Agent not verified' });
     }
 
@@ -53,7 +63,9 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: 'Failed to fetch requests' });
     }
 
-    return res.status(200).json({ requests: requests || [] });
+    const requestsWithReadiness = await addAgentBuyerReadiness(db, requests || []);
+    const requestsWithBuyerDocuments = await addAssignedAgentBuyerDocuments(db, requestsWithReadiness);
+    return res.status(200).json({ requests: requestsWithBuyerDocuments });
 
   } catch (error) {
     console.error('List requests error:', error);

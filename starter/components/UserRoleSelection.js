@@ -96,7 +96,7 @@ export default function UserRoleSelection({ isAdmin = false }) {
             account type.
           </p>
           {isAdmin && (
-            <Link href="/admin/dashboard" className="mt-5 inline-flex rounded-xl bg-gray-900 px-5 py-3 font-semibold text-white hover:bg-gray-700">
+            <Link href="/admin" className="mt-5 inline-flex rounded-xl bg-gray-900 px-5 py-3 font-semibold text-white hover:bg-gray-700">
               Open Admin Dashboard
             </Link>
           )}

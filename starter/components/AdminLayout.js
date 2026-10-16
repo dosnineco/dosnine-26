@@ -184,12 +184,17 @@ export default function AdminLayout({ children }) {
   /* -------------------- Nav items -------------------- */
   const navItems = [
     { href: '/admin', label: 'Dashboard', icon: FiHome },
-    { href: '/admin/dashboard', label: 'Submitted Visitors', icon: FiMail },
+    { href: '/admin/submitted-visitors', label: 'Submitted Visitors', icon: FiMail },
     {
       href: '/admin/requests',
       label: 'Requests',
       icon: FiGrid,
       badge: counts.requests,
+    },
+    {
+      href: '/admin/buyer-prequalifications',
+      label: 'Buyer Prequalifications',
+      icon: FiUser,
     },
     {
       href: '/admin/agent-applications',

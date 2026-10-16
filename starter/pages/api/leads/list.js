@@ -1,4 +1,5 @@
 import { getDbClient, requireDbUser } from '@/lib/apiAuth';
+import { addAgentBuyerReadiness } from '@/lib/buyerPrequalification';
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') {
@@ -48,7 +49,8 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: 'Failed to load leads' });
     }
 
-    return res.status(200).json({ success: true, leads: data || [] });
+    const leads = await addAgentBuyerReadiness(db, data || []);
+    return res.status(200).json({ success: true, leads });
   } catch (error) {
     return res.status(500).json({ error: 'Internal server error' });
   }

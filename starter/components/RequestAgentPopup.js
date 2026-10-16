@@ -29,6 +29,12 @@ const URGENCY_LEVELS = [
   { value: 'urgent', label: 'Urgent - ASAP' }
 ];
 
+const parseOptionalNumber = (value) => {
+  if (value === '' || value === null || value === undefined) return null;
+  const parsed = Number(String(value).replace(/,/g, ''));
+  return Number.isFinite(parsed) ? parsed : null;
+};
+
 export default function RequestAgentPopup({ isOpen, onClose }) {
   const { user, isLoaded } = useUser();
   const router = useRouter();
@@ -75,7 +81,7 @@ export default function RequestAgentPopup({ isOpen, onClose }) {
     setLoading(true);
 
     try {
-      if (!formData.client_name || !formData.client_email || !formData.client_phone || !formData.location) {
+      if (!formData.client_name.trim() || !formData.client_email.trim() || !formData.client_phone.trim() || !formData.location.trim()) {
         toast.error('Please fill in all required fields');
         setLoading(false);
         return;
@@ -83,26 +89,44 @@ export default function RequestAgentPopup({ isOpen, onClose }) {
 
       const requestData = {
         clerkId: user?.id || null,
-        clientName: formData.client_name,
-        clientEmail: formData.client_email,
-        clientPhone: formData.client_phone,
+        clientName: formData.client_name.trim(),
+        clientEmail: formData.client_email.trim(),
+        clientPhone: formData.client_phone.trim(),
         requestType: formData.request_type,
         propertyType: formData.property_type,
         location: formData.location,
-        budgetMin: formData.budget_min ? parseFloat(formData.budget_min) : null,
-        budgetMax: formData.budget_max ? parseFloat(formData.budget_max) : null,
-        bedrooms: formData.bedrooms ? parseInt(formData.bedrooms) : null,
-        bathrooms: formData.bathrooms ? parseInt(formData.bathrooms) : null,
+        budgetMin: parseOptionalNumber(formData.budget_min),
+        budgetMax: parseOptionalNumber(formData.budget_max),
+        bedrooms: parseOptionalNumber(formData.bedrooms),
+        bathrooms: parseOptionalNumber(formData.bathrooms),
         description: formData.description,
         urgency: formData.urgency
       };
 
-      await axios.post('/api/service-requests/create', requestData);
+      const response = await axios.post('/api/service-requests/create', requestData);
+      const requestId = response.data?.request?.id;
 
-      toast.success('Request submitted! A submission email was sent with your details.', {
+      toast.success('Request submitted successfully!', {
         duration: 5000,
       });
       onClose();
+
+      if (formData.request_type === 'buy' && requestId) {
+        sessionStorage.setItem(
+          `dosnine:buyer-prequalification:${requestId}`,
+          JSON.stringify({
+            serviceRequestId: requestId,
+            buyerName: formData.client_name,
+            buyerEmail: formData.client_email,
+            buyerPhone: formData.client_phone,
+            targetPropertyPrice: formData.budget_max || formData.budget_min,
+          })
+        );
+        router.push({
+          pathname: '/buyer-prequalification',
+          query: { serviceRequestId: requestId },
+        });
+      }
       
       // Reset form
       setFormData({
@@ -121,7 +145,9 @@ export default function RequestAgentPopup({ isOpen, onClose }) {
       });
       setConsent(false);
     } catch (error) {
-      const errorMessage = error.response?.data?.details || error.response?.data?.error || 'Failed to submit request';
+      const errorMessage = [error.response?.data?.error, error.response?.data?.details]
+        .filter(Boolean)
+        .join(': ') || 'Failed to submit request';
       toast.error(errorMessage);
     } finally {
       setLoading(false);

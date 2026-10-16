@@ -41,7 +41,7 @@ export function useRoleProtection({
 
       // Check if auth is required
       if (requireAuth && !user) {
-        router.push('/');
+        router.push('/sign-in');
         isCheckingRef.current = false;
         return;
       }

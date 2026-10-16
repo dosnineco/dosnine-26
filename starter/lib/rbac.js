@@ -146,7 +146,7 @@ export function getUserFeatures(userData) {
  * Get redirect path based on user status
  */
 export function getDefaultRedirect(userData) {
-  if (isAdmin(userData)) return '/admin/dashboard';
+  if (isAdmin(userData)) return '/admin';
   if (!isPlatformVerified(userData) || !isAccountActive(userData)) return '/verify';
   if (needsAgentPayment(userData)) return '/agent/payment';
   if (isPaidAgent(userData) || isVerifiedAgent(userData) || userData?.user_type === 'agent') return '/agent/dashboard';

@@ -38,6 +38,7 @@ const CONTACT = [
 
 export default function Footer() {
   const year = new Date().getFullYear();
+  const platformVersion = process.env.NEXT_PUBLIC_PLATFORM_VERSION || 'dev';
 
   return (
     <footer className="mt-16 border-t border-slate-200 bg-slate-50">
@@ -177,6 +178,9 @@ export default function Footer() {
         <div className="flex flex-col items-center justify-between gap-4 border-t border-slate-200 py-6 text-xs text-slate-500 sm:flex-row">
           <p className="order-2 sm:order-1">
             &copy; {year} Dosnine Limited. All rights reserved.
+            <span className="ml-2 text-[10px] text-slate-400" aria-label={`Platform version ${platformVersion}`}>
+              {platformVersion}
+            </span>
           </p>
 
           <nav

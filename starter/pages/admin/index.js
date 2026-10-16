@@ -294,7 +294,9 @@ export default function AdminDashboardIndex() {
   }
 
   const totalPlatformRevenue =
-    Number(metrics.agents.revenue || 0) + Number(metrics.ads.revenue || 0);
+    Number(metrics.agents.revenue || 0) +
+    Number(metrics.ads.revenue || 0) +
+    Number(metrics.htv.revenue || 0);
 
   /* -------------------- render -------------------- */
   return (
@@ -318,6 +320,8 @@ export default function AdminDashboardIndex() {
             </p>
           </div>
           <div className="flex items-center gap-3">
+         
+         
             {lastUpdated && (
               <span className="text-xs text-slate-500">
                 Updated {lastUpdated.toLocaleTimeString()}
@@ -334,6 +338,37 @@ export default function AdminDashboardIndex() {
             </button>
           </div>
         </div>
+
+        <section className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6">
+          <h2 className="text-lg font-semibold text-slate-900">Other dashboard views</h2>
+          <p className="mt-1 text-sm text-slate-600">View your own account in another dashboard layout.</p>
+          <div className="mt-4 flex flex-wrap gap-3">
+            <Link
+              href="/dashboard?adminView=regular"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="rounded-lg bg-slate-100 px-4 py-2.5 text-sm font-medium text-slate-800 transition hover:bg-slate-200"
+            >
+              Regular / tenant
+            </Link>
+            <Link
+              href="/dashboard?adminView=advertiser"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="rounded-lg bg-slate-100 px-4 py-2.5 text-sm font-medium text-slate-800 transition hover:bg-slate-200"
+            >
+              Advertiser
+            </Link>
+            <Link
+              href="/agent/dashboard?adminView=agent"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="rounded-lg bg-slate-100 px-4 py-2.5 text-sm font-medium text-slate-800 transition hover:bg-slate-200"
+            >
+              Agent (view only)
+            </Link>
+          </div>
+        </section>
 
         <AdminAnalyticsPanel />
 
@@ -411,9 +446,7 @@ export default function AdminDashboardIndex() {
               <p className="mt-2 text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">
                 {formatJMD(totalPlatformRevenue)}
               </p>
-              <p className="mt-1 text-sm text-slate-600">
-                Agent subscriptions + approved ad plans.
-              </p>
+             
             </div>
             <div className="flex flex-wrap gap-3">
               <div className="rounded-xl border border-emerald-200 bg-white px-4 py-3">
@@ -430,6 +463,14 @@ export default function AdminDashboardIndex() {
                 </p>
                 <p className="mt-1 text-lg font-bold text-slate-900">
                   {formatJMD(metrics.ads.revenue)}
+                </p>
+              </div>
+              <div className="rounded-xl border border-emerald-200 bg-white px-4 py-3">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+                  HTV orders
+                </p>
+                <p className="mt-1 text-lg font-bold text-slate-900">
+                  {formatJMD(metrics.htv.revenue)}
                 </p>
               </div>
             </div>

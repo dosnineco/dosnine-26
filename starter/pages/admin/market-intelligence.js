@@ -20,6 +20,8 @@ import {
   Zap,
   Building2,
   Calendar,
+  ShieldCheck,
+  ChevronDown,
 } from 'lucide-react';
 
 /* ----------------------------------------------------------
@@ -125,6 +127,13 @@ export default function AdminMarketIntelligence() {
     );
   }, [metrics]);
 
+  const verificationTotal = useMemo(() => {
+    return Object.values(metrics?.verificationStatusCounts || {}).reduce(
+      (sum, count) => sum + Number(count || 0),
+      0
+    );
+  }, [metrics]);
+
   const monthlyMax = useMemo(() => {
     return Math.max(
       1,
@@ -179,8 +188,8 @@ export default function AdminMarketIntelligence() {
               What Jamaica is searching for
             </h1>
             <p className="mt-1 max-w-2xl text-sm text-slate-600">
-              Anonymous service request analytics for demand, parishes, budgets,
-              bedroom mix, urgency, and emerging search signals.
+              Anonymous service request analytics with buyer verification, verified
+              budgets, demand, parishes, and emerging search signals.
             </p>
           </div>
           <div className="flex shrink-0 items-center gap-2 self-start">
@@ -218,9 +227,8 @@ export default function AdminMarketIntelligence() {
             {/* ============================================================
                 Primary KPIs
                 ============================================================ */}
-            <section>
-              <SectionLabel icon={BarChart3} label="Overview" />
-              <div className="mt-3 grid grid-cols-2 gap-3 lg:grid-cols-4">
+            <CollapsibleSection icon={BarChart3} label="Overview">
+              <div className="mt-3 grid grid-cols-2 gap-3 lg:grid-cols-5">
                 <StatCard
                   icon={Users}
                   tone="accent"
@@ -253,14 +261,77 @@ export default function AdminMarketIntelligence() {
                   }
                   trend={growth}
                 />
+                <StatCard
+                  icon={ShieldCheck}
+                  tone="emerald"
+                  label="Active verified buyers"
+                  value={(metrics.activeVerifiedBuyerCount ?? 0).toLocaleString()}
+                  sub="Shareable and unexpired"
+                />
               </div>
-            </section>
+            </CollapsibleSection>
+
+            {/* ============================================================
+                Buyer verification
+                ============================================================ */}
+            <CollapsibleSection icon={ShieldCheck} label="Buyer verification">
+              <div className="mt-3 grid grid-cols-1 gap-4 lg:grid-cols-2">
+                <Panel
+                  title="Verified buyer budgets"
+                  subtitle={
+                    metrics.averageVerifiedBudget
+                      ? `Avg. verified budget ceiling ${formatJMD(metrics.averageVerifiedBudget)}`
+                      : 'No active verified budgets'
+                  }
+                >
+                  {(metrics.verifiedBudgetCount || 0) === 0 ? (
+                    <EmptyRow />
+                  ) : (
+                    <div className="space-y-3">
+                      {(metrics.verifiedBudgetRanges || []).map((item) => (
+                        <ProgressRow
+                          key={item.label}
+                          label={item.label}
+                          value={`${item.count} · ${Number(item.percentage || 0)}%`}
+                          percent={item.percentage}
+                          tone="emerald"
+                        />
+                      ))}
+                    </div>
+                  )}
+                </Panel>
+
+                <Panel
+                  title="Verification pipeline"
+                  subtitle={`${verificationTotal} assessment${verificationTotal === 1 ? '' : 's'}`}
+                >
+                  {Object.keys(metrics.verificationStatusCounts || {}).length === 0 ? (
+                    <EmptyRow />
+                  ) : (
+                    <div className="space-y-3">
+                      {Object.entries(metrics.verificationStatusCounts).map(
+                        ([status, count]) => (
+                          <ProgressRow
+                            key={status}
+                            label={status.replaceAll('_', ' ')}
+                            value={count}
+                            percent={verificationTotal > 0
+                              ? (Number(count) / verificationTotal) * 100
+                              : 0}
+                            tone={['verified', 'confirmed'].includes(status) ? 'emerald' : 'slate'}
+                          />
+                        )
+                      )}
+                    </div>
+                  )}
+                </Panel>
+              </div>
+            </CollapsibleSection>
 
             {/* ============================================================
                 Demand signals
                 ============================================================ */}
-            <section>
-              <SectionLabel icon={Zap} label="Demand signals" />
+            <CollapsibleSection icon={Zap} label="Demand signals">
               <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
                 <HighlightCard
                   icon={MapPin}
@@ -282,7 +353,7 @@ export default function AdminMarketIntelligence() {
                   sub={metrics.currentMonthLabel || ''}
                 />
               </div>
-            </section>
+            </CollapsibleSection>
 
             {/* ============================================================
                 Buy / Rent + Urgency
@@ -545,16 +616,32 @@ export default function AdminMarketIntelligence() {
  * Sub-components
  * ============================================================ */
 
-function SectionLabel({ icon: Icon, label }) {
+function CollapsibleSection({ icon: Icon, label, children }) {
+  const [isOpen, setIsOpen] = useState(false);
+
   return (
-    <div className="flex items-center gap-2">
-      <span className="flex h-6 w-6 items-center justify-center rounded-md bg-slate-100 text-slate-500">
-        <Icon size={12} />
-      </span>
-      <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
-        {label}
-      </p>
-    </div>
+    <section>
+      <button
+        type="button"
+        aria-expanded={isOpen}
+        onClick={() => setIsOpen((open) => !open)}
+        className="flex w-full items-center justify-between rounded-xl px-1 py-1 text-left transition hover:bg-slate-50"
+      >
+        <span className="flex items-center gap-2">
+          <span className="flex h-6 w-6 items-center justify-center rounded-md bg-slate-100 text-slate-500">
+            <Icon size={12} />
+          </span>
+          <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+            {label}
+          </span>
+        </span>
+        <ChevronDown
+          size={16}
+          className={`text-slate-400 transition-transform ${isOpen ? 'rotate-180' : ''}`}
+        />
+      </button>
+      {isOpen ? <div>{children}</div> : null}
+    </section>
   );
 }
 
@@ -619,15 +706,26 @@ function HighlightCard({ icon: Icon, tone = 'accent', label, value, sub }) {
 }
 
 function Panel({ title, subtitle, children }) {
+  const [isOpen, setIsOpen] = useState(false);
+
   return (
     <section className="rounded-2xl border border-slate-200 bg-white p-5">
-      <div className="mb-4 flex items-baseline justify-between gap-3">
-        <h2 className="text-sm font-bold text-slate-900">{title}</h2>
-        {subtitle ? (
-          <span className="shrink-0 text-xs text-slate-500">{subtitle}</span>
-        ) : null}
-      </div>
-      {children}
+      <button
+        type="button"
+        aria-expanded={isOpen}
+        onClick={() => setIsOpen((open) => !open)}
+        className="flex w-full items-center justify-between gap-3 text-left"
+      >
+        <span className="text-sm font-bold text-slate-900">{title}</span>
+        <span className="flex shrink-0 items-center gap-2">
+          {subtitle ? <span className="text-xs text-slate-500">{subtitle}</span> : null}
+          <ChevronDown
+            size={16}
+            className={`text-slate-400 transition-transform ${isOpen ? 'rotate-180' : ''}`}
+          />
+        </span>
+      </button>
+      {isOpen ? <div className="mt-4">{children}</div> : null}
     </section>
   );
 }

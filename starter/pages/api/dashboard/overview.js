@@ -1,4 +1,5 @@
 import { getDbClient, requireDbUser } from '../../../lib/apiAuth';
+import { claimBuyerRequestsByEmail } from '../../../lib/buyerRequests';
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') {
@@ -12,7 +13,11 @@ export default async function handler(req, res) {
     const db = getDbClient();
     const userData = resolved.user || {};
     const isAdmin = userData.role === 'admin';
-    const accountType = userData.account_type ||
+    const requestedView = typeof req.query.view === 'string' ? req.query.view : null;
+    if (requestedView && (!isAdmin || !['regular', 'advertiser'].includes(requestedView))) {
+      return res.status(403).json({ error: 'This dashboard view is only available to administrators.' });
+    }
+    const accountType = requestedView || userData.account_type ||
       (userData.user_type === 'agent' ? 'agent' : null);
 
     if (!accountType) {
@@ -35,6 +40,10 @@ export default async function handler(req, res) {
       (!identityVerified || ['flagged', 'deactivated'].includes(userData.account_status))
     ) {
       return res.status(403).json({ error: 'Identity verification is required to view your dashboard.' });
+    }
+
+    if (accountType === 'regular') {
+      await claimBuyerRequestsByEmail(db, userData);
     }
 
     if (accountType === 'advertiser') {
@@ -152,13 +161,62 @@ export default async function handler(req, res) {
     let serviceRequests = [];
     const { data: requests, error: requestsError } = await db
       .from('service_requests')
-      .select('*')
+      .select('id, request_type, property_type, location, budget_min, budget_max, description, status, created_at, assigned_agent_id, agent:assigned_agent_id(id, business_name, users:user_id(full_name, email))')
       .eq('client_user_id', userData.id)
       .order('created_at', { ascending: false });
 
-    if (!requestsError && Array.isArray(requests)) {
-      serviceRequests = requests;
+    if (requestsError) throw requestsError;
+    serviceRequests = Array.isArray(requests) ? requests : [];
+
+    const purchaseRequestIds = serviceRequests
+      .filter((request) => String(request.request_type || '').toLowerCase() === 'buy')
+      .map((request) => request.id)
+      .filter(Boolean);
+    const buyerPrequalificationByRequestId = new Map();
+    if (purchaseRequestIds.length > 0) {
+      const { data: prequalifications, error: prequalificationsError } = await db
+        .from('buyer_prequalifications')
+        .select('id, service_request_id, qualification_level, status, verified_budget_max, verification_expires_at')
+        .in('service_request_id', purchaseRequestIds)
+        .order('created_at', { ascending: false });
+
+      if (prequalificationsError) throw prequalificationsError;
+      for (const prequalification of prequalifications || []) {
+        if (!buyerPrequalificationByRequestId.has(prequalification.service_request_id)) {
+          buyerPrequalificationByRequestId.set(
+            prequalification.service_request_id,
+            { ...prequalification, documents: [] }
+          );
+        }
+      }
+
+      const prequalificationIds = [...buyerPrequalificationByRequestId.values()]
+        .map((prequalification) => prequalification.id)
+        .filter(Boolean);
+      if (prequalificationIds.length > 0) {
+        const { data: documents, error: documentsError } = await db
+          .from('buyer_documents')
+          .select('id, prequalification_id, document_type, file_name, status, review_notes, expires_at, uploaded_at')
+          .in('prequalification_id', prequalificationIds)
+          .order('uploaded_at', { ascending: false });
+
+        if (documentsError) throw documentsError;
+        const documentsByPrequalification = new Map();
+        for (const document of documents || []) {
+          const groupedDocuments = documentsByPrequalification.get(document.prequalification_id) || [];
+          groupedDocuments.push(document);
+          documentsByPrequalification.set(document.prequalification_id, groupedDocuments);
+        }
+        for (const prequalification of buyerPrequalificationByRequestId.values()) {
+          prequalification.documents = documentsByPrequalification.get(prequalification.id) || [];
+        }
+      }
     }
+    serviceRequests = serviceRequests.map((request) => ({
+      ...request,
+      buyer_prequalification:
+        buyerPrequalificationByRequestId.get(request.id) || null,
+    }));
 
     let adInquiries = [];
     let ads = [];

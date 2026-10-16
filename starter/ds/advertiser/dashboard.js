@@ -24,7 +24,7 @@ const formatPlacements = (placements) =>
     ? placements.map((placement) => PLACEMENT_LABELS[placement]).filter(Boolean).join(' · ')
     : '';
 
-export default function AdvertiserDashboard({ overview, isAdmin = false, onRefresh }) {
+export default function AdvertiserDashboardPage({ overview, isAdmin = false, onRefresh }) {
   const { getToken } = useAuth();
   const [editingAdId, setEditingAdId] = useState(null);
   const [editValues, setEditValues] = useState({});
@@ -119,7 +119,7 @@ export default function AdvertiserDashboard({ overview, isAdmin = false, onRefre
           </div>
           <div className="flex flex-wrap gap-3">
             {isAdmin && (
-              <Link href="/admin/dashboard" className="inline-flex items-center justify-center rounded-xl bg-gray-900 px-5 py-3 font-semibold text-white hover:bg-gray-700">
+              <Link href="/admin" className="inline-flex items-center justify-center rounded-xl bg-gray-900 px-5 py-3 font-semibold text-white hover:bg-gray-700">
                 Open Admin Dashboard
               </Link>
             )}
