@@ -55,7 +55,7 @@ export default async function handler(req, res) {
     sendSmtpEmail.htmlContent = htmlWithFooter;
     sendSmtpEmail.textContent = sanitizeString(textContent, 5000);
     sendSmtpEmail.sender = {
-      name: 'Dosnine',
+      name: process.env.BREVO_FROM_NAME || 'Dosnine Limited ',
       email: 'admin@dosnine.com',
     };
     sendSmtpEmail.to = [{ email: recipientEmail }];

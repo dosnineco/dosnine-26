@@ -103,7 +103,7 @@ async function sendAdminAdSubmissionEmail({
   const adminEmail =
     process.env.ADMIN_NOTIFICATION_EMAIL || process.env.ADMIN_EMAIL || 'admin@dosnine.com';
   const senderEmail = process.env.BREVO_FROM_EMAIL || 'admin@dosnine.com';
-  const senderName = process.env.BREVO_FROM_NAME || 'Dosnine';
+  const senderName = process.env.BREVO_FROM_NAME || 'Dosnine Limited ';
 
   const { TransactionalEmailsApi, TransactionalEmailsApiApiKeys, SendSmtpEmail } =
     await loadBrevoSdk();
@@ -160,7 +160,7 @@ async function sendAdvertiserConfirmationEmail({ email, companyName, selectedPla
   if (!apiKey || !email || email.endsWith('@dosnine.local')) return;
 
   const senderEmail = process.env.BREVO_FROM_EMAIL || 'admin@dosnine.com';
-  const senderName = process.env.BREVO_FROM_NAME || 'Dosnine';
+  const senderName = process.env.BREVO_FROM_NAME || 'Dosnine Limited ';
   const safeCompanyName = escapeHtml(companyName);
   const safePlanName = escapeHtml(selectedPlan?.name);
 

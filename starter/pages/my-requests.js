@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import Head from 'next/head';
+import { useRouter } from 'next/router';
 import toast from 'react-hot-toast';
 import { useUser } from '@clerk/nextjs';
 import BuyerPrequalificationForm from '@/components/BuyerPrequalificationForm';
@@ -23,6 +24,7 @@ function createEditForm(request) {
 }
 
 export default function MyRequestsPage() {
+  const router = useRouter();
   const { isLoaded, isSignedIn } = useUser();
   const [requests, setRequests] = useState([]);
   const [forms, setForms] = useState({});
@@ -31,6 +33,7 @@ export default function MyRequestsPage() {
   const [editingRequestId, setEditingRequestId] = useState('');
   const [loadError, setLoadError] = useState('');
   const [openBuyerRequestId, setOpenBuyerRequestId] = useState('');
+  const buyerRequestRetryRef = useRef({ requestId: '', attempts: 0 });
 
   const loadRequests = useCallback(async () => {
     if (!isLoaded) return;
@@ -63,6 +66,29 @@ export default function MyRequestsPage() {
   useEffect(() => {
     loadRequests();
   }, [loadRequests]);
+
+  useEffect(() => {
+    if (!router.isReady || loading) return;
+    const requestedBuyerId = typeof router.query.completeBuyerProfile === 'string'
+      ? router.query.completeBuyerProfile
+      : '';
+    if (!requestedBuyerId) return;
+    if (buyerRequestRetryRef.current.requestId !== requestedBuyerId) {
+      buyerRequestRetryRef.current = { requestId: requestedBuyerId, attempts: 0 };
+    }
+    if (requests.some((request) =>
+      request.id === requestedBuyerId &&
+      String(request.request_type || '').toLowerCase() === 'buy'
+    )) {
+      setOpenBuyerRequestId(requestedBuyerId);
+      return;
+    }
+    if (buyerRequestRetryRef.current.attempts >= 4) return;
+
+    buyerRequestRetryRef.current.attempts += 1;
+    const retryTimer = setTimeout(loadRequests, 750);
+    return () => clearTimeout(retryTimer);
+  }, [loadRequests, loading, requests, router.isReady, router.query.completeBuyerProfile]);
 
   useEffect(() => {
     if (!openBuyerRequestId) return undefined;

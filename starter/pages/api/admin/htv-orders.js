@@ -171,7 +171,7 @@ export default async function handler(req, res) {
         const apiInstance = new SibApiV3Sdk.TransactionalEmailsApi();
         apiInstance.setApiKey(SibApiV3Sdk.TransactionalEmailsApiApiKeys.apiKey, apiKey);
         const sender = {
-          name: process.env.BREVO_FROM_NAME || 'Dosnine',
+          name: process.env.BREVO_FROM_NAME || 'Dosnine Limited ',
           email: process.env.BREVO_FROM_EMAIL || 'admin@dosnine.com',
         };
         const safeName = escapeHtml(businessName);

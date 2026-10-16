@@ -1,7 +1,20 @@
 import Head from 'next/head';
 import { SignUp } from '@clerk/nextjs';
+import { useRouter } from 'next/router';
 
 export default function SignUpPage() {
+  const router = useRouter();
+  const buyerRequestId = typeof router.query.buyerRequestId === 'string' &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(router.query.buyerRequestId)
+    ? router.query.buyerRequestId
+    : '';
+  const buyerCheckUrl = buyerRequestId
+    ? `/my-requests?completeBuyerProfile=${encodeURIComponent(buyerRequestId)}`
+    : '/my-requests';
+  const signInUrl = buyerRequestId
+    ? `/sign-in?buyerRequestId=${encodeURIComponent(buyerRequestId)}`
+    : '/sign-in';
+
   return (
     <>
       <Head>
@@ -20,7 +33,7 @@ export default function SignUpPage() {
             </p>
           </div>
           <div className="flex justify-center">
-            <SignUp afterSignUpUrl="/my-requests" signInUrl="/sign-in" />
+            <SignUp afterSignUpUrl={buyerCheckUrl} signInUrl={signInUrl} />
           </div>
         </div>
       </main>

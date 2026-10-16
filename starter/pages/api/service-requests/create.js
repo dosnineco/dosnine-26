@@ -14,15 +14,6 @@ import {
 import { assignRequestRoundRobin } from '@/lib/serviceRequestAllocation';
 import * as SibApiV3Sdk from '@getbrevo/brevo';
 
-const SERVICE_FEE_USD = 4;
-const SERVICE_FEE_LINK = 'https://www.paypal.com/ncp/payment/6FWCSVTZDVG6Q';
-
-const formatMoneyJmd = (value) => {
-  const numeric = Number(value || 0);
-  if (!Number.isFinite(numeric) || numeric <= 0) return 'Not provided';
-  return `J$${numeric.toLocaleString()}`;
-};
-
 const titleCase = (value) => {
   const text = String(value || '').trim();
   if (!text) return 'Not provided';
@@ -37,12 +28,20 @@ const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => 
   "'": '&#39;',
 })[char]);
 
-const sendDashboardInvitationEmail = async ({ clientName, clientEmail, requestType }) => {
+const sendDashboardInvitationEmail = async ({ clientName, clientEmail, requestType, requestId }) => {
   const apiKey = process.env.BREVO_API_KEY;
   if (!apiKey) throw new Error('BREVO_API_KEY not configured');
 
   const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || 'https://dosnine.com').replace(/\/+$/, '');
-  const signupUrl = new URL('/sign-up', `${siteUrl}/`).toString();
+  const isBuyRequest = String(requestType || '').toLowerCase() === 'buy';
+  const buyerRequestPath = isBuyRequest && requestId
+    ? `/my-requests?completeBuyerProfile=${encodeURIComponent(requestId)}`
+    : '/my-requests';
+  const authQuery = isBuyRequest && requestId
+    ? `?buyerRequestId=${encodeURIComponent(requestId)}`
+    : '';
+  const signupUrl = new URL(`/sign-up${authQuery}`, `${siteUrl}/`).toString();
+  const signinUrl = new URL(`/sign-in${authQuery}`, `${siteUrl}/`).toString();
   const typeLabel = titleCase(requestType).toLowerCase();
   const apiInstance = new SibApiV3Sdk.TransactionalEmailsApi();
   apiInstance.setApiKey(SibApiV3Sdk.TransactionalEmailsApiApiKeys.apiKey, apiKey);
@@ -54,9 +53,13 @@ const sendDashboardInvitationEmail = async ({ clientName, clientEmail, requestTy
       <h2>Your request is in. Stay up to date.</h2>
       <p>Hi ${escapeHtml(clientName || 'there')},</p>
       <p>Thanks for submitting your ${escapeHtml(typeLabel)} request to Dosnine. Create a free account to access your dashboard, follow updates to your request, and keep your information in one place.</p>
-      <p>If you are buying, you can also complete a buyer readiness profile and share helpful qualification details or supporting documents with your agent. Completing your account and buyer profile is free; there is no signup or qualification fee.</p>
-      <p><a href="${escapeHtml(signupUrl)}" style="display:inline-block;background:#d93636;color:#fff;text-decoration:none;padding:11px 18px;border-radius:8px;font-weight:600">Create your free account</a></p>
-      <p>If you already have an account, sign in with the same email address you used for your request to view it in your dashboard.</p>
+      ${isBuyRequest ? `
+        <h3>Complete your Buyer Financial Check</h3>
+        <p>Tell us about your purchase plan and, if available, provide supporting documents for private review by Dosnine. You do not need to upload every document type. Completing your account and financial check is free.</p>
+        <p><strong>Helpful documents may include:</strong> mortgage prequalification or approval, proof of savings or funds, NHT eligibility or financing, family contribution, self-employed income, or bank confirmation. PDF or image files up to 10 MB each.</p>
+      ` : ''}
+      <p><a href="${escapeHtml(signupUrl)}" style="display:inline-block;background:#d93636;color:#fff;text-decoration:none;padding:11px 18px;border-radius:8px;font-weight:600">${isBuyRequest ? 'Create a free account and complete your Buyer Financial Check' : 'Create your free account'}</a></p>
+      <p>If you already have an account, <a href="${escapeHtml(signinUrl)}">sign in here</a> to ${isBuyRequest ? 'complete your Buyer Financial Check' : 'view your request'}.</p>
       <p>Thank you,<br />Dosnine</p>
     </div>
   `;
@@ -64,22 +67,21 @@ const sendDashboardInvitationEmail = async ({ clientName, clientEmail, requestTy
     'Your request is in. Stay up to date.',
     `Hi ${clientName || 'there'},`,
     `Thanks for submitting your ${typeLabel} request to Dosnine. Create a free account to access your dashboard, follow updates to your request, and keep your information in one place.`,
-    'If you are buying, you can also complete a buyer readiness profile and share helpful qualification details or supporting documents with your agent. Completing your account and buyer profile is free; there is no signup or qualification fee.',
+    ...(isBuyRequest ? [
+      'Complete your Buyer Financial Check: share your purchase plan and, if available, supporting documents for private review by Dosnine. You do not need to upload every document type. The account and financial check are free.',
+      'Helpful documents may include mortgage prequalification or approval, proof of savings or funds, NHT eligibility or financing, family contribution, self-employed income, or bank confirmation. PDF or image files up to 10 MB each.',
+    ] : []),
     `Create your free account: ${signupUrl}`,
-    'If you already have an account, sign in with the same email address you used for your request to view it in your dashboard.',
+    `Already have an account? Sign in: ${signinUrl}`,
+    `After signing in, continue here: ${new URL(buyerRequestPath, `${siteUrl}/`).toString()}`,
     'Thank you, Dosnine',
   ].join('\n\n');
   emailPayload.sender = {
-    name: process.env.BREVO_FROM_NAME || 'Dosnine',
+    name: process.env.BREVO_FROM_NAME || 'Dosnine Limited ',
     email: process.env.BREVO_FROM_EMAIL || 'admin@dosnine.com',
   };
   emailPayload.to = [{ email: clientEmail, name: clientName || 'Dosnine user' }];
   await apiInstance.sendTransacEmail(emailPayload);
-};
-
-const shouldSendServiceFeeEmail = (requestType) => {
-  const normalized = String(requestType || '').toLowerCase();
-  return normalized === 'rent' || normalized === 'buy';
 };
 
 const sendPropertyOwnerNotificationEmail = async ({
@@ -145,116 +147,11 @@ const sendPropertyOwnerNotificationEmail = async ({
     '',
     'Please reply directly to the client using the phone number or email above.',
   ].join('\n');
-  emailPayload.sender = { name: 'Dosnine', email: 'admin@dosnine.com' };
-  emailPayload.to = [{ email: ownerEmail, name: ownerName || 'Property Owner' }];
-
-  await apiInstance.sendTransacEmail(emailPayload);
-};
-
-const sendServiceFeeConfirmationEmail = async ({
-  clientName,
-  clientEmail,
-  clientPhone,
-  requestType,
-  propertyType,
-  parish,
-  location,
-  budgetMin,
-  budgetMax,
-  bedrooms,
-  bathrooms,
-  urgency,
-  description,
-}) => {
-  const apiKey = process.env.BREVO_API_KEY;
-  if (!apiKey) {
-    console.warn('BREVO_API_KEY not configured; skipping service fee confirmation email');
-    return;
-  }
-
-  const apiInstance = new SibApiV3Sdk.TransactionalEmailsApi();
-  apiInstance.setApiKey(SibApiV3Sdk.TransactionalEmailsApiApiKeys.apiKey, apiKey);
-
-  const requestTypeLabel = titleCase(requestType);
-  const propertyTypeLabel = titleCase(propertyType);
-  const urgencyLabel = titleCase(urgency || 'normal');
-  const safeDescription = description || 'None provided';
-
-  const htmlContent = `
-    <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #111827;">
-      <h2 style="margin: 0 0 12px;">Your Dosnine Service Request Was Received</h2>
-      <p>Hi ${clientName},</p>
-      <p>
-        Thanks for submitting your ${requestTypeLabel.toLowerCase()} request on Dosnine.
-        Please complete the <strong>service fee payment of $${SERVICE_FEE_USD}.00 USD</strong> to activate processing.
-      </p>
-      <p>
-        <a href="${SERVICE_FEE_LINK}" style="display: inline-block; background: #0070ba; color: #ffffff; text-decoration: none; padding: 10px 16px; border-radius: 6px; font-weight: 600;">
-          Pay Service Fee
-        </a>
-      </p>
-      <p>If the button does not open, use this link:</p>
-      <p><a href="${SERVICE_FEE_LINK}">${SERVICE_FEE_LINK}</a></p>
-
-      <h3 style="margin-top: 24px;">Submitted Request Details</h3>
-      <ul style="padding-left: 18px; margin: 8px 0;">
-        <li><strong>Name:</strong> ${clientName}</li>
-        <li><strong>Email:</strong> ${clientEmail}</li>
-        <li><strong>Phone:</strong> ${clientPhone}</li>
-        <li><strong>Request Type:</strong> ${requestTypeLabel}</li>
-        <li><strong>Property Type:</strong> ${propertyTypeLabel}</li>
-        <li><strong>Parish:</strong> ${parish || 'Not provided'}</li>
-        <li><strong>Location:</strong> ${location}</li>
-        <li><strong>Budget Min:</strong> ${formatMoneyJmd(budgetMin)}</li>
-        <li><strong>Budget Max:</strong> ${formatMoneyJmd(budgetMax)}</li>
-        <li><strong>Bedrooms:</strong> ${bedrooms || 'Not provided'}</li>
-        <li><strong>Bathrooms:</strong> ${bathrooms || 'Not provided'}</li>
-        <li><strong>Urgency:</strong> ${urgencyLabel}</li>
-        <li><strong>Description:</strong> ${safeDescription}</li>
-      </ul>
-
-      <p style="margin-top: 20px;">After payment, our team will proceed with your request and follow up.</p>
-      <p>Dosnine Team</p>
-    </div>
-  `;
-
-  const textContent = [
-    'Your Dosnine service request was received.',
-    '',
-    `Hi ${clientName},`,
-    '',
-    `Thanks for submitting your ${requestTypeLabel.toLowerCase()} request on Dosnine.`,
-    `Please complete the service fee payment of $${SERVICE_FEE_USD}.00 USD to activate processing:`,
-    SERVICE_FEE_LINK,
-    '',
-    'Submitted request details:',
-    `- Name: ${clientName}`,
-    `- Email: ${clientEmail}`,
-    `- Phone: ${clientPhone}`,
-    `- Request Type: ${requestTypeLabel}`,
-    `- Property Type: ${propertyTypeLabel}`,
-    `- Parish: ${parish || 'Not provided'}`,
-    `- Location: ${location}`,
-    `- Budget Min: ${formatMoneyJmd(budgetMin)}`,
-    `- Budget Max: ${formatMoneyJmd(budgetMax)}`,
-    `- Bedrooms: ${bedrooms || 'Not provided'}`,
-    `- Bathrooms: ${bathrooms || 'Not provided'}`,
-    `- Urgency: ${urgencyLabel}`,
-    `- Description: ${safeDescription}`,
-    '',
-    'After payment, our team will proceed with your request and follow up.',
-    'Dosnine Team',
-  ].join('\n');
-
-  const emailPayload = new SibApiV3Sdk.SendSmtpEmail();
-  emailPayload.subject = `Dosnine ${requestTypeLabel} Request Confirmation - Pay Service Fee`;
-  emailPayload.htmlContent = htmlContent;
-  emailPayload.textContent = textContent;
   emailPayload.sender = {
-    name: 'Dosnine',
-    email: 'admin@dosnine.com',
+    name: process.env.BREVO_FROM_NAME || 'Dosnine Limited ',
+    email: process.env.BREVO_FROM_EMAIL || 'admin@dosnine.com',
   };
-  emailPayload.to = [{ email: clientEmail, name: clientName }];
+  emailPayload.to = [{ email: ownerEmail, name: ownerName || 'Property Owner' }];
 
   await apiInstance.sendTransacEmail(emailPayload);
 };
@@ -467,34 +364,13 @@ export default async function handler(req, res) {
       }
     }
 
-    if (shouldSendServiceFeeEmail(parsedRequestType)) {
-      try {
-        await sendServiceFeeConfirmationEmail({
-          clientName: parsedClientName,
-          clientEmail: parsedClientEmail,
-          clientPhone: parsedClientPhone,
-          requestType: parsedRequestType,
-          propertyType: parsedPropertyType,
-          parish: parsedParish,
-          location: parsedLocation,
-          budgetMin: parsedBudgetMin,
-          budgetMax: parsedBudgetMax,
-          bedrooms: parsedBedrooms,
-          bathrooms: parsedBathrooms,
-          urgency: parsedUrgency,
-          description: parsedDescription,
-        });
-      } catch (emailError) {
-        console.error('Failed to send service fee confirmation email:', emailError);
-      }
-    }
-
     let dashboardInvitationEmailSent = false;
     try {
       await sendDashboardInvitationEmail({
         clientName: parsedClientName,
         clientEmail: parsedClientEmail,
         requestType: parsedRequestType,
+        requestId: data?.id,
       });
       dashboardInvitationEmailSent = true;
     } catch (emailError) {

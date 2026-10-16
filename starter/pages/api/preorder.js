@@ -4,7 +4,7 @@ import { enforceRateLimit } from '../../lib/rateLimit'
 
 const BREVO_API_KEY = process.env.BREVO_API_KEY || ''
 const BREVO_FROM_EMAIL = 'admin@dosnine.com'
-const BREVO_FROM_NAME = 'Dosnine'
+const BREVO_FROM_NAME = process.env.BREVO_FROM_NAME || 'Dosnine Limited '
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
@@ -163,7 +163,7 @@ export default async function handler(req, res) {
     try {
       const adminEmail = new SibApiV3Sdk.SendSmtpEmail()
       adminEmail.subject = `🔔 New Course Signup: ${name}`
-      adminEmail.sender = { name: 'Dosnine System', email: BREVO_FROM_EMAIL }
+      adminEmail.sender = { name: BREVO_FROM_NAME, email: BREVO_FROM_EMAIL }
       adminEmail.to = [{ email: BREVO_FROM_EMAIL, name: 'Dosnine Admin' }]
       adminEmail.replyTo = { email: email, name: name }
       adminEmail.htmlContent = `

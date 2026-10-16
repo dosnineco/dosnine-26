@@ -85,7 +85,7 @@ export async function sendExternalBuyerRequestInvitation({
       'You cannot edit, assign, or transfer the request from this link.',
     ].join('\n\n');
     emailPayload.sender = {
-      name: process.env.BREVO_FROM_NAME || 'Dosnine',
+      name: process.env.BREVO_FROM_NAME || 'Dosnine Limited ',
       email: process.env.BREVO_FROM_EMAIL || 'admin@dosnine.com',
     };
     emailPayload.to = [{ email }];

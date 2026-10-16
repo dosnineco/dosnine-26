@@ -52,7 +52,7 @@ export default async function handler(req, res) {
     sendSmtpEmail.subject = subject;
     sendSmtpEmail.htmlContent = htmlContent;
     sendSmtpEmail.sender = {
-      name: 'Dosnine',
+      name: process.env.BREVO_FROM_NAME || 'Dosnine Limited ',
       email: 'admin@dosnine.com',
     };
     sendSmtpEmail.to = [{ email: to }];
