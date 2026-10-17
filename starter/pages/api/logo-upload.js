@@ -8,7 +8,7 @@ export const config = {
   },
 };
 
-// Allowed MIME types for logo uploads
+// Public logo upload used by the HTV order form.
 const ALLOWED_MIME_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif'];
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 

@@ -558,322 +558,298 @@ export default function AgentDashboardPage() {
         
           {/* Agent request pipeline */}
           {!isOwner && (
-          <>
-          <div className="mb-3 flex items-center gap-2">
-            <h2 className="text-lg font-semibold text-gray-900">Request Stats</h2>
-            <SectionHint message="Snapshot of your pipeline across all client requests: totals, in-progress, and completed." />
-          </div>
-          <div className="grid grid-cols-3 gap-4 sm:gap-3 mb-10 sm:mb-8">
-            <div className="bg-white rounded-lg border border-gray-200 p-3">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs text-gray-500">Total Requests</p>
-                  <p className="text-2xl font-bold text-gray-900">{stats.total}</p>
-                </div>
-                <Users className="w-10 h-10 text-gray-400" />
+            <>
+              <div className="mb-4 flex items-center gap-2">
+                <h2 className="text-xl font-semibold text-gray-900">Request Stats</h2>
+                <SectionHint message="Snapshot of your pipeline across all client requests: totals, in-progress, and completed." />
               </div>
-            </div>
-
-            <div className="bg-white rounded-lg border border-gray-200 p-3">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs text-gray-500">In Progress</p>
-                  <p className="text-2xl font-bold text-orange-600">{stats.assigned}</p>
-                </div>
-                <Clock className="w-10 h-10 text-orange-400" />
-              </div>
-            </div>
-
-            <div className="bg-white rounded-lg border border-gray-200 p-3">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs text-gray-500">Completed</p>
-                  <p className="text-2xl font-bold text-green-600">{stats.completed}</p>
-                </div>
-                <CheckCircle className="w-10 h-10 text-green-400" />
-              </div>
-            </div>
-          </div>
-
-          {/* Filters */}
-          <div className="mb-8 sm:mb-6">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Status</span>
-                {['all', 'assigned', 'in_progress', 'completed'].map((status) => (
-                  <button
-                    key={status}
-                    onClick={() => setFilterStatus(status)}
-                    className={`px-3 py-1.5 rounded-full text-xs font-medium transition ${
-                      filterStatus === status
-                        ? 'bg-gray-900 text-white'
-                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                    }`}
-                  >
-                    {status.charAt(0).toUpperCase() + status.slice(1).replace('_', ' ')}                    {status === 'completed' && ` (${stats.completed})`}                  </button>
-                ))}
-              </div>
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Urgency</span>
-                {['all', 'normal', 'urgent'].map((urgency) => (
-                  <button
-                    key={urgency}
-                    onClick={() => setFilterUrgency(urgency)}
-                    className={`px-3 py-1.5 rounded-full text-xs font-medium transition ${
-                      filterUrgency === urgency
-                        ? urgency === 'urgent'
-                          ? 'bg-red-600 text-white'
-                          : 'bg-gray-900 text-white'
-                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                    }`}
-                  >
-                    {urgency.charAt(0).toUpperCase() + urgency.slice(1)}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {!isAdminDashboardView && <AgentSharedBuyerRequests />}
-          <div className="mb-2 flex items-center gap-2">
-            <h2 className="text-lg font-semibold text-gray-900">Requests</h2>
-            <SectionHint message="Active client requests routed to you. Update status, add notes, or release to the next agent." />
-          </div>
-          <div className="bg-white rounded-lg shadow overflow-hidden">
-            {loading ? (
-              <div className="text-center py-12">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-                <p className="text-gray-600">Loading requests...</p>
-              </div>
-            ) : filteredRequests.length === 0 ? (
-              <div className="text-center py-12">
-                <Users className="w-20 h-20 text-gray-300 mx-auto mb-4" />
-                <p className="text-gray-500 mb-2">No client requests found</p>
-                <p className="text-sm text-gray-400">
-                  {filterStatus !== 'all' 
-                    ? `No ${filterStatus.replace('_', ' ')} requests` 
-                    : 'Client requests will appear here'}
-                </p>
-              </div>
-            ) : (
-              <div className="divide-y divide-gray-200">
-                {filteredRequests.map((request) => {
-                  const isNew = isNewAssignment(request.assigned_at);
-                  return (
-                  <div key={request.id} className={`p-4 md:p-6 hover:bg-gray-50 relative`}>
-                    {isNew && (
-                      <div className="absolute bottom-0 right-0 z-10">
-                        <span className="inline-flex items-center  p-1 text-xs font-semibold bg-green-100 text-green-600">
-                          NEWLY ASSIGNED
-                        </span>
-                      </div>
-                    )}
-                    <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
-                      <div className="flex-1">
-                        <div className="flex flex-wrap items-center gap-2 mb-3">
-                          <h3 className="text-base md:text-lg font-semibold text-gray-900">
-                            {request.request_type.charAt(0).toUpperCase() + request.request_type.slice(1)} {request.property_type}
-                          </h3>
-                          <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                            request.status === 'open' 
-                              ? 'bg-blue-100 text-blue-800'
-                              : request.status === 'completed'
-                              ? 'bg-green-100 text-green-800'
-                              : 'bg-orange-100 text-orange-800'
-                          }`}>
-                            {request.status}
-                          </span>
-                          {request.buyer_readiness && (
-                            <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-semibold text-emerald-800">
-                              Buyer readiness · Level {request.buyer_readiness.qualification_level}
-                            </span>
-                          )}
-                          {request.urgency === 'urgent' && (
-                            <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                              Urgent
-                            </span>
-                          )}
-                        </div>
-
-                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 md:gap-4 text-xs md:text-sm text-gray-600 mb-3">
-                          <div className="flex items-center gap-2">
-                            <MapPin className="w-5 h-5" />
-                            {request.location}
-                          </div>
-                          {request.budget_min && request.budget_max && (
-                            <div className="flex items-center gap-2">
-                              <DollarSign className="w-5 h-5" />
-                              ${request.budget_min?.toLocaleString()} - ${request.budget_max?.toLocaleString()}
-                            </div>
-                          )}
-                          {request.bedrooms && (
-                            <div className="flex items-center gap-2">
-                              <Bed className="w-5 h-5" />
-                              {request.bedrooms} beds
-                            </div>
-                          )}
-                          {request.bathrooms && (
-                            <div className="flex items-center gap-2">
-                              <Bath className="w-5 h-5" />
-                              {request.bathrooms} baths
-                            </div>
-                          )}
-                      
-                        </div>
-
-                        {request.buyer_readiness && (
-                          <p className="mb-3 text-xs font-medium text-emerald-800">
-                            Verified buyer budget: {request.buyer_readiness.verified_budget_min == null
-                              ? '—'
-                              : `J$${Number(request.buyer_readiness.verified_budget_min).toLocaleString()}`}
-                            {' - '}
-                            {request.buyer_readiness.verified_budget_max == null
-                              ? '—'
-                              : `J$${Number(request.buyer_readiness.verified_budget_max).toLocaleString()}`}
-                            {request.buyer_readiness.financing_progress
-                              ? ` · ${request.buyer_readiness.financing_progress.replaceAll('_', ' ')}`
-                              : ''}
-                          </p>
-                        )}
-
-                        {request.description && (
-                          <p className="text-sm text-gray-700 mb-3">{request.description}</p>
-                        )}
-
-                        {request.buyer_documents?.length > 0 && (
-                          <div className="mb-3 rounded-lg bg-emerald-50 p-3">
-                            <p className="mb-2 text-xs font-semibold text-emerald-900">
-                              Buyer supporting documents ({request.buyer_documents.length})
-                            </p>
-                            <div className="space-y-2">
-                              {request.buyer_documents.map((document) => (
-                                <div key={document.id} className="flex flex-wrap items-center gap-2">
-                                  <span className="min-w-0 flex-1 truncate text-xs text-emerald-900">
-                                    {document.file_name} · {document.document_type.replaceAll('_', ' ')}
-                                  </span>
-                                  <a
-                                    href={`/api/agent/buyer-documents/${encodeURIComponent(document.id)}`}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    className="inline-flex items-center gap-1 rounded-lg bg-white px-3 py-2 text-xs font-semibold text-emerald-900 hover:text-accent"
-                                  >
-                                    <ExternalLink className="h-3.5 w-3.5" />
-                                    Open in new tab
-                                  </a>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-
-                        <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-xs md:text-sm text-gray-600">
-                          <div className="flex items-center gap-1">
-                            <Users className="w-5 h-5 flex-shrink-0" />
-                            <span className="truncate">{request.client_name}</span>
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <Mail className="w-5 h-5 flex-shrink-0" />
-                            <span className="truncate">{request.client_email}</span>
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <Phone className="w-5 h-5 flex-shrink-0" />
-                            <span className="truncate">{request.client_phone}</span>
-                          </div>
-                            <div className="flex items-center gap-2">
-                            <Calendar className="w-5 h-5" />
-                            {new Date(request.created_at).toLocaleDateString()}
-                          </div>
-                        </div>
-
-                        {/* Comments Section */}
-                        {request.comment && (
-                          <div className="mt-4 flex items-center justify-between gap-4 py-3 px-4 bg-gray-50 rounded-lg border border-gray-200">
-                            <div className="flex items-center gap-3 flex-1">
-                              <span className="text-sm font-semibold text-gray-700">Comments:</span>
-                              <p className="text-sm text-gray-700 flex-1">
-                                {request.comment}
-                                <span className="text-gray-500"> — {agentData?.name || 'Agent'}</span>
-                                {request.comment_updated_at && (
-                                  <span className="text-gray-400"> / {getRelativeTime(request.comment_updated_at)}</span>
-                                )}
-                              </p>
-                            </div>
-                            <div className="flex items-center gap-3 flex-shrink-0">
-                              <button
-                                onClick={() => {
-                                  setSelectedRequest(request);
-                                  setShowCommentModal(true);
-                                }}
-                                className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-700 bg-white hover:bg-gray-100 rounded-md border border-gray-300 transition font-medium"
-                                title="View Comments"
-                              >
-                                <MessageSquare className="w-4 h-4" />
-                                <span>See Comments </span>
-                              </button>
-                           
-                            </div>
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="flex md:flex-col gap-2 w-full md:w-auto md:ml-4">
-                        <button
-                          onClick={() => setSelectedRequest(request)}
-                          className="px-4 py-2 bg-accent text-white rounded-lg hover:bg-[var(--accent-color-hover)] transition font-medium whitespace-nowrap flex-1 md:flex-none"
-                        >
-                          View Details
-                        </button>
-                        {!isAdminDashboardView && request.status !== 'completed' && (
-                          <div className="flex gap-2 flex-1 md:flex-none">
-                            <button
-                              onClick={() => handleRequestAction(request.id, 'complete')}
-                              disabled={actionLoading}
-                              className="p-2 bg-gray-100 text-gray-600 rounded-lg hover:bg-accent hover:text-orange-700 transition disabled:opacity-50"
-                              title="Mark as Complete"
-                            >
-                              <CheckCircle className="w-5 h-5" />
-                            </button>
-                            <button
-                              onClick={() => handleRequestAction(request.id, 'release')}
-                              disabled={actionLoading}
-                              className="p-2 bg-gray-100 text-gray-600 rounded-lg hover:bg-accent hover:text-orange-700 transition disabled:opacity-50"
-                              title="Release to Next Agent"
-                            >
-                              <RotateCcw className="w-5 h-5" />
-                            </button>
-                            <button
-                              onClick={() => {
-                                setSelectedRequest(request);
-                                setShowCommentModal(true);
-                              }}
-                              disabled={actionLoading}
-                              className="p-2 bg-gray-100 text-gray-600 rounded-lg hover:bg-accent hover:text-orange-700 transition disabled:opacity-50"
-                              title="Add Comment"
-                            >
-                              <MessageCircle className="w-5 h-5" />
-                            </button>
-                            <button
-                              onClick={() => handleRequestAction(request.id, 'contacted')}
-                              disabled={actionLoading}
-                              className={`p-2 rounded-lg transition disabled:opacity-50 ${
-                                request.is_contacted
-                                  ? 'bg-gray-100 text-gray-600 hover:bg-accent hover:text-orange-700'
-                                  : 'bg-gray-100 text-gray-600 hover:bg-accent hover:text-orange-700'
-              }`}
-                              title={request.is_contacted ? 'Contacted' : 'Not contacted'}
-                            >
-                              <PhoneIcon className="w-5 h-5" />
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    </div>
+              <div className="mb-8 grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4">
+                <div className="flex items-center justify-between rounded-2xl bg-white p-5">
+                  <div>
+                    <p className="text-sm font-medium text-gray-500">Total Requests</p>
+                    <p className="mt-1 text-3xl font-bold tracking-tight text-gray-900">{stats.total}</p>
                   </div>
-                  );
-                })}
+                  <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-gray-100">
+                    <Users className="h-6 w-6 text-gray-700" aria-hidden="true" />
+                  </span>
+                </div>
+                <div className="flex items-center justify-between rounded-2xl bg-orange-50 p-5">
+                  <div>
+                    <p className="text-sm font-medium text-orange-800">In Progress</p>
+                    <p className="mt-1 text-3xl font-bold tracking-tight text-orange-700">{stats.assigned}</p>
+                  </div>
+                  <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-white/70">
+                    <Clock className="h-6 w-6 text-orange-600" aria-hidden="true" />
+                  </span>
+                </div>
+                <div className="flex items-center justify-between rounded-2xl bg-green-50 p-5">
+                  <div>
+                    <p className="text-sm font-medium text-green-800">Completed</p>
+                    <p className="mt-1 text-3xl font-bold tracking-tight text-green-700">{stats.completed}</p>
+                  </div>
+                  <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-white/70">
+                    <CheckCircle className="h-6 w-6 text-green-600" aria-hidden="true" />
+                  </span>
+                </div>
               </div>
-            )}
-          </div>
+
+              <div className="mb-8 rounded-2xl bg-gray-100 p-4 sm:p-5">
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="mr-1 text-xs font-semibold uppercase tracking-wide text-gray-500">Status</span>
+                    {['all', 'assigned', 'completed'].map((status) => {
+                      const count = status === 'all' ? stats.total : status === 'assigned' ? stats.assigned : stats.completed;
+                      const label = status === 'assigned' ? 'In progress' : status.charAt(0).toUpperCase() + status.slice(1);
+                      const isActive = filterStatus === status;
+                      return (
+                        <button
+                          key={status}
+                          onClick={() => setFilterStatus(status)}
+                          aria-pressed={isActive}
+                          className={`inline-flex items-center gap-2 rounded-xl px-3.5 py-2 text-sm font-medium transition ${isActive ? 'bg-gray-900 text-white' : 'bg-white text-gray-700 hover:bg-gray-200'}`}
+                        >
+                          {label}
+                          <span className={`rounded-md px-1.5 py-0.5 text-xs ${isActive ? 'bg-white/15 text-white' : 'bg-gray-100 text-gray-500'}`}>
+                            {count}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="mr-1 text-xs font-semibold uppercase tracking-wide text-gray-500">Urgency</span>
+                    {['all', 'normal', 'urgent'].map((urgency) => {
+                      const isActive = filterUrgency === urgency;
+                      return (
+                        <button
+                          key={urgency}
+                          onClick={() => setFilterUrgency(urgency)}
+                          aria-pressed={isActive}
+                          className={`rounded-xl px-3.5 py-2 text-sm font-medium transition ${isActive ? urgency === 'urgent' ? 'bg-red-600 text-white' : 'bg-gray-900 text-white' : 'bg-white text-gray-700 hover:bg-gray-200'}`}
+                        >
+                          {urgency.charAt(0).toUpperCase() + urgency.slice(1)}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+
+              {!isAdminDashboardView && <AgentSharedBuyerRequests />}
+              <div className="mb-4 flex items-center gap-2">
+                <h2 className="text-xl font-semibold text-gray-900">Requests</h2>
+                <SectionHint message="Active client requests routed to you. Update status, add notes, or release to the next agent." />
+                {!loading && (
+                  <span className="rounded-lg bg-gray-200 px-2.5 py-1 text-xs font-semibold text-gray-700">
+                    {filteredRequests.length}
+                  </span>
+                )}
+              </div>
+
+              {loading ? (
+                <div className="rounded-2xl bg-white py-12 text-center">
+                  <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-4 border-gray-200 border-t-accent"></div>
+                  <p className="text-sm text-gray-600">Loading requests...</p>
+                </div>
+              ) : filteredRequests.length === 0 ? (
+                <div className="rounded-2xl bg-white py-12 text-center">
+                  <Users className="mx-auto mb-4 h-14 w-14 text-gray-300" />
+                  <p className="mb-2 font-semibold text-gray-700">No client requests found</p>
+                  <p className="text-sm text-gray-500">
+                    {filterStatus !== 'all' ? `No ${filterStatus === 'assigned' ? 'in progress' : filterStatus} requests` : 'Client requests will appear here'}
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {filteredRequests.map((request) => {
+                    const isNew = isNewAssignment(request.assigned_at);
+                    return (
+                      <article key={request.id} className="rounded-2xl bg-white p-5 transition hover:bg-gray-50 sm:p-6">
+                        <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
+                          <div className="min-w-0 flex-1">
+                            <div className="mb-4 flex flex-wrap items-center gap-2">
+                              <h3 className="text-lg font-semibold capitalize text-gray-900">
+                                {request.request_type.charAt(0).toUpperCase() + request.request_type.slice(1)} {request.property_type}
+                              </h3>
+                              <span className={`rounded-lg px-2.5 py-1 text-xs font-semibold capitalize ${request.status === 'open' ? 'bg-blue-50 text-blue-700' : request.status === 'completed' ? 'bg-green-50 text-green-700' : 'bg-orange-50 text-orange-700'}`}>
+                                {request.status.replace('_', ' ')}
+                              </span>
+                              {request.buyer_readiness && (
+                                <span className="rounded-lg bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-800">
+                                  Buyer readiness · Level {request.buyer_readiness.qualification_level}
+                                </span>
+                              )}
+                              {request.urgency === 'urgent' && (
+                                <span className="rounded-lg bg-red-50 px-2.5 py-1 text-xs font-semibold text-red-700">Urgent</span>
+                              )}
+                              {isNew && (
+                                <span className="rounded-lg bg-accent/10 px-2.5 py-1 text-xs font-semibold text-accent">Newly assigned</span>
+                              )}
+                            </div>
+
+                            <div className="mb-4 flex flex-wrap gap-2">
+                              <div className="inline-flex items-center gap-2 rounded-lg bg-gray-50 px-3 py-2 text-sm text-gray-700">
+                                <MapPin className="h-4 w-4 flex-shrink-0 text-gray-500" />
+                                <span>{request.location}</span>
+                              </div>
+                              {request.budget_min && request.budget_max && (
+                                <div className="inline-flex items-center gap-2 rounded-lg bg-gray-50 px-3 py-2 text-sm text-gray-700">
+                                  <DollarSign className="h-4 w-4 flex-shrink-0 text-gray-500" />
+                                  <span>${request.budget_min?.toLocaleString()} - ${request.budget_max?.toLocaleString()}</span>
+                                </div>
+                              )}
+                              {request.bedrooms && (
+                                <div className="inline-flex items-center gap-2 rounded-lg bg-gray-50 px-3 py-2 text-sm text-gray-700">
+                                  <Bed className="h-4 w-4 flex-shrink-0 text-gray-500" />
+                                  <span>{request.bedrooms} beds</span>
+                                </div>
+                              )}
+                              {request.bathrooms && (
+                                <div className="inline-flex items-center gap-2 rounded-lg bg-gray-50 px-3 py-2 text-sm text-gray-700">
+                                  <Bath className="h-4 w-4 flex-shrink-0 text-gray-500" />
+                                  <span>{request.bathrooms} baths</span>
+                                </div>
+                              )}
+                            </div>
+
+                            {request.buyer_readiness && (
+                              <p className="mb-3 text-xs font-medium text-emerald-800">
+                                Verified buyer budget: {request.buyer_readiness.verified_budget_min == null ? '—' : `J$${Number(request.buyer_readiness.verified_budget_min).toLocaleString()}`}
+                                {' - '}
+                                {request.buyer_readiness.verified_budget_max == null ? '—' : `J$${Number(request.buyer_readiness.verified_budget_max).toLocaleString()}`}
+                                {request.buyer_readiness.financing_progress ? ` · ${request.buyer_readiness.financing_progress.replaceAll('_', ' ')}` : ''}
+                              </p>
+                            )}
+
+                            {request.description && (
+                              <p className="mb-4 text-sm leading-6 text-gray-700">{request.description}</p>
+                            )}
+
+                            {request.buyer_documents?.length > 0 && (
+                              <div className="mb-4 rounded-xl bg-emerald-50 p-4">
+                                <p className="mb-2 text-xs font-semibold text-emerald-900">Buyer supporting documents ({request.buyer_documents.length})</p>
+                                <div className="space-y-2">
+                                  {request.buyer_documents.map((document) => (
+                                    <div key={document.id} className="flex flex-wrap items-center gap-2">
+                                      <span className="min-w-0 flex-1 truncate text-xs text-emerald-900">
+                                        {document.file_name} · {document.document_type.replaceAll('_', ' ')}
+                                      </span>
+                                      <a
+                                        href={`/api/agent/buyer-documents/${encodeURIComponent(document.id)}`}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        className="inline-flex items-center gap-1 rounded-lg bg-white px-3 py-2 text-xs font-semibold text-emerald-900 hover:text-accent"
+                                      >
+                                        <ExternalLink className="h-3.5 w-3.5" />
+                                        Open in new tab
+                                      </a>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
+                            <div className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl bg-gray-50 p-3 text-xs text-gray-600 sm:text-sm">
+                              <div className="flex min-w-0 items-center gap-2">
+                                <Users className="h-4 w-4 flex-shrink-0" />
+                                <span className="truncate">{request.client_name}</span>
+                              </div>
+                              <div className="flex min-w-0 items-center gap-2">
+                                <Mail className="h-4 w-4 flex-shrink-0" />
+                                <span className="truncate">{request.client_email}</span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <Phone className="h-4 w-4 flex-shrink-0" />
+                                <span>{request.client_phone}</span>
+                              </div>
+                              <div className="flex items-center gap-2 sm:ml-auto">
+                                <Calendar className="h-4 w-4" />
+                                {new Date(request.created_at).toLocaleDateString()}
+                              </div>
+                            </div>
+
+                            {request.comment && (
+                              <div className="mt-4 flex flex-col gap-3 rounded-xl bg-gray-50 p-4 sm:flex-row sm:items-center sm:justify-between">
+                                <div className="flex min-w-0 items-start gap-3">
+                                  <MessageSquare className="mt-0.5 h-4 w-4 flex-shrink-0 text-gray-500" />
+                                  <p className="min-w-0 text-sm text-gray-700">
+                                    <span className="font-semibold">Latest note: </span>{request.comment}
+                                    <span className="text-gray-500"> — {agentData?.name || 'Agent'}</span>
+                                    {request.comment_updated_at && <span className="text-gray-400"> · {getRelativeTime(request.comment_updated_at)}</span>}
+                                  </p>
+                                </div>
+                                <button
+                                  onClick={() => {
+                                    setSelectedRequest(request);
+                                    setShowCommentModal(true);
+                                  }}
+                                  className="inline-flex flex-shrink-0 items-center justify-center gap-2 rounded-lg bg-white px-3 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-200"
+                                  title="View Comments"
+                                >
+                                  <MessageSquare className="h-4 w-4" />
+                                  See comments
+                                </button>
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="flex w-full flex-wrap gap-2 md:w-auto md:flex-col">
+                            <button
+                              onClick={() => setSelectedRequest(request)}
+                              className="flex-1 whitespace-nowrap rounded-xl bg-accent px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[var(--accent-color-hover)] md:flex-none"
+                            >
+                              View Details
+                            </button>
+                            {!isAdminDashboardView && request.status !== 'completed' && (
+                              <div className="flex flex-1 gap-2 md:flex-none">
+                                <button
+                                  onClick={() => handleRequestAction(request.id, 'complete')}
+                                  disabled={actionLoading}
+                                  className="rounded-xl bg-gray-100 p-2.5 text-gray-600 transition hover:bg-green-100 hover:text-green-700 disabled:opacity-50"
+                                  title="Mark as Complete"
+                                  aria-label="Mark as complete"
+                                >
+                                  <CheckCircle className="h-5 w-5" />
+                                </button>
+                                <button
+                                  onClick={() => handleRequestAction(request.id, 'release')}
+                                  disabled={actionLoading}
+                                  className="rounded-xl bg-gray-100 p-2.5 text-gray-600 transition hover:bg-gray-200 disabled:opacity-50"
+                                  title="Release to Next Agent"
+                                  aria-label="Release to next agent"
+                                >
+                                  <RotateCcw className="h-5 w-5" />
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    setSelectedRequest(request);
+                                    setShowCommentModal(true);
+                                  }}
+                                  disabled={actionLoading}
+                                  className="rounded-xl bg-gray-100 p-2.5 text-gray-600 transition hover:bg-gray-200 disabled:opacity-50"
+                                  title="Add Comment"
+                                  aria-label="Add comment"
+                                >
+                                  <MessageCircle className="h-5 w-5" />
+                                </button>
+                                <button
+                                  onClick={() => handleRequestAction(request.id, 'contacted')}
+                                  disabled={actionLoading}
+                                  className={`rounded-xl p-2.5 transition disabled:opacity-50 ${request.is_contacted ? 'bg-green-50 text-green-700 hover:bg-green-100' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+                                  title={request.is_contacted ? 'Contacted' : 'Not contacted'}
+                                  aria-label={request.is_contacted ? 'Mark as not contacted' : 'Mark as contacted'}
+                                >
+                                  <PhoneIcon className="h-5 w-5" />
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </article>
+                    );
+                  })}
+                </div>
+              )}
             </>
           )}
         </div>

@@ -6,15 +6,14 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { path } = req.query;
-
-  if (!path) {
-    return res.status(400).json({ error: 'Missing required parameters' });
-  }
-
   try {
     const resolved = await requireAdminUser(req, res);
     if (!resolved) return;
+
+    const { path } = req.query;
+    if (!path) {
+      return res.status(400).json({ error: 'Missing required parameters' });
+    }
 
     const db = getDbClient();
 

@@ -332,7 +332,7 @@ export default function LogoPage() {
       if (logoFile && logoPreview) {
         try {
           const logoDataUrl = await fileToDataUrl(logoFile);
-          const uploadResponse = await fetch('/api/admin/upload-logo', {
+          const uploadResponse = await fetch('/api/logo-upload', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ file: logoDataUrl, filename: logoFile.name }),

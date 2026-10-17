@@ -82,7 +82,7 @@ const ENDPOINTS = [
   { key: 'admin-htv-expenses-delete', label: 'Admin HTV Expenses DELETE', method: 'DELETE', url: '/api/admin/htv-expenses', expected: [400] },
   { key: 'admin-advertisements', label: 'Admin Advertisements', method: 'GET', url: '/api/admin/advertisements', expected: [200] },
   { key: 'admin-advertisements-patch', label: 'Admin Advertisements PATCH', method: 'PATCH', url: '/api/admin/advertisements', body: {}, expected: [400] },
-  { key: 'admin-upload-logo', label: 'Admin Logo Upload Validation', method: 'POST', url: '/api/admin/upload-logo', body: {}, expected: [400] },
+  { key: 'logo-upload', label: 'Logo Upload Validation', method: 'POST', url: '/api/logo-upload', body: {}, expected: [400], public: true },
   { key: 'admin-htv-invoice', label: 'Admin HTV Invoice Validation', method: 'GET', url: '/api/admin/htv-invoice', expected: [400] },
 ];
 
