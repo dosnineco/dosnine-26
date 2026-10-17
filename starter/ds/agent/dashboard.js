@@ -48,8 +48,8 @@ export default function AgentDashboardPage() {
       const verified = userData?.identity_verified === true || userData?.id_verification_status === 'approved';
       return verified && isVerifiedAgent(userData);
     },
-    redirectTo: '/dashboard',
-    message: 'An Agent account is required to access the agent dashboard.'
+    redirectTo: '/agent/signup',
+    message: 'A verified Agent account is required. Apply or check your agent account on the Become an Agent page.'
   });
   const isAdminDashboardView = router.query.adminView === 'agent' && initialUserData?.role === 'admin';
   const isAgentAccount = isAdminDashboardView || initialUserData?.account_type === 'agent' ||
@@ -536,17 +536,17 @@ export default function AgentDashboardPage() {
 
           {/* Expiry Alert */}
           {!isOwner && isAccessExpired() && (
-            <div className="bg-gradient-to-r from-orange-50 to-red-50 border-l-4 border-orange-500 rounded-lg p-4 mb-6">
+            <div className="bg-blue-50 border-l-4 border-blue-500 rounded-lg p-4 mb-6">
               <div className="flex items-start gap-3">
-                <AlertCircle className="text-orange-600 flex-shrink-0 mt-0.5" size={24} />
+                <AlertCircle className="text-blue-600 flex-shrink-0 mt-0.5" size={24} />
                 <div className="flex-1">
-                  <h3 className="font-bold text-orange-900 mb-1">Access Expired</h3>
-                  <p className="text-orange-800 text-sm mb-3">
+                  <h3 className="font-bold text-blue-900 mb-1">Access Expired</h3>
+                  <p className="text-blue-800 text-sm mb-3">
                     Your {agentData.payment_status} access has expired. Upgrade your plan to continue receiving new client requests.
                   </p>
                   <Link
                     href="/agent/payment"
-                    className="inline-flex items-center gap-2 px-4 py-2 bg-orange-600 text-white font-semibold rounded-lg hover:bg-orange-700 transition text-sm"
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition text-sm"
                   >
                     <CreditCard className="w-5 h-5" />
                     Upgrade Access Plan

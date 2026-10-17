@@ -58,6 +58,15 @@ function getFileMimeType(file) {
   })[extension] || '';
 }
 
+function formatMoneyInput(value) {
+  const digits = String(value ?? '').replace(/\D/g, '').slice(0, 14);
+  return digits.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+}
+
+function getMoneyValue(value) {
+  return String(value ?? '').replace(/\D/g, '').slice(0, 14);
+}
+
 export default function BuyerPrequalificationForm({
   serviceRequestId,
   initialBuyer = {},
@@ -126,7 +135,8 @@ export default function BuyerPrequalificationForm({
         buyerName: current.buyerName || prefill.buyerName || '',
         buyerEmail: current.buyerEmail || prefill.buyerEmail || '',
         buyerPhone: current.buyerPhone || prefill.buyerPhone || '',
-        targetPropertyPrice: current.targetPropertyPrice || String(prefill.targetPropertyPrice || ''),
+        targetPropertyPrice: current.targetPropertyPrice ||
+          formatMoneyInput(prefill.targetPropertyPrice),
       }));
     }
 
@@ -169,9 +179,9 @@ export default function BuyerPrequalificationForm({
           buyerEmail: assessment.buyer_email || current.buyerEmail,
           buyerPhone: assessment.buyer_phone || current.buyerPhone,
           purchaseMethod: assessment.purchase_method || current.purchaseMethod,
-          targetPropertyPrice: assessment.target_property_price == null ? current.targetPropertyPrice : String(assessment.target_property_price),
-          monthlyIncome: assessment.monthly_income == null ? current.monthlyIncome : String(assessment.monthly_income),
-          depositAvailable: assessment.deposit_available == null ? current.depositAvailable : String(assessment.deposit_available),
+          targetPropertyPrice: assessment.target_property_price == null ? current.targetPropertyPrice : formatMoneyInput(assessment.target_property_price),
+          monthlyIncome: assessment.monthly_income == null ? current.monthlyIncome : formatMoneyInput(assessment.monthly_income),
+          depositAvailable: assessment.deposit_available == null ? current.depositAvailable : formatMoneyInput(assessment.deposit_available),
           employmentType: assessment.employment_type || current.employmentType,
           financingProgress: assessment.financing_progress || current.financingProgress,
           lenderName: assessment.lender_name || current.lenderName,
@@ -215,9 +225,9 @@ export default function BuyerPrequalificationForm({
         credentials: 'same-origin',
         body: JSON.stringify({
           ...form,
-          targetPropertyPrice: form.targetPropertyPrice || '',
-          monthlyIncome: form.monthlyIncome || '',
-          depositAvailable: form.depositAvailable || '',
+          targetPropertyPrice: getMoneyValue(form.targetPropertyPrice),
+          monthlyIncome: getMoneyValue(form.monthlyIncome),
+          depositAvailable: getMoneyValue(form.depositAvailable),
           serviceRequestId: serviceRequestId || undefined,
         }),
       });
@@ -279,30 +289,21 @@ export default function BuyerPrequalificationForm({
 
     setUploading(true);
     try {
-      const urlResponse = await fetch('/api/buyer-prequalification/upload-url', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'same-origin',
-        body: JSON.stringify({
-          prequalificationId: prequalification.id,
-          accessToken,
-          documentType,
-          filename: file.name,
-          mimeType,
-          fileSize: file.size,
-        }),
-      });
-      const urlPayload = await urlResponse.json();
-      if (!urlResponse.ok || !urlPayload.success) {
-        throw new Error(urlPayload.error || 'Unable to prepare the upload');
-      }
+      const uploadForm = new FormData();
+      uploadForm.append('prequalificationId', prequalification.id);
+      uploadForm.append('accessToken', accessToken);
+      uploadForm.append('documentType', documentType);
+      uploadForm.append('file', file);
 
-      const uploadResponse = await fetch(urlPayload.uploadUrl, {
-        method: 'PUT',
-        headers: { 'Content-Type': mimeType },
-        body: file,
+      const uploadResponse = await fetch('/api/buyer-prequalification/upload', {
+        method: 'POST',
+        credentials: 'same-origin',
+        body: uploadForm,
       });
-      if (!uploadResponse.ok) throw new Error('The file could not be uploaded to secure storage');
+      const uploadPayload = await uploadResponse.json();
+      if (!uploadResponse.ok || !uploadPayload.success) {
+        throw new Error(uploadPayload.error || 'Unable to upload document');
+      }
 
       const registerResponse = await fetch('/api/buyer-prequalification/documents', {
         method: 'POST',
@@ -312,7 +313,7 @@ export default function BuyerPrequalificationForm({
           prequalificationId: prequalification.id,
           accessToken,
           documentType,
-          filePath: urlPayload.path,
+          filePath: uploadPayload.path,
           fileName: file.name,
           fileSize: file.size,
           mimeType,
@@ -343,6 +344,18 @@ export default function BuyerPrequalificationForm({
     }
   };
 
+  const finishAssessment = async () => {
+    setComplete(true);
+    if (!serviceRequestId) return;
+
+    try {
+      await router.replace('/my-requests');
+    } catch (error) {
+      console.error('Unable to return to My Requests:', error);
+      toast.error('Your assessment is saved, but we could not return to My Requests.');
+    }
+  };
+
   if (complete) {
     return (
       <div className="mx-auto max-w-2xl rounded-2xl  p-8 text-center">
@@ -356,6 +369,15 @@ export default function BuyerPrequalificationForm({
         <p className="mt-4 text-xs text-gray-500">
           This readiness assessment is not a loan approval or financial advice.
         </p>
+        {serviceRequestId && (
+          <button
+            type="button"
+            onClick={() => router.push('/my-requests')}
+            className="mt-5 rounded-xl bg-accent px-5 py-3 text-sm font-semibold text-white hover:bg-accent/90"
+          >
+            Return to My Requests
+          </button>
+        )}
       </div>
     );
   }
@@ -412,8 +434,13 @@ export default function BuyerPrequalificationForm({
             ].map(([field, label]) => (
               <div key={field}>
                 <label className={labelClass} htmlFor={field}>{label}</label>
-                <input id={field} type="number" min="0" step="1" inputMode="numeric" className={inputClass}
-                  value={form[field]} onChange={(event) => updateField(field, event.target.value)} />
+                <input id={field} type="text" inputMode="numeric" maxLength={18} className={inputClass}
+                  value={form[field]}
+                  onFocus={(event) => {
+                    updateField(field, getMoneyValue(event.target.value));
+                  }}
+                  onChange={(event) => updateField(field, getMoneyValue(event.target.value))}
+                  onBlur={(event) => updateField(field, formatMoneyInput(event.target.value))} />
               </div>
             ))}
           </div>
@@ -592,7 +619,7 @@ export default function BuyerPrequalificationForm({
           )}
 
           <div>
-            <button type="button" onClick={() => setComplete(true)} disabled={uploading}
+            <button type="button" onClick={finishAssessment} disabled={uploading}
               className="w-full rounded-xl bg-accent px-4 py-3 font-semibold text-white transition hover:bg-accent/90 disabled:opacity-50">
               {documents.length ? 'Finish submission' : 'Finish without documents'}
             </button>

@@ -278,12 +278,13 @@ function AppContent({ Component, pageProps }) {
       Boolean(profileData.identity_verified) ||
       profileData.id_verification_status === 'approved';
     const accountStatus = String(profileData.account_status || 'active').trim().toLowerCase();
-    const canUseRegularDashboard =
+    const requiresHomeownerVerification = router.pathname.startsWith('/properties/');
+    const canUseRegularAccount =
       profileData.account_type === 'regular' &&
       ['active', 'approved'].includes(accountStatus) &&
-      ['/dashboard', '/my-requests'].includes(router.pathname);
+      !requiresHomeownerVerification;
 
-    if (!isAdmin && !isVerified && !canUseRegularDashboard) {
+    if (!isAdmin && !isVerified && !canUseRegularAccount) {
       const verifyUrl = router.pathname.startsWith('/properties/')
         ? '/verify?role=homeowner'
         : '/verify';
@@ -411,12 +412,13 @@ function AppContent({ Component, pageProps }) {
                       Boolean(profileData?.identity_verified) ||
                       profileData?.id_verification_status === 'approved';
                     const accountStatus = String(profileData?.account_status || 'active').trim().toLowerCase();
-                    const canUseRegularDashboard =
+                    const requiresHomeownerVerification = router.pathname.startsWith('/properties/');
+                    const canUseRegularAccount =
                       profileData?.account_type === 'regular' &&
                       ['active', 'approved'].includes(accountStatus) &&
-                      ['/dashboard', '/my-requests'].includes(router.pathname);
+                      !requiresHomeownerVerification;
                     const isAllowed =
-                      router.pathname === '/verify' || isAdmin || isVerified || canUseRegularDashboard;
+                      router.pathname === '/verify' || isAdmin || isVerified || canUseRegularAccount;
 
                     if (!isAllowed) {
                       return (

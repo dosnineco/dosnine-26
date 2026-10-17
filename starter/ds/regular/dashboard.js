@@ -6,27 +6,65 @@ import { useUser } from '@clerk/nextjs';
 import { supabase } from '../../lib/supabase';
 import axios from 'axios';
 import { formatPropertyMoney } from '../../lib/formatMoney';
-import { Clock, XCircle, Briefcase, DollarSign, ClipboardList, ShieldCheck } from 'lucide-react';
+import {
+  Clock,
+  XCircle,
+  Briefcase,
+  DollarSign,
+  ClipboardList,
+  ShieldCheck,
+  Bed,
+  Bath,
+  MapPin,
+  ArrowRight,
+  ArrowUpRight,
+  Plus,
+  Tag,
+  Home,
+  FileText,
+  Upload,
+  CheckCircle2,
+  AlertCircle,
+  X,
+} from 'lucide-react';
 import toast from 'react-hot-toast';
 import AdvertiserDashboard from '../advertiser/dashboard';
-import BuyerReadinessProgress from '../../components/BuyerReadinessProgress';
 import { clampBuyerLevel } from '../../lib/buyerReadiness';
 
+const BRAND = '#6E026F';
+
 const REQUEST_TYPE_STYLES = {
-  buy: 'bg-blue-100 text-blue-800',
-  rent: 'bg-violet-100 text-violet-800',
-  sell: 'bg-amber-100 text-amber-800',
-  lease: 'bg-teal-100 text-teal-800',
+  buy: 'bg-[#6E026F]/10 text-[#6E026F]',
+  rent: 'bg-gray-100 text-gray-700',
+  sell: 'bg-gray-200 text-gray-800',
+  lease: 'bg-gray-100 text-gray-700',
   valuation: 'bg-gray-100 text-gray-700',
 };
 
+const REQUEST_TYPE_ICONS = {
+  buy: Tag,
+  rent: Home,
+  sell: DollarSign,
+  lease: FileText,
+  valuation: Briefcase,
+};
+
 const REQUEST_STATUS_STYLES = {
-  open: 'bg-blue-100 text-blue-800',
-  assigned: 'bg-amber-100 text-amber-800',
-  in_progress: 'bg-amber-100 text-amber-800',
-  completed: 'bg-green-100 text-green-800',
-  withdrawn: 'bg-gray-100 text-gray-700',
-  cancelled: 'bg-gray-100 text-gray-700',
+  open: 'text-[#6E026F]',
+  assigned: 'text-gray-700',
+  in_progress: 'text-gray-700',
+  completed: 'text-gray-700',
+  withdrawn: 'text-gray-500',
+  cancelled: 'text-gray-500',
+};
+
+const STATUS_DOT = {
+  open: 'bg-[#6E026F]',
+  assigned: 'bg-gray-500',
+  in_progress: 'bg-gray-500',
+  completed: 'bg-gray-500',
+  withdrawn: 'bg-gray-400',
+  cancelled: 'bg-gray-400',
 };
 
 function formatBudgetRange(min, max) {
@@ -51,8 +89,8 @@ export default function RegularDashboard() {
         query: { serviceRequestId: requestId },
       });
     } catch (error) {
-      console.error('Unable to open buyer verification:', error);
-      toast.error('Unable to open buyer verification. Please try again.');
+      console.error('Unable to open buyer financial check:', error);
+      toast.error('Unable to open buyer financial check. Please try again.');
     }
   };
   const [stats, setStats] = useState({ properties: 0, applications: 0, activeListings: 0 });
@@ -84,6 +122,8 @@ export default function RegularDashboard() {
   const [profileIntent, setProfileIntent] = useState(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [dashboardError, setDashboardError] = useState('');
+  const [retryAfterSeconds, setRetryAfterSeconds] = useState(0);
+  const [homeownerUpgradeDismissed, setHomeownerUpgradeDismissed] = useState(false);
   const [sponsorSubmissions, setSponsorSubmissions] = useState([]);
   const [editingAdId, setEditingAdId] = useState(null);
   const [editingAdValues, setEditingAdValues] = useState({ title: '', description: '', phone: '', website: '' });
@@ -102,6 +142,36 @@ export default function RegularDashboard() {
   };
 
   const isRegularOwner = () => userType !== 'agent';
+  const isTenantProfile = profileIntent === 'tenant';
+  const isHomeownerProfile = profileIntent === 'homeowner';
+
+  useEffect(() => {
+    if (!user?.id) return;
+    setHomeownerUpgradeDismissed(
+      window.localStorage.getItem(`homeowner-upgrade-dismissed-${user.id}`) === 'true'
+    );
+  }, [user?.id]);
+
+  useEffect(() => {
+    if (retryAfterSeconds <= 0) return undefined;
+
+    const timer = setTimeout(() => {
+      setRetryAfterSeconds((seconds) => Math.max(seconds - 1, 0));
+    }, 1000);
+
+    return () => clearTimeout(timer);
+  }, [retryAfterSeconds]);
+
+  const handleDashboardRequestError = (error, fallbackMessage) => {
+    if (error.response?.status === 429) {
+      const retryAfter = Number(error.response.headers?.['retry-after']);
+      setRetryAfterSeconds(Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter : 30);
+      setDashboardError('The dashboard is temporarily busy. Please wait before trying again.');
+      return;
+    }
+
+    setDashboardError(error.response?.data?.error || fallbackMessage);
+  };
 
   const handleAdFieldChange = (field, value) => {
     setEditingAdValues((prev) => ({
@@ -144,14 +214,14 @@ export default function RegularDashboard() {
   // Only fetch queue count if user should see dashboard (not redirecting)
   useEffect(() => {
     if (!shouldLoadData || accountType !== 'regular') return;
-    
+
     const fetchQueueCount = async () => {
       try {
         const { count, error } = await supabase
           .from('service_requests')
           .select('*', { count: 'exact', head: true })
           .eq('status', 'open');
-        
+
         if (error) throw error;
         setQueueCount(count);
       } catch (error) {
@@ -168,14 +238,14 @@ export default function RegularDashboard() {
   // Only fetch paid agents count if user should see dashboard (not redirecting)
   useEffect(() => {
     if (!shouldLoadData || accountType !== 'regular') return;
-    
+
     const fetchPaidAgentCount = async () => {
       try {
         const { count, error } = await supabase
           .from('agents')
           .select('*', { count: 'exact', head: true })
           .eq('payment_status', 'paid');
-        
+
         if (error) throw error;
         setPaidAgentCount(count);
       } catch (error) {
@@ -270,7 +340,7 @@ export default function RegularDashboard() {
         router.replace('/verify');
         return;
       }
-      setDashboardError(error.response?.data?.error || 'Unable to verify your dashboard access. Please try again.');
+      handleDashboardRequestError(error, 'Unable to verify your dashboard access. Please try again.');
     }
   }
 
@@ -287,6 +357,7 @@ export default function RegularDashboard() {
       })).data;
       const payload = overview || {};
       setDashboardError('');
+      setRetryAfterSeconds(0);
       const agent = Array.isArray(payload?.agent)
         ? (payload.agent[0] || null)
         : (payload?.agent || null);
@@ -324,7 +395,7 @@ export default function RegularDashboard() {
       });
       setPendingAdVerificationAt(payload?.pendingAdVerificationAt || null);
     } catch (err) {
-      setDashboardError(err.response?.data?.error || 'Unable to load dashboard data. Please try again.');
+      handleDashboardRequestError(err, 'Unable to load dashboard data. Please try again.');
       setStats({ properties: 0, applications: 0, activeListings: 0 });
       setRecentProperties([]);
       setServiceRequests([]);
@@ -412,16 +483,22 @@ export default function RegularDashboard() {
       <main className="mx-auto max-w-xl px-4 py-20 text-center">
         <h1 className="text-2xl font-bold text-gray-900">Dashboard unavailable</h1>
         <p className="mt-3 text-gray-600">{dashboardError}</p>
+        {retryAfterSeconds > 0 && (
+          <p className="mt-2 text-sm text-gray-500">
+            You can try again in {retryAfterSeconds} second{retryAfterSeconds === 1 ? '' : 's'}.
+          </p>
+        )}
         <button
           type="button"
+          disabled={redirecting || retryAfterSeconds > 0}
           onClick={() => {
             setDashboardError('');
             statusCheckUserRef.current = null;
             checkUserStatus();
           }}
-          className="mt-6 rounded-xl bg-accent px-5 py-3 font-semibold text-white"
+          className="mt-6 rounded-xl bg-accent px-5 py-3 font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
         >
-          Try again
+          {redirecting ? 'Trying again…' : retryAfterSeconds > 0 ? 'Please wait' : 'Try again'}
         </button>
       </main>
     );
@@ -475,97 +552,187 @@ export default function RegularDashboard() {
           <div>
             <h1 className="text-3xl font-bold">Hi, {user?.username || 'User'}!</h1>
           </div>
-      
         </div>
 
-      
-
-        {/* Quick Actions */}
-        <div className="mb-6 grid gap-4 lg:grid-cols-[240px_minmax(0,1fr)]">
-  
-
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-            <Link
-              href="/properties/my-listings"
-              className="group flex h-full min-h-[220px] flex-col justify-between rounded-2xl border border-gray-200 bg-white p-4"
-            >
-              <div className="flex items-center justify-between">
-                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gray-100 text-gray-600">
-                  <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-                  </svg>
-                </div>
-                <span className="text-xs font-medium uppercase tracking-wide text-gray-400">Listings</span>
+        {accountType === 'regular' && !isHomeownerProfile && !homeownerUpgradeDismissed && (
+          <section className="relative mb-8 flex flex-col gap-4 rounded-2xl bg-blue-50 p-5 pr-14 sm:flex-row sm:items-center sm:justify-between sm:p-6 sm:pr-14">
+            <div className="flex items-start gap-3">
+              <ShieldCheck className="mt-1 h-6 w-6 shrink-0 text-blue-700" aria-hidden="true" />
+              <div>
+                <h2 className="font-semibold text-blue-950">Want to list or manage a property?</h2>
+                <p className="mt-1 text-sm leading-6 text-blue-900">
+                  Upgrade to a Homeowner account. You’ll need to verify your identity with a government ID.
+                </p>
               </div>
+            </div>
+            <Link
+              href="/verify?role=homeowner"
+              className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-blue-700 px-5 py-3 text-sm font-semibold text-white transition hover:bg-blue-800"
+            >
+              Upgrade to Homeowner
+              <ArrowRight className="h-4 w-4" aria-hidden="true" />
+            </Link>
+            <button
+              type="button"
+              onClick={() => {
+                if (user?.id) {
+                  window.localStorage.setItem(`homeowner-upgrade-dismissed-${user.id}`, 'true');
+                }
+                setHomeownerUpgradeDismissed(true);
+              }}
+              aria-label="Dismiss homeowner upgrade message"
+              className="absolute right-3 top-3 rounded-lg p-2 text-blue-800 transition hover:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-blue-700 sm:right-4 sm:top-4"
+            >
+              <X className="h-5 w-5" aria-hidden="true" />
+            </button>
+          </section>
+        )}
 
-              <div className="mt-4">
-                <h3 className="text-base font-semibold text-gray-900">Manage Properties</h3>
-                <p className="mt-1 text-sm text-gray-600">View, update, and organize your listings from one place.</p>
+        {/* ==================== QUICK ACTIONS ==================== */}
+        <div className="mb-8">
+          <div
+            className={`grid grid-cols-1 gap-4 sm:grid-cols-2 ${
+              isHomeownerProfile ? 'xl:grid-cols-4' : 'xl:grid-cols-2'
+            }`}
+          >
+            {/* Card 1 — Submit a request */}
+            <Link
+              href="/request"
+              className="group relative overflow-hidden rounded-2xl border border-gray-200 bg-white p-6 transition-all duration-200 hover:-translate-y-0.5 hover:border-[#6E026F]/20 hover:shadow-lg hover:shadow-gray-200/80"
+            >
+              <div className="pointer-events-none absolute -right-10 -top-10 h-36 w-36 rounded-full bg-[#6E026F]/8 blur-3xl transition-colors duration-300 group-hover:bg-[#6E026F]/15" />
+              <div className="relative">
+                <div className="flex items-start justify-between">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#6E026F]/10 text-[#6E026F] transition-colors duration-200 group-hover:bg-[#6E026F] group-hover:text-white">
+                    <FileText size={22} />
+                  </div>
+                  <ArrowUpRight
+                    size={18}
+                    className="text-gray-300 transition-all duration-200 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-[#6E026F]"
+                  />
+                </div>
+                <div className="mt-6">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#6E026F]">
+                    Request
+                  </p>
+                  <h3 className="mt-1 text-lg font-semibold text-gray-900">
+                    {isTenantProfile
+                      ? 'Find a Property'
+                      : 'Submit a Property Request'}
+                  </h3>
+                  <p className="mt-1.5 text-sm leading-6 text-gray-600">
+                    {isTenantProfile
+                      ? 'Tell us what you need in a home and track the search from your dashboard.'
+                      : 'Tell us what property you are looking for.'}
+                  </p>
+                </div>
               </div>
             </Link>
 
-            <Link
-              href="/properties/new"
-              className="group flex h-full min-h-[220px] flex-col justify-between rounded-2xl border border-gray-200 bg-white p-4"
-            >
-              <div className="flex items-center justify-between">
-                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gray-100 text-gray-600">
-                  <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                  </svg>
-                </div>
-                <span className="text-xs font-medium uppercase tracking-wide text-gray-400">New</span>
-              </div>
-
-              <div className="mt-4">
-                <h3 className="text-base font-semibold text-gray-900">Post a Property</h3>
-                <p className="mt-1 text-sm text-gray-600">Add a new listing and attract the right buyers or tenants.</p>
-              </div>
-            </Link>
-
+            {/* Card 2 — My Requests */}
             {accountType === 'regular' && (
               <Link
                 href="/my-requests"
-                className="group flex h-full min-h-[220px] flex-col justify-between rounded-2xl border border-gray-200 bg-white p-4"
+                className="group relative overflow-hidden rounded-2xl border border-gray-200 bg-white p-6 transition-all duration-200 hover:-translate-y-0.5 hover:border-[#6E026F]/20 hover:shadow-lg hover:shadow-gray-200/80"
               >
-                <div className="flex items-center justify-between">
-                  <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gray-100 text-gray-600">
-                    <ClipboardList size={20} />
+                <div className="pointer-events-none absolute -right-10 -top-10 h-36 w-36 rounded-full bg-gray-100 blur-3xl transition-colors duration-300 group-hover:bg-gray-200" />
+                <div className="relative">
+                  <div className="flex items-start justify-between">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gray-100 text-gray-700 transition-colors duration-200 group-hover:bg-[#6E026F] group-hover:text-white">
+                      <ClipboardList size={22} />
+                    </div>
+                    <span className="inline-flex items-center rounded-full bg-[#6E026F]/10 px-2.5 py-1 text-[11px] font-semibold text-[#6E026F]">
+                      {loading
+                        ? '…'
+                        : `${serviceRequests.length} ${
+                            serviceRequests.length === 1
+                              ? 'request'
+                              : 'requests'
+                          }`}
+                    </span>
                   </div>
-                  <span className="rounded-full bg-accent/10 px-2.5 py-1 text-xs font-semibold text-accent">
-                    {loading ? 'Loading…' : `${serviceRequests.length} ${serviceRequests.length === 1 ? 'request' : 'requests'}`}
-                  </span>
-                </div>
-                <div className="mt-4">
-                  <h3 className="text-base font-semibold text-gray-900">My Requests</h3>
-                  <p className="mt-1 text-sm text-gray-600">
-                    Track requests, update details, and upload buyer documents.
-                    {!loading && serviceRequests.length === 0 && ' No requests submitted yet.'}
-                  </p>
+                  <div className="mt-6">
+                    <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-gray-600">
+                      Requests
+                    </p>
+                    <h3 className="mt-1 text-lg font-semibold text-gray-900">
+                      My Requests
+                    </h3>
+                    <p className="mt-1.5 text-sm leading-6 text-gray-600">
+                      {isTenantProfile
+                        ? 'Track your property search and update what you are looking for.'
+                        : 'Track requests, update details, and complete buyer readiness for purchase requests.'}
+                    </p>
+                  </div>
                 </div>
               </Link>
             )}
-            <Link
-              href="/request"
-              className="group flex h-full min-h-[220px] flex-col justify-between rounded-2xl border border-gray-200 bg-white p-4"
-            >
-              <div className="flex items-center justify-between">
-                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gray-100 text-gray-600">
-                  <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12M8 12h12M8 17h12M4 7h.01M4 12h.01M4 17h.01" />
-                  </svg>
+
+            {/* Card 3 — Manage Properties */}
+            {isHomeownerProfile && (
+              <Link
+                href="/properties/my-listings"
+                className="group relative overflow-hidden rounded-2xl border border-gray-200 bg-white p-6 transition-all duration-200 hover:-translate-y-0.5 hover:border-gray-300 hover:shadow-lg hover:shadow-gray-200/80"
+              >
+                <div className="pointer-events-none absolute -right-10 -top-10 h-36 w-36 rounded-full bg-gray-100 blur-3xl transition-colors duration-300 group-hover:bg-gray-200" />
+                <div className="relative">
+                  <div className="flex items-start justify-between">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gray-100 text-gray-700 transition-colors duration-200 group-hover:bg-[#6E026F] group-hover:text-white">
+                      <Home size={22} />
+                    </div>
+                    <ArrowUpRight
+                      size={18}
+                      className="text-gray-300 transition-all duration-200 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-[#6E026F]"
+                    />
+                  </div>
+                  <div className="mt-6">
+                    <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-gray-600">
+                      Listings
+                    </p>
+                    <h3 className="mt-1 text-lg font-semibold text-gray-900">
+                      Manage Properties
+                    </h3>
+                    <p className="mt-1.5 text-sm leading-6 text-gray-600">
+                      View, update, and organize your listings from one place.
+                    </p>
+                  </div>
                 </div>
-                <span className="text-xs font-medium uppercase tracking-wide text-gray-400">Request</span>
-              </div>
-              <div className="mt-4">
-                <h3 className="text-base font-semibold text-gray-900">Submit a Property Request</h3>
-                <p className="mt-1 text-sm text-gray-600">Tell us what property you are looking for.</p>
-              </div>
-            </Link>
+              </Link>
+            )}
+
+            {/* Card 4 — Post a Property */}
+            {isHomeownerProfile && (
+              <Link
+                href="/properties/new"
+                className="group relative overflow-hidden rounded-2xl border border-gray-200 bg-white p-6 transition-all duration-200 hover:-translate-y-0.5 hover:border-[#6E026F]/20 hover:shadow-lg hover:shadow-gray-200/80"
+              >
+                <div className="pointer-events-none absolute -right-10 -top-10 h-36 w-36 rounded-full bg-[#6E026F]/8 blur-3xl transition-colors duration-300 group-hover:bg-[#6E026F]/15" />
+                <div className="relative">
+                  <div className="flex items-start justify-between">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#6E026F]/10 text-[#6E026F] transition-colors duration-200 group-hover:bg-[#6E026F] group-hover:text-white">
+                      <Plus size={22} />
+                    </div>
+                    <ArrowUpRight
+                      size={18}
+                      className="text-gray-300 transition-all duration-200 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-[#6E026F]"
+                    />
+                  </div>
+                  <div className="mt-6">
+                    <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#6E026F]">
+                      New listing
+                    </p>
+                    <h3 className="mt-1 text-lg font-semibold text-gray-900">
+                      Post a Property
+                    </h3>
+                    <p className="mt-1.5 text-sm leading-6 text-gray-600">
+                      Add a new listing and attract the right buyers or tenants.
+                    </p>
+                  </div>
+                </div>
+              </Link>
+            )}
           </div>
         </div>
-
-      
 
         {/* Agent Status Banner */}
         {accountType === 'agent' && agentData && (
@@ -637,17 +804,17 @@ export default function RegularDashboard() {
         )}
 
         {accountType === 'agent' && pendingAdVerificationAt && (
-          <div className="bg-blue-50 border-l-4 border-blue-400 p-6 rounded-lg mb-8">
+          <div className="mb-8 rounded-lg border-l-4 border-[#6E026F] bg-[#6E026F]/5 p-6">
             <div className="flex items-start gap-3">
-              <Clock className="w-6 h-6 text-blue-600 flex-shrink-0 mt-0.5" />
+              <Clock className="mt-0.5 h-6 w-6 flex-shrink-0 text-[#6E026F]" />
               <div className="flex-1">
-                <h3 className="text-lg font-semibold text-blue-900 mb-1">
+                <h3 className="mb-1 text-lg font-semibold text-[#6E026F]">
                   Advertisement Verification Pending
                 </h3>
-                <p className="text-blue-700 mb-2">
+                <p className="mb-2 text-gray-700">
                   Your ad payment is under review. Verification usually completes within 24 hours.
                 </p>
-                <p className="text-sm text-blue-600">
+                <p className="text-sm text-gray-600">
                   Submitted: {formatDate(pendingAdVerificationAt)}
                 </p>
               </div>
@@ -807,15 +974,11 @@ export default function RegularDashboard() {
         </div>
         )}
 
-    
-
         {redirecting && (
           <div className="bg-white rounded-lg p-6 mb-8">
             <p className="text-gray-600">Checking your account and redirecting…</p>
           </div>
         )}
-
-
 
         {!redirecting && (adStats.totalAds > 0 || adStats.totalViews > 0 || adStats.totalClicks > 0) && (
           <div className="bg-white rounded-lg p-6 mb-8">
@@ -823,11 +986,11 @@ export default function RegularDashboard() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5">
               <div className="bg-gray-50 rounded-lg p-4">
                 <p className="text-sm text-gray-600">Total Views</p>
-                <p className="text-3xl font-bold text-blue-700">{Number(adStats.totalViews || 0).toLocaleString()}</p>
+                <p className="text-3xl font-bold text-[#6E026F]">{Number(adStats.totalViews || 0).toLocaleString()}</p>
               </div>
               <div className="bg-gray-50 rounded-lg p-4">
                 <p className="text-sm text-gray-600">Total Clicks</p>
-                <p className="text-3xl font-bold text-green-700">{Number(adStats.totalClicks || 0).toLocaleString()}</p>
+                <p className="text-3xl font-bold text-gray-700">{Number(adStats.totalClicks || 0).toLocaleString()}</p>
               </div>
             </div>
 
@@ -840,8 +1003,8 @@ export default function RegularDashboard() {
                       <p className="text-xs text-gray-500">Expires: {formatDate(ad.expires_at)}</p>
                     </div>
                     <div className="text-right text-sm">
-                      <p className="text-blue-700 font-semibold">{Number(ad.impressions || 0).toLocaleString()} views</p>
-                      <p className="text-green-700 font-semibold">{Number(ad.clicks || 0).toLocaleString()} clicks</p>
+                      <p className="font-semibold text-[#6E026F]">{Number(ad.impressions || 0).toLocaleString()} views</p>
+                      <p className="font-semibold text-gray-700">{Number(ad.clicks || 0).toLocaleString()} clicks</p>
                     </div>
                   </div>
                 ))}
@@ -871,22 +1034,23 @@ export default function RegularDashboard() {
           </div>
         )}
 
-    
-  
-
-        {/* Service Requests Section */}
+        {/* ==================== SERVICE REQUESTS ==================== */}
         {!redirecting && serviceRequests.length > 0 && (
-          <section className="mb-8 rounded-2xl border border-gray-200 bg-white p-5 sm:p-6">
+          <section className="mb-8">
             <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
               <div>
-                <h2 className="mt-1 text-2xl font-bold text-gray-900">Your property requests</h2>
+                <h2 className="text-2xl font-bold text-gray-900">Your property requests</h2>
                 <p className="mt-1 text-sm text-gray-600">Track your buying, rental, and other property requests.</p>
               </div>
-              <Link href="/my-requests" className="rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 transition hover:bg-gray-50">
+              <Link
+                href="/my-requests"
+                className="rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
+              >
                 View all requests
               </Link>
             </div>
-            <div className="grid gap-4 lg:grid-cols-2">
+
+            <div className="grid gap-5 lg:grid-cols-2">
               {serviceRequests.map((request) => {
                 const isBuyRequest = String(request.request_type || '').toLowerCase() === 'buy';
                 const prequalification = request.buyer_prequalification || null;
@@ -894,7 +1058,8 @@ export default function RegularDashboard() {
                 const documents = Array.isArray(prequalification?.documents)
                   ? prequalification.documents
                   : [];
-                const pendingDocuments = documents.filter((document) => document.status === 'pending').length;
+                const pendingDocuments = documents.filter((d) => d.status === 'pending').length;
+                const reviewedDocuments = documents.filter((d) => d.status === 'reviewed').length;
                 const verifiedBudgetMax = Number(prequalification?.verified_budget_max || 0);
                 const verificationExpiresAt = prequalification?.verification_expires_at
                   ? new Date(prequalification.verification_expires_at).getTime()
@@ -905,32 +1070,117 @@ export default function RegularDashboard() {
                 const agent = Array.isArray(request.agent) ? request.agent[0] : request.agent;
                 const agentUser = Array.isArray(agent?.users) ? agent.users[0] : agent?.users;
                 const requestType = String(request.request_type || '').toLowerCase();
+                const TypeIcon = REQUEST_TYPE_ICONS[requestType] || FileText;
+                const status = String(request.status || 'open').toLowerCase();
+                const statusDot = STATUS_DOT[status] || 'bg-gray-400';
+                const statusColor = REQUEST_STATUS_STYLES[status] || 'text-gray-600';
+
+                const verificationStatus = !prequalification
+                  ? 'not-started'
+                  : verificationExpired
+                    ? 'expired'
+                    : level >= 3
+                      ? 'verified'
+                      : pendingDocuments > 0
+                        ? 'under-review'
+                        : 'in-progress';
+
+                const verificationColors = {
+                  'not-started': {
+                    wrap: 'border-gray-200 bg-gray-50',
+                    icon: 'bg-gray-100 text-gray-700',
+                    title: 'Buyer verification needed',
+                    sub: 'Add documents to raise your chances.',
+                  },
+                  'in-progress': {
+                    wrap: 'border-[#6E026F]/15 bg-[#6E026F]/5',
+                    icon: 'bg-[#6E026F]/10 text-[#6E026F]',
+                    title: 'Verification in progress',
+                    sub:
+                      reviewedDocuments > 0
+                        ? `${reviewedDocuments} reviewed · ${pendingDocuments} pending`
+                        : 'Add more documents to reach Level 3.',
+                  },
+                  'under-review': {
+                    wrap: 'border-[#6E026F]/15 bg-[#6E026F]/5',
+                    icon: 'bg-[#6E026F]/10 text-[#6E026F]',
+                    title: 'Documents under review',
+                    sub: `${pendingDocuments} file${pendingDocuments === 1 ? '' : 's'} being reviewed`,
+                  },
+                  verified: {
+                    wrap: 'border-gray-200 bg-gray-50',
+                    icon: 'bg-gray-100 text-gray-700',
+                    title: 'Verified buyer',
+                    sub: hasVerifiedBudget
+                      ? `Budget verified up to J$${verifiedBudgetMax.toLocaleString()}`
+                      : 'Sellers see you first.',
+                  },
+                  expired: {
+                    wrap: 'border-red-200 bg-red-50',
+                    icon: 'bg-red-100 text-red-600',
+                    title: 'Verification expired',
+                    sub: 'Renew to stay visible to sellers.',
+                  },
+                };
+
+                const vc = verificationColors[verificationStatus];
+
+                const ctaLabel =
+                  verificationStatus === 'verified'
+                    ? 'Manage documents'
+                    : verificationStatus === 'expired'
+                      ? 'Renew verification'
+                      : verificationStatus === 'under-review'
+                        ? 'View submission'
+                        : verificationStatus === 'in-progress'
+                          ? 'Continue verification'
+                          : 'Start verification';
+
+                const ctaClass =
+                  verificationStatus === 'verified'
+                    ? 'border border-gray-200 bg-white text-gray-700 hover:bg-gray-50'
+                    : verificationStatus === 'expired'
+                      ? 'bg-red-600 text-white hover:bg-red-700'
+                      : 'bg-[#6E026F] text-white hover:bg-[#6E026F]/90';
+
+                const fillLevel = Math.max(0, Math.min(4, level));
 
                 return (
                   <article
                     key={request.id}
-                    className="flex flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white transition hover:border-gray-300"
+                    className="group flex flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white transition-shadow hover:shadow-md"
                   >
-                    <div className="flex items-center justify-between gap-3 border-b border-gray-100 bg-gray-50 px-5 py-2.5">
-                      <div className="flex items-center gap-2">
-                        <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide ${REQUEST_TYPE_STYLES[requestType] || 'bg-gray-100 text-gray-700'}`}>
+                    <div className="flex items-center justify-between gap-3 border-b border-gray-100 bg-gray-50/60 px-5 py-2.5">
+                      <div className="flex items-center gap-2.5">
+                        <span
+                          className={`inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-[10px] font-bold uppercase tracking-wider ${
+                            REQUEST_TYPE_STYLES[requestType] || 'bg-gray-100 text-gray-700'
+                          }`}
+                        >
+                          <TypeIcon size={11} />
                           {request.request_type || 'request'}
                         </span>
                         <span className="text-xs text-gray-500">
                           {new Date(request.created_at).toLocaleDateString()}
                         </span>
                       </div>
-                      <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide ${REQUEST_STATUS_STYLES[request.status] || REQUEST_STATUS_STYLES.open}`}>
-                        {String(request.status || 'open').replaceAll('_', ' ')}
+                      <span
+                        className={`inline-flex items-center gap-1.5 text-[11px] font-semibold capitalize ${statusColor}`}
+                      >
+                        <span className={`h-1.5 w-1.5 rounded-full ${statusDot}`} />
+                        {status.replaceAll('_', ' ')}
                       </span>
                     </div>
 
-                    <div className="flex flex-1 flex-col gap-3 p-5">
+                    <div className="flex flex-1 flex-col gap-4 p-5">
                       <div>
-                        <h3 className="text-lg font-semibold capitalize text-gray-900">
+                        <h3 className="text-base font-semibold capitalize text-gray-900">
                           {request.property_type}
                           {request.location && (
-                            <span className="font-normal text-gray-500"> · {request.location}</span>
+                            <span className="font-normal text-gray-500">
+                              {' · '}
+                              {request.location}
+                            </span>
                           )}
                         </h3>
                         {request.description ? (
@@ -938,37 +1188,98 @@ export default function RegularDashboard() {
                             {request.description}
                           </p>
                         ) : !request.budget_min && !request.budget_max ? (
-                          <p className="mt-1.5 text-sm italic text-gray-400">No extra details provided.</p>
+                          <p className="mt-1.5 text-sm italic text-gray-400">
+                            No extra details provided.
+                          </p>
                         ) : null}
                       </div>
 
-                      {(Number(request.budget_min) > 0 || Number(request.budget_max) > 0) && (
-                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-sm">
-                          <span className="text-gray-500">Budget</span>
-                          <span className="font-semibold text-gray-900">
-                            {formatBudgetRange(request.budget_min, request.budget_max)}
-                          </span>
-                          {hasVerifiedBudget && (
-                            <span className="inline-flex items-center gap-1 rounded-full bg-green-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-green-700">
-                              <ShieldCheck className="h-3 w-3" />
-                              Verified up to J${verifiedBudgetMax.toLocaleString()}
+                      <div className="flex flex-wrap gap-2">
+                        {(Number(request.budget_min) > 0 || Number(request.budget_max) > 0) && (
+                          <MetaChip
+                            icon={DollarSign}
+                            label="Budget"
+                            value={formatBudgetRange(request.budget_min, request.budget_max)}
+                          />
+                        )}
+                        {request.bedrooms ? (
+                          <MetaChip icon={Bed} label="Beds" value={request.bedrooms} />
+                        ) : null}
+                        {request.bathrooms ? (
+                          <MetaChip icon={Bath} label="Baths" value={request.bathrooms} />
+                        ) : null}
+                        {request.location ? (
+                          <MetaChip icon={MapPin} label="Area" value={request.location} />
+                        ) : null}
+                      </div>
+
+                      {isBuyRequest && (
+                        <div className={`rounded-xl border px-3 py-3 ${vc.wrap}`}>
+                          <div className="flex items-center gap-2.5">
+                            <div className={`flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full ${vc.icon}`}>
+                              <ShieldCheck size={14} />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <p className="text-xs font-semibold text-gray-900">
+                                {vc.title}
+                              </p>
+                              <p className="mt-0.5 truncate text-[11px] text-gray-600">
+                                {vc.sub}
+                              </p>
+                            </div>
+                            {hasVerifiedBudget && (
+                              <CheckCircle2
+                                size={16}
+                                className="flex-shrink-0 text-[#6E026F]"
+                              />
+                            )}
+                          </div>
+                          <div className="mt-2.5 flex items-center gap-1">
+                            {[1, 2, 3, 4].map((step) => {
+                              const filled = step <= fillLevel;
+                              const color =
+                                verificationStatus === 'verified'
+                                  ? 'bg-[#6E026F]'
+                                  : verificationStatus === 'under-review' ||
+                                      verificationStatus === 'in-progress'
+                                    ? 'bg-[#6E026F]'
+                                    : 'bg-red-400';
+                              return (
+                                <div
+                                  key={step}
+                                  className={`h-1 flex-1 rounded-full transition-colors ${
+                                    filled ? color : 'bg-gray-200'
+                                  }`}
+                                />
+                              );
+                            })}
+                            <span className="ml-1 text-[10px] font-bold tabular-nums text-gray-500">
+                              {fillLevel}/4
                             </span>
-                          )}
+                          </div>
                         </div>
                       )}
 
-                      {isBuyRequest && (
-                        <BuyerReadinessProgress prequalification={prequalification} />
-                      )}
-
                       {agent && request.status !== 'open' && (
-                        <div className="rounded-lg bg-gray-50 p-3 text-xs">
-                          <p className="font-semibold uppercase tracking-wider text-gray-500">Assigned agent</p>
-                          <p className="mt-1 font-medium text-gray-800">
-                            {agentUser?.full_name || agent.business_name || 'Your agent'}
-                          </p>
+                        <div className="rounded-xl border border-gray-100 bg-gray-50 px-3 py-2.5">
+                          <div className="flex items-center gap-2.5">
+                            <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-white text-gray-500">
+                              <Home size={14} />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <p className="text-[10px] font-bold uppercase tracking-wider text-gray-500">
+                                Assigned agent
+                              </p>
+                              <p className="truncate text-xs font-semibold text-gray-900">
+                                {agentUser?.full_name || agent.business_name || 'Your agent'}
+                              </p>
+                            </div>
+                          </div>
                           {agentUser?.email && (
-                            <a href={`mailto:${agentUser.email}`} className="mt-0.5 block truncate text-accent hover:underline">
+                            <a
+                              href={`mailto:${agentUser.email}`}
+                              className="mt-2 block truncate rounded-md bg-white px-2.5 py-1.5 text-[11px] font-medium text-[#6E026F] transition hover:bg-gray-50"
+                            >
                               {agentUser.email}
                             </a>
                           )}
@@ -976,24 +1287,24 @@ export default function RegularDashboard() {
                       )}
                     </div>
 
-                    <div className="flex flex-wrap items-center gap-2 border-t border-gray-100 bg-gray-50 px-5 py-3">
+                    <div className="flex flex-wrap items-center gap-2 border-t border-gray-100 bg-gray-50/60 px-5 py-3">
                       {isBuyRequest && (
                         <button
                           type="button"
                           onClick={() => openBuyerVerification(request.id)}
-                          className={`inline-flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-xs font-semibold transition ${
-                            level >= 3
-                              ? 'border border-green-200 bg-white text-green-700 hover:bg-green-50'
-                              : 'bg-accent text-white hover:bg-accent/90'
-                          }`}
+                          className={`inline-flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-xs font-semibold transition ${ctaClass}`}
                         >
-                          {level >= 3
-                            ? 'Verified — manage documents'
-                            : level === 1
-                              ? documents.length > 0 ? 'Continue verification' : 'Start buyer verification'
-                              : pendingDocuments > 0
-                                ? `Under review (${documents.length} file${documents.length === 1 ? '' : 's'})`
-                                : 'Add more documents'}
+                          {verificationStatus === 'verified' ? (
+                            <CheckCircle2 size={13} />
+                          ) : verificationStatus === 'under-review' ? (
+                            <Clock size={13} />
+                          ) : verificationStatus === 'expired' ? (
+                            <AlertCircle size={13} />
+                          ) : (
+                            <Upload size={13} />
+                          )}
+                          {ctaLabel}
+                          <ArrowRight size={13} />
                         </button>
                       )}
 
@@ -1015,7 +1326,7 @@ export default function RegularDashboard() {
                               toast.error(error.message || 'Unable to withdraw this request');
                             }
                           }}
-                          className="ml-auto rounded-lg px-3 py-2 text-xs font-semibold text-gray-500 transition hover:bg-gray-100 hover:text-red-600"
+                          className="ml-auto rounded-lg px-3 py-2 text-xs font-medium text-gray-400 transition hover:bg-gray-100 hover:text-red-600"
                         >
                           Withdraw
                         </button>
@@ -1027,8 +1338,6 @@ export default function RegularDashboard() {
             </div>
           </section>
         )}
-
-    
 
         {/* Recent Properties */}
         {!redirecting && !loading && recentProperties.length > 0 && (
@@ -1063,7 +1372,7 @@ export default function RegularDashboard() {
                         {new Date(prop.created_at).toLocaleDateString()}
                       </td>
                       <td className="py-3 px-4 text-sm">
-                        <Link href={`/property/${prop.slug}`} className="text-blue-600 hover:underline block">
+                        <Link href={`/property/${prop.slug}`} className="block text-[#6E026F] hover:underline">
                           View
                         </Link>
                       </td>
@@ -1076,5 +1385,26 @@ export default function RegularDashboard() {
         )}
       </div>
     </>
+  );
+}
+
+/* ============================================================
+ * Small component: meta chip
+ * ============================================================ */
+function MetaChip({ icon: Icon, label, value }) {
+  return (
+    <div className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-2.5 py-1.5">
+      <span className="flex h-6 w-6 items-center justify-center rounded-md bg-gray-100 text-gray-500">
+        <Icon size={12} />
+      </span>
+      <div className="flex flex-col leading-tight">
+        <span className="text-[9px] font-bold uppercase tracking-wider text-gray-400">
+          {label}
+        </span>
+        <span className="text-xs font-semibold text-gray-800">
+          {value}
+        </span>
+      </div>
+    </div>
   );
 }

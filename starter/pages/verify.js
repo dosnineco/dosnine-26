@@ -1,24 +1,65 @@
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/router';
 import Image from 'next/image';
-import { useUser } from '@clerk/nextjs';
+import { useAuth, useUser } from '@clerk/nextjs';
 import axios from 'axios';
 import toast from 'react-hot-toast';
-import { CheckCircle2, ShieldCheck, Upload, IdCard } from 'lucide-react';
+import {
+  CheckCircle2,
+  ShieldCheck,
+  Upload,
+  IdCard,
+  Home,
+  KeyRound,
+  Megaphone,
+  Users,
+  ArrowRight,
+} from 'lucide-react';
 import { clearUserCache } from '../lib/useRoleProtection';
 
 const ROLE_OPTIONS = [
+    { value: 'tenant', label: 'Tenant' },
   { value: 'homeowner', label: 'Homeowner' },
-  { value: 'tenant', label: 'Tenant' },
   { value: 'advertiser', label: 'Advertiser' },
   { value: 'agent', label: 'Real Estate Agent' },
+];
+
+const ACCOUNT_OPTIONS = [
+  {
+    value: 'tenant',
+    label: 'Regular account',
+    description: 'Browse homes, make requests, and use the regular dashboard. Tenant accounts are regular accounts.',
+    icon: KeyRound,
+  },
+  {
+    value: 'homeowner',
+    label: 'Homeowner',
+    description: 'Post and manage properties. Identity verification is required.',
+    icon: Home,
+  },
+  {
+    value: 'advertiser',
+    label: 'Advertiser',
+    description: 'Create and manage advertising campaigns.',
+    icon: Megaphone,
+  },
+  {
+    value: 'agent',
+    label: 'Real Estate Agent',
+    description: 'Apply for verified agent access and agent tools.',
+    icon: Users,
+  },
 ];
 
 export default function VerifyIdentityPage() {
   const router = useRouter();
   const { user, isLoaded } = useUser();
-  const [role, setRole] = useState('homeowner');
+  const { getToken } = useAuth();
+  const [role, setRole] = useState('tenant');
   const [roleLocked, setRoleLocked] = useState(false);
+  const [existingAccountType, setExistingAccountType] = useState(null);
+  const [showVerificationForm, setShowVerificationForm] = useState(false);
+  const [accountSaveError, setAccountSaveError] = useState('');
   const [loading, setLoading] = useState(false);
   const [savingAccount, setSavingAccount] = useState(false);
   const [checking, setChecking] = useState(true);
@@ -48,7 +89,7 @@ export default function VerifyIdentityPage() {
     if (!isLoaded) return;
 
     const hasRoleSelection = typeof router.query.role === 'string';
-    const selectedRole = String(router.query.role || 'homeowner').toLowerCase();
+    const selectedRole = String(router.query.role || 'tenant').toLowerCase();
     if (ROLE_OPTIONS.some((option) => option.value === selectedRole)) {
       setRole(selectedRole);
     }
@@ -61,12 +102,13 @@ export default function VerifyIdentityPage() {
           data?.id_verification_status === 'approved'
         );
         setIdentityVerified(isVerified);
+        setExistingAccountType(data?.account_type || null);
         const savedRole = data?.account_type === 'agent' || data?.user_type === 'agent'
           ? 'agent'
           : data?.account_type === 'advertiser'
             ? 'advertiser'
             : data?.account_type === 'regular'
-              ? data?.profile_intent || 'homeowner'
+              ? data?.profile_intent || 'tenant'
               : null;
         const isRegularAccount = data?.account_type === 'regular';
         const isChangingRegularIntent =
@@ -74,6 +116,34 @@ export default function VerifyIdentityPage() {
           hasRoleSelection &&
           ['homeowner', 'tenant'].includes(selectedRole) &&
           selectedRole !== savedRole;
+        const needsHomeownerVerification =
+          hasRoleSelection && selectedRole === 'homeowner';
+        if (isRegularAccount && !isChangingRegularIntent && !needsHomeownerVerification) {
+          router.replace('/dashboard');
+          return;
+        }
+        if (!data?.account_type && !hasRoleSelection) {
+          setSavingAccount(true);
+          try {
+            const token = await getToken();
+            await axios.post(
+              '/api/user/account-type',
+              { accountType: 'regular', profileIntent: 'tenant' },
+              {
+                headers: token ? { Authorization: `Bearer ${token}` } : {},
+                withCredentials: true,
+              }
+            );
+            clearUserCache(user.id);
+            window.location.assign('/dashboard');
+            return;
+          } catch (error) {
+            console.error('Default account setup failed:', error);
+            setAccountSaveError(error.response?.data?.error || 'Unable to set up your regular account. Please choose an account type to continue.');
+          } finally {
+            setSavingAccount(false);
+          }
+        }
         if (savedRole && ROLE_OPTIONS.some((option) => option.value === savedRole)) {
           setRole(isChangingRegularIntent ? selectedRole : savedRole);
           setRoleLocked(!isRegularAccount);
@@ -101,7 +171,7 @@ export default function VerifyIdentityPage() {
     };
 
     loadProfile();
-  }, [isLoaded, router]);
+  }, [isLoaded, router, getToken, user?.id]);
 
   useEffect(() => {
     if (user) {
@@ -134,8 +204,9 @@ export default function VerifyIdentityPage() {
     if (side === 'agentId') setAgentIdFile(file);
   };
 
-  const buildAuthHeaders = () => {
+  const buildAuthHeaders = (token) => {
     const headers = {};
+    if (token) headers.Authorization = `Bearer ${token}`;
     if (user?.id) headers['x-clerk-user-id'] = user.id;
     const primaryEmail = user?.emailAddresses?.[0]?.emailAddress || user?.primaryEmailAddress?.emailAddress || '';
     if (primaryEmail) headers['x-clerk-user-email'] = primaryEmail;
@@ -195,8 +266,9 @@ export default function VerifyIdentityPage() {
         payload.append('agentIdFile', agentIdFile);
       }
 
+      const token = await getToken();
       const response = await axios.post('/api/user/verify', payload, {
-        headers: buildAuthHeaders(),
+        headers: buildAuthHeaders(token),
         withCredentials: true,
       });
 
@@ -228,10 +300,14 @@ export default function VerifyIdentityPage() {
 
     setSavingAccount(true);
     try {
+      const token = await getToken();
       await axios.post(
         '/api/user/account-type',
         { accountType: 'regular', profileIntent: role },
-        { withCredentials: true }
+        {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+          withCredentials: true,
+        }
       );
       clearUserCache(user.id);
       window.location.assign('/dashboard');
@@ -283,6 +359,86 @@ export default function VerifyIdentityPage() {
     );
   }
 
+  if (!showVerificationForm) {
+    const selectedOption = ACCOUNT_OPTIONS.find((option) => option.value === role) || ACCOUNT_OPTIONS[0];
+
+    return (
+      <main className="min-h-screen bg-gray-50 px-4 py-12">
+        <div className="mx-auto max-w-4xl">
+          <header className="mx-auto mb-8 max-w-2xl text-center">
+            <h1 className="mt-2 text-3xl font-bold text-gray-900">What type of account do you need?</h1>
+            <p className="mt-3 text-gray-600">
+              Choose how you plan to use Dosnine. We’ll only ask for identity documents when the account type requires verification.
+            </p>
+          </header>
+
+          {accountSaveError && (
+            <p role="alert" className="mb-4 rounded-xl bg-red-50 p-4 text-sm text-red-800">
+              {accountSaveError}
+            </p>
+          )}
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            {ACCOUNT_OPTIONS.map((option) => {
+              const Icon = option.icon;
+              const selected = role === option.value;
+              const accountTypeConflict = existingAccountType === 'regular' &&
+                ['advertiser', 'agent'].includes(option.value);
+              return (
+                <button
+                  key={option.value}
+                  type="button"
+                  aria-pressed={selected}
+                  disabled={(roleLocked && !selected) || accountTypeConflict}
+                  onClick={() => setRole(option.value)}
+                  className={`flex min-h-40 flex-col rounded-2xl p-6 text-left transition focus:outline-none focus:ring-2 focus:ring-accent disabled:cursor-not-allowed disabled:opacity-50 ${
+                    selected ? 'bg-accent/10 ring-2 ring-accent' : 'bg-white hover:bg-gray-100'
+                  }`}
+                >
+                  <span className="flex items-center gap-3">
+                    <Icon className={`h-6 w-6 ${selected ? 'text-accent' : 'text-gray-500'}`} aria-hidden="true" />
+                    <span className="text-lg font-semibold text-gray-900">{option.label}</span>
+                  </span>
+                  <span className="mt-3 text-sm leading-6 text-gray-600">{option.description}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          {roleLocked && (
+            <p className="mt-4 text-center text-sm text-gray-500">
+              Your account type is already set and cannot be changed here.
+            </p>
+          )}
+
+          <div className="mt-8 flex justify-center">
+            <button
+              type="button"
+              disabled={savingAccount}
+              onClick={() => {
+                if (role === 'tenant' || (role === 'homeowner' && identityVerified)) {
+                  continueWithRegularAccount();
+                } else {
+                  setShowVerificationForm(true);
+                }
+              }}
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-accent px-6 py-3 font-semibold text-white transition hover:bg-accent/90 disabled:cursor-wait disabled:opacity-60"
+            >
+              {savingAccount
+                ? 'Setting up your account…'
+                : role === 'tenant'
+                  ? 'Continue with a regular account'
+                  : role === 'homeowner' && identityVerified
+                    ? 'Switch to a homeowner account'
+                    : `Continue as ${selectedOption.label}`}
+              {!savingAccount && <ArrowRight className="h-4 w-4" aria-hidden="true" />}
+            </button>
+          </div>
+        </div>
+      </main>
+    );
+  }
+
   return (
     <div className="min-h-screen ">
       <div className="max-w-3xl mx-auto">
@@ -293,38 +449,34 @@ export default function VerifyIdentityPage() {
               <h1 className="text-3xl font-bold">Verify your identity</h1>
             </div>
             <p className="text-white/90 text-sm">
-              Homeowner accounts need verified ID to post or manage properties. You can use a regular account to manage
-              requests and complete buyer readiness without verifying your ID.
+              {role === 'homeowner'
+                ? 'Verify your identity to post and manage properties.'
+                : role === 'agent'
+                  ? 'Verify your identity and provide agent credentials to apply for agent access.'
+                  : 'Verify your identity to set up an advertiser account.'}
             </p>
           </div>
 
           <form onSubmit={handleSubmit} className="p-6 md:p-8 space-y-6">
+            {!roleLocked && (
+              <button
+                type="button"
+                onClick={() => setShowVerificationForm(false)}
+                className="text-sm font-semibold text-accent hover:underline"
+              >
+                Change account type
+              </button>
+            )}
             {identityVerified && role === 'homeowner' && (
               <div className="rounded-xl bg-green-50 p-4 text-sm text-green-900">
                 Your identity is already verified. Switch to a homeowner account to manage or post properties.
               </div>
             )}
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                {roleLocked ? 'Your account type' : 'I am joining as'}
-              </label>
-              <div className="grid grid-cols-2 gap-3">
-                {ROLE_OPTIONS.map((option) => (
-                  <button
-                    key={option.value}
-                    type="button"
-                    onClick={() => setRole(option.value)}
-                    disabled={roleLocked}
-                    className={`rounded-xl border px-4 py-3 text-left font-medium transition ${
-                      role === option.value
-                        ? 'border-accent bg-accent/10 text-accent'
-                        : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
-                    } ${roleLocked ? 'cursor-not-allowed opacity-80' : ''}`}
-                  >
-                    {option.label}
-                  </button>
-                ))}
-              </div>
+            <div className="rounded-xl bg-gray-50 px-4 py-3 text-sm text-gray-700">
+              Verifying account type:{' '}
+              <span className="font-semibold">
+                {ROLE_OPTIONS.find((option) => option.value === role)?.label}
+              </span>
             </div>
 
             <div className="grid md:grid-cols-2 gap-5">
@@ -471,20 +623,6 @@ export default function VerifyIdentityPage() {
             >
               {loading ? 'Submitting…' : 'Submit verification'}
             </button>
-            {['homeowner', 'tenant'].includes(role) && (
-              <button
-                type="button"
-                onClick={continueWithRegularAccount}
-                disabled={savingAccount || loading}
-                className="w-full rounded-xl bg-gray-100 px-4 py-3.5 font-semibold text-gray-800 transition hover:bg-gray-200 disabled:cursor-wait disabled:opacity-60"
-              >
-                {savingAccount
-                  ? 'Updating your account…'
-                  : identityVerified && role === 'homeowner'
-                    ? 'Switch to a homeowner account'
-                    : 'Continue with a regular account'}
-              </button>
-            )}
           </form>
         </div>
       </div>
