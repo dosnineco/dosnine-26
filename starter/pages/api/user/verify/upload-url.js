@@ -12,7 +12,7 @@ export default async function handler(req, res) {
   if (
     typeof sessionToken !== 'string' ||
     !sessionToken ||
-    !['front', 'back'].includes(side) ||
+    !['front', 'back', 'license', 'registration'].includes(side) ||
     !ALLOWED_MIME_TYPES.has(mimeType) ||
     !Number.isInteger(fileSize) ||
     fileSize <= 0 ||
@@ -25,13 +25,19 @@ export default async function handler(req, res) {
     const db = getDbClient();
     const { data: session, error: sessionError } = await db
       .from('verification_sessions')
-      .select('id, user_clerk_id, verification_type, status, expires_at')
+      .select('id, user_clerk_id, verification_type, metadata, status, expires_at')
       .eq('token', sessionToken)
       .maybeSingle();
 
     if (sessionError) throw sessionError;
     if (!session || session.verification_type !== 'identity') {
       return res.status(404).json({ error: 'Verification session not found.' });
+    }
+    if (
+      ['license', 'registration'].includes(side) &&
+      session.metadata?.role !== 'agent'
+    ) {
+      return res.status(403).json({ error: 'Agent documents can only be uploaded for an agent application.' });
     }
     if (!['pending', 'mobile_opened'].includes(session.status)) {
       return res.status(409).json({ error: 'This verification session is no longer active.' });

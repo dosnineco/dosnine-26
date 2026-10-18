@@ -11,6 +11,8 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { supabase } from '@/lib/supabase';
+import { PARISHES } from '@/lib/normalizeParish';
+import { SPECIALIZATIONS } from '@/lib/agentOptions';
 
 export default function VerifyMobilePage() {
   const router = useRouter();
@@ -22,9 +24,28 @@ export default function VerifyMobilePage() {
   const [code, setCode] = useState('');
   const [error, setError] = useState('');
   const [details, setDetails] = useState({ fullName: '', phone: '', idNumber: '', consent: false });
+  const [agentDetails, setAgentDetails] = useState({
+    email: '',
+    businessName: '',
+    yearsExperience: '',
+    dealsClosedCount: '',
+    specializations: [],
+    licenseNumber: '',
+    serviceAreas: [],
+    aboutMe: '',
+    agreeToTerms: false,
+    dataConsent: false,
+  });
   const [frontFile, setFrontFile] = useState(null);
   const [backFile, setBackFile] = useState(null);
-  const [uploadedPaths, setUploadedPaths] = useState({ front: '', back: '' });
+  const [licenseFile, setLicenseFile] = useState(null);
+  const [registrationFile, setRegistrationFile] = useState(null);
+  const [uploadedPaths, setUploadedPaths] = useState({
+    front: '',
+    back: '',
+    license: '',
+    registration: '',
+  });
   const [submitStep, setSubmitStep] = useState('');
 
   useEffect(() => {
@@ -33,6 +54,25 @@ export default function VerifyMobilePage() {
       ...current,
       fullName: current.fullName || session.metadata.fullName || '',
       phone: current.phone || session.metadata.phone || '',
+    }));
+    setAgentDetails((current) => ({
+      ...current,
+      email: current.email || session.metadata.email || '',
+      businessName: current.businessName || session.metadata.businessName || '',
+      yearsExperience: current.yearsExperience || String(session.metadata.yearsExperience ?? ''),
+      dealsClosedCount: current.dealsClosedCount || String(session.metadata.dealsClosedCount ?? '0'),
+      specializations: current.specializations.length
+        ? current.specializations
+        : Array.isArray(session.metadata.specializations)
+          ? session.metadata.specializations
+          : [],
+      licenseNumber: current.licenseNumber || session.metadata.licenseNumber || '',
+      serviceAreas: current.serviceAreas.length
+        ? current.serviceAreas
+        : Array.isArray(session.metadata.serviceAreas)
+          ? session.metadata.serviceAreas
+          : [],
+      aboutMe: current.aboutMe || session.metadata.aboutMe || '',
     }));
   }, [session]);
 
@@ -115,7 +155,7 @@ export default function VerifyMobilePage() {
   const chooseFile = (side, file) => {
     if (!file) return;
     if (!['image/jpeg', 'image/png'].includes(file.type)) {
-      setError('ID photos must be JPG or PNG images.');
+      setError('Documents must be JPG or PNG images.');
       return;
     }
     if (file.size > 5 * 1024 * 1024) {
@@ -127,6 +167,8 @@ export default function VerifyMobilePage() {
     setUploadedPaths((current) => ({ ...current, [side]: '' }));
     if (side === 'front') setFrontFile(file);
     if (side === 'back') setBackFile(file);
+    if (side === 'license') setLicenseFile(file);
+    if (side === 'registration') setRegistrationFile(file);
   };
 
   const uploadPhoto = async (side, file) => {
@@ -151,7 +193,7 @@ export default function VerifyMobilePage() {
         contentType: file.type,
         upsert: true,
       });
-    if (uploadError) throw new Error(`Could not upload the ${side} ID photo: ${uploadError.message}`);
+    if (uploadError) throw new Error(`Could not upload ${side}: ${uploadError.message}`);
     return upload.path;
   };
 
@@ -163,6 +205,20 @@ export default function VerifyMobilePage() {
     }
     if (!details.consent) {
       setError('Confirm consent to identity verification.');
+      return;
+    }
+    const isAgentApplication = session?.metadata?.role === 'agent';
+    if (
+      isAgentApplication &&
+      (!agentDetails.businessName.trim() ||
+        agentDetails.yearsExperience === '' ||
+        agentDetails.specializations.length === 0 ||
+        agentDetails.serviceAreas.length === 0 ||
+        (!licenseFile && !uploadedPaths.license) ||
+        !agentDetails.agreeToTerms ||
+        !agentDetails.dataConsent)
+    ) {
+      setError('Complete the required agent application details and consents.');
       return;
     }
     setState('submitting');
@@ -177,6 +233,49 @@ export default function VerifyMobilePage() {
         setSubmitStep('Uploading back of ID…');
         uploaded.back = await uploadPhoto('back', backFile);
         setUploadedPaths((current) => ({ ...current, back: uploaded.back }));
+      }
+      if (isAgentApplication && !uploaded.license) {
+        setSubmitStep('Uploading agent license…');
+        uploaded.license = await uploadPhoto('license', licenseFile);
+        setUploadedPaths((current) => ({ ...current, license: uploaded.license }));
+      }
+      if (isAgentApplication && registrationFile && !uploaded.registration) {
+        setSubmitStep('Uploading business registration…');
+        uploaded.registration = await uploadPhoto('registration', registrationFile);
+        setUploadedPaths((current) => ({ ...current, registration: uploaded.registration }));
+      }
+
+      if (isAgentApplication) {
+        setSubmitStep('Submitting agent application…');
+        const agentResponse = await fetch('/api/agents/signup', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            sessionToken: token,
+            fullName: details.fullName,
+            email: agentDetails.email,
+            phone: details.phone,
+            businessName: agentDetails.businessName,
+            yearsExperience: Number(agentDetails.yearsExperience),
+            dealsClosedCount: Number(agentDetails.dealsClosedCount) || 0,
+            specializations: agentDetails.specializations,
+            licenseNumber: agentDetails.licenseNumber,
+            serviceAreas: agentDetails.serviceAreas,
+            aboutMe: agentDetails.aboutMe,
+            dataConsent: agentDetails.dataConsent,
+            agreeToTerms: agentDetails.agreeToTerms,
+            licenseFileUrl: uploaded.license,
+            registrationFileUrl: uploaded.registration || null,
+            jamaicanIdNumber: details.idNumber,
+            verificationFrontUrl: uploaded.front,
+            verificationBackUrl: uploaded.back,
+            identityConsent: details.consent,
+          }),
+        });
+        const agentPayload = await agentResponse.json();
+        if (!agentResponse.ok || !agentPayload.success) {
+          throw new Error(agentPayload.error || 'Failed to submit agent application.');
+        }
       }
 
       setSubmitStep('Finishing signup…');
@@ -238,7 +337,9 @@ export default function VerifyMobilePage() {
       <Screen
         icon={<CheckCircle2 className="text-emerald-600" size={36} />}
         title="Signup submitted for review"
-        body="Your account details and ID photos were submitted. We will review your identity before verified features are available."
+        body={session?.metadata?.role === 'agent'
+          ? 'Your agent application and identity documents were submitted. We will review your application and identity before verified features are available.'
+          : 'Your account details and ID photos were submitted. We will review your identity before verified features are available.'}
       />
     );
   }
@@ -339,14 +440,91 @@ export default function VerifyMobilePage() {
               Jamaican ID number
               <input required value={details.idNumber} onChange={(event) => setDetails({ ...details, idNumber: event.target.value })} className="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2.5" />
             </label>
+            {session?.metadata?.role === 'agent' && (
+              <section className="space-y-4 border-t border-gray-200 pt-4">
+                <h2 className="text-base font-semibold text-gray-900">Agent application</h2>
+                <label className="block text-sm font-medium text-gray-700">
+                  Email address
+                  <input type="email" value={agentDetails.email} readOnly className="mt-1 w-full rounded-xl border border-gray-300 bg-gray-100 px-3 py-2.5" />
+                </label>
+                <label className="block text-sm font-medium text-gray-700">
+                  Business name *
+                  <input required value={agentDetails.businessName} onChange={(event) => setAgentDetails({ ...agentDetails, businessName: event.target.value })} className="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2.5" />
+                </label>
+                <div className="grid grid-cols-2 gap-3">
+                  <label className="block text-sm font-medium text-gray-700">
+                    Years of experience *
+                    <input required type="number" min="0" max="80" value={agentDetails.yearsExperience} onChange={(event) => setAgentDetails({ ...agentDetails, yearsExperience: event.target.value })} className="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2.5" />
+                  </label>
+                  <label className="block text-sm font-medium text-gray-700">
+                    Deals closed
+                    <input type="number" min="0" max="999" value={agentDetails.dealsClosedCount} onChange={(event) => setAgentDetails({ ...agentDetails, dealsClosedCount: event.target.value })} className="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2.5" />
+                  </label>
+                </div>
+                <fieldset>
+                  <legend className="mb-2 text-sm font-medium text-gray-700">Specializations *</legend>
+                  <div className="grid grid-cols-2 gap-2">
+                    {SPECIALIZATIONS.map((specialization) => (
+                      <label key={specialization} className="flex items-center gap-2 rounded-lg bg-gray-50 p-2 text-xs text-gray-700">
+                        <input
+                          type="checkbox"
+                          checked={agentDetails.specializations.includes(specialization)}
+                          onChange={(event) => setAgentDetails((current) => ({
+                            ...current,
+                            specializations: event.target.checked
+                              ? [...current.specializations, specialization]
+                              : current.specializations.filter((item) => item !== specialization),
+                          }))}
+                        />
+                        {specialization}
+                      </label>
+                    ))}
+                  </div>
+                </fieldset>
+                <label className="block text-sm font-medium text-gray-700">
+                  Real estate license number
+                  <input value={agentDetails.licenseNumber} onChange={(event) => setAgentDetails({ ...agentDetails, licenseNumber: event.target.value })} className="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2.5" />
+                </label>
+                <fieldset>
+                  <legend className="mb-2 text-sm font-medium text-gray-700">Service areas (parishes) *</legend>
+                  <div className="grid grid-cols-2 gap-2">
+                    {PARISHES.map((parish) => (
+                      <label key={parish} className="flex items-center gap-2 rounded-lg bg-gray-50 p-2 text-xs text-gray-700">
+                        <input
+                          type="checkbox"
+                          checked={agentDetails.serviceAreas.includes(parish)}
+                          onChange={(event) => setAgentDetails((current) => ({
+                            ...current,
+                            serviceAreas: event.target.checked
+                              ? [...current.serviceAreas, parish]
+                              : current.serviceAreas.filter((item) => item !== parish),
+                          }))}
+                        />
+                        {parish}
+                      </label>
+                    ))}
+                  </div>
+                </fieldset>
+                <label className="block text-sm font-medium text-gray-700">
+                  About you
+                  <textarea rows={3} value={agentDetails.aboutMe} onChange={(event) => setAgentDetails({ ...agentDetails, aboutMe: event.target.value })} className="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2.5" />
+                </label>
+              </section>
+            )}
             {[
               { side: 'front', label: 'Front of ID', file: frontFile, uploaded: uploadedPaths.front },
               { side: 'back', label: 'Back of ID', file: backFile, uploaded: uploadedPaths.back },
+              ...(session?.metadata?.role === 'agent'
+                ? [
+                    { side: 'license', label: 'Real estate agent license *', file: licenseFile, uploaded: uploadedPaths.license },
+                    { side: 'registration', label: 'Business registration (optional)', file: registrationFile, uploaded: uploadedPaths.registration },
+                  ]
+                : []),
             ].map(({ side, label, file, uploaded }) => (
               <label key={side} className="flex cursor-pointer items-center gap-3 rounded-xl border border-dashed border-gray-300 p-4 text-sm text-gray-700">
                 {file || uploaded ? <IdCard size={18} /> : <Upload size={18} />}
                 <span className="min-w-0 flex-1 truncate">
-                  {uploaded ? `${label} uploaded` : file?.name || `Add ${label.toLowerCase()}`}
+                  {uploaded ? `${label.replace(' *', '')} uploaded` : file?.name || `Add ${label.toLowerCase()}`}
                 </span>
                 <input
                   type="file"
@@ -357,6 +535,18 @@ export default function VerifyMobilePage() {
                 />
               </label>
             ))}
+            {session?.metadata?.role === 'agent' && (
+              <>
+                <label className="flex items-start gap-3 rounded-xl bg-blue-50 p-3 text-xs text-gray-700">
+                  <input type="checkbox" checked={agentDetails.agreeToTerms} onChange={(event) => setAgentDetails({ ...agentDetails, agreeToTerms: event.target.checked })} className="mt-0.5" />
+                  <span>I agree to the <a className="font-semibold text-accent underline" href="/terms-of-service" target="_blank" rel="noreferrer">Agent Terms and Conditions</a>.</span>
+                </label>
+                <label className="flex items-start gap-3 rounded-xl bg-blue-50 p-3 text-xs text-gray-700">
+                  <input type="checkbox" checked={agentDetails.dataConsent} onChange={(event) => setAgentDetails({ ...agentDetails, dataConsent: event.target.checked })} className="mt-0.5" />
+                  <span>I consent to sharing my contact and business details with clients requesting agent services.</span>
+                </label>
+              </>
+            )}
             <label className="flex items-start gap-3 rounded-xl bg-red-50 p-3 text-xs text-gray-700">
               <input type="checkbox" checked={details.consent} onChange={(event) => setDetails({ ...details, consent: event.target.checked })} className="mt-0.5" />
               <span>I confirm this ID is mine and consent to identity verification.</span>

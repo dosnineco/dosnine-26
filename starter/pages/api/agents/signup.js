@@ -1,5 +1,7 @@
 import { getDbClient, requireDbUser } from '@/lib/apiAuth';
 import { sendBrevoEmail } from '@/lib/serviceRequestAllocation';
+import { PARISHES } from '@/lib/normalizeParish';
+import { SPECIALIZATIONS } from '@/lib/agentOptions';
 
 const escapeHtml = (value) => String(value || '').replace(/[&<>"']/g, (character) => ({
   '&': '&amp;',
@@ -15,11 +17,9 @@ export default async function handler(req, res) {
   }
 
   try {
-    const resolved = await requireDbUser(req, res, { createIfMissing: true });
-    if (!resolved) return;
-
     const db = getDbClient();
     const {
+      sessionToken,
       clerkId,
       fullName,
       email,
@@ -38,7 +38,54 @@ export default async function handler(req, res) {
       verificationFrontUrl,
       verificationBackUrl,
       identityConsent,
+      agreeToTerms,
     } = req.body;
+
+    let resolved;
+    let verificationSession = null;
+    if (sessionToken) {
+      if (typeof sessionToken !== 'string') {
+        return res.status(400).json({ error: 'Invalid verification session.' });
+      }
+
+      const { data: session, error: sessionError } = await db
+        .from('verification_sessions')
+        .select('id, user_clerk_id, context_id, verification_type, metadata, status, expires_at')
+        .eq('token', sessionToken)
+        .maybeSingle();
+      if (sessionError) throw sessionError;
+      if (
+        !session ||
+        session.verification_type !== 'identity' ||
+        session.metadata?.role !== 'agent' ||
+        (session.context_id && session.context_id !== session.user_clerk_id)
+      ) {
+        return res.status(404).json({ error: 'Agent verification session not found.' });
+      }
+      if (!['pending', 'mobile_opened'].includes(session.status)) {
+        return res.status(409).json({ error: 'This verification session is no longer active.' });
+      }
+      if (new Date(session.expires_at) <= new Date()) {
+        return res.status(410).json({ error: 'This verification session has expired.' });
+      }
+
+      const { data: user, error: userError } = await db
+        .from('users')
+        .select('*')
+        .eq('clerk_id', session.user_clerk_id)
+        .maybeSingle();
+      if (userError) throw userError;
+      if (!user) return res.status(404).json({ error: 'User profile not found.' });
+      if (['deactivated', 'flagged'].includes(String(user.account_status || '').toLowerCase())) {
+        return res.status(403).json({ error: 'This account cannot submit an agent application.' });
+      }
+
+      resolved = { clerkId: session.user_clerk_id, user };
+      verificationSession = session;
+    } else {
+      resolved = await requireDbUser(req, res, { createIfMissing: true });
+      if (!resolved) return;
+    }
 
     if (clerkId && clerkId !== resolved.clerkId) {
       return res.status(403).json({ error: 'Identity mismatch' });
@@ -46,7 +93,7 @@ export default async function handler(req, res) {
 
     const trustedUser = resolved.user;
     const userId = trustedUser.id;
-    const resolvedEmail = email || trustedUser.email;
+    const resolvedEmail = trustedUser.email || email;
 
     if (trustedUser.account_type && trustedUser.account_type !== 'agent') {
       return res.status(409).json({ error: 'This account is not set up as a real estate agent.' });
@@ -62,15 +109,40 @@ export default async function handler(req, res) {
     if (!dataConsent) {
       return res.status(400).json({ error: 'Data consent required' });
     }
+    if (verificationSession && !agreeToTerms) {
+      return res.status(400).json({ error: 'Agent terms acceptance is required.' });
+    }
+    if (
+      String(yearsExperience ?? '').trim() === '' ||
+      !Number.isInteger(Number(yearsExperience)) ||
+      Number(yearsExperience) < 0 ||
+      Number(yearsExperience) > 80 ||
+      !Number.isInteger(Number(dealsClosedCount ?? 0)) ||
+      Number(dealsClosedCount ?? 0) < 0 ||
+      Number(dealsClosedCount ?? 0) > 999 ||
+      !Array.isArray(specializations) ||
+      specializations.length === 0 ||
+      specializations.some((value) => !SPECIALIZATIONS.includes(value)) ||
+      !Array.isArray(serviceAreas) ||
+      serviceAreas.length === 0 ||
+      serviceAreas.some((value) => !PARISHES.includes(value))
+    ) {
+      return res.status(400).json({ error: 'Complete your experience, specialization, and service area details.' });
+    }
 
     const identityVerified = Boolean(
       trustedUser.identity_verified || trustedUser.id_verification_status === 'approved'
     );
     if (!identityVerified) {
+      const sessionPrefix = verificationSession
+        ? `verification/${userId}/sessions/${verificationSession.id}/`
+        : null;
       const validIdDocumentPath = (path, side) =>
         typeof path === 'string' &&
-        path.startsWith(`verification/${userId}/`) &&
-        new RegExp(`^verification/${userId}/jamaican-id-${side}-\\d+\\.(jpg|jpeg|png)$`).test(path);
+        (sessionPrefix
+          ? path === `${sessionPrefix}${side}`
+          : path.startsWith(`verification/${userId}/`) &&
+            new RegExp(`^verification/${userId}/jamaican-id-${side}-\\d+\\.(jpg|jpeg|png)$`).test(path));
       if (
         typeof jamaicanIdNumber !== 'string' ||
         !jamaicanIdNumber.trim() ||
@@ -84,20 +156,60 @@ export default async function handler(req, res) {
         });
       }
 
-      const { data: uploadedIdFiles, error: listError } = await db.storage
-        .from('agent-documents')
-        .list(`verification/${userId}`, { search: 'jamaican-id-' });
-      if (listError) {
-        console.error('Failed to verify uploaded agent identity documents:', listError);
-        return res.status(500).json({ error: 'Unable to verify uploaded identity documents' });
+      const verifyUploadedImage = async (path) => {
+        const directory = path.slice(0, path.lastIndexOf('/'));
+        const filename = path.slice(path.lastIndexOf('/') + 1);
+        const { data: files, error: listError } = await db.storage
+          .from('agent-documents')
+          .list(directory, { search: filename });
+        if (listError) throw listError;
+        const file = files?.find((entry) => entry.name === filename);
+        const size = Number(file?.metadata?.size);
+        const mimeType = file?.metadata?.mimetype;
+        return Boolean(
+          file &&
+          Number.isFinite(size) &&
+          size > 0 &&
+          size <= 5 * 1024 * 1024 &&
+          ['image/jpeg', 'image/png'].includes(mimeType)
+        );
+      };
+      if (!(await verifyUploadedImage(verificationFrontUrl)) || !(await verifyUploadedImage(verificationBackUrl))) {
+        return res.status(400).json({ error: 'Both Jamaican ID images must be uploaded as JPG or PNG files up to 5 MB.' });
       }
+    }
 
-      const uploadedNames = new Set((uploadedIdFiles || []).map((file) => file.name));
+    let validatedLicenseFileUrl = licenseFileUrl;
+    let validatedRegistrationFileUrl = registrationFileUrl || null;
+    if (verificationSession) {
+      const sessionPrefix = `verification/${userId}/sessions/${verificationSession.id}/`;
       if (
-        !uploadedNames.has(verificationFrontUrl.split('/').pop()) ||
-        !uploadedNames.has(verificationBackUrl.split('/').pop())
+        licenseFileUrl !== `${sessionPrefix}license` ||
+        (registrationFileUrl && registrationFileUrl !== `${sessionPrefix}registration`)
       ) {
-        return res.status(400).json({ error: 'Both Jamaican ID images must be uploaded before submitting.' });
+        return res.status(400).json({ error: 'Upload the agent license and any business registration documents.' });
+      }
+      const verifyAgentDocument = async (path) => {
+        const { data: files, error: listError } = await db.storage
+          .from('agent-documents')
+          .list(sessionPrefix.slice(0, -1), { search: path.split('/').pop() });
+        if (listError) throw listError;
+        const file = files?.find((entry) => entry.name === path.split('/').pop());
+        const size = Number(file?.metadata?.size);
+        const mimeType = file?.metadata?.mimetype;
+        return Boolean(
+          file &&
+          Number.isFinite(size) &&
+          size > 0 &&
+          size <= 5 * 1024 * 1024 &&
+          ['image/jpeg', 'image/png'].includes(mimeType)
+        );
+      };
+      if (!(await verifyAgentDocument(licenseFileUrl))) {
+        return res.status(400).json({ error: 'Upload a valid JPG or PNG agent license image up to 5 MB.' });
+      }
+      if (registrationFileUrl && !(await verifyAgentDocument(registrationFileUrl))) {
+        return res.status(400).json({ error: 'Upload a valid JPG or PNG business registration image up to 5 MB.' });
       }
     }
 
@@ -130,14 +242,14 @@ export default async function handler(req, res) {
     const agentData = {
       user_id: userId,
       business_name: businessName,
-      years_experience: parseInt(yearsExperience) || 1,
+      years_experience: Number(yearsExperience),
       license_number: licenseNumber || null,
       specializations: Array.isArray(specializations) ? specializations : [specializations].filter(Boolean),
       service_areas: Array.isArray(serviceAreas) ? serviceAreas.join(', ') : (serviceAreas || ''),
       about_me: aboutMe || '',
       deals_closed_count: parseInt(dealsClosedCount) || 0,
-      license_file_url: licenseFileUrl,
-      registration_file_url: registrationFileUrl,
+      license_file_url: validatedLicenseFileUrl,
+      registration_file_url: validatedRegistrationFileUrl,
       verification_status: 'pending',
       verification_submitted_at: new Date().toISOString(),
       service_agreement_signed: true,

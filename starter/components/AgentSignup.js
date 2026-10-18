@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { PARISHES } from '@/lib/normalizeParish';
+import { SPECIALIZATIONS } from '@/lib/agentOptions';
 import ContinueOnPhone from '@/components/ContinueOnPhone';
 
 /* ----------------------------------------------------------
@@ -29,17 +30,6 @@ const inputClass =
 
 const labelClass =
   'block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1.5';
-
-const SPECIALIZATIONS = [
-  'Residential',
-  'Commercial',
-  'Land',
-  'Luxury',
-  'Investment Properties',
-  'Rentals',
-  'First-time Buyers',
-  'Corporate Housing',
-];
 
 /* ============================================================
  * Number stepper — big +/- buttons, digits only
@@ -859,7 +849,19 @@ export default function AgentSignup() {
                   <ContinueOnPhone
                     verificationType="identity"
                     contextId={user?.id}
-                    metadata={{ role: 'agent', fullName: formData.fullName, phone: formData.phone }}
+                    metadata={{
+                      role: 'agent',
+                      fullName: formData.fullName,
+                      email: formData.email,
+                      phone: formData.phone,
+                      businessName: formData.businessName,
+                      yearsExperience: formData.yearsExperience,
+                      dealsClosedCount: formData.dealsClosedCount,
+                      specializations: formData.specializations,
+                      licenseNumber: formData.licenseNumber,
+                      serviceAreas: formData.serviceAreas,
+                      aboutMe: formData.aboutMe,
+                    }}
                     onComplete={async () => {
                       const token = await getToken();
                       const { data } = await axios.get('/api/user/profile', {
@@ -880,6 +882,7 @@ export default function AgentSignup() {
                         frontUrl: data?.verification_front_url || '',
                         backUrl: data?.verification_back_url || '',
                       });
+                      if (data?.agent) setAgentData(data.agent);
                     }}
                   />
                   <p className="text-center text-xs font-medium uppercase text-slate-400">Or upload from this device</p>
