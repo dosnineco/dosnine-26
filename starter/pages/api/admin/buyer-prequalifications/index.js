@@ -46,6 +46,32 @@ export default async function handler(req, res) {
     const db = getDbClient();
 
     if (req.method === 'GET') {
+      if (req.query.summary === 'true') {
+        const [{ data: reviews, error: reviewsError }, { data: pendingDocuments, error: documentsError }] =
+          await Promise.all([
+            db
+              .from('buyer_prequalifications')
+              .select('id')
+              .in('status', ['registered', 'under_review']),
+            db
+              .from('buyer_documents')
+              .select('prequalification_id')
+              .eq('status', 'pending'),
+          ]);
+        if (reviewsError) throw reviewsError;
+        if (documentsError) throw documentsError;
+
+        const reviewIds = new Set((reviews || []).map((item) => item.id));
+        (pendingDocuments || []).forEach((document) => {
+          reviewIds.add(document.prequalification_id);
+        });
+
+        return res.status(200).json({
+          success: true,
+          pendingReviewCount: reviewIds.size,
+        });
+      }
+
       const status = typeof req.query.status === 'string' ? req.query.status : 'all';
       const level = typeof req.query.level === 'string' ? req.query.level : 'all';
       if (

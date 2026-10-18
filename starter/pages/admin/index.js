@@ -16,6 +16,7 @@ import {
   Clock,
   XCircle,
   AlertCircle,
+  ShieldCheck,
   ArrowRight,
   RefreshCw,
   Package,
@@ -74,6 +75,7 @@ export default function AdminDashboardIndex() {
     properties: null,
     market: null,
     htvOrders: null,
+    buyerPrequalifications: null,
     adsActive: 0,
     adsPending: 0,
     approvedSubmissions: [],
@@ -106,6 +108,7 @@ export default function AdminDashboardIndex() {
       propertiesRes,
       marketRes,
       htvOrdersRes,
+      buyerPrequalificationsRes,
     ] = await Promise.all([
       safeFetch('/api/admin/requests'),
       safeFetch('/api/admin/agents/list?status=all'),
@@ -114,6 +117,7 @@ export default function AdminDashboardIndex() {
       safeFetch('/api/admin/properties'),
       safeFetch('/api/admin/market-intelligence'),
       safeFetch('/api/admin/htv-orders'),
+      safeFetch('/api/admin/buyer-prequalifications?summary=true'),
     ]);
 
     let adsActive = 0;
@@ -129,7 +133,7 @@ export default function AdminDashboardIndex() {
       const { count: pendingCount } = await supabase
         .from('sponsor_submissions')
         .select('id', { count: 'exact', head: true })
-        .in('status', ['pending', 'pending_payment']);
+        .in('status', ['pending', 'pending_payment', 'pending_review']);
       adsPending = pendingCount || 0;
 
       const { data: approvedData } = await supabase
@@ -149,6 +153,7 @@ export default function AdminDashboardIndex() {
       properties: propertiesRes,
       market: marketRes,
       htvOrders: htvOrdersRes,
+      buyerPrequalifications: buyerPrequalificationsRes,
       adsActive,
       adsPending,
       approvedSubmissions,
@@ -158,7 +163,17 @@ export default function AdminDashboardIndex() {
   }, []);
 
   useEffect(() => {
-    if (isAdmin) loadAll();
+    if (!isAdmin) return undefined;
+
+    loadAll();
+    const refreshOnFocus = () => loadAll();
+    const interval = setInterval(loadAll, 60000);
+    window.addEventListener('focus', refreshOnFocus);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', refreshOnFocus);
+    };
   }, [isAdmin, loadAll]);
 
   /* -------------------- derived metrics -------------------- */
@@ -182,6 +197,12 @@ export default function AdminDashboardIndex() {
     const pendingAgents = agents.filter(
       (a) => a.verification_status === 'pending'
     ).length;
+    const pendingAgentPayments = agents.filter(
+      (a) => a.payment_receipt_status === 'pending'
+    ).length;
+    const pendingUserVerifications = users.filter(
+      (u) => String(u.id_verification_status || '').toLowerCase() === 'pending'
+    ).length;
 
     const agentRevenue = agents.reduce(
       (sum, a) => sum + (Number(a.payment_amount) || 0),
@@ -197,6 +218,9 @@ export default function AdminDashboardIndex() {
     let htvRevenue = 0;
     let htvExpenses = 0;
     let htvProfit = 0;
+    const pendingHtvOrders = orders.filter(
+      (order) => String(order.status || 'pending').toLowerCase() !== 'completed'
+    ).length;
     orders
       .filter((o) => o.status === 'completed')
       .forEach((o) => {
@@ -216,6 +240,7 @@ export default function AdminDashboardIndex() {
       users: {
         total: users.length,
         admins: users.filter((u) => u.role === 'admin').length,
+        pendingVerification: pendingUserVerifications,
         paid: users.filter(
           (u) =>
             u.premium_service_request &&
@@ -233,10 +258,14 @@ export default function AdminDashboardIndex() {
         total: agents.length,
         approved: approvedAgents,
         pending: pendingAgents,
+        pendingPayments: pendingAgentPayments,
         revenue: agentRevenue,
       },
       applications: {
         pending: pendingApplications,
+      },
+      buyerPrequalifications: {
+        pending: data.buyerPrequalifications?.pendingReviewCount ?? null,
       },
       properties: {
         total: properties.length,
@@ -252,6 +281,7 @@ export default function AdminDashboardIndex() {
         ),
       },
       htv: {
+        pending: pendingHtvOrders,
         revenue: htvRevenue,
         expenses: htvExpenses,
         profit: htvProfit,
@@ -396,7 +426,7 @@ export default function AdminDashboardIndex() {
             icon={Briefcase}
             tone="emerald"
             sub={`${metrics.agents.approved} approved · ${metrics.agents.pending} pending`}
-            href="/admin/agents"
+            href="/admin/users?tab=agents"
           />
           <KpiCard
             label="Properties"
@@ -416,7 +446,7 @@ export default function AdminDashboardIndex() {
             icon={DollarSign}
             tone="emerald"
             sub="Total from paid plans"
-            href="/admin/agents"
+            href="/admin/users?tab=agents"
           />
           <KpiCard
             label="Ad Revenue"
@@ -477,33 +507,91 @@ export default function AdminDashboardIndex() {
           </div>
         </div>
 
-        {/* Action needed */}
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-          <ActionCard
-            title="Pending agents"
-            count={metrics.agents.pending}
-            icon={Clock}
-            href="/admin/agents"
-            tone="amber"
-            description="Awaiting document review"
-          />
-          <ActionCard
-            title="Pending applications"
-            count={metrics.applications.pending}
-            icon={AlertCircle}
-            href="/admin/agent-applications"
-            tone="blue"
-            description="Request applications to review"
-          />
-          <ActionCard
-            title="Pending ad submissions"
-            count={metrics.ads.pending}
-            icon={Megaphone}
-            href="/admin/advertisements"
-            tone="violet"
-            description="Awaiting approval or payment"
-          />
-        </div>
+        <section aria-labelledby="admin-action-items">
+          <div className="mb-3">
+            <h2 id="admin-action-items" className="text-lg font-semibold text-slate-900">
+              Action needed
+            </h2>
+            <p className="mt-1 text-sm text-slate-600">
+              These counts stay visible until the related work is completed.
+            </p>
+          </div>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            <ActionCard
+              title="User ID verifications"
+              count={metrics.users.pendingVerification}
+              icon={Users}
+              href="/admin/users"
+              tone="amber"
+              description="Review submitted identity documents"
+              loading={loading}
+            />
+            <ActionCard
+              title="Buyer prequalifications"
+              count={metrics.buyerPrequalifications.pending}
+              icon={ShieldCheck}
+              href="/admin/buyer-prequalifications"
+              tone="blue"
+              description="Review buyer documents and financial readiness"
+              loading={loading}
+              unavailable={!data.buyerPrequalifications}
+            />
+            <ActionCard
+              title="Agent verification reviews"
+              count={metrics.agents.pending}
+              icon={Briefcase}
+              href="/admin/users?tab=agents"
+              tone="amber"
+              description="Review agent applications and documents"
+              loading={loading}
+            />
+            <ActionCard
+              title="Agent payment receipts"
+              count={metrics.agents.pendingPayments}
+              icon={DollarSign}
+              href="/admin/users?tab=agents"
+              tone="blue"
+              description="Confirm submitted agent payments"
+              loading={loading}
+            />
+            <ActionCard
+              title="Client requests to assign"
+              count={metrics.requests.open}
+              icon={FileText}
+              href="/admin/requests"
+              tone="amber"
+              description="Open requests waiting for an agent"
+              loading={loading}
+            />
+            <ActionCard
+              title="Agent request applications"
+              count={metrics.applications.pending}
+              icon={AlertCircle}
+              href="/admin/agent-applications"
+              tone="blue"
+              description="Review applications to client requests"
+              loading={loading}
+            />
+            <ActionCard
+              title="HTV orders in progress"
+              count={metrics.htv.pending}
+              icon={Package}
+              href="/admin/htv"
+              tone="violet"
+              description="Orders not yet marked completed"
+              loading={loading}
+            />
+            <ActionCard
+              title="Ad and sponsor submissions"
+              count={metrics.ads.pending}
+              icon={Megaphone}
+              href="/admin/advertisements"
+              tone="violet"
+              description="Pending review, payment, or approval"
+              loading={loading}
+            />
+          </div>
+        </section>
 
         {/* Ads + market intelligence */}
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
@@ -597,6 +685,8 @@ function ActionCard({
   href,
   tone = 'amber',
   description,
+  loading = false,
+  unavailable = false,
 }) {
   const style = TONE_STYLES[tone] || TONE_STYLES.amber;
   const hasItems = count > 0;
@@ -621,13 +711,28 @@ function ActionCard({
       <div className="text-right">
         <p
           className={`text-2xl font-bold ${
-            hasItems ? 'text-slate-900' : 'text-slate-400'
+            loading || unavailable
+              ? 'text-slate-400'
+              : hasItems
+                ? 'text-slate-900'
+                : 'text-emerald-600'
           }`}
         >
-          {count}
+          {loading || unavailable ? '—' : count}
         </p>
-        <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-slate-400 transition group-hover:text-accent">
-          Review <ArrowRight size={11} />
+        <span
+          className={`inline-flex items-center gap-1 text-[11px] font-semibold ${
+            loading || unavailable ? 'text-slate-400' : hasItems ? 'text-amber-700' : 'text-emerald-700'
+          } transition group-hover:text-accent`}
+        >
+          {loading
+            ? 'Loading'
+            : unavailable
+              ? 'Unable to load'
+              : hasItems
+                ? 'Needs attention'
+                : 'All clear'}
+          {!loading && !unavailable && hasItems ? <ArrowRight size={11} /> : null}
         </span>
       </div>
     </Link>

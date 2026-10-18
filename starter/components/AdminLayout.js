@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { useRouter } from 'next/router';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   FiGrid,
   FiUsers,
@@ -18,7 +18,6 @@ import {
   FiUser,
 } from 'react-icons/fi';
 
-const LAST_SEEN_KEY_PREFIX = 'admin-notification-last-seen:';
 const SIDEBAR_STATE_KEY = 'admin-sidebar-collapsed';
 
 export default function AdminLayout({ children }) {
@@ -29,7 +28,10 @@ export default function AdminLayout({ children }) {
     requests: 0,
     applications: 0,
     advertisements: 0,
+    users: 0,
     agents: 0,
+    htv: 0,
+    buyerPrequalifications: 0,
   });
 
   // Desktop: collapsed = icon-only rail. Mobile: whether drawer is open.
@@ -71,115 +73,82 @@ export default function AdminLayout({ children }) {
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
-  /* -------------------- Notifications helpers -------------------- */
-  const markGroupAsSeen = (group) => {
-    if (typeof window === 'undefined') return;
-    window.localStorage.setItem(`${LAST_SEEN_KEY_PREFIX}${group}`, String(Date.now()));
-    setCounts((prev) => ({ ...prev, [group]: 0 }));
-  };
-
-  const getLastSeen = (group) => {
-    if (typeof window === 'undefined') return 0;
-    const raw = window.localStorage.getItem(`${LAST_SEEN_KEY_PREFIX}${group}`);
-    const parsed = Number(raw || 0);
-    return Number.isFinite(parsed) ? parsed : 0;
-  };
-
-  const routeToGroup = useMemo(
-    () => ({
-      '/admin/requests': 'requests',
-      '/admin/requests-management': 'requests',
-      '/admin/agent-applications': 'applications',
-      '/admin/advertisements': 'advertisements',
-      '/admin/users?tab=agents': 'agents',
-    }),
-    []
-  );
-
-  useEffect(() => {
-    const group =
-      path === '/admin/users' && router.query.tab === 'agents'
-        ? 'agents'
-        : routeToGroup[path];
-    if (group) markGroupAsSeen(group);
-  }, [path, router.query.tab, routeToGroup]);
-
-  /* -------------------- Fetch badge counts -------------------- */
-  useEffect(() => {
-    let isMounted = true;
-
-    const fetchCounts = async () => {
-      try {
-        const agentsLastSeen = getLastSeen('agents');
-        const [requestsRes, applicationsRes, advertisementsRes, agentsRes] = await Promise.all([
+  /* -------------------- Fetch unresolved-work badge counts -------------------- */
+  const fetchCounts = useCallback(async () => {
+    try {
+      const [requestsRes, applicationsRes, advertisementsRes, accountsRes, agentsRes, htvRes, buyerPrequalificationsRes] =
+        await Promise.all([
           fetch('/api/admin/requests', { credentials: 'include' }),
           fetch('/api/admin/agent-applications', { credentials: 'include' }),
           fetch('/api/admin/advertisements', { credentials: 'include' }),
-          fetch(`/api/admin/agents/notifications?since=${agentsLastSeen}`, { credentials: 'include' }),
+          fetch('/api/admin/users', { credentials: 'include' }),
+          fetch('/api/admin/agents/notifications?pending=true', { credentials: 'include' }),
+          fetch('/api/admin/htv-orders', { credentials: 'include' }),
+          fetch('/api/admin/buyer-prequalifications?summary=true', { credentials: 'include' }),
         ]);
 
-        const [requestsPayload, applicationsPayload, advertisementsPayload, agentsPayload] =
-          await Promise.all([
+      const [requestsPayload, applicationsPayload, advertisementsPayload, accountsPayload, agentsPayload, htvPayload, buyerPrequalificationsPayload] =
+        await Promise.all([
             requestsRes.json().catch(() => null),
             applicationsRes.json().catch(() => null),
             advertisementsRes.json().catch(() => null),
+            accountsRes.json().catch(() => null),
             agentsRes.json().catch(() => null),
+            htvRes.json().catch(() => null),
+            buyerPrequalificationsRes.json().catch(() => null),
           ]);
 
-        if (!isMounted) return;
-
-        const requestsLastSeen = getLastSeen('requests');
-        const applicationsLastSeen = getLastSeen('applications');
-        const advertisementsLastSeen = getLastSeen('advertisements');
-
-        const requestCount = (requestsPayload?.requests || []).filter((item) => {
-          const createdAt = new Date(item?.created_at || 0).getTime();
-          return createdAt > requestsLastSeen;
-        }).length;
-
-        const applicationsCount = (applicationsPayload?.applications || []).filter(
-          (item) => {
-            const appliedAt = new Date(item?.applied_at || 0).getTime();
-            const status = String(item?.status || '').toLowerCase();
-            return status === 'pending' && appliedAt > applicationsLastSeen;
-          }
-        ).length;
-
-        const advertisementsCount = (
-          advertisementsPayload?.submissions || []
-        ).filter((item) => {
-          const submittedAt = new Date(item?.submitted_at || 0).getTime();
-          const status = String(item?.status || '').toLowerCase();
-          return (
-            ['pending', 'pending_payment'].includes(status) &&
-            submittedAt > advertisementsLastSeen
-          );
-        }).length;
-
-        setCounts({
-          requests: requestCount,
-          applications: applicationsCount,
-          advertisements: advertisementsCount,
-          agents: agentsPayload?.success ? Number(agentsPayload.count) || 0 : 0,
-        });
-      } catch (error) {
-        // Keep layout functional even if badge fetch fails.
-      }
-    };
-
-    fetchCounts();
-    const interval = setInterval(fetchCounts, 60000);
-
-    return () => {
-      isMounted = false;
-      clearInterval(interval);
-    };
+      setCounts((current) => ({
+        requests: requestsRes.ok && Array.isArray(requestsPayload?.requests)
+          ? requestsPayload.requests.filter((item) => item?.status === 'open').length
+          : current.requests,
+        applications: applicationsRes.ok && Array.isArray(applicationsPayload?.applications)
+          ? applicationsPayload.applications.filter(
+              (item) => String(item?.status || '').toLowerCase() === 'pending'
+            ).length
+          : current.applications,
+        advertisements: advertisementsRes.ok && Array.isArray(advertisementsPayload?.submissions)
+          ? advertisementsPayload.submissions.filter((item) =>
+              ['pending', 'pending_payment', 'pending_review'].includes(
+                String(item?.status || '').trim().toLowerCase()
+              )
+            ).length
+          : current.advertisements,
+        users: accountsRes.ok && Array.isArray(accountsPayload?.users)
+          ? accountsPayload.users.filter(
+              (item) => String(item?.id_verification_status || '').toLowerCase() === 'pending'
+            ).length
+          : current.users,
+        agents: agentsRes.ok && agentsPayload?.success
+          ? Number(agentsPayload.count) || 0
+          : current.agents,
+        htv: htvRes.ok && Array.isArray(htvPayload?.orders)
+          ? htvPayload.orders.filter(
+              (item) => String(item?.status || 'pending').toLowerCase() !== 'completed'
+            ).length
+          : current.htv,
+        buyerPrequalifications: buyerPrequalificationsRes.ok && buyerPrequalificationsPayload?.success
+          ? Number(buyerPrequalificationsPayload.pendingReviewCount) || 0
+          : current.buyerPrequalifications,
+      }));
+    } catch (error) {
+      console.error('Failed to refresh admin action counts:', error);
+    }
   }, []);
 
-  const onNavClick = (href) => {
-    const group = routeToGroup[href];
-    if (group) markGroupAsSeen(group);
-  };
+  useEffect(() => {
+    fetchCounts();
+    const interval = setInterval(fetchCounts, 60000);
+    const onFocus = () => fetchCounts();
+    window.addEventListener('focus', onFocus);
+    router.events.on('routeChangeComplete', fetchCounts);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', onFocus);
+      router.events.off('routeChangeComplete', fetchCounts);
+    };
+  }, [fetchCounts, router.events]);
 
   /* -------------------- Nav items -------------------- */
   const navItems = [
@@ -195,6 +164,7 @@ export default function AdminLayout({ children }) {
       href: '/admin/buyer-prequalifications',
       label: 'Buyer Prequalifications',
       icon: FiUser,
+      badge: counts.buyerPrequalifications,
     },
     {
       href: '/admin/agent-applications',
@@ -203,7 +173,7 @@ export default function AdminLayout({ children }) {
       badge: counts.applications,
     },
 
-    { href: '/admin/htv', label: 'HTV', icon: FiPackage },
+    { href: '/admin/htv', label: 'HTV', icon: FiPackage, badge: counts.htv },
     {
       href: '/admin/advertisements',
       label: 'Advertisements',
@@ -216,7 +186,7 @@ export default function AdminLayout({ children }) {
       label: 'Market Intelligence',
       icon: FiTrendingUp,
     },
-    { href: '/admin/users', label: 'Users', icon: FiUsers },
+    { href: '/admin/users', label: 'Users & Agents', icon: FiUsers, badge: counts.users + counts.agents },
    
     { href: '/admin/properties', label: 'Properties', icon: FiUsers },
     { href: '/admin/api-smoke', label: 'API Smoke', icon: FiGrid },
@@ -302,7 +272,6 @@ export default function AdminLayout({ children }) {
                 <li key={href}>
                   <Link
                     href={href}
-                    onClick={() => onNavClick(href)}
                     className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition ${
                       active
                         ? 'bg-accent/10 text-accent'
@@ -377,7 +346,6 @@ export default function AdminLayout({ children }) {
                 <li key={href}>
                   <Link
                     href={href}
-                    onClick={() => onNavClick(href)}
                     className={`group relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition ${
                       collapsed ? 'justify-center' : ''
                     } ${

@@ -16,19 +16,23 @@ export default async function handler(req, res) {
     }
 
     const since = new Date(sinceTimestamp).toISOString();
+    const allPending = req.query.pending === 'true';
     const db = getDbClient();
-    const [reviewResult, paymentResult] = await Promise.all([
-      db
+    let reviewQuery = db
         .from('agents')
         .select('id', { count: 'exact', head: true })
-        .eq('verification_status', 'pending')
-        .gt('verification_submitted_at', since),
-      db
+        .eq('verification_status', 'pending');
+    let paymentQuery = db
         .from('agents')
         .select('id', { count: 'exact', head: true })
-        .eq('payment_receipt_status', 'pending')
-        .gt('payment_receipt_submitted_at', since),
-    ]);
+        .eq('payment_receipt_status', 'pending');
+
+    if (!allPending) {
+      reviewQuery = reviewQuery.gt('verification_submitted_at', since);
+      paymentQuery = paymentQuery.gt('payment_receipt_submitted_at', since);
+    }
+
+    const [reviewResult, paymentResult] = await Promise.all([reviewQuery, paymentQuery]);
 
     if (reviewResult.error) throw reviewResult.error;
 
