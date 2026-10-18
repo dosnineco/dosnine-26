@@ -57,6 +57,7 @@ const PUBLIC_ROUTES = [
   '/refund-policy',
   '/about',
   '/verify',
+  '/verify/mobile',
   '/requests-marketplace',
   '/listing',
   '/course',
@@ -76,6 +77,7 @@ const NO_LAYOUT_PAGES = [
   '/fin',
   '/invest',
   '/chargeback',
+  '/verify/mobile',
 ];
 
 /* ============================================================
@@ -271,7 +273,13 @@ function AppContent({ Component, pageProps }) {
 
   useEffect(() => {
     if (!isSignedIn || !isSynced || !profileData) return;
-    if (['/verify', '/agent/signup', '/buyer-prequalification', '/my-requests'].includes(router.pathname)) return;
+    if (
+      ['/verify', '/verify/mobile', '/agent/signup', '/buyer-prequalification', '/my-requests'].includes(
+        router.pathname
+      )
+    ) {
+      return;
+    }
 
     const isAdmin = profileData.role === 'admin';
     const isVerified =
