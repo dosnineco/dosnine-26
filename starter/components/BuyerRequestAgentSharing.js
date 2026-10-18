@@ -72,6 +72,10 @@ export default function BuyerRequestAgentSharing({ requestId, canShare }) {
       setConsented(false);
       setRecipientEmail('');
       await loadShares();
+      if (payload.alreadyShared) {
+        toast.success('This request is already shared with that agent.');
+        return;
+      }
       if (method === 'POST' && payload.mode === 'account' && payload.emailSent === false) {
         toast.error(payload.emailError || 'Request shared, but the notification email could not be sent.');
         return;
@@ -107,7 +111,7 @@ export default function BuyerRequestAgentSharing({ requestId, canShare }) {
               <p className="mt-1 text-xs leading-5 text-gray-600">
                 Enter the agent’s email address. An existing Dosnine agent account keeps view-only access
                 until you remove it. Otherwise, we email a private viewing link that expires in seven days.
-                Sharing does not assign or transfer your request.
+                Each request is shared once per agent; repeating the same share will not create another access record or send another email. Sharing does not assign or transfer your request.
               </p>
             </div>
             <button type="button" onClick={() => setOpen(false)} aria-label="Close sharing options"

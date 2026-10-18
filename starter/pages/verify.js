@@ -14,11 +14,13 @@ import {
   Megaphone,
   Users,
   ArrowRight,
+  Smartphone,
 } from 'lucide-react';
 import { clearUserCache } from '../lib/useRoleProtection';
+import ContinueOnPhone from '../components/ContinueOnPhone';
 
 const ROLE_OPTIONS = [
-    { value: 'tenant', label: 'Tenant' },
+  { value: 'tenant', label: 'Tenant' },
   { value: 'homeowner', label: 'Homeowner' },
   { value: 'advertiser', label: 'Advertiser' },
   { value: 'agent', label: 'Real Estate Agent' },
@@ -72,11 +74,9 @@ export default function VerifyIdentityPage() {
   });
   const [frontFile, setFrontFile] = useState(null);
   const [backFile, setBackFile] = useState(null);
-  const [agentIdFile, setAgentIdFile] = useState(null);
   const [submitted, setSubmitted] = useState(false);
   const frontInputRef = useRef(null);
   const backInputRef = useRef(null);
-  const agentIdInputRef = useRef(null);
   const previewUrlsRef = useRef({});
   const [previews, setPreviews] = useState({});
 
@@ -110,6 +110,10 @@ export default function VerifyIdentityPage() {
             : data?.account_type === 'regular'
               ? data?.profile_intent || 'tenant'
               : null;
+        if (selectedRole === 'agent' || savedRole === 'agent') {
+          router.replace('/agent/signup');
+          return;
+        }
         const isRegularAccount = data?.account_type === 'regular';
         const isChangingRegularIntent =
           isRegularAccount &&
@@ -201,7 +205,6 @@ export default function VerifyIdentityPage() {
 
     if (side === 'front') setFrontFile(file);
     if (side === 'back') setBackFile(file);
-    if (side === 'agentId') setAgentIdFile(file);
   };
 
   const buildAuthHeaders = (token) => {
@@ -215,6 +218,24 @@ export default function VerifyIdentityPage() {
     return headers;
   };
 
+  /**
+   * Fired by ContinueOnPhone when the phone completes the session.
+   * Marks the flow as submitted so the success screen appears.
+   *
+   * NOTE: The actual ID capture + submission happens on the mobile
+   * page you build at /verify/mobile. Once that page finishes calling
+   * its own /api/user/verify endpoint, the session is marked complete
+   * and this fires.
+   */
+  const handleMobileComplete = () => {
+    clearUserCache(user?.id);
+    if (typeof window !== 'undefined' && user?.id) {
+      window.localStorage.setItem(`verification_pending_${user.id}`, 'true');
+    }
+    toast.success('Verification submitted from your phone');
+    setSubmitted(true);
+  };
+
   const handleSubmit = async (event) => {
     event.preventDefault();
 
@@ -223,6 +244,10 @@ export default function VerifyIdentityPage() {
     if (!user?.id) {
       toast.error('Please sign in before continuing');
       router.replace('/dashboard');
+      return;
+    }
+    if (role === 'agent') {
+      router.replace('/agent/signup');
       return;
     }
     if (!form.fullName?.trim()) {
@@ -239,10 +264,6 @@ export default function VerifyIdentityPage() {
     }
     if (!frontFile || !backFile) {
       toast.error('Please upload both sides of your Jamaican ID');
-      return;
-    }
-    if (role === 'agent' && !agentIdFile) {
-      toast.error('Please upload your agent license or agent ID');
       return;
     }
     if (!form.consent) {
@@ -262,9 +283,6 @@ export default function VerifyIdentityPage() {
       payload.append('consent', String(form.consent));
       payload.append('frontFile', frontFile);
       payload.append('backFile', backFile);
-      if (role === 'agent' && agentIdFile) {
-        payload.append('agentIdFile', agentIdFile);
-      }
 
       const token = await getToken();
       const response = await axios.post('/api/user/verify', payload, {
@@ -418,6 +436,8 @@ export default function VerifyIdentityPage() {
               onClick={() => {
                 if (role === 'tenant' || (role === 'homeowner' && identityVerified)) {
                   continueWithRegularAccount();
+                } else if (role === 'agent') {
+                  router.push('/agent/signup');
                 } else {
                   setShowVerificationForm(true);
                 }
@@ -451,9 +471,7 @@ export default function VerifyIdentityPage() {
             <p className="text-white/90 text-sm">
               {role === 'homeowner'
                 ? 'Verify your identity to post and manage properties.'
-                : role === 'agent'
-                  ? 'Verify your identity and provide agent credentials to apply for agent access.'
-                  : 'Verify your identity to set up an advertiser account.'}
+                : 'Verify your identity to set up an advertiser account.'}
             </p>
           </div>
 
@@ -479,6 +497,49 @@ export default function VerifyIdentityPage() {
               </span>
             </div>
 
+            {/* ============================================================
+                Continue on phone (recommended)
+               ============================================================ */}
+            <div className="space-y-3">
+              <div className="flex items-start gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-accent/10 text-accent">
+                  <Smartphone size={18} />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-semibold text-gray-900">
+                    Recommended — finish on your phone
+                  </p>
+                  <p className="mt-1 text-xs text-gray-600">
+                    Phone cameras take clearer photos of ID cards. Scan the QR
+                    below and this page will update automatically when you
+                    finish on your phone.
+                  </p>
+                </div>
+              </div>
+
+              <ContinueOnPhone
+                verificationType="identity"
+                contextId={user?.id}
+                metadata={{ role, fullName: form.fullName, phone: form.phone }}
+                onComplete={handleMobileComplete}
+              />
+            </div>
+
+            {/* Divider */}
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-gray-200" />
+              </div>
+              <div className="relative flex justify-center">
+                <span className="bg-white px-3 text-xs font-medium uppercase tracking-wider text-gray-500">
+                  or upload from this device
+                </span>
+              </div>
+            </div>
+
+            {/* ============================================================
+                Manual desktop upload (existing flow)
+               ============================================================ */}
             <div className="grid md:grid-cols-2 gap-5">
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">Full name</label>
@@ -573,34 +634,6 @@ export default function VerifyIdentityPage() {
                 <input ref={backInputRef} type="file" accept="image/png,image/jpeg" className="hidden" onChange={(e) => onFileChange(e, 'back')} />
               </div>
             </div>
-
-            {role === 'agent' && (
-              <div className="border-2 border-dashed border-gray-300 rounded-2xl p-5">
-                <div className="flex items-center gap-2 mb-3 text-gray-700 font-semibold">
-                  <IdCard className="w-5 h-5" />
-                  Agent License / Agent ID
-                </div>
-                <p className="text-xs text-gray-500 mb-3">Upload your real estate agent license or agency-issued ID.</p>
-                <button
-                  type="button"
-                  onClick={() => agentIdInputRef.current?.click()}
-                  className="w-full cursor-pointer rounded-xl border border-gray-200 bg-gray-50 p-4 text-center hover:bg-gray-100"
-                >
-                  {previews.agentId ? (
-                    <span className="relative mx-auto mb-3 block h-40 w-full">
-                      <Image src={previews.agentId} alt="Preview of the selected agent license or ID" fill unoptimized className="rounded-lg object-contain" />
-                    </span>
-                  ) : (
-                    <Upload className="w-6 h-6 text-gray-500 mx-auto mb-2" />
-                  )}
-                  <span className="block text-sm font-medium text-gray-700">
-                    {agentIdFile ? 'Agent ID image selected — click to change' : 'Choose photo of agent license or ID'}
-                  </span>
-                  {agentIdFile && <span className="mt-1 block truncate text-xs text-gray-500">{agentIdFile.name}</span>}
-                </button>
-                <input ref={agentIdInputRef} type="file" accept="image/png,image/jpeg" className="hidden" onChange={(e) => onFileChange(e, 'agentId')} />
-              </div>
-            )}
 
             <div className="rounded-xl bg-yellow-50 border border-yellow-200 p-4 text-sm text-gray-700">
               <label className="flex items-start gap-3 cursor-pointer">

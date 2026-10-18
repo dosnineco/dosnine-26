@@ -271,7 +271,7 @@ function AppContent({ Component, pageProps }) {
 
   useEffect(() => {
     if (!isSignedIn || !isSynced || !profileData) return;
-    if (['/verify', '/buyer-prequalification', '/my-requests'].includes(router.pathname)) return;
+    if (['/verify', '/agent/signup', '/buyer-prequalification', '/my-requests'].includes(router.pathname)) return;
 
     const isAdmin = profileData.role === 'admin';
     const isVerified =
@@ -418,7 +418,7 @@ function AppContent({ Component, pageProps }) {
                       ['active', 'approved'].includes(accountStatus) &&
                       !requiresHomeownerVerification;
                     const isAllowed =
-                      router.pathname === '/verify' || isAdmin || isVerified || canUseRegularAccount;
+                      ['/verify', '/agent/signup'].includes(router.pathname) || isAdmin || isVerified || canUseRegularAccount;
 
                     if (!isAllowed) {
                       return (

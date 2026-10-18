@@ -104,15 +104,30 @@ export default async function handler(req, res) {
       if (accountError) throw accountError;
       const hasAgentAccount = account &&
         (account.account_type === 'agent' || (!account.account_type && account.user_type === 'agent'));
-      const { data: existingShare, error: existingShareError } = await db
-        .from('buyer_request_agent_shares')
-        .select('id')
-        .eq('service_request_id', request.id)
-        .eq('agent_email', email)
-        .maybeSingle();
-      if (existingShareError) throw existingShareError;
+      let existingShare = null;
+      if (hasAgentAccount) {
+        const { data: accountShare, error: accountShareError } = await db
+          .from('buyer_request_agent_shares')
+          .select('id, agent_user_id, invite_expires_at')
+          .eq('service_request_id', request.id)
+          .eq('agent_user_id', account.id)
+          .maybeSingle();
+        if (accountShareError) throw accountShareError;
+        existingShare = accountShare;
+      }
+      if (!existingShare) {
+        const { data: emailShare, error: emailShareError } = await db
+          .from('buyer_request_agent_shares')
+          .select('id, agent_user_id, invite_expires_at')
+          .eq('service_request_id', request.id)
+          .eq('agent_email', email)
+          .maybeSingle();
+        if (emailShareError) throw emailShareError;
+        existingShare = emailShare;
+      }
 
       if (hasAgentAccount) {
+        const alreadyShared = Boolean(existingShare);
         const shareValues = {
           service_request_id: request.id,
           shared_by_user_id: resolved.user.id,
@@ -129,7 +144,9 @@ export default async function handler(req, res) {
         let emailSent = false;
         let emailError = null;
         const recipient = String(account.email || email).trim();
-        if (!recipient || recipient.endsWith('@dosnine.local')) {
+        if (alreadyShared) {
+          emailSent = false;
+        } else if (!recipient || recipient.endsWith('@dosnine.local')) {
           emailError = 'The request was shared, but the agent has no deliverable email address.';
         } else {
           const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || 'https://dosnine.com').replace(/\/+$/, '');
@@ -159,8 +176,22 @@ export default async function handler(req, res) {
         return res.status(200).json({
           success: true,
           mode: 'account',
+          alreadyShared,
           emailSent,
           ...(emailError ? { emailError } : {}),
+        });
+      }
+
+      const invitationStillActive = Boolean(
+        existingShare?.invite_expires_at &&
+        new Date(existingShare.invite_expires_at) > new Date()
+      );
+      if (invitationStillActive) {
+        return res.status(200).json({
+          success: true,
+          mode: 'invite',
+          alreadyShared: true,
+          expiresAt: existingShare.invite_expires_at,
         });
       }
 
@@ -172,7 +203,12 @@ export default async function handler(req, res) {
         sharedByUserId: resolved.user.id,
         existingShareId: shareId,
       });
-      return res.status(200).json({ success: true, mode: 'invite', expiresAt: invitation.expiresAt });
+      return res.status(200).json({
+        success: true,
+        mode: 'invite',
+        alreadyShared: false,
+        expiresAt: invitation.expiresAt,
+      });
     }
 
     const parsedBody = removeSchema.safeParse(req.body || {});

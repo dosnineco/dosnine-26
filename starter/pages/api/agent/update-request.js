@@ -1,4 +1,5 @@
 import { getDbClient, requireDbUser } from '../../../lib/apiAuth';
+import { assignRequestRoundRobin } from '../../../lib/serviceRequestAllocation';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -118,10 +119,16 @@ export default async function handler(req, res) {
 
         if (releaseError) throw releaseError;
 
+        const reassignment = await assignRequestRoundRobin(requestId, {
+          excludeAgentId: request.assigned_agent_id,
+        });
+
         return res.status(200).json({
           success: true,
-          message: 'Request released to queue',
-          reassigned: false,
+          message: reassignment.assigned
+            ? 'Request released and assigned to the next agent'
+            : 'Request released to the queue because no other paid agent is available',
+          reassigned: reassignment.assigned,
         });
       }
 

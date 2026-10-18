@@ -247,9 +247,37 @@ export default async function handler(req, res) {
   try {
     // Resolve authenticated user from session (if present); anonymous remains allowed
     let clientUserId = null;
+    let submittingAgentId = null;
     const sessionClerkId = getClerkUserId(req);
     if (sessionClerkId) {
       const { user } = await getDbUserByClerkId(sessionClerkId, { createIfMissing: true });
+      const isAgentAccount = user?.account_type === 'agent' ||
+        (!user?.account_type && user?.user_type === 'agent');
+      if (isAgentAccount) {
+        const { data: agent, error: agentError } = await db
+          .from('agents')
+          .select('id, verification_status, payment_status, access_expiry')
+          .eq('user_id', user.id)
+          .maybeSingle();
+
+        if (agentError) {
+          console.error('Failed to verify agent creating service request:', agentError);
+          return res.status(500).json({ error: 'Unable to verify agent access' });
+        }
+        if (!agent || agent.verification_status !== 'approved') {
+          return res.status(403).json({ error: 'A verified agent account is required to create requests.' });
+        }
+
+        const paidPlans = ['7-day', '30-day', '90-day'];
+        if (
+          paidPlans.includes(agent.payment_status) &&
+          agent.access_expiry &&
+          new Date(agent.access_expiry) <= new Date()
+        ) {
+          return res.status(403).json({ error: 'Your agent access has expired. Please renew to continue.' });
+        }
+        submittingAgentId = agent.id;
+      }
       if (sanitizeEmail(user?.email) === parsedClientEmail) {
         clientUserId = user.id;
       } else if (user?.id) {
@@ -257,8 +285,8 @@ export default async function handler(req, res) {
       }
     }
 
-    let assignedAgentId = null;
-    if (parsedPropertyOwnerId) {
+    let assignedAgentId = submittingAgentId;
+    if (!assignedAgentId && parsedPropertyOwnerId) {
       const { data: ownerAgent } = await db
         .from('agents')
         .select('id')
@@ -294,6 +322,7 @@ export default async function handler(req, res) {
         urgency: parsedUrgency,
         status: assignedAgentId ? 'assigned' : 'open',
         assigned_agent_id: assignedAgentId,
+        ...(submittingAgentId ? { assigned_at: new Date().toISOString() } : {}),
       }])
       .select()
       .single();

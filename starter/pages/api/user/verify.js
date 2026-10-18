@@ -51,6 +51,11 @@ export default async function handler(req, res) {
     if (!['homeowner', 'tenant', 'advertiser', 'agent'].includes(role)) {
       return res.status(400).json({ error: 'Choose a valid account type.' });
     }
+    if (role === 'agent') {
+      return res.status(409).json({
+        error: 'Complete agent identity verification in your agent application.',
+      });
+    }
     if (resolved.user.account_type && resolved.user.account_type !== accountType) {
       return res.status(409).json({ error: 'This verification does not match your saved account type.' });
     }
@@ -61,15 +66,9 @@ export default async function handler(req, res) {
 
     const frontFile = Array.isArray(files.files?.frontFile) ? files.files.frontFile[0] : files.files?.frontFile;
     const backFile = Array.isArray(files.files?.backFile) ? files.files.backFile[0] : files.files?.backFile;
-    const agentIdFile = Array.isArray(files.files?.agentIdFile) ? files.files.agentIdFile[0] : files.files?.agentIdFile;
-
     if (!frontFile || !backFile) {
       return res.status(400).json({ error: 'Please upload both sides of your Jamaican ID.' });
     }
-    if (role === 'agent' && !agentIdFile) {
-      return res.status(400).json({ error: 'Please upload your agent license or agent ID.' });
-    }
-
     const frontName = `verification/${resolved.user.id}/jamaican-id-front-${Date.now()}.png`;
     const backName = `verification/${resolved.user.id}/jamaican-id-back-${Date.now()}.png`;
 
@@ -91,19 +90,6 @@ export default async function handler(req, res) {
 
     if (backError) throw backError;
 
-    let agentIdUpload = null;
-    if (agentIdFile) {
-      const agentIdName = `verification/${resolved.user.id}/agent-id-${Date.now()}.png`;
-      const { data, error: agentIdError } = await db.storage
-        .from('agent-documents')
-        .upload(agentIdName, await import('fs/promises').then((m) => m.readFile(agentIdFile.filepath)), {
-          upsert: true,
-          contentType: agentIdFile.mimetype || 'image/png',
-        });
-      if (agentIdError) throw agentIdError;
-      agentIdUpload = { path: data?.path || agentIdName };
-    }
-
     const updateFields = {
       full_name: fullName,
       phone,
@@ -115,8 +101,6 @@ export default async function handler(req, res) {
       verification_role: role,
       verification_front_url: frontUpload?.path || frontName,
       verification_back_url: backUpload?.path || backName,
-      ...(agentIdUpload ? { verification_agent_id_url: agentIdUpload.path } : {}),
-      ...(accountType === 'agent' ? { user_type: 'agent' } : {}),
     };
 
     // Retry without any column missing from the DB schema cache (e.g. before migrations run)

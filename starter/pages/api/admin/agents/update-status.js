@@ -58,6 +58,16 @@ export default async function handler(req, res) {
     }
 
     const db = getDbClient();
+    const { data: agentData, error: agentFetchError } = await db
+      .from('agents')
+      .select('user_id')
+      .eq('id', agentId)
+      .single();
+
+    if (agentFetchError || !agentData) {
+      console.error('Failed to fetch agent data:', agentFetchError);
+      return res.status(404).json({ error: 'Agent application not found' });
+    }
 
     /* ----------------------------------------------------------
      * 3. UPDATE AGENT
@@ -78,22 +88,39 @@ export default async function handler(req, res) {
       // current payment_status constraint)
       updateData.payment_status = 'free';
 
-      // First get the agent's user_id
-      const { data: agentData, error: agentFetchError } = await db
-        .from('agents')
-        .select('user_id')
-        .eq('id', agentId)
+      const { data: applicant, error: applicantError } = await db
+        .from('users')
+        .select('identity_verified, id_verification_status, jamaican_id_number, verification_front_url, verification_back_url')
+        .eq('id', agentData.user_id)
         .single();
 
-      if (agentFetchError || !agentData) {
-        console.error('Failed to fetch agent data:', agentFetchError);
-        return res.status(500).json({ error: 'Failed to fetch agent data' });
+      if (applicantError || !applicant) {
+        console.error('Failed to fetch agent identity details:', applicantError);
+        return res.status(500).json({ error: 'Failed to verify applicant identity details' });
       }
 
-      // Update user role to 'agent'
+      const hasVerifiedIdentity = Boolean(
+        applicant.identity_verified || applicant.id_verification_status === 'approved'
+      );
+      const hasSubmittedIdentityDocuments = Boolean(
+        applicant.jamaican_id_number &&
+        applicant.verification_front_url &&
+        applicant.verification_back_url
+      );
+      if (!hasVerifiedIdentity && !hasSubmittedIdentityDocuments) {
+        return res.status(409).json({
+          error: 'The agent must submit their Jamaican ID in the agent application before approval.',
+        });
+      }
+
       const { error: userError } = await db
         .from('users')
-        .update({ role: 'agent' })
+        // Approving the agent application also completes its identity verification.
+        .update({
+          role: 'agent',
+          identity_verified: true,
+          id_verification_status: 'approved',
+        })
         .eq('id', agentData.user_id);
 
       if (userError) {

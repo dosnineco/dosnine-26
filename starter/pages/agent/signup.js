@@ -2,6 +2,8 @@ import { SignedOut, SignedIn, SignInButton, SignUpButton } from '@clerk/clerk-re
 import AgentSignup from '@/components/AgentSignup';
 import Seo from '@/components/Seo';
 
+const BRAND_BLUE = '#2373F4';
+
 export default function AgentSignupPage() {
   const pageUrl = 'https://dosnine.com/agent/signup';
   const ogImage = 'https://dosnine.com/dosnine_preview.png';
@@ -23,11 +25,9 @@ export default function AgentSignupPage() {
               "url('https://etikxypnxjsonefwnzkr.supabase.co/storage/v1/object/public/property-images/avi-waxman-f9qZuKoZYoY-unsplash.jpg')",
           }}
         >
-          {/* Legibility overlay */}
           <div className="absolute inset-0 bg-slate-900/60" aria-hidden="true" />
 
-          {/* Card */}
-          <div className="relative z-10 w-full max-w-md rounded-2xl border border-slate-200 bg-white/95 p-6 backdrop-blur sm:p-8">
+          <div className="relative z-10 w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 sm:p-8">
             <div className="flex flex-col items-center text-center">
               <img
                 src="/logo.png"
@@ -35,7 +35,10 @@ export default function AgentSignupPage() {
                 className="h-10 w-auto sm:h-12"
               />
 
-              <p className="mt-5 text-xs font-semibold uppercase tracking-[0.22em] text-accent">
+              <p
+                className="mt-5 text-xs font-semibold uppercase tracking-[0.22em]"
+                style={{ color: BRAND_BLUE }}
+              >
                 Agent Registration
               </p>
 
@@ -53,7 +56,10 @@ export default function AgentSignupPage() {
               <SignInButton mode="redirect" redirectUrl="/dashboard">
                 <button
                   type="button"
-                  className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-accent px-5 py-3 text-sm font-semibold text-white transition hover:bg-accent/90"
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-full px-5 py-3 text-sm font-semibold text-white transition"
+                  style={{ backgroundColor: BRAND_BLUE }}
+                  onMouseEnter={(e) => (e.currentTarget.style.opacity = 0.9)}
+                  onMouseLeave={(e) => (e.currentTarget.style.opacity = 1)}
                 >
                   Sign in
                 </button>

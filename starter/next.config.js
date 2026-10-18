@@ -26,6 +26,8 @@ function getPlatformVersion() {
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  transpilePackages: ['qrcode.react'],
+
   reactStrictMode: true,
   env: {
     NEXT_PUBLIC_PLATFORM_VERSION: getPlatformVersion(),

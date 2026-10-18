@@ -26,7 +26,7 @@ export const sendBrevoEmail = async ({ to, subject, htmlContent, textContent }) 
   await apiInstance.sendTransacEmail(sendSmtpEmail);
 };
 
-export async function assignRequestRoundRobin(requestId) {
+export async function assignRequestRoundRobin(requestId, { excludeAgentId } = {}) {
   const db = getDbClient();
 
   const { data: request, error: requestError } = await db
@@ -48,12 +48,16 @@ export async function assignRequestRoundRobin(requestId) {
     };
   }
 
-  const { data: paidAgents, error: agentsError } = await db
+  let paidAgentsQuery = db
     .from('agents')
     .select('id, user_id, last_request_assigned_at')
     .eq('verification_status', 'approved')
     .eq('payment_status', 'paid')
     .order('last_request_assigned_at', { ascending: true, nullsFirst: true });
+  if (excludeAgentId) {
+    paidAgentsQuery = paidAgentsQuery.neq('id', excludeAgentId);
+  }
+  const { data: paidAgents, error: agentsError } = await paidAgentsQuery;
 
   if (agentsError || !paidAgents || paidAgents.length === 0) {
     return {

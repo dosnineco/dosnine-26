@@ -1,5 +1,6 @@
 {
   "dependencies": {
+    "@clerk/backend": "^3.25.0",
     "react-youtube": "^10.1.0"
   }
 }

@@ -4,15 +4,27 @@ import { useAuth, useUser } from '@clerk/nextjs';
 import { useRouter } from 'next/router';
 import axios from 'axios';
 import toast from 'react-hot-toast';
-import { CheckCircle, AlertCircle, Upload, MapPin, Award } from 'lucide-react';
+import {
+  CheckCircle,
+  AlertCircle,
+  Upload,
+  Plus,
+  Minus,
+  Check,
+} from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { PARISHES } from '@/lib/normalizeParish';
+
+/* ----------------------------------------------------------
+ * Brand
+ * ---------------------------------------------------------- */
+const BRAND_BLUE = '#2373F4';
 
 /* ----------------------------------------------------------
  * Dosnine UI tokens
  * ---------------------------------------------------------- */
 const inputClass =
-  'w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-accent focus:ring-2 focus:ring-accent/10 disabled:bg-slate-50 disabled:text-slate-500';
+  'w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-[#2373F4] focus:ring-2 focus:ring-[#2373F4]/20 disabled:bg-slate-50 disabled:text-slate-500';
 
 const labelClass =
   'block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1.5';
@@ -28,6 +40,158 @@ const SPECIALIZATIONS = [
   'Corporate Housing',
 ];
 
+/* ============================================================
+ * Number stepper — big +/- buttons, digits only
+ * ============================================================ */
+function NumberStepper({ label, hint, value, onChange, min = 0, max = 999 }) {
+  const numeric = Number(value) || 0;
+
+  const handleInput = (raw) => {
+    const cleaned = String(raw).replace(/[^0-9]/g, '').slice(0, 4);
+    onChange(cleaned);
+  };
+
+  const dec = () => {
+    if (numeric > min) onChange(String(numeric - 1));
+  };
+  const inc = () => {
+    if (numeric < max) onChange(String(numeric + 1));
+  };
+
+  return (
+    <div>
+      <label className={labelClass}>{label}</label>
+      {hint && <p className="-mt-1 mb-1.5 text-xs text-slate-500">{hint}</p>}
+
+      <div className="flex items-stretch gap-2">
+        <button
+          type="button"
+          onClick={dec}
+          disabled={numeric <= min}
+          aria-label="Decrease"
+          className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 transition hover:bg-slate-50 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          <Minus size={16} />
+        </button>
+
+        <input
+          type="text"
+          inputMode="numeric"
+          pattern="[0-9]*"
+          value={value}
+          onChange={(e) => handleInput(e.target.value)}
+          placeholder="0"
+          className="h-11 flex-1 rounded-xl border border-slate-200 bg-white px-3 text-center text-base font-semibold tabular-nums text-slate-900 outline-none transition placeholder:text-slate-300 focus:border-[#2373F4] focus:ring-2 focus:ring-[#2373F4]/20"
+        />
+
+        <button
+          type="button"
+          onClick={inc}
+          disabled={numeric >= max}
+          aria-label="Increase"
+          className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 transition hover:bg-slate-50 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          <Plus size={16} />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ============================================================
+ * Multi-select group with "Select all / Clear all"
+ * ============================================================ */
+function SelectAllGroup({
+  label,
+  hint,
+  required,
+  options,
+  selected,
+  onChange,
+  columns = 3,
+}) {
+  const allSelected = options.length > 0 && selected.length === options.length;
+  const someSelected = selected.length > 0 && !allSelected;
+
+  const toggleAll = () => onChange(allSelected ? [] : [...options]);
+
+  const toggle = (option) =>
+    onChange(
+      selected.includes(option)
+        ? selected.filter((x) => x !== option)
+        : [...selected, option]
+    );
+
+  const gridCols =
+    columns === 2
+      ? 'grid-cols-2'
+      : columns === 4
+        ? 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-4'
+        : 'grid-cols-2 sm:grid-cols-3';
+
+  return (
+    <div>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <label className={labelClass}>
+            {label}
+            {required && <span style={{ color: BRAND_BLUE }}> *</span>}
+          </label>
+          {hint && <p className="-mt-1 text-xs text-slate-500">{hint}</p>}
+        </div>
+
+        <button
+          type="button"
+          onClick={toggleAll}
+          className="rounded-full border px-3 py-1.5 text-xs font-semibold transition"
+          style={{
+            borderColor: allSelected || someSelected ? BRAND_BLUE : '#e2e8f0',
+            color: allSelected || someSelected ? BRAND_BLUE : '#475569',
+            backgroundColor:
+              allSelected || someSelected
+                ? 'rgba(35, 115, 244, 0.06)'
+                : '#ffffff',
+          }}
+        >
+          {allSelected ? 'Clear all' : 'Select all'}
+        </button>
+      </div>
+
+      <div className={`mt-3 grid gap-2 ${gridCols}`}>
+        {options.map((option) => {
+          const isSelected = selected.includes(option);
+          return (
+            <button
+              key={option}
+              type="button"
+              onClick={() => toggle(option)}
+              className={`flex items-center justify-between gap-2 rounded-xl border px-3 py-2.5 text-left text-sm transition ${
+                isSelected
+                  ? 'border-[#2373F4] bg-[#2373F4]/5 text-[#2373F4]'
+                  : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50'
+              }`}
+            >
+              <span className="truncate">{option}</span>
+              <span
+                className={`flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-md border transition ${
+                  isSelected
+                    ? 'border-[#2373F4] bg-[#2373F4] text-white'
+                    : 'border-slate-300 bg-white'
+                }`}
+              >
+                {isSelected && <Check size={12} strokeWidth={3} />}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/* ============================================================
+ * Main component
+ * ============================================================ */
 export default function AgentSignup() {
   const { user } = useUser();
   const { getToken } = useAuth();
@@ -35,6 +199,8 @@ export default function AgentSignup() {
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [agentData, setAgentData] = useState(null);
+  const [identityVerified, setIdentityVerified] = useState(false);
+  const [identitySubmitted, setIdentitySubmitted] = useState(false);
 
   useEffect(() => {
     const checkAgentStatus = async () => {
@@ -45,6 +211,18 @@ export default function AgentSignup() {
           withCredentials: true,
           headers: token ? { Authorization: `Bearer ${token}` } : undefined,
         });
+        setIdentityVerified(Boolean(
+          data?.identity_verified || data?.id_verification_status === 'approved'
+        ));
+        setIdentitySubmitted(Boolean(
+          data?.identity_verified ||
+          data?.id_verification_status === 'approved' ||
+          (
+            data?.id_verification_status === 'pending' &&
+            data?.verification_front_url &&
+            data?.verification_back_url
+          )
+        ));
         if (data?.agent) {
           setAgentData(data.agent);
           const validPlans = ['free', '7-day', '30-day', '90-day'];
@@ -74,7 +252,8 @@ export default function AgentSignup() {
 
         if (!data) return;
 
-        const profileFullName = data.full_name || data.fullName || user.fullName || '';
+        const profileFullName =
+          data.full_name || data.fullName || user.fullName || '';
         const profileEmail =
           data.email ||
           user?.primaryEmailAddress?.emailAddress ||
@@ -110,33 +289,19 @@ export default function AgentSignup() {
     serviceAreas: [],
     aboutMe: '',
     profileImageUrl: '',
-    dealsClosedCount: 0,
+    dealsClosedCount: '',
   });
 
   const [verification, setVerification] = useState({
     agentLicenseFile: null,
     businessRegistrationFile: null,
+    jamaicanIdNumber: '',
+    idFrontFile: null,
+    idBackFile: null,
     agreeToTerms: false,
     dataConsent: false,
+    identityConsent: false,
   });
-
-  const handleSpecializationToggle = (spec) => {
-    setFormData((prev) => ({
-      ...prev,
-      specializations: prev.specializations.includes(spec)
-        ? prev.specializations.filter((s) => s !== spec)
-        : [...prev.specializations, spec],
-    }));
-  };
-
-  const handleServiceAreaToggle = (parish) => {
-    setFormData((prev) => ({
-      ...prev,
-      serviceAreas: prev.serviceAreas.includes(parish)
-        ? prev.serviceAreas.filter((p) => p !== parish)
-        : [...prev.serviceAreas, parish],
-    }));
-  };
 
   const handleFileChange = (e, fileType) => {
     const file = e.target.files[0];
@@ -167,7 +332,7 @@ export default function AgentSignup() {
         !formData.fullName ||
         !formData.phone ||
         !formData.businessName ||
-        !formData.yearsExperience
+        formData.yearsExperience === ''
       ) {
         toast.error('Please fill all required fields');
         return;
@@ -185,8 +350,16 @@ export default function AgentSignup() {
     }
 
     if (step === 2) {
-      if (!verification.agentLicenseFile || !verification.businessRegistrationFile) {
-        toast.error('Please upload both required documents');
+      if (!verification.agentLicenseFile) {
+        toast.error('Please upload your real estate agent license');
+        return;
+      }
+      if (!identityVerified && (
+        !verification.jamaicanIdNumber.trim() ||
+        !verification.idFrontFile ||
+        !verification.idBackFile
+      )) {
+        toast.error('Enter your Jamaican ID number and upload both sides of your ID');
         return;
       }
       if (!verification.agreeToTerms) {
@@ -195,6 +368,10 @@ export default function AgentSignup() {
       }
       if (!verification.dataConsent) {
         toast.error('Please consent to data sharing with clients');
+        return;
+      }
+      if (!identityVerified && !verification.identityConsent) {
+        toast.error('Please consent to identity verification');
         return;
       }
       setStep(3);
@@ -206,15 +383,17 @@ export default function AgentSignup() {
 
       let licenseUrl = null;
       let registrationUrl = null;
+      let verificationFrontUrl = null;
+      let verificationBackUrl = null;
 
       try {
         if (!user?.id) {
           throw new Error('User not authenticated');
         }
 
-        console.log('Uploading documents for user:', user.id);
-
-        const licenseExt = verification.agentLicenseFile.name.split('.').pop();
+        const licenseExt = verification.agentLicenseFile.name
+          .split('.')
+          .pop();
         const licenseName = `${user.id}_license_${Date.now()}.${licenseExt}`;
 
         const { error: licenseError } = await supabase.storage
@@ -225,39 +404,56 @@ export default function AgentSignup() {
           });
 
         if (licenseError) {
-          console.error('License upload error:', licenseError);
           throw new Error(`License upload failed: ${licenseError.message}`);
         }
-
         licenseUrl = licenseName;
-        console.log('License uploaded:', licenseName);
 
-        const regExt = verification.businessRegistrationFile.name.split('.').pop();
-        const regName = `${user.id}_registration_${Date.now()}.${regExt}`;
+        if (verification.businessRegistrationFile) {
+          const regExt = verification.businessRegistrationFile.name.split('.').pop();
+          const regName = `${user.id}_registration_${Date.now()}.${regExt}`;
+          const { error: regError } = await supabase.storage
+            .from('agent-documents')
+            .upload(regName, verification.businessRegistrationFile, {
+              cacheControl: '3600',
+              upsert: true,
+            });
 
-        const { error: regError } = await supabase.storage
-          .from('agent-documents')
-          .upload(regName, verification.businessRegistrationFile, {
-            cacheControl: '3600',
-            upsert: true,
-          });
-
-        if (regError) {
-          console.error('Registration upload error:', regError);
-          throw new Error(`Registration upload failed: ${regError.message}`);
+          if (regError) {
+            throw new Error(`Registration upload failed: ${regError.message}`);
+          }
+          registrationUrl = regName;
         }
 
-        registrationUrl = regName;
-        console.log('Registration uploaded:', regName);
+        if (!identityVerified) {
+          const idTimestamp = Date.now();
+          const frontExt = verification.idFrontFile.type === 'image/png' ? 'png' : 'jpg';
+          const backExt = verification.idBackFile.type === 'image/png' ? 'png' : 'jpg';
+          verificationFrontUrl = `verification/${user.id}/jamaican-id-front-${idTimestamp}.${frontExt}`;
+          verificationBackUrl = `verification/${user.id}/jamaican-id-back-${idTimestamp}.${backExt}`;
+
+          const { error: frontError } = await supabase.storage
+            .from('agent-documents')
+            .upload(verificationFrontUrl, verification.idFrontFile, {
+              cacheControl: '3600',
+              upsert: true,
+            });
+          if (frontError) throw new Error(`ID front upload failed: ${frontError.message}`);
+
+          const { error: backError } = await supabase.storage
+            .from('agent-documents')
+            .upload(verificationBackUrl, verification.idBackFile, {
+              cacheControl: '3600',
+              upsert: true,
+            });
+          if (backError) throw new Error(`ID back upload failed: ${backError.message}`);
+        }
       } catch (uploadError) {
         console.error('Upload error:', uploadError);
-        console.error(
-          'Upload error details:',
-          uploadError.response?.data || uploadError.message
+        toast.error(
+          `Failed to upload documents: ${
+            uploadError.response?.data?.error || uploadError.message
+          }`
         );
-        const errorMsg =
-          uploadError.response?.data?.error || uploadError.message || 'Unknown error';
-        toast.error(`Failed to upload documents: ${errorMsg}`);
         setLoading(false);
         return;
       }
@@ -273,15 +469,19 @@ export default function AgentSignup() {
             email: formData.email,
             phone: formData.phone,
             businessName: formData.businessName,
-            yearsExperience: parseInt(formData.yearsExperience),
+            yearsExperience: parseInt(formData.yearsExperience, 10) || 0,
             specializations: formData.specializations,
             licenseNumber: formData.licenseNumber,
             serviceAreas: formData.serviceAreas,
             aboutMe: formData.aboutMe,
-            dealsClosedCount: parseInt(formData.dealsClosedCount) || 0,
+            dealsClosedCount: parseInt(formData.dealsClosedCount, 10) || 0,
             dataConsent: verification.dataConsent,
             licenseFileUrl: licenseUrl,
             registrationFileUrl: registrationUrl,
+            jamaicanIdNumber: verification.jamaicanIdNumber,
+            verificationFrontUrl,
+            verificationBackUrl,
+            identityConsent: verification.identityConsent,
           },
           {
             withCredentials: true,
@@ -290,15 +490,20 @@ export default function AgentSignup() {
         );
 
         if (response.data.success) {
-          toast.success(
-            'Agent signup successful! Our team will review your application.'
-          );
-          router.replace('/dashboard');
+          setAgentData((current) => ({ ...current, verification_status: 'pending' }));
+          setIdentitySubmitted(true);
+          if (response.data.emailSent && response.data.adminEmailSent) {
+            toast.success('Application submitted! Confirmation emails were sent to you and the admin team.');
+          } else {
+            toast.error('Application submitted, but an email notification failed. Please contact support.');
+          }
         } else {
           toast.error(response.data.error || 'Failed to complete signup');
         }
       } catch (error) {
-        toast.error(error.response?.data?.error || 'Failed to complete signup');
+        toast.error(
+          error.response?.data?.error || 'Failed to complete signup'
+        );
       } finally {
         setLoading(false);
       }
@@ -308,7 +513,7 @@ export default function AgentSignup() {
   /* ----------------------------------------------------------
    * Pending review state
    * ---------------------------------------------------------- */
-  if (agentData?.verification_status === 'pending') {
+  if (agentData?.verification_status === 'pending' && identitySubmitted) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-50 px-5 py-10 sm:px-6">
         <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 text-center sm:p-8">
@@ -316,7 +521,10 @@ export default function AgentSignup() {
             <AlertCircle size={20} />
           </span>
 
-          <p className="mt-4 text-xs font-semibold uppercase tracking-[0.22em] text-accent">
+          <p
+            className="mt-4 text-xs font-semibold uppercase tracking-[0.22em]"
+            style={{ color: BRAND_BLUE }}
+          >
             Agent Application
           </p>
           <h1 className="mt-2 text-2xl font-bold tracking-tight text-slate-900">
@@ -327,13 +535,22 @@ export default function AgentSignup() {
             will notify you within 24–48 hours.
           </p>
 
-          <div className="mt-5 rounded-xl border border-accent/30 bg-accent/10 p-4 text-left">
-            <p className="text-xs font-semibold uppercase tracking-wider text-accent">
+          <div
+            className="mt-5 rounded-xl border p-4 text-left"
+            style={{
+              borderColor: 'rgba(35, 115, 244, 0.3)',
+              backgroundColor: 'rgba(35, 115, 244, 0.06)',
+            }}
+          >
+            <p
+              className="text-xs font-semibold uppercase tracking-wider"
+              style={{ color: BRAND_BLUE }}
+            >
               What happens next
             </p>
             <ul className="mt-3 space-y-2 text-sm text-slate-700">
               {[
-                'Document verification',
+                'Identity and document verification',
                 'License confirmation',
                 'Approval notification',
                 'Payment activation',
@@ -342,7 +559,8 @@ export default function AgentSignup() {
                 <li key={item} className="flex items-start gap-2">
                   <CheckCircle
                     size={14}
-                    className="mt-0.5 shrink-0 text-accent"
+                    className="mt-0.5 shrink-0"
+                    style={{ color: BRAND_BLUE }}
                   />
                   <span>{item}</span>
                 </li>
@@ -350,12 +568,6 @@ export default function AgentSignup() {
             </ul>
           </div>
 
-          <Link
-            href="/dashboard"
-            className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-full bg-accent px-5 py-3 text-sm font-semibold text-white transition hover:bg-accent/90"
-          >
-            Go to dashboard
-          </Link>
         </div>
       </div>
     );
@@ -369,14 +581,18 @@ export default function AgentSignup() {
       <div className="mx-auto max-w-2xl space-y-6">
         {/* Header */}
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-accent">
+          <p
+            className="text-xs font-semibold uppercase tracking-[0.22em]"
+            style={{ color: BRAND_BLUE }}
+          >
             Agent Registration
           </p>
           <h1 className="mt-2 text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
             Become a Dosnine agent
           </h1>
           <p className="mt-1 text-sm text-slate-600">
-            Three short steps — your details, your documents, and a final review.
+            Three short steps — your details, your documents, and a final
+            review.
           </p>
         </div>
 
@@ -387,31 +603,41 @@ export default function AgentSignup() {
               <div key={s} className="flex flex-1 items-center">
                 <div
                   className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-bold transition ${
-                    s <= step
-                      ? 'bg-accent text-white'
-                      : 'bg-slate-100 text-slate-500'
+                    s <= step ? 'text-white' : 'bg-slate-100 text-slate-500'
                   }`}
+                  style={
+                    s <= step ? { backgroundColor: BRAND_BLUE } : undefined
+                  }
                 >
                   {s}
                 </div>
                 {s < 3 && (
                   <div
                     className={`mx-2 h-0.5 flex-1 rounded-full transition ${
-                      s < step ? 'bg-accent' : 'bg-slate-100'
+                      s < step ? '' : 'bg-slate-100'
                     }`}
+                    style={
+                      s < step ? { backgroundColor: BRAND_BLUE } : undefined
+                    }
                   />
                 )}
               </div>
             ))}
           </div>
           <div className="mt-3 flex justify-between text-[11px] font-semibold uppercase tracking-wider">
-            <span className={step >= 1 ? 'text-accent' : 'text-slate-400'}>
+            <span
+              style={{ color: step >= 1 ? BRAND_BLUE : '#94a3b8' }}
+            >
               Basic Info
             </span>
-            <span className={step >= 2 ? 'text-accent' : 'text-slate-400'}>
+            <span
+              style={{ color: step >= 2 ? BRAND_BLUE : '#94a3b8' }}
+            >
               Verification
             </span>
-            <span className={step >= 3 ? 'text-accent' : 'text-slate-400'}>
+            <span
+              style={{ color: step >= 3 ? BRAND_BLUE : '#94a3b8' }}
+            >
               Review
             </span>
           </div>
@@ -494,51 +720,42 @@ export default function AgentSignup() {
                 />
               </div>
 
-              {/* Years of experience */}
-              <div>
-                <label className={labelClass}>Years of experience *</label>
-                <select
-                  value={formData.yearsExperience}
-                  onChange={(e) =>
-                    setFormData({ ...formData, yearsExperience: e.target.value })
-                  }
-                  className={inputClass}
-                  required
-                >
-                  <option value="">Select years</option>
-                  <option value="1">0–1 years</option>
-                  <option value="2">1–2 years</option>
-                  <option value="5">2–5 years</option>
-                  <option value="10">5–10 years</option>
-                  <option value="15">10+ years</option>
-                </select>
-              </div>
+              {/* Years of experience — easy number entry */}
+              <NumberStepper
+                label="Years of experience *"
+                hint="Approximate is fine"
+                value={formData.yearsExperience}
+                onChange={(v) =>
+                  setFormData({ ...formData, yearsExperience: v })
+                }
+                min={0}
+                max={80}
+              />
 
-              {/* Specializations */}
-              <div>
-                <label className={labelClass}>
-                  Specializations * · select at least one
-                </label>
-                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                  {SPECIALIZATIONS.map((spec) => {
-                    const selected = formData.specializations.includes(spec);
-                    return (
-                      <button
-                        key={spec}
-                        type="button"
-                        onClick={() => handleSpecializationToggle(spec)}
-                        className={`rounded-full border px-3 py-2 text-xs font-semibold transition ${
-                          selected
-                            ? 'border-accent bg-accent text-white'
-                            : 'border-slate-200 bg-white text-slate-600 hover:border-accent hover:text-accent'
-                        }`}
-                      >
-                        {spec}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
+              {/* Deals closed — easy number entry */}
+              <NumberStepper
+                label="Deals closed · approximate"
+                hint="Total properties you've helped a client buy, sell, or rent"
+                value={formData.dealsClosedCount}
+                onChange={(v) =>
+                  setFormData({ ...formData, dealsClosedCount: v })
+                }
+                min={0}
+                max={999}
+              />
+
+              {/* Specializations — with Select all */}
+              <SelectAllGroup
+                label="Specializations"
+                hint="What kind of business do you take on? Select at least one."
+                required
+                options={SPECIALIZATIONS}
+                selected={formData.specializations}
+                onChange={(v) =>
+                  setFormData({ ...formData, specializations: v })
+                }
+                columns={2}
+              />
 
               {/* License number */}
               <div>
@@ -560,41 +777,24 @@ export default function AgentSignup() {
                     href="https://reb.gov.jm/search-public-register/dealer"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="font-semibold text-accent hover:text-accent/80"
+                    className="font-semibold hover:opacity-80"
+                    style={{ color: BRAND_BLUE }}
                   >
                     Jamaica Real Estate Board
                   </a>
                 </p>
               </div>
 
-              {/* Service areas */}
-              <div>
-                <label className={labelClass}>
-                  Service areas * · select at least one
-                </label>
-                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                  {PARISHES.map((parish) => {
-                    const selected = formData.serviceAreas.includes(parish);
-                    return (
-                      <button
-                        key={parish}
-                        type="button"
-                        onClick={() => handleServiceAreaToggle(parish)}
-                        className={`rounded-full border px-3 py-2 text-xs font-semibold transition ${
-                          selected
-                            ? 'border-accent bg-accent text-white'
-                            : 'border-slate-200 bg-white text-slate-600 hover:border-accent hover:text-accent'
-                        }`}
-                      >
-                        {parish}
-                      </button>
-                    );
-                  })}
-                </div>
-                <p className="mt-1 text-xs text-slate-500">
-                  Select the parishes you serve
-                </p>
-              </div>
+              {/* Service areas — with Select all */}
+              <SelectAllGroup
+                label="Service areas"
+                hint="Select every parish where you actively work. At least one."
+                required
+                options={PARISHES}
+                selected={formData.serviceAreas}
+                onChange={(v) => setFormData({ ...formData, serviceAreas: v })}
+                columns={3}
+              />
 
               {/* About me */}
               <div>
@@ -607,23 +807,6 @@ export default function AgentSignup() {
                   className={`${inputClass} resize-none`}
                   placeholder="Tell us about yourself and your experience…"
                   rows={4}
-                />
-              </div>
-
-              {/* Deals closed */}
-              <div>
-                <label className={labelClass}>
-                  Deals closed · approximate
-                </label>
-                <input
-                  type="number"
-                  value={formData.dealsClosedCount}
-                  onChange={(e) =>
-                    setFormData({ ...formData, dealsClosedCount: e.target.value })
-                  }
-                  className={inputClass}
-                  placeholder="0"
-                  min="0"
                 />
               </div>
             </div>
@@ -643,15 +826,22 @@ export default function AgentSignup() {
                 </p>
               </div>
 
-              <div className="flex items-start gap-3 rounded-xl border border-accent/30 bg-accent/10 p-3.5">
+              <div
+                className="flex items-start gap-3 rounded-xl border p-3.5"
+                style={{
+                  borderColor: 'rgba(35, 115, 244, 0.3)',
+                  backgroundColor: 'rgba(35, 115, 244, 0.06)',
+                }}
+              >
                 <AlertCircle
                   size={16}
-                  className="mt-0.5 shrink-0 text-accent"
+                  className="mt-0.5 shrink-0"
+                  style={{ color: BRAND_BLUE }}
                 />
                 <p className="text-xs leading-relaxed text-slate-700">
-                  Upload clear images of your agent license and business
-                  registration (or government ID if no company). Files must be
-                  JPG or PNG and under 5MB.
+                  {identityVerified
+                    ? 'Your identity is already verified. Submit your agent credentials below without uploading your ID again.'
+                    : 'Submit your Jamaican ID here as part of the same application. You will not need to upload it again on another verification page.'}
                 </p>
               </div>
 
@@ -674,11 +864,11 @@ export default function AgentSignup() {
               {/* Business registration */}
               <div>
                 <label className={labelClass}>
-                  Business registration or government ID *
+                  Business registration (optional)
                 </label>
                 <p className="mb-2 text-xs text-slate-500">
-                  Upload your business registration document or
-                  government-issued ID if you operate as an individual.
+                  Upload this if you represent a registered business. Your
+                  Jamaican ID is collected separately below.
                 </p>
                 <UploadDropzone
                   id="registration-file"
@@ -693,6 +883,64 @@ export default function AgentSignup() {
                 />
               </div>
 
+              {!identityVerified && (
+                <>
+                  <div className="space-y-3 rounded-xl bg-slate-50 p-4">
+                    <div>
+                      <label className={labelClass}>Jamaican ID number *</label>
+                      <input
+                        type="text"
+                        value={verification.jamaicanIdNumber}
+                        onChange={(event) => setVerification((current) => ({
+                          ...current,
+                          jamaicanIdNumber: event.target.value,
+                        }))}
+                        className={inputClass}
+                        autoComplete="off"
+                        required
+                      />
+                    </div>
+                    <p className="text-xs leading-relaxed text-slate-600">
+                      Upload clear JPG or PNG photos of the front and back of your Jamaican Government ID. Maximum 5MB each.
+                    </p>
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      {[
+                        ['idFrontFile', 'Front of Jamaican ID'],
+                        ['idBackFile', 'Back of Jamaican ID'],
+                      ].map(([field, label]) => (
+                        <div key={field}>
+                          <label className={labelClass}>{label} *</label>
+                          <input
+                            type="file"
+                            accept=".jpg,.jpeg,.png,image/jpeg,image/png"
+                            onChange={(event) => handleFileChange(event, field)}
+                            className={inputClass}
+                          />
+                          {verification[field] && (
+                            <p className="mt-1 truncate text-xs text-slate-500">{verification[field].name}</p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 bg-white p-3.5">
+                    <input
+                      type="checkbox"
+                      checked={verification.identityConsent}
+                      onChange={(event) => setVerification((current) => ({
+                        ...current,
+                        identityConsent: event.target.checked,
+                      }))}
+                      className="mt-0.5 h-4 w-4 rounded border-slate-300"
+                      style={{ color: BRAND_BLUE }}
+                    />
+                    <span className="text-sm text-slate-700">
+                      I consent to Dosnine reviewing my Jamaican ID to verify this agent application. *
+                    </span>
+                  </label>
+                </>
+              )}
+
               {/* Terms + consent */}
               <div className="space-y-3">
                 <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 bg-white p-3.5 transition hover:border-slate-300">
@@ -706,7 +954,8 @@ export default function AgentSignup() {
                         agreeToTerms: e.target.checked,
                       })
                     }
-                    className="mt-0.5 h-4 w-4 rounded border-slate-300 text-accent focus:ring-accent/20"
+                    className="mt-0.5 h-4 w-4 rounded border-slate-300 focus:ring-2 focus:ring-[#2373F4]/20"
+                    style={{ color: BRAND_BLUE }}
                   />
                   <span className="text-sm text-slate-700">
                     I agree to the{' '}
@@ -714,7 +963,8 @@ export default function AgentSignup() {
                       href="/terms-of-service"
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="font-semibold text-accent hover:text-accent/80"
+                      className="font-semibold hover:opacity-80"
+                      style={{ color: BRAND_BLUE }}
                     >
                       Agent Terms and Conditions
                     </a>{' '}
@@ -733,7 +983,8 @@ export default function AgentSignup() {
                         dataConsent: e.target.checked,
                       })
                     }
-                    className="mt-0.5 h-4 w-4 rounded border-amber-300 text-accent focus:ring-accent/20"
+                    className="mt-0.5 h-4 w-4 rounded border-amber-300 focus:ring-2 focus:ring-[#2373F4]/20"
+                    style={{ color: BRAND_BLUE }}
                   />
                   <span className="text-xs leading-relaxed text-slate-700">
                     <strong className="text-amber-700">* Required:</strong> I
@@ -745,7 +996,8 @@ export default function AgentSignup() {
                       href="/privacy-policy"
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="font-semibold text-accent hover:text-accent/80"
+                      className="font-semibold hover:opacity-80"
+                      style={{ color: BRAND_BLUE }}
                     >
                       Privacy Policy
                     </a>{' '}
@@ -774,10 +1026,17 @@ export default function AgentSignup() {
                 <ReviewRow label="Full name" value={formData.fullName} />
                 <ReviewRow label="Email" value={formData.email} />
                 <ReviewRow label="Phone" value={formData.phone} />
-                <ReviewRow label="Business name" value={formData.businessName} />
+                <ReviewRow
+                  label="Business name"
+                  value={formData.businessName}
+                />
                 <ReviewRow
                   label="Experience"
-                  value={`${formData.yearsExperience} years`}
+                  value={`${formData.yearsExperience || 0} years`}
+                />
+                <ReviewRow
+                  label="Deals closed"
+                  value={formData.dealsClosedCount || '0'}
                 />
 
                 <div>
@@ -788,7 +1047,12 @@ export default function AgentSignup() {
                     {formData.specializations.map((spec) => (
                       <span
                         key={spec}
-                        className="rounded-full border border-accent/30 bg-accent/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-accent"
+                        className="rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider"
+                        style={{
+                          borderColor: 'rgba(35, 115, 244, 0.3)',
+                          backgroundColor: 'rgba(35, 115, 244, 0.08)',
+                          color: BRAND_BLUE,
+                        }}
                       >
                         {spec}
                       </span>
@@ -825,11 +1089,9 @@ export default function AgentSignup() {
                   className="shrink-0 text-emerald-700"
                 />
                 <p className="text-xs font-semibold text-emerald-700">
-                  Documents uploaded:{' '}
-                  {verification.agentLicenseFile &&
-                  verification.businessRegistrationFile
-                    ? '2 of 2'
-                    : '0 of 2'}
+                  Agent license: {verification.agentLicenseFile ? 'uploaded' : 'missing'}
+                  {!identityVerified && ` · Jamaican ID: ${verification.idFrontFile && verification.idBackFile ? '2 of 2 sides' : 'required'}`}
+                  {verification.businessRegistrationFile && ' · Business registration uploaded'}
                 </p>
               </div>
             </div>
@@ -849,13 +1111,14 @@ export default function AgentSignup() {
             <button
               type="submit"
               disabled={loading}
-              className="inline-flex flex-1 items-center justify-center rounded-full bg-accent px-5 py-3 text-sm font-semibold text-white transition hover:bg-accent/90 disabled:opacity-60"
+              className="inline-flex flex-1 items-center justify-center rounded-full px-5 py-3 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-60"
+              style={{ backgroundColor: BRAND_BLUE }}
             >
               {loading
                 ? 'Processing…'
                 : step === 3
-                ? 'Submit application'
-                : 'Next'}
+                  ? 'Submit application'
+                  : 'Next'}
             </button>
           </div>
         </form>
@@ -874,13 +1137,15 @@ function UploadDropzone({ id, file, onPick, onChange, accept }) {
       onClick={onPick}
       className={`cursor-pointer rounded-xl border-2 border-dashed p-5 text-center transition ${
         file
-          ? 'border-accent/40 bg-accent/5'
-          : 'border-slate-200 bg-white hover:border-accent/40 hover:bg-slate-50'
+          ? 'border-[#2373F4]/40 bg-[#2373F4]/5'
+          : 'border-slate-200 bg-white hover:border-[#2373F4]/40 hover:bg-slate-50'
       }`}
     >
       <Upload
         size={20}
-        className={`mx-auto ${file ? 'text-accent' : 'text-slate-300'}`}
+        className={`mx-auto ${
+          file ? 'text-[#2373F4]' : 'text-slate-300'
+        }`}
       />
       <p
         className={`mt-2 truncate text-sm font-semibold ${
