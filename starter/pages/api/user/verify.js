@@ -107,35 +107,74 @@ export default async function handler(req, res) {
 
     const frontFile = Array.isArray(files.files?.frontFile) ? files.files.frontFile[0] : files.files?.frontFile;
     const backFile = Array.isArray(files.files?.backFile) ? files.files.backFile[0] : files.files?.backFile;
-    if (!frontFile || !backFile) {
-      return res.status(400).json({ error: 'Please upload both sides of your Jamaican ID.' });
+    let frontPath;
+    let backPath;
+
+    if (frontFile || backFile) {
+      if (!frontFile || !backFile) {
+        return res.status(400).json({ error: 'Please upload both sides of your Jamaican ID.' });
+      }
+      const allowedTypes = new Set(['image/jpeg', 'image/png']);
+      if (!allowedTypes.has(frontFile.mimetype) || !allowedTypes.has(backFile.mimetype)) {
+        return res.status(400).json({ error: 'ID photos must be JPG or PNG images.' });
+      }
+      const extension = (file) => file.mimetype === 'image/png' ? 'png' : 'jpg';
+      const timestamp = Date.now();
+      const frontName = `verification/${resolved.user.id}/jamaican-id-front-${timestamp}.${extension(frontFile)}`;
+      const backName = `verification/${resolved.user.id}/jamaican-id-back-${timestamp}.${extension(backFile)}`;
+
+      const { data: frontUpload, error: frontError } = await db.storage
+        .from('agent-documents')
+        .upload(frontName, await import('fs/promises').then((m) => m.readFile(frontFile.filepath)), {
+          upsert: true,
+          contentType: frontFile.mimetype || 'image/png',
+        });
+      if (frontError) throw frontError;
+
+      const { data: backUpload, error: backError } = await db.storage
+        .from('agent-documents')
+        .upload(backName, await import('fs/promises').then((m) => m.readFile(backFile.filepath)), {
+          upsert: true,
+          contentType: backFile.mimetype || 'image/png',
+        });
+      if (backError) throw backError;
+
+      frontPath = frontUpload?.path || frontName;
+      backPath = backUpload?.path || backName;
+    } else {
+      frontPath = String(getMultipartValue(files.fields, 'frontPath') || '');
+      backPath = String(getMultipartValue(files.fields, 'backPath') || '');
+      const sessionPrefix = `verification/${resolved.user.id}/sessions/${session?.id}/`;
+      const validPath = (path, side) => path === `${sessionPrefix}${side}`;
+
+      if (!session || !validPath(frontPath, 'front') || !validPath(backPath, 'back')) {
+        return res.status(400).json({ error: 'Please upload both sides of your Jamaican ID.' });
+      }
+
+      const validateStoredImage = async (path) => {
+        const directory = path.slice(0, path.lastIndexOf('/'));
+        const filename = path.slice(path.lastIndexOf('/') + 1);
+        const { data: storedFiles, error: storageError } = await db.storage
+          .from('agent-documents')
+          .list(directory, { search: filename });
+        if (storageError) throw storageError;
+        const storedFile = storedFiles?.find((file) => file.name === filename);
+        const size = Number(storedFile?.metadata?.size);
+        const mimeType = storedFile?.metadata?.mimetype;
+        if (
+          !storedFile ||
+          !Number.isFinite(size) ||
+          size <= 0 ||
+          size > 5 * 1024 * 1024 ||
+          !['image/jpeg', 'image/png'].includes(mimeType)
+        ) {
+          throw new Error('An uploaded ID photo is missing or invalid. Please upload it again.');
+        }
+      };
+
+      await validateStoredImage(frontPath);
+      await validateStoredImage(backPath);
     }
-    const allowedTypes = new Set(['image/jpeg', 'image/png']);
-    if (!allowedTypes.has(frontFile.mimetype) || !allowedTypes.has(backFile.mimetype)) {
-      return res.status(400).json({ error: 'ID photos must be JPG or PNG images.' });
-    }
-    const extension = (file) => file.mimetype === 'image/png' ? 'png' : 'jpg';
-    const timestamp = Date.now();
-    const frontName = `verification/${resolved.user.id}/jamaican-id-front-${timestamp}.${extension(frontFile)}`;
-    const backName = `verification/${resolved.user.id}/jamaican-id-back-${timestamp}.${extension(backFile)}`;
-
-    const { data: frontUpload, error: frontError } = await db.storage
-      .from('agent-documents')
-      .upload(frontName, await import('fs/promises').then((m) => m.readFile(frontFile.filepath)), {
-        upsert: true,
-        contentType: frontFile.mimetype || 'image/png',
-      });
-
-    if (frontError) throw frontError;
-
-    const { data: backUpload, error: backError } = await db.storage
-      .from('agent-documents')
-      .upload(backName, await import('fs/promises').then((m) => m.readFile(backFile.filepath)), {
-        upsert: true,
-        contentType: backFile.mimetype || 'image/png',
-      });
-
-    if (backError) throw backError;
 
     const updateFields = {
       full_name: fullName,
@@ -146,8 +185,8 @@ export default async function handler(req, res) {
       id_verification_status: 'pending',
       jamaican_id_number: idNumber,
       verification_role: role,
-      verification_front_url: frontUpload?.path || frontName,
-      verification_back_url: backUpload?.path || backName,
+      verification_front_url: frontPath,
+      verification_back_url: backPath,
     };
 
     const { error: updateError } = await db

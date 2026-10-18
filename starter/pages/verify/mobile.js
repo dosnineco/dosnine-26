@@ -10,6 +10,7 @@ import {
   Upload,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { supabase } from '@/lib/supabase';
 
 export default function VerifyMobilePage() {
   const router = useRouter();
@@ -23,6 +24,8 @@ export default function VerifyMobilePage() {
   const [details, setDetails] = useState({ fullName: '', phone: '', idNumber: '', consent: false });
   const [frontFile, setFrontFile] = useState(null);
   const [backFile, setBackFile] = useState(null);
+  const [uploadedPaths, setUploadedPaths] = useState({ front: '', back: '' });
+  const [submitStep, setSubmitStep] = useState('');
 
   useEffect(() => {
     if (!session?.metadata) return;
@@ -109,9 +112,52 @@ export default function VerifyMobilePage() {
   };
 
   /* --- Finish on phone --- */
+  const chooseFile = (side, file) => {
+    if (!file) return;
+    if (!['image/jpeg', 'image/png'].includes(file.type)) {
+      setError('ID photos must be JPG or PNG images.');
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setError('Each ID photo must be 5 MB or smaller.');
+      return;
+    }
+
+    setError('');
+    setUploadedPaths((current) => ({ ...current, [side]: '' }));
+    if (side === 'front') setFrontFile(file);
+    if (side === 'back') setBackFile(file);
+  };
+
+  const uploadPhoto = async (side, file) => {
+    const response = await fetch('/api/user/verify/upload-url', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        sessionToken: token,
+        side,
+        mimeType: file.type,
+        fileSize: file.size,
+      }),
+    });
+    const upload = await response.json();
+    if (!response.ok || !upload.success) {
+      throw new Error(upload.error || `Unable to prepare the ${side} ID photo.`);
+    }
+
+    const { error: uploadError } = await supabase.storage
+      .from('agent-documents')
+      .uploadToSignedUrl(upload.path, upload.uploadToken, file, {
+        contentType: file.type,
+        upsert: true,
+      });
+    if (uploadError) throw new Error(`Could not upload the ${side} ID photo: ${uploadError.message}`);
+    return upload.path;
+  };
+
   const finish = async (event) => {
     event.preventDefault();
-    if (!frontFile || !backFile) {
+    if ((!frontFile && !uploadedPaths.front) || (!backFile && !uploadedPaths.back)) {
       setError('Upload both sides of your Jamaican ID.');
       return;
     }
@@ -121,6 +167,19 @@ export default function VerifyMobilePage() {
     }
     setState('submitting');
     try {
+      const uploaded = { ...uploadedPaths };
+      if (!uploaded.front) {
+        setSubmitStep('Uploading front of ID…');
+        uploaded.front = await uploadPhoto('front', frontFile);
+        setUploadedPaths((current) => ({ ...current, front: uploaded.front }));
+      }
+      if (!uploaded.back) {
+        setSubmitStep('Uploading back of ID…');
+        uploaded.back = await uploadPhoto('back', backFile);
+        setUploadedPaths((current) => ({ ...current, back: uploaded.back }));
+      }
+
+      setSubmitStep('Finishing signup…');
       const formData = new FormData();
       formData.append('sessionToken', token);
       formData.append('role', session?.metadata?.role || 'homeowner');
@@ -128,16 +187,19 @@ export default function VerifyMobilePage() {
       formData.append('phone', details.phone);
       formData.append('idNumber', details.idNumber);
       formData.append('consent', String(details.consent));
-      formData.append('frontFile', frontFile);
-      formData.append('backFile', backFile);
+      formData.append('frontPath', uploaded.front);
+      formData.append('backPath', uploaded.back);
       const res = await fetch('/api/user/verify', { method: 'POST', body: formData });
       const payload = await res.json();
       if (!res.ok || !payload.success) throw new Error(payload.error || 'Failed to submit identity documents.');
       toast.success('Identity documents submitted for review.');
       setState('completed');
     } catch (err) {
+      setError(err.message || 'Failed to finish signup. Your uploaded photo(s) are saved; try again.');
       toast.error(err.message || 'Failed to finish');
       setState('ready');
+    } finally {
+      setSubmitStep('');
     }
   };
 
@@ -175,8 +237,8 @@ export default function VerifyMobilePage() {
     return (
       <Screen
         icon={<CheckCircle2 className="text-emerald-600" size={36} />}
-        title="Documents submitted"
-        body="Your identity documents are under review. Return to your computer to continue."
+        title="Signup submitted for review"
+        body="Your account details and ID photos were submitted. We will review your identity before verified features are available."
       />
     );
   }
@@ -278,13 +340,21 @@ export default function VerifyMobilePage() {
               <input required value={details.idNumber} onChange={(event) => setDetails({ ...details, idNumber: event.target.value })} className="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2.5" />
             </label>
             {[
-              ['front', 'Front of ID', frontFile, setFrontFile],
-              ['back', 'Back of ID', backFile, setBackFile],
-            ].map(([side, label, file, setFile]) => (
+              { side: 'front', label: 'Front of ID', file: frontFile, uploaded: uploadedPaths.front },
+              { side: 'back', label: 'Back of ID', file: backFile, uploaded: uploadedPaths.back },
+            ].map(({ side, label, file, uploaded }) => (
               <label key={side} className="flex cursor-pointer items-center gap-3 rounded-xl border border-dashed border-gray-300 p-4 text-sm text-gray-700">
-                {file ? <IdCard size={18} /> : <Upload size={18} />}
-                <span className="min-w-0 flex-1 truncate">{file?.name || `Add ${label.toLowerCase()}`}</span>
-                <input type="file" accept="image/png,image/jpeg" capture="environment" className="sr-only" onChange={(event) => setFile(event.target.files?.[0] || null)} />
+                {file || uploaded ? <IdCard size={18} /> : <Upload size={18} />}
+                <span className="min-w-0 flex-1 truncate">
+                  {uploaded ? `${label} uploaded` : file?.name || `Add ${label.toLowerCase()}`}
+                </span>
+                <input
+                  type="file"
+                  accept="image/png,image/jpeg"
+                  capture="environment"
+                  className="sr-only"
+                  onChange={(event) => chooseFile(side, event.target.files?.[0])}
+                />
               </label>
             ))}
             <label className="flex items-start gap-3 rounded-xl bg-red-50 p-3 text-xs text-gray-700">
@@ -294,7 +364,7 @@ export default function VerifyMobilePage() {
             {error && <p role="alert" className="text-sm text-red-600">{error}</p>}
             <button type="submit" disabled={state === 'submitting'} className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-accent px-4 py-3 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-60">
               {state === 'submitting' ? <Loader2 size={14} className="animate-spin" /> : null}
-              {state === 'submitting' ? 'Submitting…' : 'Submit identity documents'}
+              {state === 'submitting' ? submitStep || 'Submitting…' : 'Finish signup'}
             </button>
           </form>
           <p className="mt-3 text-center text-xs text-gray-500">

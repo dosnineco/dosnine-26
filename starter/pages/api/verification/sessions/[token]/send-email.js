@@ -233,8 +233,8 @@ export default async function handler(req, res) {
       },
       body: JSON.stringify({
         sender: {
-          email: process.env.BREVO_SENDER_EMAIL || 'no-reply@dosnine.com',
-          name: process.env.BREVO_SENDER_NAME || 'Dosnine',
+          email: process.env.BREVO_FROM_EMAIL || process.env.BREVO_SENDER_EMAIL || 'admin@dosnine.com',
+          name: process.env.BREVO_FROM_NAME || process.env.BREVO_SENDER_NAME || 'Dosnine Limited',
         },
         to: [
           {
@@ -244,6 +244,7 @@ export default async function handler(req, res) {
         ],
         subject: `Your Dosnine verification code: ${session.short_code}`,
         htmlContent: html,
+        textContent: `Your Dosnine verification code is ${session.short_code}. Open ${verifyUrl} to continue verification. This code expires at ${new Date(session.expires_at).toLocaleTimeString()}.`,
       }),
     });
 
@@ -279,10 +280,13 @@ export default async function handler(req, res) {
     // Mask the email in the response so we don't leak it in logs
     const masked = recipientEmail.replace(/^(.{2})[^@]*(@.*)$/, '$1***$2');
 
+    const providerResponse = await brevoRes.json().catch(() => ({}));
     return res.status(200).json({
       success: true,
+      accepted: true,
       sentTo: masked,
-      ...(trackingError ? { warning: 'The email was sent, but resend limits could not be updated. Avoid requesting another email.' } : {}),
+      messageId: providerResponse.messageId || null,
+      ...(trackingError ? { warning: 'The email request was accepted, but resend limits could not be updated. Avoid requesting another email.' } : {}),
     });
   } catch (err) {
     console.error('[send-email] unhandled:', err);

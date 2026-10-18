@@ -210,7 +210,11 @@ export default function ContinueOnPhone({
       }
       setSentTo(payload.sentTo);
       setEmailError(payload.warning || null);
-      toast.success(payload.warning ? 'Email sent with a delivery warning' : 'Code emailed');
+      toast.success(
+        payload.warning
+          ? 'Email accepted, but delivery tracking failed'
+          : 'Email request accepted — check your inbox and spam folder'
+      );
     } catch (err) {
       console.error('[ContinueOnPhone] sendEmail:', err);
       setEmailError(err.message || 'Could not send email');
@@ -358,7 +362,7 @@ export default function ContinueOnPhone({
             </p>
             <p className="mt-0.5 text-[11px] text-gray-500">
               {sentTo
-                ? `Sent to ${sentTo}. Check your inbox — then tap the link or enter the code.`
+                ? `Accepted for delivery to ${sentTo}. Check your inbox and spam folder; then tap the link or enter the code.`
                 : 'We will email it to the address on your Dosnine account.'}
             </p>
           </div>
