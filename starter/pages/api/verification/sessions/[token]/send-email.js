@@ -1,7 +1,6 @@
 import { getAuth } from '@clerk/nextjs/server';
 import { verifyToken } from '@clerk/backend';
-import { clerkClient } from '@clerk/nextjs/server';
-import { getDbClient } from '@/lib/apiAuth';
+import { getDbClient, isPlaceholderEmail } from '@/lib/apiAuth';
 
 /* --------------------------------------------------------------
  * Auth — Bearer preferred, cookie fallback
@@ -21,27 +20,6 @@ async function resolveUserId(req) {
   }
   const { userId } = getAuth(req);
   return userId || null;
-}
-
-/* --------------------------------------------------------------
- * Clerk user lookup — primary email + name
- * -------------------------------------------------------------- */
-async function getClerkUser(userId) {
-  try {
-    const client = await clerkClient();
-    const user = await client.users.getUser(userId);
-    const primaryId = user.primaryEmailAddressId;
-    const primary = user.emailAddresses.find((e) => e.id === primaryId);
-    return {
-      email: primary?.emailAddress || null,
-      fullName:
-        [user.firstName, user.lastName].filter(Boolean).join(' ').trim() ||
-        null,
-    };
-  } catch (err) {
-    console.error('[send-email] Clerk user lookup failed:', err);
-    return null;
-  }
 }
 
 /* --------------------------------------------------------------
@@ -212,18 +190,26 @@ export default async function handler(req, res) {
       }
     }
 
-    const clerkUser = await getClerkUser(userId);
-    if (!clerkUser?.email) {
+    const { data: savedUser, error: userError } = await db
+      .from('users')
+      .select('email, full_name')
+      .eq('clerk_id', userId)
+      .maybeSingle();
+    if (userError) {
+      console.error('[send-email] profile email lookup failed:', userError);
+      return res.status(500).json({ error: 'Unable to load the email saved to your account.' });
+    }
+
+    const recipientEmail = savedUser?.email?.trim();
+    if (!recipientEmail || isPlaceholderEmail(recipientEmail)) {
       return res
         .status(400)
-        .json({ error: 'No email address on file for your account' });
+        .json({ error: 'No email address is saved to your account. Add an email address to your profile and try again.' });
     }
 
     // Build the verify URL for the email — one-click path
-    const origin =
-      req.headers.origin ||
-      `${req.headers['x-forwarded-proto'] || 'https'}://${req.headers.host}`;
-    const verifyUrl = `${origin}/verify/mobile?t=${session.token}`;
+    const origin = (process.env.NEXT_PUBLIC_SITE_URL || 'https://dosnine.com').replace(/\/+$/, '');
+    const verifyUrl = `${origin}/verify/mobile?t=${encodeURIComponent(session.token)}`;
 
     const brevoKey = process.env.BREVO_API_KEY;
     if (!brevoKey) {
@@ -235,7 +221,7 @@ export default async function handler(req, res) {
       code: session.short_code,
       verifyUrl,
       expiresAt: session.expires_at,
-      fullName: clerkUser.fullName,
+      fullName: savedUser.full_name,
     });
 
     const brevoRes = await fetch('https://api.brevo.com/v3/smtp/email', {
@@ -252,8 +238,8 @@ export default async function handler(req, res) {
         },
         to: [
           {
-            email: clerkUser.email,
-            name: clerkUser.fullName || undefined,
+            email: recipientEmail,
+            name: savedUser.full_name || undefined,
           },
         ],
         subject: `Your Dosnine verification code: ${session.short_code}`,
@@ -264,24 +250,40 @@ export default async function handler(req, res) {
     if (!brevoRes.ok) {
       const text = await brevoRes.text();
       console.error('[send-email] Brevo rejected:', brevoRes.status, text);
-      return res
-        .status(502)
-        .json({ error: 'Email provider rejected the request' });
+      let providerMessage = '';
+      try {
+        const details = JSON.parse(text);
+        providerMessage = details.message || details.code || '';
+      } catch {
+        providerMessage = text.slice(0, 240);
+      }
+      return res.status(502).json({
+        error: providerMessage
+          ? `Email provider rejected the request: ${providerMessage}`
+          : `Email provider rejected the request (HTTP ${brevoRes.status}).`,
+      });
     }
 
-    await db
+    const { error: trackingError } = await db
       .from('verification_sessions')
       .update({
         email_sent_at: new Date().toISOString(),
-        email_sent_to: clerkUser.email,
+        email_sent_to: recipientEmail,
         email_send_count: (session.email_send_count || 0) + 1,
       })
       .eq('id', session.id);
+    if (trackingError) {
+      console.error('[send-email] email sent but resend tracking failed:', trackingError);
+    }
 
     // Mask the email in the response so we don't leak it in logs
-    const masked = clerkUser.email.replace(/^(.{2})[^@]*(@.*)$/, '$1***$2');
+    const masked = recipientEmail.replace(/^(.{2})[^@]*(@.*)$/, '$1***$2');
 
-    return res.status(200).json({ success: true, sentTo: masked });
+    return res.status(200).json({
+      success: true,
+      sentTo: masked,
+      ...(trackingError ? { warning: 'The email was sent, but resend limits could not be updated. Avoid requesting another email.' } : {}),
+    });
   } catch (err) {
     console.error('[send-email] unhandled:', err);
     return res

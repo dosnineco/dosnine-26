@@ -18,10 +18,6 @@ export default async function handler(req, res) {
   }
 
   try {
-    const resolved = await requireDbUser(req, res, { createIfMissing: true });
-    if (!resolved) return;
-
-    const db = getDbClient();
     const formidable = await import('formidable');
     const form = formidable.formidable({
       multiples: false,
@@ -36,9 +32,59 @@ export default async function handler(req, res) {
       });
     });
 
-    const role = String(getMultipartValue(files.fields, 'role') || 'homeowner').toLowerCase();
-    const fullName = String(getMultipartValue(files.fields, 'fullName') || '').trim();
-    const phone = String(getMultipartValue(files.fields, 'phone') || '').trim();
+    const db = getDbClient();
+    const sessionToken = String(getMultipartValue(files.fields, 'sessionToken') || '').trim();
+    let resolved;
+    let session;
+
+    if (sessionToken) {
+      const { data, error } = await db
+        .from('verification_sessions')
+        .select('id, user_clerk_id, context_id, verification_type, metadata, status, expires_at')
+        .eq('token', sessionToken)
+        .maybeSingle();
+
+      if (error) throw error;
+      if (!data || data.verification_type !== 'identity') {
+        return res.status(404).json({ error: 'Verification session not found.' });
+      }
+      if (!['pending', 'mobile_opened'].includes(data.status)) {
+        return res.status(409).json({ error: 'This verification session is no longer active.' });
+      }
+      if (new Date(data.expires_at) <= new Date()) {
+        return res.status(410).json({ error: 'This verification session has expired.' });
+      }
+      if (data.context_id && data.context_id !== data.user_clerk_id) {
+        return res.status(403).json({ error: 'This verification session is invalid.' });
+      }
+
+      const { data: user, error: userError } = await db
+        .from('users')
+        .select('*')
+        .eq('clerk_id', data.user_clerk_id)
+        .maybeSingle();
+      if (userError) throw userError;
+      if (!user) return res.status(404).json({ error: 'User profile not found.' });
+      if (['deactivated', 'flagged'].includes(String(user.account_status || '').toLowerCase())) {
+        return res.status(403).json({ error: 'This account cannot submit verification.' });
+      }
+
+      resolved = { clerkId: data.user_clerk_id, user };
+      session = data;
+    } else {
+      resolved = await requireDbUser(req, res, { createIfMissing: true });
+      if (!resolved) return;
+    }
+
+    const requestedRole = String(getMultipartValue(files.fields, 'role') || '').toLowerCase();
+    const role = session
+      ? String(session.metadata?.role || requestedRole || 'homeowner').toLowerCase()
+      : (requestedRole || 'homeowner');
+    if (session && requestedRole && requestedRole !== role) {
+      return res.status(400).json({ error: 'The account type does not match this verification session.' });
+    }
+    const fullName = String(getMultipartValue(files.fields, 'fullName') || session?.metadata?.fullName || '').trim();
+    const phone = String(getMultipartValue(files.fields, 'phone') || session?.metadata?.phone || '').trim();
     const idNumber = String(getMultipartValue(files.fields, 'idNumber') || '').trim();
     const consent = String(getMultipartValue(files.fields, 'consent') || 'false') === 'true';
     const accountType = role === 'agent'
@@ -50,11 +96,6 @@ export default async function handler(req, res) {
 
     if (!['homeowner', 'tenant', 'advertiser', 'agent'].includes(role)) {
       return res.status(400).json({ error: 'Choose a valid account type.' });
-    }
-    if (role === 'agent') {
-      return res.status(409).json({
-        error: 'Complete agent identity verification in your agent application.',
-      });
     }
     if (resolved.user.account_type && resolved.user.account_type !== accountType) {
       return res.status(409).json({ error: 'This verification does not match your saved account type.' });
@@ -69,8 +110,14 @@ export default async function handler(req, res) {
     if (!frontFile || !backFile) {
       return res.status(400).json({ error: 'Please upload both sides of your Jamaican ID.' });
     }
-    const frontName = `verification/${resolved.user.id}/jamaican-id-front-${Date.now()}.png`;
-    const backName = `verification/${resolved.user.id}/jamaican-id-back-${Date.now()}.png`;
+    const allowedTypes = new Set(['image/jpeg', 'image/png']);
+    if (!allowedTypes.has(frontFile.mimetype) || !allowedTypes.has(backFile.mimetype)) {
+      return res.status(400).json({ error: 'ID photos must be JPG or PNG images.' });
+    }
+    const extension = (file) => file.mimetype === 'image/png' ? 'png' : 'jpg';
+    const timestamp = Date.now();
+    const frontName = `verification/${resolved.user.id}/jamaican-id-front-${timestamp}.${extension(frontFile)}`;
+    const backName = `verification/${resolved.user.id}/jamaican-id-back-${timestamp}.${extension(backFile)}`;
 
     const { data: frontUpload, error: frontError } = await db.storage
       .from('agent-documents')
@@ -103,19 +150,25 @@ export default async function handler(req, res) {
       verification_back_url: backUpload?.path || backName,
     };
 
-    // Retry without any column missing from the DB schema cache (e.g. before migrations run)
-    for (let attempt = 0; attempt < Object.keys(updateFields).length; attempt++) {
-      const { error: updateError } = await db.from('users').update(updateFields).eq('id', resolved.user.id);
-      if (!updateError) break;
+    const { error: updateError } = await db
+      .from('users')
+      .update(updateFields)
+      .eq('id', resolved.user.id);
+    if (updateError) throw updateError;
 
-      const missingColumn = updateError.code === 'PGRST204'
-        ? updateError.message?.match(/'([^']+)' column/)?.[1]
-        : null;
+    if (session) {
+      const { data: completedSession, error: completionError } = await db
+        .from('verification_sessions')
+        .update({ status: 'completed', completed_at: new Date().toISOString() })
+        .eq('id', session.id)
+        .in('status', ['pending', 'mobile_opened'])
+        .select('id')
+        .maybeSingle();
 
-      if (!missingColumn || !(missingColumn in updateFields)) throw updateError;
-
-      console.warn(`identity verification: skipping missing column '${missingColumn}' (run pending migrations)`);
-      delete updateFields[missingColumn];
+      if (completionError) throw completionError;
+      if (!completedSession) {
+        return res.status(409).json({ error: 'This verification session has already been used.' });
+      }
     }
 
     return res.status(200).json({ success: true, message: 'Verification submitted for review.' });

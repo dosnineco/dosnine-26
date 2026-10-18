@@ -33,6 +33,11 @@ export default function ContinueOnPhone({
   const [sentTo, setSentTo] = useState(null);
   const [emailError, setEmailError] = useState(null);
   const channelRef = useRef(null);
+  const onCompleteRef = useRef(onComplete);
+
+  useEffect(() => {
+    onCompleteRef.current = onComplete;
+  }, [onComplete]);
 
   /* ---------------- Start session ---------------- */
   const startSession = async () => {
@@ -79,7 +84,6 @@ export default function ContinueOnPhone({
       console.error('[ContinueOnPhone] startSession:', err);
       if (/401|not signed in|expired/i.test(err.message)) {
         toast.error('Please sign in again');
-        setTimeout(() => window.location.reload(), 800);
         return;
       }
       toast.error(err.message || 'Could not start session');
@@ -109,8 +113,8 @@ export default function ContinueOnPhone({
             toast.success('Phone connected — finish verification there.');
           }
           if (next === 'completed') {
-            toast.success('Verification complete!');
-            onComplete?.(payload.new);
+            toast.success('Identity documents submitted for review.');
+            onCompleteRef.current?.(payload.new);
           }
           if (next === 'expired' || next === 'cancelled') {
             toast.error('Code expired or cancelled.');
@@ -123,7 +127,29 @@ export default function ContinueOnPhone({
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [session?.sessionId, onComplete]);
+  }, [session?.sessionId]);
+
+  /* Realtime is best-effort; poll so completion still reaches the desktop. */
+  useEffect(() => {
+    if (!session?.token || ['completed', 'cancelled', 'expired'].includes(status)) return;
+
+    const poll = async () => {
+      try {
+        const res = await fetch(`/api/verification/sessions/${encodeURIComponent(session.token)}`);
+        const payload = await res.json();
+        if (res.ok && payload.session?.status) {
+          const next = payload.session.status;
+          setStatus(next);
+          if (next === 'completed') onCompleteRef.current?.(payload.session);
+        }
+      } catch (error) {
+        console.warn('[ContinueOnPhone] status poll failed:', error);
+      }
+    };
+
+    const timer = setInterval(poll, 3000);
+    return () => clearInterval(timer);
+  }, [session?.token, status]);
 
   /* ---------------- Expiry timer ---------------- */
   useEffect(() => {
@@ -183,7 +209,8 @@ export default function ContinueOnPhone({
         throw new Error(payload.error || `Request failed (${res.status})`);
       }
       setSentTo(payload.sentTo);
-      toast.success('Code emailed');
+      setEmailError(payload.warning || null);
+      toast.success(payload.warning ? 'Email sent with a delivery warning' : 'Code emailed');
     } catch (err) {
       console.error('[ContinueOnPhone] sendEmail:', err);
       setEmailError(err.message || 'Could not send email');
@@ -197,17 +224,15 @@ export default function ContinueOnPhone({
 
   if (!session) {
     return (
-      <div className="rounded-2xl border border-gray-200 bg-white p-5">
+      <div className=" p-5">
         <div className="flex items-start gap-3">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#2373F4]/10 text-[#2373F4]">
-            <Smartphone size={18} />
-          </div>
+    
           <div className="min-w-0 flex-1">
             <p className="text-sm font-semibold text-gray-900">
               Complete verification on your phone
             </p>
             <p className="mt-1 text-xs text-gray-600">
-              We'll show a short code. Open Dosnine on your phone, enter the
+              We&apos;ll show a short code. Open Dosnine on your phone, enter the
               code, and this page will update automatically when you finish.
             </p>
           </div>
@@ -216,7 +241,7 @@ export default function ContinueOnPhone({
           type="button"
           onClick={startSession}
           disabled={opening || !authLoaded || !isSignedIn}
-          className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#2373F4] px-4 py-2.5 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-60"
+          className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-accent px-4 py-2.5 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-60"
         >
           {opening ? (
             <Loader2 size={14} className="animate-spin" />
@@ -238,7 +263,7 @@ export default function ContinueOnPhone({
       <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-5 text-center">
         <CheckCircle2 className="mx-auto text-emerald-600" size={36} />
         <p className="mt-3 text-sm font-semibold text-emerald-900">
-          Verification complete
+          Documents submitted
         </p>
         <p className="mt-1 text-xs text-emerald-800">
           This page will update in a moment.
@@ -277,8 +302,8 @@ export default function ContinueOnPhone({
 
       {/* Big code */}
       <div className="mt-4 flex flex-col items-center gap-3">
-        <div className="w-full max-w-sm rounded-2xl border border-[#2373F4]/20 bg-[#2373F4]/5 px-6 py-5 text-center">
-          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#2373F4]">
+        <div className="w-full max-w-sm rounded-2xl border border-red-200 bg-red-50 px-6 py-5 text-center">
+          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-accent">
             Your code
           </p>
           <p className="mt-2 font-mono text-4xl font-bold tracking-[0.15em] text-gray-900 sm:text-5xl">
@@ -334,7 +359,7 @@ export default function ContinueOnPhone({
             <p className="mt-0.5 text-[11px] text-gray-500">
               {sentTo
                 ? `Sent to ${sentTo}. Check your inbox — then tap the link or enter the code.`
-                : 'We’ll email it to the address on your Dosnine account.'}
+                : 'We will email it to the address on your Dosnine account.'}
             </p>
           </div>
           <button
@@ -369,7 +394,7 @@ export default function ContinueOnPhone({
       <div className="mt-4 flex items-center justify-center gap-2 rounded-lg bg-gray-50 py-2.5 text-xs font-medium text-gray-700">
         {status === 'mobile_opened' ? (
           <>
-            <Loader2 size={12} className="animate-spin text-[#2373F4]" />
+            <Loader2 size={12} className="animate-spin text-accent" />
             Waiting for you to finish on your phone…
           </>
         ) : (

@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { PARISHES } from '@/lib/normalizeParish';
+import ContinueOnPhone from '@/components/ContinueOnPhone';
 
 /* ----------------------------------------------------------
  * Brand
@@ -201,6 +202,7 @@ export default function AgentSignup() {
   const [agentData, setAgentData] = useState(null);
   const [identityVerified, setIdentityVerified] = useState(false);
   const [identitySubmitted, setIdentitySubmitted] = useState(false);
+  const [savedIdentity, setSavedIdentity] = useState({ idNumber: '', frontUrl: '', backUrl: '' });
 
   useEffect(() => {
     const checkAgentStatus = async () => {
@@ -223,6 +225,11 @@ export default function AgentSignup() {
             data?.verification_back_url
           )
         ));
+        setSavedIdentity({
+          idNumber: data?.jamaican_id_number || '',
+          frontUrl: data?.verification_front_url || '',
+          backUrl: data?.verification_back_url || '',
+        });
         if (data?.agent) {
           setAgentData(data.agent);
           const validPlans = ['free', '7-day', '30-day', '90-day'];
@@ -354,7 +361,7 @@ export default function AgentSignup() {
         toast.error('Please upload your real estate agent license');
         return;
       }
-      if (!identityVerified && (
+      if (!identityVerified && !identitySubmitted && (
         !verification.jamaicanIdNumber.trim() ||
         !verification.idFrontFile ||
         !verification.idBackFile
@@ -370,7 +377,7 @@ export default function AgentSignup() {
         toast.error('Please consent to data sharing with clients');
         return;
       }
-      if (!identityVerified && !verification.identityConsent) {
+      if (!identityVerified && !identitySubmitted && !verification.identityConsent) {
         toast.error('Please consent to identity verification');
         return;
       }
@@ -478,10 +485,10 @@ export default function AgentSignup() {
             dataConsent: verification.dataConsent,
             licenseFileUrl: licenseUrl,
             registrationFileUrl: registrationUrl,
-            jamaicanIdNumber: verification.jamaicanIdNumber,
-            verificationFrontUrl,
-            verificationBackUrl,
-            identityConsent: verification.identityConsent,
+            jamaicanIdNumber: savedIdentity.idNumber || verification.jamaicanIdNumber,
+            verificationFrontUrl: savedIdentity.frontUrl || verificationFrontUrl,
+            verificationBackUrl: savedIdentity.backUrl || verificationBackUrl,
+            identityConsent: verification.identityConsent || identitySubmitted,
           },
           {
             withCredentials: true,
@@ -841,9 +848,43 @@ export default function AgentSignup() {
                 <p className="text-xs leading-relaxed text-slate-700">
                   {identityVerified
                     ? 'Your identity is already verified. Submit your agent credentials below without uploading your ID again.'
-                    : 'Submit your Jamaican ID here as part of the same application. You will not need to upload it again on another verification page.'}
+                    : identitySubmitted
+                      ? 'Your Jamaican ID was submitted for review. Continue with your agent credentials below.'
+                      : 'Submit your Jamaican ID here as part of the same application, either from this device or your phone.'}
                 </p>
               </div>
+
+              {!identityVerified && !identitySubmitted && (
+                <div className="space-y-3">
+                  <ContinueOnPhone
+                    verificationType="identity"
+                    contextId={user?.id}
+                    metadata={{ role: 'agent', fullName: formData.fullName, phone: formData.phone }}
+                    onComplete={async () => {
+                      const token = await getToken();
+                      const { data } = await axios.get('/api/user/profile', {
+                        withCredentials: true,
+                        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+                      });
+                      const isVerified = Boolean(data?.identity_verified || data?.id_verification_status === 'approved');
+                      setIdentityVerified(isVerified);
+                      setIdentitySubmitted(Boolean(
+                        isVerified || (
+                          data?.id_verification_status === 'pending' &&
+                          data?.verification_front_url &&
+                          data?.verification_back_url
+                        )
+                      ));
+                      setSavedIdentity({
+                        idNumber: data?.jamaican_id_number || '',
+                        frontUrl: data?.verification_front_url || '',
+                        backUrl: data?.verification_back_url || '',
+                      });
+                    }}
+                  />
+                  <p className="text-center text-xs font-medium uppercase text-slate-400">Or upload from this device</p>
+                </div>
+              )}
 
               {/* Agent license */}
               <div>
@@ -883,7 +924,7 @@ export default function AgentSignup() {
                 />
               </div>
 
-              {!identityVerified && (
+              {!identityVerified && !identitySubmitted && (
                 <>
                   <div className="space-y-3 rounded-xl bg-slate-50 p-4">
                     <div>

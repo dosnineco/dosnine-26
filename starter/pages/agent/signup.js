@@ -1,8 +1,19 @@
+import { useEffect } from 'react';
 import { SignedOut, SignedIn, SignInButton, SignUpButton } from '@clerk/clerk-react';
-import AgentSignup from '@/components/AgentSignup';
+import { useRouter } from 'next/router';
 import Seo from '@/components/Seo';
 
 const BRAND_BLUE = '#2373F4';
+
+function RedirectToDashboard() {
+  const router = useRouter();
+
+  useEffect(() => {
+    router.replace('/dashboard');
+  }, [router]);
+
+  return <div className="min-h-screen bg-gray-50" aria-label="Redirecting" />;
+}
 
 export default function AgentSignupPage() {
   const pageUrl = 'https://dosnine.com/agent/signup';
@@ -65,7 +76,7 @@ export default function AgentSignupPage() {
                 </button>
               </SignInButton>
 
-              <SignUpButton mode="redirect" redirectUrl="/dashboard">
+              <SignUpButton mode="redirect" redirectUrl="/verify?role=agent">
                 <button
                   type="button"
                   className="inline-flex w-full items-center justify-center gap-2 rounded-full border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
@@ -83,8 +94,9 @@ export default function AgentSignupPage() {
       </SignedOut>
 
       <SignedIn>
-        <AgentSignup />
+        <RedirectToDashboard />
       </SignedIn>
+
     </>
   );
 }

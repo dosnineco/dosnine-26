@@ -29,9 +29,7 @@ export default async function handler(req, res) {
       if (new Date(data.expires_at) < new Date()) {
         return res.status(410).json({ error: 'This link has expired' });
       }
-      if (data.status === 'completed') {
-        return res.status(200).json({ success: true, alreadyCompleted: true });
-      }
+      if (data.status === 'completed') return res.status(200).json({ success: true, alreadyCompleted: true, session: data });
       if (data.status === 'cancelled') {
         return res.status(410).json({ error: 'This verification was cancelled' });
       }
@@ -52,28 +50,9 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true, session: data });
     }
 
-    /* ---------- PATCH — mobile marks session complete ---------- */
+    /* ---------- PATCH — completion requires saved identity data ---------- */
     if (req.method === 'PATCH') {
-      const { data, error } = await db
-        .from('verification_sessions')
-        .update({
-          status: 'completed',
-          completed_at: new Date().toISOString(),
-        })
-        .eq('token', token)
-        .in('status', ['pending', 'mobile_opened'])
-        .select('id')
-        .maybeSingle();
-
-      if (error) {
-        return res.status(500).json({ error: error.message });
-      }
-      if (!data) {
-        return res
-          .status(409)
-          .json({ error: 'Session already used or expired' });
-      }
-      return res.status(200).json({ success: true });
+      return res.status(409).json({ error: 'Submit the required identity documents before completing verification.' });
     }
 
     /* ---------- DELETE — desktop cancels ---------- */

@@ -6,6 +6,8 @@ import {
   Loader2,
   CheckCircle2,
   ArrowRight,
+  IdCard,
+  Upload,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -18,6 +20,18 @@ export default function VerifyMobilePage() {
   const [token, setToken] = useState('');
   const [code, setCode] = useState('');
   const [error, setError] = useState('');
+  const [details, setDetails] = useState({ fullName: '', phone: '', idNumber: '', consent: false });
+  const [frontFile, setFrontFile] = useState(null);
+  const [backFile, setBackFile] = useState(null);
+
+  useEffect(() => {
+    if (!session?.metadata) return;
+    setDetails((current) => ({
+      ...current,
+      fullName: current.fullName || session.metadata.fullName || '',
+      phone: current.phone || session.metadata.phone || '',
+    }));
+  }, [session]);
 
   /* --- If a token was passed in the URL, load it directly --- */
   useEffect(() => {
@@ -95,15 +109,31 @@ export default function VerifyMobilePage() {
   };
 
   /* --- Finish on phone --- */
-  const finish = async () => {
+  const finish = async (event) => {
+    event.preventDefault();
+    if (!frontFile || !backFile) {
+      setError('Upload both sides of your Jamaican ID.');
+      return;
+    }
+    if (!details.consent) {
+      setError('Confirm consent to identity verification.');
+      return;
+    }
     setState('submitting');
     try {
-      const res = await fetch(
-        `/api/verification/sessions/${encodeURIComponent(token)}`,
-        { method: 'PATCH' }
-      );
+      const formData = new FormData();
+      formData.append('sessionToken', token);
+      formData.append('role', session?.metadata?.role || 'homeowner');
+      formData.append('fullName', details.fullName);
+      formData.append('phone', details.phone);
+      formData.append('idNumber', details.idNumber);
+      formData.append('consent', String(details.consent));
+      formData.append('frontFile', frontFile);
+      formData.append('backFile', backFile);
+      const res = await fetch('/api/user/verify', { method: 'POST', body: formData });
       const payload = await res.json();
-      if (!res.ok) throw new Error(payload.error || 'Failed');
+      if (!res.ok || !payload.success) throw new Error(payload.error || 'Failed to submit identity documents.');
+      toast.success('Identity documents submitted for review.');
       setState('completed');
     } catch (err) {
       toast.error(err.message || 'Failed to finish');
@@ -116,7 +146,7 @@ export default function VerifyMobilePage() {
   if (state === 'loading') {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gray-50">
-        <Loader2 className="animate-spin text-[#2373F4]" size={26} />
+        <Loader2 className="animate-spin text-accent" size={26} />
       </div>
     );
   }
@@ -145,8 +175,8 @@ export default function VerifyMobilePage() {
     return (
       <Screen
         icon={<CheckCircle2 className="text-emerald-600" size={36} />}
-        title="Verification complete"
-        body="You can close this tab and return to your computer."
+        title="Documents submitted"
+        body="Your identity documents are under review. Return to your computer to continue."
       />
     );
   }
@@ -158,7 +188,7 @@ export default function VerifyMobilePage() {
         <div className="mx-auto max-w-md">
           <div className="rounded-2xl border border-gray-200 bg-white p-6">
             <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#2373F4]/10 text-[#2373F4]">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-red-50 text-accent">
                 <ShieldCheck size={18} />
               </div>
               <div>
@@ -188,7 +218,7 @@ export default function VerifyMobilePage() {
                   if (error) setError('');
                 }}
                 placeholder="123 456"
-                className="mt-2 w-full rounded-xl border border-gray-300 bg-white px-4 py-4 text-center font-mono text-2xl font-bold tracking-[0.2em] text-gray-900 outline-none focus:border-[#2373F4] focus:ring-2 focus:ring-[#2373F4]/20"
+                className="mt-2 w-full rounded-xl border border-gray-300 bg-white px-4 py-4 text-center font-mono text-2xl font-bold tracking-[0.2em] text-gray-900 outline-none focus:border-accent focus:ring-2 focus:ring-accent/20"
               />
 
               {error && (
@@ -200,7 +230,7 @@ export default function VerifyMobilePage() {
               <button
                 type="submit"
                 disabled={code.replace(/\D/g, '').length !== 6}
-                className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#2373F4] px-4 py-3 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50"
+                className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-accent px-4 py-3 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50"
               >
                 Continue <ArrowRight size={14} />
               </button>
@@ -221,7 +251,7 @@ export default function VerifyMobilePage() {
       <div className="mx-auto max-w-md">
         <div className="rounded-2xl border border-gray-200 bg-white p-6">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#2373F4]/10 text-[#2373F4]">
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-red-50 text-accent">
               <ShieldCheck size={18} />
             </div>
             <div>
@@ -234,26 +264,41 @@ export default function VerifyMobilePage() {
             </div>
           </div>
 
-          {/* Replace with your real mobile capture step */}
-          <div className="mt-5 rounded-xl border border-dashed border-gray-300 bg-gray-50 p-6 text-center text-sm text-gray-600">
-            Your mobile verification steps go here.
-            <br />
-            (ID capture, form fields, etc.)
-          </div>
-
-          <button
-            type="button"
-            onClick={finish}
-            disabled={state === 'submitting'}
-            className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#2373F4] px-4 py-3 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-60"
-          >
-            {state === 'submitting' ? (
-              <Loader2 size={14} className="animate-spin" />
-            ) : null}
-            {state === 'submitting' ? 'Finishing…' : 'Finish on phone'}
-          </button>
+          <form onSubmit={finish} className="mt-5 space-y-4">
+            <label className="block text-sm font-medium text-gray-700">
+              Full legal name
+              <input required value={details.fullName} onChange={(event) => setDetails({ ...details, fullName: event.target.value })} className="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2.5" />
+            </label>
+            <label className="block text-sm font-medium text-gray-700">
+              Phone number
+              <input required type="tel" value={details.phone} onChange={(event) => setDetails({ ...details, phone: event.target.value })} className="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2.5" />
+            </label>
+            <label className="block text-sm font-medium text-gray-700">
+              Jamaican ID number
+              <input required value={details.idNumber} onChange={(event) => setDetails({ ...details, idNumber: event.target.value })} className="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2.5" />
+            </label>
+            {[
+              ['front', 'Front of ID', frontFile, setFrontFile],
+              ['back', 'Back of ID', backFile, setBackFile],
+            ].map(([side, label, file, setFile]) => (
+              <label key={side} className="flex cursor-pointer items-center gap-3 rounded-xl border border-dashed border-gray-300 p-4 text-sm text-gray-700">
+                {file ? <IdCard size={18} /> : <Upload size={18} />}
+                <span className="min-w-0 flex-1 truncate">{file?.name || `Add ${label.toLowerCase()}`}</span>
+                <input type="file" accept="image/png,image/jpeg" capture="environment" className="sr-only" onChange={(event) => setFile(event.target.files?.[0] || null)} />
+              </label>
+            ))}
+            <label className="flex items-start gap-3 rounded-xl bg-red-50 p-3 text-xs text-gray-700">
+              <input type="checkbox" checked={details.consent} onChange={(event) => setDetails({ ...details, consent: event.target.checked })} className="mt-0.5" />
+              <span>I confirm this ID is mine and consent to identity verification.</span>
+            </label>
+            {error && <p role="alert" className="text-sm text-red-600">{error}</p>}
+            <button type="submit" disabled={state === 'submitting'} className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-accent px-4 py-3 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-60">
+              {state === 'submitting' ? <Loader2 size={14} className="animate-spin" /> : null}
+              {state === 'submitting' ? 'Submitting…' : 'Submit identity documents'}
+            </button>
+          </form>
           <p className="mt-3 text-center text-xs text-gray-500">
-            Your desktop will update automatically when you tap Finish.
+            Your desktop will update automatically after the documents are saved.
           </p>
         </div>
       </div>

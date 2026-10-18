@@ -74,7 +74,7 @@ export default function UserRoleSelection({ isAdmin = false }) {
       }
 
       if (option.accountType === 'agent') {
-        await router.replace('/agent/signup');
+        await router.replace('/verify?role=agent');
       } else {
         const verificationRole = option.profileIntent || option.accountType;
         await router.replace(`/verify?role=${verificationRole}`);
