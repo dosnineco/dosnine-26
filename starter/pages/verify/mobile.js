@@ -8,6 +8,7 @@ import {
   ArrowRight,
   IdCard,
   Upload,
+  Check,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { supabase } from '@/lib/supabase';
@@ -159,7 +160,7 @@ export default function VerifyMobilePage() {
       return;
     }
     if (file.size > 5 * 1024 * 1024) {
-      setError('Each ID photo must be 5 MB or smaller.');
+      setError('Each image must be 5 MB or smaller.');
       return;
     }
 
@@ -184,7 +185,7 @@ export default function VerifyMobilePage() {
     });
     const upload = await response.json();
     if (!response.ok || !upload.success) {
-      throw new Error(upload.error || `Unable to prepare the ${side} ID photo.`);
+      throw new Error(upload.error || `Unable to prepare ${side} upload.`);
     }
 
     const { error: uploadError } = await supabase.storage
@@ -197,6 +198,8 @@ export default function VerifyMobilePage() {
     return upload.path;
   };
 
+  const isAgentApplication = session?.metadata?.role === 'agent';
+
   const finish = async (event) => {
     event.preventDefault();
     if ((!frontFile && !uploadedPaths.front) || (!backFile && !uploadedPaths.back)) {
@@ -207,7 +210,6 @@ export default function VerifyMobilePage() {
       setError('Confirm consent to identity verification.');
       return;
     }
-    const isAgentApplication = session?.metadata?.role === 'agent';
     if (
       isAgentApplication &&
       (!agentDetails.businessName.trim() ||
@@ -302,6 +304,24 @@ export default function VerifyMobilePage() {
     }
   };
 
+  const submissionSteps = [
+    { label: 'Front of ID', status: 'Uploading front of ID…' },
+    { label: 'Back of ID', status: 'Uploading back of ID…' },
+    ...(isAgentApplication
+      ? [
+          { label: 'Agent license', status: 'Uploading agent license…' },
+          ...(registrationFile
+            ? [{ label: 'Business registration', status: 'Uploading business registration…' }]
+            : []),
+          { label: 'Agent application', status: 'Submitting agent application…' },
+        ]
+      : []),
+    { label: 'Verification', status: 'Finishing signup…' },
+  ];
+  const activeSubmissionStep = submissionSteps.findIndex(
+    (step) => step.status === submitStep
+  );
+
   /* ---------- Render ---------- */
 
   if (state === 'loading') {
@@ -337,7 +357,7 @@ export default function VerifyMobilePage() {
       <Screen
         icon={<CheckCircle2 className="text-emerald-600" size={36} />}
         title="Signup submitted for review"
-        body={session?.metadata?.role === 'agent'
+        body={isAgentApplication
           ? 'Your agent application and identity documents were submitted. We will review your application and identity before verified features are available.'
           : 'Your account details and ID photos were submitted. We will review your identity before verified features are available.'}
       />
@@ -428,6 +448,38 @@ export default function VerifyMobilePage() {
           </div>
 
           <form onSubmit={finish} className="mt-5 space-y-4">
+            {state === 'submitting' && (
+              <section
+                role="status"
+                aria-live="polite"
+                className="rounded-xl border border-blue-200 bg-blue-50 p-4"
+              >
+                <div className="flex items-center gap-2">
+                  <Loader2 className="animate-spin text-accent" size={18} />
+                  <div>
+                    <p className="text-sm font-semibold text-gray-900">Saving your documents</p>
+                    <p className="text-xs text-gray-600">{submitStep || 'Preparing your submission…'}</p>
+                  </div>
+                </div>
+                <ol className="mt-3 space-y-2">
+                  {submissionSteps.map((step, index) => (
+                    <li key={step.status} className="flex items-center gap-2 text-xs text-gray-700">
+                      <span className="flex h-5 w-5 items-center justify-center">
+                        {index < activeSubmissionStep ? (
+                          <CheckCircle2 size={16} className="text-emerald-600" />
+                        ) : index === activeSubmissionStep ? (
+                          <Loader2 size={14} className="animate-spin text-accent" />
+                        ) : (
+                          <span className="h-2 w-2 rounded-full bg-gray-300" />
+                        )}
+                      </span>
+                      {step.label}
+                    </li>
+                  ))}
+                </ol>
+              </section>
+            )}
+            <fieldset disabled={state === 'submitting'} className="space-y-4 disabled:opacity-80">
             <label className="block text-sm font-medium text-gray-700">
               Full legal name
               <input required value={details.fullName} onChange={(event) => setDetails({ ...details, fullName: event.target.value })} className="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2.5" />
@@ -440,7 +492,7 @@ export default function VerifyMobilePage() {
               Jamaican ID number
               <input required value={details.idNumber} onChange={(event) => setDetails({ ...details, idNumber: event.target.value })} className="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2.5" />
             </label>
-            {session?.metadata?.role === 'agent' && (
+            {isAgentApplication && (
               <section className="space-y-4 border-t border-gray-200 pt-4">
                 <h2 className="text-base font-semibold text-gray-900">Agent application</h2>
                 <label className="block text-sm font-medium text-gray-700">
@@ -462,22 +514,48 @@ export default function VerifyMobilePage() {
                   </label>
                 </div>
                 <fieldset>
-                  <legend className="mb-2 text-sm font-medium text-gray-700">Specializations *</legend>
-                  <div className="grid grid-cols-2 gap-2">
+                  <legend className="text-sm font-medium text-gray-700">Specializations *</legend>
+                  <div className="flex justify-end">
+                    <button
+                      type="button"
+                      onClick={() => setAgentDetails((current) => ({
+                        ...current,
+                        specializations: current.specializations.length === SPECIALIZATIONS.length
+                          ? []
+                          : [...SPECIALIZATIONS],
+                      }))}
+                      className="rounded-full border border-gray-200 px-3 py-1.5 text-xs font-semibold text-gray-700 transition hover:border-accent hover:text-accent"
+                    >
+                      {agentDetails.specializations.length === SPECIALIZATIONS.length ? 'Clear all' : 'Select all'}
+                    </button>
+                  </div>
+                  <div className="mt-3 grid grid-cols-2 gap-2">
                     {SPECIALIZATIONS.map((specialization) => (
-                      <label key={specialization} className="flex items-center gap-2 rounded-lg bg-gray-50 p-2 text-xs text-gray-700">
-                        <input
-                          type="checkbox"
-                          checked={agentDetails.specializations.includes(specialization)}
-                          onChange={(event) => setAgentDetails((current) => ({
-                            ...current,
-                            specializations: event.target.checked
-                              ? [...current.specializations, specialization]
-                              : current.specializations.filter((item) => item !== specialization),
-                          }))}
-                        />
-                        {specialization}
-                      </label>
+                      <button
+                        key={specialization}
+                        type="button"
+                        aria-pressed={agentDetails.specializations.includes(specialization)}
+                        onClick={() => setAgentDetails((current) => ({
+                          ...current,
+                          specializations: current.specializations.includes(specialization)
+                            ? current.specializations.filter((item) => item !== specialization)
+                            : [...current.specializations, specialization],
+                        }))}
+                        className={`flex min-h-10 items-center justify-between gap-2 rounded-xl border px-3 py-2 text-left text-xs transition ${
+                          agentDetails.specializations.includes(specialization)
+                            ? 'border-accent bg-accent/5 text-accent'
+                            : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
+                        }`}
+                      >
+                        <span>{specialization}</span>
+                        <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border ${
+                          agentDetails.specializations.includes(specialization)
+                            ? 'border-accent bg-accent text-white'
+                            : 'border-gray-300 bg-white'
+                        }`}>
+                          {agentDetails.specializations.includes(specialization) && <Check size={12} strokeWidth={3} />}
+                        </span>
+                      </button>
                     ))}
                   </div>
                 </fieldset>
@@ -486,22 +564,48 @@ export default function VerifyMobilePage() {
                   <input value={agentDetails.licenseNumber} onChange={(event) => setAgentDetails({ ...agentDetails, licenseNumber: event.target.value })} className="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2.5" />
                 </label>
                 <fieldset>
-                  <legend className="mb-2 text-sm font-medium text-gray-700">Service areas (parishes) *</legend>
-                  <div className="grid grid-cols-2 gap-2">
+                  <legend className="text-sm font-medium text-gray-700">Service areas (parishes) *</legend>
+                  <div className="flex justify-end">
+                    <button
+                      type="button"
+                      onClick={() => setAgentDetails((current) => ({
+                        ...current,
+                        serviceAreas: current.serviceAreas.length === PARISHES.length
+                          ? []
+                          : [...PARISHES],
+                      }))}
+                      className="rounded-full border border-gray-200 px-3 py-1.5 text-xs font-semibold text-gray-700 transition hover:border-accent hover:text-accent"
+                    >
+                      {agentDetails.serviceAreas.length === PARISHES.length ? 'Clear all' : 'Select all'}
+                    </button>
+                  </div>
+                  <div className="mt-3 grid grid-cols-2 gap-2">
                     {PARISHES.map((parish) => (
-                      <label key={parish} className="flex items-center gap-2 rounded-lg bg-gray-50 p-2 text-xs text-gray-700">
-                        <input
-                          type="checkbox"
-                          checked={agentDetails.serviceAreas.includes(parish)}
-                          onChange={(event) => setAgentDetails((current) => ({
-                            ...current,
-                            serviceAreas: event.target.checked
-                              ? [...current.serviceAreas, parish]
-                              : current.serviceAreas.filter((item) => item !== parish),
-                          }))}
-                        />
-                        {parish}
-                      </label>
+                      <button
+                        key={parish}
+                        type="button"
+                        aria-pressed={agentDetails.serviceAreas.includes(parish)}
+                        onClick={() => setAgentDetails((current) => ({
+                          ...current,
+                          serviceAreas: current.serviceAreas.includes(parish)
+                            ? current.serviceAreas.filter((item) => item !== parish)
+                            : [...current.serviceAreas, parish],
+                        }))}
+                        className={`flex min-h-10 items-center justify-between gap-2 rounded-xl border px-3 py-2 text-left text-xs transition ${
+                          agentDetails.serviceAreas.includes(parish)
+                            ? 'border-accent bg-accent/5 text-accent'
+                            : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
+                        }`}
+                      >
+                        <span>{parish}</span>
+                        <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border ${
+                          agentDetails.serviceAreas.includes(parish)
+                            ? 'border-accent bg-accent text-white'
+                            : 'border-gray-300 bg-white'
+                        }`}>
+                          {agentDetails.serviceAreas.includes(parish) && <Check size={12} strokeWidth={3} />}
+                        </span>
+                      </button>
                     ))}
                   </div>
                 </fieldset>
@@ -514,7 +618,7 @@ export default function VerifyMobilePage() {
             {[
               { side: 'front', label: 'Front of ID', file: frontFile, uploaded: uploadedPaths.front },
               { side: 'back', label: 'Back of ID', file: backFile, uploaded: uploadedPaths.back },
-              ...(session?.metadata?.role === 'agent'
+              ...(isAgentApplication
                 ? [
                     { side: 'license', label: 'Real estate agent license *', file: licenseFile, uploaded: uploadedPaths.license },
                     { side: 'registration', label: 'Business registration (optional)', file: registrationFile, uploaded: uploadedPaths.registration },
@@ -535,7 +639,7 @@ export default function VerifyMobilePage() {
                 />
               </label>
             ))}
-            {session?.metadata?.role === 'agent' && (
+            {isAgentApplication && (
               <>
                 <label className="flex items-start gap-3 rounded-xl bg-blue-50 p-3 text-xs text-gray-700">
                   <input type="checkbox" checked={agentDetails.agreeToTerms} onChange={(event) => setAgentDetails({ ...agentDetails, agreeToTerms: event.target.checked })} className="mt-0.5" />
@@ -556,6 +660,7 @@ export default function VerifyMobilePage() {
               {state === 'submitting' ? <Loader2 size={14} className="animate-spin" /> : null}
               {state === 'submitting' ? submitStep || 'Submitting…' : 'Finish signup'}
             </button>
+            </fieldset>
           </form>
           <p className="mt-3 text-center text-xs text-gray-500">
             Your desktop will update automatically after the documents are saved.

@@ -68,6 +68,11 @@ const PUBLIC_ROUTES = [
   '/hill-lot',
 ];
 
+const HOMEOWNER_IDENTITY_REQUIRED_ROUTES = [
+  '/properties/new',
+  '/properties/my-listings',
+];
+
 // Pages that should not have header/footer
 const NO_LAYOUT_PAGES = [
   '/ads/request-agent',
@@ -273,30 +278,15 @@ function AppContent({ Component, pageProps }) {
 
   useEffect(() => {
     if (!isSignedIn || !isSynced || !profileData) return;
-    if (
-      ['/verify', '/verify/mobile', '/agent/signup', '/buyer-prequalification', '/my-requests'].includes(
-        router.pathname
-      )
-    ) {
-      return;
-    }
+    if (!HOMEOWNER_IDENTITY_REQUIRED_ROUTES.includes(router.pathname)) return;
 
     const isAdmin = profileData.role === 'admin';
     const isVerified =
       Boolean(profileData.identity_verified) ||
       profileData.id_verification_status === 'approved';
-    const accountStatus = String(profileData.account_status || 'active').trim().toLowerCase();
-    const requiresHomeownerVerification = router.pathname.startsWith('/properties/');
-    const canUseRegularAccount =
-      profileData.account_type === 'regular' &&
-      ['active', 'approved'].includes(accountStatus) &&
-      !requiresHomeownerVerification;
 
-    if (!isAdmin && !isVerified && !canUseRegularAccount) {
-      const verifyUrl = router.pathname.startsWith('/properties/')
-        ? '/verify?role=homeowner'
-        : '/verify';
-      router.replace(verifyUrl);
+    if (!isAdmin && !isVerified) {
+      router.replace('/verify?role=homeowner');
     }
   }, [isSignedIn, isSynced, profileData, router, user]);
 
@@ -419,14 +409,10 @@ function AppContent({ Component, pageProps }) {
                     const isVerified =
                       Boolean(profileData?.identity_verified) ||
                       profileData?.id_verification_status === 'approved';
-                    const accountStatus = String(profileData?.account_status || 'active').trim().toLowerCase();
-                    const requiresHomeownerVerification = router.pathname.startsWith('/properties/');
-                    const canUseRegularAccount =
-                      profileData?.account_type === 'regular' &&
-                      ['active', 'approved'].includes(accountStatus) &&
-                      !requiresHomeownerVerification;
+                    const requiresHomeownerVerification =
+                      HOMEOWNER_IDENTITY_REQUIRED_ROUTES.includes(router.pathname);
                     const isAllowed =
-                      ['/verify', '/agent/signup'].includes(router.pathname) || isAdmin || isVerified || canUseRegularAccount;
+                      isAdmin || !requiresHomeownerVerification || isVerified;
 
                     if (!isAllowed) {
                       return (

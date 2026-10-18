@@ -15,6 +15,7 @@ import {
 import { supabase } from '@/lib/supabase';
 import { PARISHES } from '@/lib/normalizeParish';
 import { SPECIALIZATIONS } from '@/lib/agentOptions';
+import { clearUserCache } from '@/lib/useRoleProtection';
 import ContinueOnPhone from '@/components/ContinueOnPhone';
 
 /* ----------------------------------------------------------
@@ -199,8 +200,8 @@ export default function AgentSignup() {
       if (!user?.id) return;
       try {
         const token = await getToken();
-        const { data } = await axios.get('/api/user/profile', {
-          withCredentials: true,
+          const { data } = await axios.get('/api/user/profile', {
+            withCredentials: true,
           headers: token ? { Authorization: `Bearer ${token}` } : undefined,
         });
         setIdentityVerified(Boolean(
@@ -862,28 +863,39 @@ export default function AgentSignup() {
                       serviceAreas: formData.serviceAreas,
                       aboutMe: formData.aboutMe,
                     }}
-                    onComplete={async () => {
-                      const token = await getToken();
-                      const { data } = await axios.get('/api/user/profile', {
-                        withCredentials: true,
-                        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-                      });
-                      const isVerified = Boolean(data?.identity_verified || data?.id_verification_status === 'approved');
-                      setIdentityVerified(isVerified);
-                      setIdentitySubmitted(Boolean(
-                        isVerified || (
-                          data?.id_verification_status === 'pending' &&
-                          data?.verification_front_url &&
-                          data?.verification_back_url
-                        )
-                      ));
-                      setSavedIdentity({
-                        idNumber: data?.jamaican_id_number || '',
-                        frontUrl: data?.verification_front_url || '',
-                        backUrl: data?.verification_back_url || '',
-                      });
-                      if (data?.agent) setAgentData(data.agent);
-                    }}
+                    onComplete={async (completedSession) => {
+                      setIdentitySubmitted(true);
+                      clearUserCache(user?.id);
+                      try {
+                        const token = await getToken();
+                        const { data } = await axios.get('/api/user/profile', {
+                          withCredentials: true,
+                          headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+                        });
+                        const isVerified = Boolean(data?.identity_verified || data?.id_verification_status === 'approved');
+                        setIdentityVerified(isVerified);
+                        setIdentitySubmitted(Boolean(
+                          completedSession ||
+                          isVerified || (
+                            data?.id_verification_status === 'pending' &&
+                            data?.verification_front_url &&
+                            data?.verification_back_url
+                          )
+                        ));
+                        setSavedIdentity({
+                          idNumber: data?.jamaican_id_number || '',
+                          frontUrl: data?.verification_front_url || '',
+                          backUrl: data?.verification_back_url || '',
+                        });
+                        if (data?.agent) setAgentData(data.agent);
+                      } catch (error) {
+                        console.error('Could not refresh agent status after mobile submission:', error);
+                        setAgentData((current) => ({
+                          ...current,
+                          verification_status: 'pending',
+                        }));
+                        toast.error('Mobile submission is complete, but the latest application status could not be loaded.');
+                      }                    }}
                   />
                   <p className="text-center text-xs font-medium uppercase text-slate-400">Or upload from this device</p>
                 </div>

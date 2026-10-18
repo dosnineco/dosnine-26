@@ -18,7 +18,7 @@ export default async function handler(req, res) {
     fileSize <= 0 ||
     fileSize > MAX_FILE_SIZE
   ) {
-    return res.status(400).json({ error: 'Choose a JPG or PNG ID photo up to 5 MB.' });
+    return res.status(400).json({ error: 'Choose a JPG or PNG image up to 5 MB.' });
   }
 
   try {

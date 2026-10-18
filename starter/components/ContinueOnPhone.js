@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAuth } from '@clerk/nextjs';
 import {
   Smartphone,
@@ -34,10 +34,19 @@ export default function ContinueOnPhone({
   const [emailError, setEmailError] = useState(null);
   const channelRef = useRef(null);
   const onCompleteRef = useRef(onComplete);
+  const completedSessionIdRef = useRef(null);
 
   useEffect(() => {
     onCompleteRef.current = onComplete;
   }, [onComplete]);
+
+  const markCompleted = useCallback((completedSession) => {
+    if (completedSessionIdRef.current === completedSession.id) return false;
+    completedSessionIdRef.current = completedSession.id;
+    setStatus('completed');
+    onCompleteRef.current?.(completedSession);
+    return true;
+  }, []);
 
   /* ---------------- Start session ---------------- */
   const startSession = async () => {
@@ -80,6 +89,7 @@ export default function ContinueOnPhone({
 
       setSession(payload);
       setStatus('pending');
+      completedSessionIdRef.current = null;
     } catch (err) {
       console.error('[ContinueOnPhone] startSession:', err);
       if (/401|not signed in|expired/i.test(err.message)) {
@@ -108,13 +118,17 @@ export default function ContinueOnPhone({
         },
         (payload) => {
           const next = payload.new.status;
-          setStatus(next);
+          if (next === 'completed') {
+            if (markCompleted(payload.new)) {
+              toast.success('Your phone submission is complete.');
+            }
+            return;
+          }
+          if (completedSessionIdRef.current !== session.sessionId) {
+            setStatus(next);
+          }
           if (next === 'mobile_opened') {
             toast.success('Phone connected — finish verification there.');
-          }
-          if (next === 'completed') {
-            toast.success('Identity documents submitted for review.');
-            onCompleteRef.current?.(payload.new);
           }
           if (next === 'expired' || next === 'cancelled') {
             toast.error('Code expired or cancelled.');
@@ -127,7 +141,7 @@ export default function ContinueOnPhone({
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [session?.sessionId]);
+  }, [session?.sessionId, markCompleted]);
 
   /* Realtime is best-effort; poll so completion still reaches the desktop. */
   useEffect(() => {
@@ -139,8 +153,11 @@ export default function ContinueOnPhone({
         const payload = await res.json();
         if (res.ok && payload.session?.status) {
           const next = payload.session.status;
-          setStatus(next);
-          if (next === 'completed') onCompleteRef.current?.(payload.session);
+          if (next === 'completed') {
+            markCompleted(payload.session);
+          } else if (completedSessionIdRef.current !== session.sessionId) {
+            setStatus(next);
+          }
         }
       } catch (error) {
         console.warn('[ContinueOnPhone] status poll failed:', error);
@@ -149,7 +166,7 @@ export default function ContinueOnPhone({
 
     const timer = setInterval(poll, 3000);
     return () => clearInterval(timer);
-  }, [session?.token, status]);
+  }, [session?.sessionId, session?.token, status, markCompleted]);
 
   /* ---------------- Expiry timer ---------------- */
   useEffect(() => {
@@ -267,10 +284,10 @@ export default function ContinueOnPhone({
       <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-5 text-center">
         <CheckCircle2 className="mx-auto text-emerald-600" size={36} />
         <p className="mt-3 text-sm font-semibold text-emerald-900">
-          Documents submitted
+          Verification complete
         </p>
         <p className="mt-1 text-xs text-emerald-800">
-          This page will update in a moment.
+          Your mobile submission is saved. The application status has been updated.
         </p>
       </div>
     );
