@@ -83,6 +83,15 @@ Length: ${LENGTH_GUIDE[length] || LENGTH_GUIDE.medium}
 Keywords to weave in naturally: ${Array.isArray(keywords) && keywords.length ? keywords.join(', ') : 'none'}
 ${additionalInstructions ? `Extra instructions: ${additionalInstructions}` : ''}
 
+## Personalization tokens
+
+You may use these exact tokens in the subject, previewText, and bodyHtml. They are replaced with each recipient's values when the email is sent:
+{{first_name}}, {{last_name}}, {{parish}}, {{request_type}}, {{property_type}}, {{location}}, {{budget_min}}, {{budget_max}}, {{bedrooms}}, {{bathrooms}}, {{request_description}}
+
+- Use relevant tokens naturally when they make the message more personal. For buyer-focused emails, prefer {{first_name}} and relevant request details such as {{property_type}}, {{location}}, and budget.
+- Preserve token spelling exactly, including double braces. Never invent other tokens.
+- Do not include request-specific tokens in generic copy unless they fit the requested audience/topic; values may be blank for recipients without a matching request.
+
 ## Structure rules — these are STRICT
 
 - Open with a 1–2 sentence hook inside a <p>.

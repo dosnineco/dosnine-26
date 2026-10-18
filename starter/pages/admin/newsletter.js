@@ -59,6 +59,12 @@ const RECIPIENT_OPTIONS = [
     icon: Users,
   },
   {
+    value: 'incompleteBuyerReadiness',
+    label: 'Buyers missing readiness',
+    description: 'Buyers who have not submitted readiness documents. Their request details and a completion link are included.',
+    icon: Users,
+  },
+  {
     value: 'sellers',
     label: 'Sellers',
     description: 'From service requests with request type sell.',
@@ -411,6 +417,7 @@ export default function AdminNewsletterPage() {
     buyCount: 0,
     sellCount: 0,
     rentCount: 0,
+    incompleteBuyerReadinessCount: 0,
     visitorSample: [],
   });
 
@@ -991,6 +998,8 @@ export default function AdminNewsletterPage() {
         return summary.advertisementCount || 0;
       case 'buyers':
         return summary.buyCount || 0;
+      case 'incompleteBuyerReadiness':
+        return summary.incompleteBuyerReadinessCount || 0;
       case 'sellers':
         return summary.sellCount || 0;
       case 'renters':
@@ -1479,7 +1488,19 @@ export default function AdminNewsletterPage() {
                     Personalization tokens
                   </p>
                   <div className="mt-2 flex flex-wrap gap-2">
-                    {['{{first_name}}', '{{last_name}}', '{{parish}}'].map(
+                    {[
+                      '{{first_name}}',
+                      '{{last_name}}',
+                      '{{parish}}',
+                      '{{request_type}}',
+                      '{{property_type}}',
+                      '{{location}}',
+                      '{{budget_min}}',
+                      '{{budget_max}}',
+                      '{{bedrooms}}',
+                      '{{bathrooms}}',
+                      '{{request_description}}',
+                    ].map(
                       (token) => (
                         <code
                           key={token}
@@ -1492,7 +1513,9 @@ export default function AdminNewsletterPage() {
                   </div>
                   <p className="mt-2 text-xs text-slate-500">
                     Use these in the subject or body. Missing values fall back to
-                    a friendly default.
+                    a friendly default. Request tokens are populated for buyers
+                    missing readiness; their request summary and completion link
+                    are also added automatically.
                   </p>
                 </div>
 

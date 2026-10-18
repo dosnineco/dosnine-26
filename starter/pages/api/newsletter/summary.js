@@ -1,5 +1,6 @@
 import { getDbClient, requireAdminUser } from '@/lib/apiAuth';
 import { enforceMethods } from '@/lib/apiSecurity';
+import { getIncompleteBuyerReadinessRecipients } from '@/lib/incompleteBuyerReadiness';
 
 export default async function handler(req, res) {
   if (!enforceMethods(req, res, ['GET'])) return;
@@ -18,6 +19,7 @@ export default async function handler(req, res) {
       { count: buyCount },
       { count: sellCount },
       { count: rentCount },
+      incompleteBuyerReadinessRecipients,
     ] = await Promise.all([
       db.from('service_requests').select('id', { head: true, count: 'exact' }).neq('client_email', ''),
       db.from('service_requests').select('client_email').neq('client_email', '').order('created_at', { ascending: false }).limit(8),
@@ -26,6 +28,7 @@ export default async function handler(req, res) {
       db.from('service_requests').select('id', { head: true, count: 'exact' }).eq('request_type', 'buy').neq('client_email', ''),
       db.from('service_requests').select('id', { head: true, count: 'exact' }).eq('request_type', 'sell').neq('client_email', ''),
       db.from('service_requests').select('id', { head: true, count: 'exact' }).eq('request_type', 'rent').neq('client_email', ''),
+      getIncompleteBuyerReadinessRecipients(db),
     ]);
 
     return res.status(200).json({
@@ -36,6 +39,7 @@ export default async function handler(req, res) {
       buyCount: buyCount || 0,
       sellCount: sellCount || 0,
       rentCount: rentCount || 0,
+      incompleteBuyerReadinessCount: incompleteBuyerReadinessRecipients.length,
       visitorSample: (visitorSample || []).map((entry) => ({ email: entry?.client_email || '' })),
     });
   } catch (error) {
