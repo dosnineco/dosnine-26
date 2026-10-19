@@ -66,8 +66,15 @@ export default function AdminRequestsPage() {
   const router = useRouter();
 
   const [activeTab, setActiveTab] = useState('assign');
+  const requestId = typeof router.query.requestId === 'string'
+    ? router.query.requestId
+    : null;
   const [isAdmin, setIsAdmin] = useState(false);
   const [loadingAdmin, setLoadingAdmin] = useState(true);
+
+  useEffect(() => {
+    if (router.isReady && requestId) setActiveTab('manage');
+  }, [router.isReady, requestId]);
 
   // Tab counts (updated by each tab when its data loads)
   const [assignCounts, setAssignCounts] = useState({ total: 0, open: 0 });
@@ -199,7 +206,10 @@ export default function AdminRequestsPage() {
           <AssignRequestsTab onCountsChange={setAssignCounts} />
         )}
         {activeTab === 'manage' && (
-          <ManageRequestsTab onCountsChange={setManageCounts} />
+          <ManageRequestsTab
+            onCountsChange={setManageCounts}
+            focusedRequestId={requestId}
+          />
         )}
       </div>
     </>
@@ -1020,7 +1030,7 @@ function AssignRequestsTab({ onCountsChange }) {
  * TAB 2 — Manage Requests (bulk / edit)
  * ============================================================ */
 
-function ManageRequestsTab({ onCountsChange }) {
+function ManageRequestsTab({ onCountsChange, focusedRequestId }) {
   const { getToken } = useAuth();
 
   const [requests, setRequests] = useState([]);
@@ -1248,6 +1258,10 @@ function ManageRequestsTab({ onCountsChange }) {
   const filteredRequests = useMemo(() => {
     let filtered = [...requests];
 
+    if (focusedRequestId) {
+      filtered = filtered.filter((request) => request.id === focusedRequestId);
+    }
+
     if (statusFilter === 'active') {
       filtered = filtered.filter(
         (r) => r.status !== 'deleted' && r.status !== 'completed'
@@ -1294,7 +1308,7 @@ function ManageRequestsTab({ onCountsChange }) {
     });
 
     return filtered;
-  }, [requests, statusFilter, filterDate, searchQuery, sortBy]);
+  }, [requests, statusFilter, filterDate, searchQuery, sortBy, focusedRequestId]);
 
   const toggleSelectAll = () => {
     if (

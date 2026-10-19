@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '@clerk/nextjs';
+import Link from 'next/link';
 import toast from 'react-hot-toast';
 import {
   AlertCircle,
@@ -8,8 +9,11 @@ import {
   ExternalLink,
   FileText,
   Image as ImageIcon,
+  Pencil,
+  Plus,
   RefreshCw,
   Shield,
+  Trash2,
   XCircle,
 } from 'lucide-react';
 
@@ -24,6 +28,22 @@ const money = (value) => value == null || value === ''
   ? '—'
   : `J$${Number(value).toLocaleString()}`;
 
+const defaultFormState = {
+  buyer_name: '',
+  buyer_email: '',
+  buyer_phone: '',
+  purchase_method: 'mortgage',
+  target_property_price: '',
+  monthly_income: '',
+  deposit_available: '',
+  financing_progress: '',
+  lender_name: '',
+  consent_to_share: false,
+  status: 'registered',
+  qualification_level: 1,
+  verification_notes: '',
+};
+
 export default function AdminBuyerPrequalifications() {
   const { getToken, isLoaded: authLoaded, userId } = useAuth();
   const [prequalifications, setPrequalifications] = useState([]);
@@ -32,6 +52,9 @@ export default function AdminBuyerPrequalifications() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
   const [budgets, setBudgets] = useState({});
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [editingId, setEditingId] = useState(null);
+  const [formState, setFormState] = useState(defaultFormState);
 
   const loadPrequalifications = useCallback(async () => {
     if (!authLoaded) return;
@@ -87,6 +110,93 @@ export default function AdminBuyerPrequalifications() {
       throw new Error(payload.error || 'Unable to update assessment');
     }
     return payload;
+  };
+
+  const openCreateForm = () => {
+    setEditingId(null);
+    setFormState(defaultFormState);
+    setIsFormOpen(true);
+  };
+
+  const openEditForm = (item) => {
+    setEditingId(item.id);
+    setFormState({
+      buyer_name: item.buyer_name || '',
+      buyer_email: item.buyer_email || '',
+      buyer_phone: item.buyer_phone || '',
+      purchase_method: item.purchase_method || 'mortgage',
+      target_property_price: item.target_property_price ?? '',
+      monthly_income: item.monthly_income ?? '',
+      deposit_available: item.deposit_available ?? '',
+      financing_progress: item.financing_progress || '',
+      lender_name: item.lender_name || '',
+      consent_to_share: Boolean(item.consent_to_share),
+      status: item.status || 'registered',
+      qualification_level: item.qualification_level || 1,
+      verification_notes: item.verification_notes || '',
+    });
+    setIsFormOpen(true);
+  };
+
+  const handleFormField = (field, value) => {
+    setFormState((current) => ({
+      ...current,
+      [field]: value,
+    }));
+  };
+
+  const submitAssessment = async (event) => {
+    event.preventDefault();
+    const trimmedName = formState.buyer_name.trim();
+    if (!trimmedName) {
+      toast.error('Enter the buyer name.');
+      return;
+    }
+
+    try {
+      const payload = {
+        action: 'upsert-prequalification',
+        ...(editingId ? { id: editingId } : {}),
+        buyer_name: trimmedName,
+        buyer_email: formState.buyer_email.trim(),
+        buyer_phone: formState.buyer_phone.trim(),
+        purchase_method: formState.purchase_method,
+        target_property_price: formState.target_property_price === '' ? null : Number(formState.target_property_price),
+        monthly_income: formState.monthly_income === '' ? null : Number(formState.monthly_income),
+        deposit_available: formState.deposit_available === '' ? null : Number(formState.deposit_available),
+        financing_progress: formState.financing_progress.trim(),
+        lender_name: formState.lender_name.trim(),
+        consent_to_share: Boolean(formState.consent_to_share),
+        status: formState.status,
+        qualification_level: Number(formState.qualification_level),
+        verification_notes: formState.verification_notes.trim(),
+      };
+
+      const result = await sendAction(payload);
+      if (result?.prequalification?.id) {
+        toast.success(editingId ? 'Assessment updated' : 'Assessment created');
+      }
+      setIsFormOpen(false);
+      setEditingId(null);
+      setFormState(defaultFormState);
+      await loadPrequalifications();
+    } catch (error) {
+      toast.error(error.message || 'Unable to save assessment');
+    }
+  };
+
+  const deleteAssessment = async (prequalification) => {
+    if (!window.confirm(`Delete ${prequalification.buyer_name || 'this assessment'}? This cannot be undone.`)) return;
+    try {
+      await sendAction({
+        action: 'delete-prequalification',
+        prequalificationId: prequalification.id,
+      });
+      toast.success('Assessment deleted');
+      await loadPrequalifications();
+    } catch (error) {
+      toast.error(error.message || 'Unable to delete assessment');
+    }
   };
 
   const reviewDocument = async (document, approved) => {
@@ -173,16 +283,22 @@ export default function AdminBuyerPrequalifications() {
   };
 
   return (
-    <div className="space-y-5 ">
+    <div className="space-y-5">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Buyer prequalifications</h1>
           <p className="mt-1 text-sm text-gray-700">Review financial readiness and private supporting documents.</p>
         </div>
-        <button type="button" onClick={loadPrequalifications} disabled={loading}
-          className="inline-flex items-center justify-center gap-2 rounded-xl bg-gray-100 px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-200 disabled:opacity-50">
-          <RefreshCw size={15} className={loading ? 'animate-spin' : ''} /> Refresh
-        </button>
+        <div className="flex items-center gap-2">
+          <button type="button" onClick={openCreateForm}
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-red-700 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-red-800">
+            <Plus size={15} /> New assessment
+          </button>
+          <button type="button" onClick={loadPrequalifications} disabled={loading}
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-gray-100 px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-200 disabled:opacity-50">
+            <RefreshCw size={15} className={loading ? 'animate-spin' : ''} /> Refresh
+          </button>
+        </div>
       </div>
 
       <div className="flex flex-wrap items-end gap-4 rounded-2xl bg-white p-4 sm:p-5">
@@ -219,6 +335,176 @@ export default function AdminBuyerPrequalifications() {
         </span>
       </div>
 
+      {isFormOpen && (
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-gray-950/40 p-4">
+          <div className="max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-3xl bg-white p-5">
+            <div className="mb-4 flex items-start justify-between gap-3">
+              <div>
+                <h2 className="text-xl font-bold text-gray-900">{editingId ? 'Edit assessment' : 'Create assessment'}</h2>
+                <p className="text-sm text-gray-600">Manage buyer readiness data and verification notes.</p>
+              </div>
+              <button type="button" onClick={() => setIsFormOpen(false)} className="rounded-full bg-gray-100 p-2 text-gray-700 hover:bg-gray-200">
+                <XCircle size={18} />
+              </button>
+            </div>
+
+            <form onSubmit={submitAssessment} className="grid gap-4 md:grid-cols-2">
+              <label className="text-sm font-medium text-gray-700 md:col-span-2">
+                Buyer name
+                <input
+                  value={formState.buyer_name}
+                  onChange={(event) => handleFormField('buyer_name', event.target.value)}
+                  className="mt-1 w-full rounded-xl border border-gray-300 bg-gray-50 px-3 py-2.5 text-gray-900 focus:border-red-700 focus:outline-none focus:ring-2 focus:ring-red-100"
+                  placeholder="Jane Smith"
+                  required
+                />
+              </label>
+
+              <label className="text-sm font-medium text-gray-700">
+                Email
+                <input
+                  type="email"
+                  value={formState.buyer_email}
+                  onChange={(event) => handleFormField('buyer_email', event.target.value)}
+                  className="mt-1 w-full rounded-xl border border-gray-300 bg-gray-50 px-3 py-2.5 text-gray-900 focus:border-red-700 focus:outline-none focus:ring-2 focus:ring-red-100"
+                  placeholder="buyer@example.com"
+                />
+              </label>
+
+              <label className="text-sm font-medium text-gray-700">
+                Phone
+                <input
+                  value={formState.buyer_phone}
+                  onChange={(event) => handleFormField('buyer_phone', event.target.value)}
+                  className="mt-1 w-full rounded-xl border border-gray-300 bg-gray-50 px-3 py-2.5 text-gray-900 focus:border-red-700 focus:outline-none focus:ring-2 focus:ring-red-100"
+                  placeholder="876-555-1234"
+                />
+              </label>
+
+              <label className="text-sm font-medium text-gray-700">
+                Purchase method
+                <select
+                  value={formState.purchase_method}
+                  onChange={(event) => handleFormField('purchase_method', event.target.value)}
+                  className="mt-1 w-full rounded-xl border border-gray-300 bg-gray-50 px-3 py-2.5 text-gray-900 focus:border-red-700 focus:outline-none focus:ring-2 focus:ring-red-100"
+                >
+                  <option value="mortgage">Mortgage</option>
+                  <option value="cash">Cash</option>
+                  <option value="joint_purchase">Joint purchase</option>
+                  <option value="bridge_financing">Bridge financing</option>
+                  <option value="other">Other</option>
+                </select>
+              </label>
+
+              <label className="text-sm font-medium text-gray-700">
+                Status
+                <select
+                  value={formState.status}
+                  onChange={(event) => handleFormField('status', event.target.value)}
+                  className="mt-1 w-full rounded-xl border border-gray-300 bg-gray-50 px-3 py-2.5 text-gray-900 focus:border-red-700 focus:outline-none focus:ring-2 focus:ring-red-100"
+                >
+                  {['registered', 'under_review', 'verified', 'confirmed', 'rejected', 'expired']
+                    .map((value) => <option key={value} value={value}>{value.replace('_', ' ')}</option>)}
+                </select>
+              </label>
+
+              <label className="text-sm font-medium text-gray-700">
+                Level
+                <select
+                  value={formState.qualification_level}
+                  onChange={(event) => handleFormField('qualification_level', Number(event.target.value))}
+                  className="mt-1 w-full rounded-xl border border-gray-300 bg-gray-50 px-3 py-2.5 text-gray-900 focus:border-red-700 focus:outline-none focus:ring-2 focus:ring-red-100"
+                >
+                  {[1, 2, 3, 4].map((value) => <option key={value} value={value}>Level {value}</option>)}
+                </select>
+              </label>
+
+              <label className="text-sm font-medium text-gray-700">
+                Target property price (JMD)
+                <input
+                  type="number"
+                  min="0"
+                  value={formState.target_property_price}
+                  onChange={(event) => handleFormField('target_property_price', event.target.value)}
+                  className="mt-1 w-full rounded-xl border border-gray-300 bg-gray-50 px-3 py-2.5 text-gray-900 focus:border-red-700 focus:outline-none focus:ring-2 focus:ring-red-100"
+                />
+              </label>
+
+              <label className="text-sm font-medium text-gray-700">
+                Monthly income (JMD)
+                <input
+                  type="number"
+                  min="0"
+                  value={formState.monthly_income}
+                  onChange={(event) => handleFormField('monthly_income', event.target.value)}
+                  className="mt-1 w-full rounded-xl border border-gray-300 bg-gray-50 px-3 py-2.5 text-gray-900 focus:border-red-700 focus:outline-none focus:ring-2 focus:ring-red-100"
+                />
+              </label>
+
+              <label className="text-sm font-medium text-gray-700">
+                Deposit available (JMD)
+                <input
+                  type="number"
+                  min="0"
+                  value={formState.deposit_available}
+                  onChange={(event) => handleFormField('deposit_available', event.target.value)}
+                  className="mt-1 w-full rounded-xl border border-gray-300 bg-gray-50 px-3 py-2.5 text-gray-900 focus:border-red-700 focus:outline-none focus:ring-2 focus:ring-red-100"
+                />
+              </label>
+
+              <label className="text-sm font-medium text-gray-700">
+                Lender name
+                <input
+                  value={formState.lender_name}
+                  onChange={(event) => handleFormField('lender_name', event.target.value)}
+                  className="mt-1 w-full rounded-xl border border-gray-300 bg-gray-50 px-3 py-2.5 text-gray-900 focus:border-red-700 focus:outline-none focus:ring-2 focus:ring-red-100"
+                  placeholder="Bank / Mortgage broker"
+                />
+              </label>
+
+              <label className="text-sm font-medium text-gray-700">
+                Financing progress
+                <input
+                  value={formState.financing_progress}
+                  onChange={(event) => handleFormField('financing_progress', event.target.value)}
+                  className="mt-1 w-full rounded-xl border border-gray-300 bg-gray-50 px-3 py-2.5 text-gray-900 focus:border-red-700 focus:outline-none focus:ring-2 focus:ring-red-100"
+                  placeholder="Application in progress"
+                />
+              </label>
+
+              <label className="text-sm font-medium text-gray-700 md:col-span-2">
+                Verification notes
+                <input
+                  value={formState.verification_notes}
+                  onChange={(event) => handleFormField('verification_notes', event.target.value)}
+                  className="mt-1 w-full rounded-xl border border-gray-300 bg-gray-50 px-3 py-2.5 text-gray-900 focus:border-red-700 focus:outline-none focus:ring-2 focus:ring-red-100"
+                  placeholder="Notes for the buyer record"
+                />
+              </label>
+
+              <label className="flex items-center gap-2 text-sm font-medium text-gray-700 md:col-span-2">
+                <input
+                  type="checkbox"
+                  checked={formState.consent_to_share}
+                  onChange={(event) => handleFormField('consent_to_share', event.target.checked)}
+                  className="h-4 w-4 rounded border-gray-300 text-red-700 focus:ring-red-700"
+                />
+                Consent to share with agents
+              </label>
+
+              <div className="flex items-center justify-end gap-2 md:col-span-2">
+                <button type="button" onClick={() => setIsFormOpen(false)} className="rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-100">
+                  Cancel
+                </button>
+                <button type="submit" className="rounded-xl bg-red-700 px-4 py-2 text-sm font-semibold text-white hover:bg-red-800">
+                  {editingId ? 'Save changes' : 'Create assessment'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {loading ? (
         <div className="rounded-xl bg-white p-10 text-center text-sm text-gray-700">Loading assessments…</div>
       ) : loadError ? (
@@ -230,38 +516,61 @@ export default function AdminBuyerPrequalifications() {
       ) : (
         <div className="space-y-4">
           {prequalifications.map((item) => (
-            <details key={item.id} className="group rounded-2xl bg-white p-5">
-              <summary className="flex cursor-pointer list-none flex-wrap items-center gap-2 rounded-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-red-800 [&::-webkit-details-marker]:hidden">
-                <span className="font-bold text-gray-900">{item.buyer_name}</span>
-                <span className="rounded-full bg-red-50 px-2.5 py-1 text-xs font-semibold text-red-800">
-                  Level {item.qualification_level}: {levelLabels[item.qualification_level]}
-                </span>
-                <span className="rounded-full bg-gray-100 px-2.5 py-1 text-xs font-semibold text-gray-800">
-                  {item.status.replace('_', ' ')}
-                </span>
-                <span className="ml-auto text-xs font-medium text-gray-700">
-                  {new Date(item.created_at).toLocaleDateString()}
-                </span>
-                <span className="flex w-full flex-wrap items-center gap-x-4 gap-y-1 text-xs font-medium text-gray-700 sm:pl-1">
-                  <span>{item.purchase_method.replaceAll('_', ' ')}</span>
-                  <span>Target: {money(item.target_property_price)}</span>
-                  <span>{item.documents?.length || 0} document{item.documents?.length === 1 ? '' : 's'}</span>
-                  <ChevronDown size={15} className="ml-auto transition-transform group-open:rotate-180" />
-                </span>
+            <details key={item.id} className="group rounded-3xl border border-gray-200 bg-white p-5 shadow-sm transition hover:border-gray-300">
+              <summary className="flex cursor-pointer list-none flex-wrap items-center gap-2 rounded-2xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-red-800 [&::-webkit-details-marker]:hidden">
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-lg font-bold text-gray-900">{item.buyer_name}</span>
+                    <span className="rounded-full bg-red-50 px-2.5 py-1 text-xs font-semibold text-red-800">
+                      Level {item.qualification_level}: {levelLabels[item.qualification_level]}
+                    </span>
+                    <span className="rounded-full bg-gray-100 px-2.5 py-1 text-xs font-semibold text-gray-800">
+                      {String(item.status || 'registered').replace('_', ' ')}
+                    </span>
+                  </div>
+                  <div className="mt-2 flex w-full flex-wrap items-center gap-x-4 gap-y-1 text-xs font-medium text-gray-700">
+                    <span>{item.purchase_method ? String(item.purchase_method).replaceAll('_', ' ') : 'Unknown method'}</span>
+                    <span>Target: {money(item.target_property_price)}</span>
+                    <span>{item.documents?.length || 0} document{item.documents?.length === 1 ? '' : 's'}</span>
+                    <span className="ml-auto">{new Date(item.created_at).toLocaleDateString()}</span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button type="button" onClick={(event) => { event.preventDefault(); openEditForm(item); }} className="rounded-lg border border-gray-200 bg-white p-2 text-gray-700 hover:bg-gray-100" aria-label={`Edit ${item.buyer_name}`}>
+                    <Pencil size={15} />
+                  </button>
+                  <button type="button" onClick={(event) => { event.preventDefault(); deleteAssessment(item); }} className="rounded-lg border border-red-200 bg-red-50 p-2 text-red-700 hover:bg-red-100" aria-label={`Delete ${item.buyer_name}`}>
+                    <Trash2 size={15} />
+                  </button>
+                  <ChevronDown size={15} className="text-gray-600 transition-transform group-open:rotate-180" />
+                </div>
               </summary>
 
               <div className="mt-4 border-t border-gray-100 pt-4">
                 <div className="grid gap-2 text-sm text-gray-700 sm:grid-cols-2 lg:grid-cols-3">
-                  <p>Email: <strong className="break-all text-gray-800">{item.buyer_email}</strong></p>
-                  <p>Phone: <strong className="text-gray-800">{item.buyer_phone}</strong></p>
-                  <p>Purchase method: <strong className="text-gray-800">{item.purchase_method.replaceAll('_', ' ')}</strong></p>
+                  <p>Email: <strong className="break-all text-gray-800">{item.buyer_email || '—'}</strong></p>
+                  <p>Phone: <strong className="text-gray-800">{item.buyer_phone || '—'}</strong></p>
+                  <p>Purchase method: <strong className="text-gray-800">{item.purchase_method ? item.purchase_method.replaceAll('_', ' ') : '—'}</strong></p>
                   <p>Target price: <strong className="text-gray-800">{money(item.target_property_price)}</strong></p>
                   <p>Monthly income: <strong className="text-gray-800">{money(item.monthly_income)}</strong></p>
                   <p>Deposit: <strong className="text-gray-800">{money(item.deposit_available)}</strong></p>
                   <p>Financing progress: <strong className="text-gray-800">{item.financing_progress || '—'}</strong></p>
                   <p>Lender: <strong className="text-gray-800">{item.lender_name || '—'}</strong></p>
                   <p>Share consent: <strong className="text-gray-800">{item.consent_to_share ? 'Granted' : 'Not granted'}</strong></p>
-                  {item.service_request_id && <p className="sm:col-span-2 lg:col-span-3">Request: <strong className="break-all text-gray-800">{item.service_request_id}</strong></p>}
+                  {item.service_request_id && (
+                    <p className="flex flex-wrap items-center gap-1.5 sm:col-span-2 lg:col-span-3">
+                      Request:{' '}
+                      <Link
+                        href={`/admin/requests?requestId=${encodeURIComponent(item.service_request_id)}`}
+                        className="inline-flex items-center gap-1 font-semibold text-accent hover:underline"
+                      >
+                        {item.linked_request
+                          ? `${item.linked_request.request_type} · ${item.linked_request.property_type}`
+                          : 'Open linked request'}
+                        <ExternalLink size={13} />
+                      </Link>
+                    </p>
+                  )}
                   {item.financing_conditions && <p className="sm:col-span-2 lg:col-span-3">Conditions: {item.financing_conditions}</p>}
                   {item.verification_notes && <p className="sm:col-span-2 lg:col-span-3">Review notes: {item.verification_notes}</p>}
                 </div>
@@ -272,14 +581,14 @@ export default function AdminBuyerPrequalifications() {
                 {item.documents?.length ? (
                   <div className="mt-2 space-y-2">
                     {item.documents.map((document) => (
-                      <div key={document.id} className="flex flex-wrap items-center gap-2 rounded-lg bg-gray-50 p-3">
+                      <div key={document.id} className="flex flex-wrap items-center gap-2 rounded-xl border border-gray-200 bg-gray-50 p-3">
                         {document.mime_type?.startsWith('image/')
                           ? <ImageIcon size={16} className="text-gray-700" />
                           : <FileText size={16} className="text-gray-700" />}
                         <div className="min-w-0 flex-1">
                           <p className="truncate text-sm font-medium text-gray-800">{document.file_name}</p>
                           <p className="text-xs text-gray-700">
-                            {document.document_type.replaceAll('_', ' ')} · {document.status}
+                            {document.document_type ? document.document_type.replaceAll('_', ' ') : 'Document'} · {document.status}
                             {document.review_notes ? ` · ${document.review_notes}` : ''}
                           </p>
                         </div>
@@ -313,7 +622,7 @@ export default function AdminBuyerPrequalifications() {
                 )}
               </div>
 
-              <div className="mt-5 grid gap-3 rounded-xl bg-gray-50 p-4 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="mt-5 grid gap-3 rounded-2xl bg-gray-50 p-4 sm:grid-cols-2 lg:grid-cols-4">
                 <label className="text-xs font-semibold text-gray-700">
                   Verified budget minimum (JMD)
                   <input type="number" min="0" step="1"

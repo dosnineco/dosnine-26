@@ -28,6 +28,29 @@ const verificationSchema = z.object({
   expiresAt: z.string().datetime().nullable().optional(),
 });
 
+const upsertPrequalificationSchema = z.object({
+  action: z.literal('upsert-prequalification'),
+  id: z.string().uuid().optional(),
+  buyer_name: z.string().trim().min(1).max(200).optional(),
+  buyer_email: z.string().trim().max(200).optional().or(z.literal('')),
+  buyer_phone: z.string().trim().max(50).optional().or(z.literal('')),
+  purchase_method: z.string().trim().max(100).optional(),
+  target_property_price: z.number().finite().nonnegative().nullable().optional(),
+  monthly_income: z.number().finite().nonnegative().nullable().optional(),
+  deposit_available: z.number().finite().nonnegative().nullable().optional(),
+  financing_progress: z.string().trim().max(200).optional().or(z.literal('')),
+  lender_name: z.string().trim().max(200).optional().or(z.literal('')),
+  consent_to_share: z.boolean().optional(),
+  status: z.enum(['registered', 'under_review', 'verified', 'confirmed', 'rejected', 'expired']).optional(),
+  qualification_level: z.number().int().min(1).max(4).optional(),
+  verification_notes: z.string().trim().max(2000).optional().or(z.literal('')),
+});
+
+const deletePrequalificationSchema = z.object({
+  action: z.literal('delete-prequalification'),
+  prequalificationId: z.string().uuid(),
+});
+
 const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => ({
   '&': '&amp;',
   '<': '&lt;',
@@ -92,6 +115,22 @@ export default async function handler(req, res) {
       const { data: prequalifications, error } = await query;
       if (error) throw error;
 
+      const requestIds = [...new Set((prequalifications || [])
+        .map((item) => item.service_request_id)
+        .filter(Boolean))];
+      let requestsById = {};
+      if (requestIds.length) {
+        const { data: requests, error: requestsError } = await db
+          .from('service_requests')
+          .select('id, request_type, property_type')
+          .in('id', requestIds);
+        if (requestsError) throw requestsError;
+        requestsById = (requests || []).reduce((map, request) => {
+          map[request.id] = request;
+          return map;
+        }, {});
+      }
+
       const ids = (prequalifications || []).map((item) => item.id);
       let documentsByPrequalification = {};
       if (ids.length) {
@@ -111,12 +150,79 @@ export default async function handler(req, res) {
         success: true,
         prequalifications: (prequalifications || []).map((item) => ({
           ...item,
+          linked_request: requestsById[item.service_request_id] || null,
           documents: documentsByPrequalification[item.id] || [],
         })),
       });
     }
 
     const body = req.body || {};
+
+    if (body.action === 'upsert-prequalification') {
+      const parsed = upsertPrequalificationSchema.safeParse(body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: 'Invalid prequalification payload' });
+      }
+      const values = parsed.data;
+
+      const payload = {
+        buyer_name: values.buyer_name?.trim() || '',
+        buyer_email: values.buyer_email?.trim() || null,
+        buyer_phone: values.buyer_phone?.trim() || null,
+        purchase_method: values.purchase_method?.trim() || 'mortgage',
+        target_property_price: values.target_property_price ?? null,
+        monthly_income: values.monthly_income ?? null,
+        deposit_available: values.deposit_available ?? null,
+        financing_progress: values.financing_progress?.trim() || null,
+        lender_name: values.lender_name?.trim() || null,
+        consent_to_share: values.consent_to_share ?? false,
+        status: values.status || 'registered',
+        qualification_level: values.qualification_level ?? 1,
+        verification_notes: values.verification_notes?.trim() || null,
+      };
+
+      if (values.id) {
+        const { data: updated, error } = await db
+          .from('buyer_prequalifications')
+          .update(payload)
+          .eq('id', values.id)
+          .select('id')
+          .maybeSingle();
+        if (error) throw error;
+        if (!updated) return res.status(404).json({ error: 'Prequalification not found' });
+        return res.status(200).json({ success: true, prequalification: updated });
+      }
+
+      const { data: inserted, error } = await db
+        .from('buyer_prequalifications')
+        .insert(payload)
+        .select('id')
+        .single();
+      if (error) throw error;
+      return res.status(201).json({ success: true, prequalification: inserted });
+    }
+
+    if (body.action === 'delete-prequalification') {
+      const parsed = deletePrequalificationSchema.safeParse(body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: 'Invalid delete request' });
+      }
+
+      const { error: documentDeleteError } = await db
+        .from('buyer_documents')
+        .delete()
+        .eq('prequalification_id', parsed.data.prequalificationId);
+      if (documentDeleteError) throw documentDeleteError;
+
+      const { error } = await db
+        .from('buyer_prequalifications')
+        .delete()
+        .eq('id', parsed.data.prequalificationId);
+      if (error) throw error;
+
+      return res.status(200).json({ success: true });
+    }
+
     if (body.action === 'sign-download') {
       const parsed = documentActionSchema.safeParse(body);
       if (!parsed.success) return res.status(400).json({ error: 'Invalid document request' });
@@ -177,13 +283,7 @@ export default async function handler(req, res) {
           resubmissionUrl.searchParams.set('prequalificationId', document.prequalification_id);
           resubmissionUrl.searchParams.set('accessToken', accessToken);
           const note = parsed.data.notes.trim();
-          const escapeHtml = (value) => value.replace(/[&<>"']/g, (char) => ({
-            '&': '&amp;',
-            '<': '&lt;',
-            '>': '&gt;',
-            '"': '&quot;',
-            "'": '&#39;',
-          })[char]);
+
           try {
             await sendBrevoEmail({
               to: buyer.buyer_email,
