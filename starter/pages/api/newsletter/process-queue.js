@@ -4,7 +4,7 @@ import { enforceMethods } from '@/lib/apiSecurity';
 import { processNewsletterQueue } from '@/lib/newsletterQueue';
 
 export const config = {
-  maxDuration: 300,
+  maxDuration: 60,
 };
 
 function isAuthorizedCronRequest(req) {
