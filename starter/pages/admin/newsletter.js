@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useMemo } from 'react';
 import Head from 'next/head';
 import { useRouter } from 'next/router';
-import { useUser } from '@clerk/nextjs';
+import { useAuth, useUser } from '@clerk/nextjs';
 import toast from 'react-hot-toast';
 import {
   Mail,
@@ -394,6 +394,7 @@ function buildAdvertisementHtml({ advertisement, siteUrl }) {
  * ============================================================ */
 
 export default function AdminNewsletterPage() {
+  const { getToken } = useAuth();
   const router = useRouter();
   const { user, isLoaded } = useUser();
 
@@ -841,26 +842,23 @@ export default function AdminNewsletterPage() {
     }
     try {
       const compressedFile = await compressImage(file);
-      const sanitizedFilename = file.name
-        .replace(/\s+/g, '-')
-        .replace(/[^a-zA-Z0-9-_.]/g, '');
-      const fileName = `newsletter-images/${Date.now()}-${sanitizedFilename}`;
-      const { data, error } = await supabase.storage
-        .from('property-images')
-        .upload(fileName, compressedFile, {
-          cacheControl: '3600',
-          upsert: true,
-          contentType: file.type,
-        });
+      const token = await getToken();
+      if (!token) throw new Error('Your admin session has expired. Please sign in again.');
+      const formData = new FormData();
+      formData.append('file', compressedFile, file.name);
+      const response = await fetch('/api/newsletter/upload-image', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        credentials: 'include',
+        body: formData,
+      });
+      const payload = await response.json();
+      if (!response.ok || !payload?.success) {
+        throw new Error(payload?.error || 'Failed to upload image');
+      }
 
-      if (error) throw error;
-      const { data: publicData } = supabase.storage
-        .from('property-images')
-        .getPublicUrl(data.path);
-      const publicUrl = publicData?.publicUrl || publicData?.publicURL || '';
-
-      if (editor && publicUrl) {
-        editor.chain().focus().setImage({ src: publicUrl }).run();
+      if (editor && payload.publicUrl) {
+        editor.chain().focus().setImage({ src: payload.publicUrl }).run();
         setNewsletter((prev) => ({ ...prev, htmlContent: editor.getHTML() }));
       }
     } catch (err) {
@@ -929,17 +927,24 @@ export default function AdminNewsletterPage() {
 
       const payload = await response.json();
       if (!response.ok || !payload?.success) {
+        if (payload?.campaignQueued) {
+          setSendResult({
+            message: `Campaign queued after a processing issue. ${payload.error || 'It will continue automatically.'}`,
+            queuedCount: null,
+            warning: true,
+          });
+        }
         throw new Error(payload?.error || 'Failed to send newsletter');
       }
 
       setSendResult({
-        message: `Sent to ${payload.sentCount} recipients. Total matched ${payload.recipientCount}.`,
-        truncated: payload.truncated,
+        message: `Sent ${payload.sentCount} of ${payload.recipientCount} recipients today.`,
+        queuedCount: payload.queuedCount,
+        failedCount: payload.failedCount,
       });
-      toast.success('Newsletter sent');
-      if (payload.truncated) {
-        toast('Only the first 100 recipients were included in this send.');
-      }
+      toast.success(payload.queuedCount
+        ? `Newsletter sent. ${payload.queuedCount} recipients are queued for tomorrow.`
+        : 'Newsletter sent');
     } catch (err) {
       console.error('Send newsletter error:', err);
       toast.error(err.message || 'Send failed');
@@ -1800,6 +1805,7 @@ export default function AdminNewsletterPage() {
               <p className="mt-1 text-xs text-slate-500">
                 Sends a branded HTML email to {recipientCount} recipient
                 {recipientCount === 1 ? '' : 's'} with an unsubscribe footer.
+                {' '}Up to 300 emails are sent per UTC day; any remainder continues automatically tomorrow.
               </p>
 
               <button
@@ -1852,9 +1858,19 @@ export default function AdminNewsletterPage() {
                   />
                   <div>
                     <p className="font-semibold">{sendResult.message}</p>
-                    {sendResult.truncated && (
+                    {sendResult.queuedCount > 0 && (
                       <p className="mt-1 text-emerald-800">
-                        Note: only the first 100 recipients were included.
+                        {sendResult.queuedCount} recipients remain queued for the next daily send.
+                      </p>
+                    )}
+                    {sendResult.failedCount > 0 && (
+                      <p className="mt-1 text-amber-800">
+                        {sendResult.failedCount} recipients could not be sent and will not be retried automatically.
+                      </p>
+                    )}
+                    {sendResult.warning && (
+                      <p className="mt-1 text-amber-800">
+                        The campaign remains saved in the queue; check the error above before retrying.
                       </p>
                     )}
                   </div>

@@ -35,6 +35,7 @@ import {
 import AutoAssignModal from '../../components/AutoAssignModal';
 import BudgetRejectionEmailer from '../../components/BudgetRejectionEmailer';
 import AdminRequestBuyerDocuments from '../../components/AdminRequestBuyerDocuments';
+import { DEFAULT_REQUEST_URGENCY_PRICES } from '../../lib/requestUrgencyPricing';
 
 /* ----------------------------------------------------------
  * Tokens
@@ -199,6 +200,18 @@ export default function AdminRequestsPage() {
               {manageCounts.total}
             </span>
           </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('pricing')}
+            className={`flex-1 rounded-full px-4 py-2.5 text-sm font-semibold transition sm:flex-none sm:px-5 ${
+              activeTab === 'pricing'
+                ? 'bg-white text-slate-900 shadow-sm'
+                : 'text-slate-500 hover:text-slate-700'
+            }`}
+          >
+            Urgency pricing
+          </button>
         </div>
 
         {/* Tab content */}
@@ -211,8 +224,121 @@ export default function AdminRequestsPage() {
             focusedRequestId={requestId}
           />
         )}
+        {activeTab === 'pricing' && <RequestUrgencyPricingTab />}
       </div>
     </>
+  );
+}
+
+function RequestUrgencyPricingTab() {
+  const { getToken } = useAuth();
+  const [prices, setPrices] = useState({
+    high: String(DEFAULT_REQUEST_URGENCY_PRICES.high),
+    urgent: String(DEFAULT_REQUEST_URGENCY_PRICES.urgent),
+  });
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    const loadPrices = async () => {
+      try {
+        const response = await fetch('/api/site-settings/request-urgency-prices');
+        const payload = await response.json();
+        if (!response.ok || !payload?.success) {
+          throw new Error(payload?.error || 'Unable to load request urgency prices.');
+        }
+        setPrices({
+          high: String(payload.requestUrgencyPrices.high),
+          urgent: String(payload.requestUrgencyPrices.urgent),
+        });
+      } catch (error) {
+        console.error('Failed to load request urgency prices:', error);
+        toast.error(error.message || 'Unable to load request urgency prices.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadPrices();
+  }, []);
+
+  const savePrices = async () => {
+    setSaving(true);
+    try {
+      const token = await getToken();
+      const response = await fetch('/api/site-settings/request-urgency-prices', {
+        method: 'PATCH',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          requestUrgencyPrices: {
+            high: Number(prices.high),
+            urgent: Number(prices.urgent),
+          },
+        }),
+      });
+      const payload = await response.json();
+      if (!response.ok || !payload?.success) {
+        throw new Error(payload?.error || 'Unable to save request urgency prices.');
+      }
+      setPrices({
+        high: String(payload.requestUrgencyPrices.high),
+        urgent: String(payload.requestUrgencyPrices.urgent),
+      });
+      toast.success('Request urgency prices updated.');
+    } catch (error) {
+      toast.error(error.message || 'Unable to save request urgency prices.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <section className="max-w-2xl rounded-2xl border border-slate-200 bg-white p-5 sm:p-6">
+      <h2 className="text-lg font-bold text-slate-900">Paid request priority</h2>
+      <p className="mt-1 text-sm text-slate-600">
+        Set the one-time USD boost price for new requests. Saved payments keep their original price.
+      </p>
+      <div className="mt-5 grid gap-4 sm:grid-cols-2">
+        {[
+          ['high', 'High priority'],
+          ['urgent', 'Urgent priority'],
+        ].map(([level, label]) => (
+          <label key={level} className="block">
+            <span className={labelClass}>{label} (USD)</span>
+            <div className="flex items-center rounded-lg border border-slate-200 px-3">
+              <span className="text-sm font-semibold text-slate-500">US$</span>
+              <input
+                type="number"
+                min="0.01"
+                max="9999.99"
+                step="0.01"
+                value={prices[level]}
+                disabled={loading}
+                onChange={(event) =>
+                  setPrices((current) => ({ ...current, [level]: event.target.value }))
+                }
+                className="w-full border-0 px-2 py-3 text-sm text-slate-900 outline-none focus:ring-0 disabled:opacity-60"
+              />
+            </div>
+          </label>
+        ))}
+      </div>
+      <p className="mt-3 text-xs leading-5 text-slate-500">
+        Paid priority is non-refundable except where required by law and does not guarantee that a suitable property will be found.
+      </p>
+      <button
+        type="button"
+        onClick={savePrices}
+        disabled={loading || saving}
+        className="mt-5 inline-flex items-center justify-center rounded-full bg-accent px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-accent/90 disabled:opacity-60"
+      >
+        {saving ? 'Saving prices…' : 'Save urgency prices'}
+      </button>
+    </section>
   );
 }
 

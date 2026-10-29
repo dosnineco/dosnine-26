@@ -15,7 +15,6 @@ const updateSchema = z.object({
   bedrooms: z.union([z.number(), z.string()]).nullable(),
   bathrooms: z.union([z.number(), z.string()]).nullable(),
   description: z.string().max(5000).nullable().optional(),
-  urgency: z.enum(['low', 'normal', 'high', 'urgent']),
 });
 
 export default async function handler(req, res) {
@@ -43,11 +42,10 @@ export default async function handler(req, res) {
         bedrooms: sanitizeInt(parsed.data.bedrooms, 0, 99),
         bathrooms: sanitizeInt(parsed.data.bathrooms, 0, 99),
         description: sanitizeString(parsed.data.description || '', 5000),
-        urgency: parsed.data.urgency,
       })
       .eq('id', id.data)
       .eq('client_user_id', resolved.user.id)
-      .not('status', 'in', '("completed","cancelled","deleted")')
+      .not('status', 'in', '("completed","cancelled","deleted","withdrawn")')
       .select('id, location, budget_min, budget_max, bedrooms, bathrooms, description, urgency, updated_at')
       .maybeSingle();
 

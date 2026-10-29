@@ -1,15 +1,19 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Head from 'next/head';
 import { useRouter } from 'next/router';
 import toast from 'react-hot-toast';
 import { useUser } from '@clerk/nextjs';
+import { PayPalButtons, PayPalScriptProvider } from '@paypal/react-paypal-js';
 import BuyerRequestAgentSharing from '@/components/BuyerRequestAgentSharing';
 import BuyerReadinessProgress from '@/components/BuyerReadinessProgress';
 import { clampBuyerLevel } from '@/lib/buyerReadiness';
 import { ArrowRight, FileText } from 'lucide-react';
+import { DEFAULT_REQUEST_URGENCY_PRICES } from '@/lib/requestUrgencyPricing';
 
 const fieldClass =
   'w-full rounded-lg bg-gray-50 px-3 py-2.5 text-sm text-gray-900 outline-none ring-1 ring-gray-200 focus:ring-2 focus:ring-accent';
+const PAYPAL_CLIENT_ID = process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID;
+const formatUsd = (amount) => `US$${Number(amount).toFixed(2)}`;
 
 function createEditForm(request) {
   return {
@@ -19,7 +23,6 @@ function createEditForm(request) {
     bedrooms: request.bedrooms ?? '',
     bathrooms: request.bathrooms ?? '',
     description: request.description || '',
-    urgency: request.urgency || 'normal',
   };
 }
 
@@ -104,6 +107,15 @@ export default function MyRequestsPage() {
   const [saving, setSaving] = useState('');
   const [editingRequestId, setEditingRequestId] = useState('');
   const [loadError, setLoadError] = useState('');
+  const [urgencyPrices, setUrgencyPrices] = useState(DEFAULT_REQUEST_URGENCY_PRICES);
+  const [urgencyPricesLoaded, setUrgencyPricesLoaded] = useState(false);
+  const [urgencyPricesAvailable, setUrgencyPricesAvailable] = useState(false);
+  const [boostTargetRequestIds, setBoostTargetRequestIds] = useState([]);
+  const [boostTargetUrgency, setBoostTargetUrgency] = useState('high');
+  const [acceptedBoostTerms, setAcceptedBoostTerms] = useState(false);
+  const [boostPayment, setBoostPayment] = useState(null);
+  const boostPaymentRef = useRef(null);
+  const [boostLoading, setBoostLoading] = useState(false);
 
   const loadRequests = useCallback(async () => {
     if (!isLoaded) return;
@@ -142,6 +154,167 @@ export default function MyRequestsPage() {
   useEffect(() => {
     loadRequests();
   }, [loadRequests]);
+
+  useEffect(() => {
+    const loadUrgencyPrices = async () => {
+      try {
+        const response = await fetch('/api/site-settings/request-urgency-prices');
+        const payload = await response.json();
+        if (!response.ok || !payload?.success) {
+          throw new Error(payload?.error || 'Unable to load request priority prices.');
+        }
+        setUrgencyPrices(payload.requestUrgencyPrices);
+        setUrgencyPricesAvailable(true);
+      } catch (error) {
+        console.error('Loading request priority prices failed:', error);
+        toast.error('Request priority pricing is temporarily unavailable.');
+      } finally {
+        setUrgencyPricesLoaded(true);
+      }
+    };
+
+    loadUrgencyPrices();
+  }, []);
+
+  const eligibleRequests = useMemo(
+    () => requests.filter((request) =>
+      ['low', 'normal'].includes(String(request.urgency || 'normal').toLowerCase()) &&
+      !['completed', 'cancelled', 'deleted', 'withdrawn'].includes(
+        String(request.status || '').toLowerCase()
+      )
+    ),
+    [requests]
+  );
+
+  useEffect(() => {
+    if (boostTargetRequestIds.length > 0) {
+      document.getElementById('request-priority-boost')?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'center',
+      });
+    }
+  }, [boostTargetRequestIds]);
+
+  const startBoost = useCallback((requestIds) => {
+    setBoostTargetRequestIds(requestIds);
+    setBoostTargetUrgency('high');
+    setAcceptedBoostTerms(false);
+    setBoostPayment(null);
+    boostPaymentRef.current = null;
+  }, []);
+
+  const requestedBoostId = Array.isArray(router.query.boostRequest)
+    ? router.query.boostRequest[0]
+    : router.query.boostRequest;
+
+  useEffect(() => {
+    if (!router.isReady || !requestedBoostId || loading || !isLoaded || !isSignedIn) return;
+
+    const request = eligibleRequests.find((item) => item.id === requestedBoostId);
+    if (request) {
+      startBoost([request.id]);
+    } else {
+      toast.error('This request is not eligible for a priority boost.');
+    }
+
+    router.replace('/my-requests', undefined, { shallow: true });
+  }, [router, requestedBoostId, loading, isLoaded, isSignedIn, eligibleRequests, startBoost]);
+
+  const createBoostOrder = async () => {
+    let payment = boostPaymentRef.current;
+    if (!payment) {
+      const boostResponse = await fetch('/api/buyer/my-requests/boost', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify({
+          requestIds: boostTargetRequestIds,
+          urgency: boostTargetUrgency,
+        }),
+      });
+      const boostPayload = await boostResponse.json();
+      if (!boostResponse.ok || !boostPayload?.success || !boostPayload.boost) {
+        throw new Error(boostPayload?.error || 'Unable to prepare this request boost.');
+      }
+      payment = boostPayload.boost;
+      boostPaymentRef.current = payment;
+      setBoostPayment(payment);
+    }
+
+    const response = await fetch('/api/service-requests/urgency/create-batch-order', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
+      body: JSON.stringify({
+        boostId: payment.id,
+        token: payment.token,
+        acceptedTerms: acceptedBoostTerms,
+      }),
+    });
+    const payload = await response.json();
+    if (!response.ok || !payload?.success || !payload?.orderId) {
+      throw new Error(payload?.error || 'Unable to start PayPal checkout.');
+    }
+    return payload.orderId;
+  };
+
+  const captureBoostOrder = async (data) => {
+    const payment = boostPaymentRef.current;
+    if (!payment) throw new Error('Request priority payment details are missing.');
+    setBoostLoading(true);
+    try {
+      const response = await fetch('/api/service-requests/urgency/capture-batch-order', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify({
+          boostId: payment.id,
+          token: payment.token,
+          orderId: data.orderID,
+        }),
+      });
+      const payload = await response.json();
+      if (!response.ok || !payload?.success) {
+        throw new Error(payload?.error || 'Unable to confirm PayPal payment.');
+      }
+      toast.success(`${payment.count} request${payment.count === 1 ? '' : 's'} moved to ${payment.urgency} priority.`);
+      setBoostTargetRequestIds([]);
+      setBoostPayment(null);
+      boostPaymentRef.current = null;
+      setAcceptedBoostTerms(false);
+      await loadRequests();
+    } catch (error) {
+      toast.error(error.message || 'Unable to confirm PayPal payment.');
+    } finally {
+      setBoostLoading(false);
+    }
+  };
+
+  const handleBoostCheckoutError = async (error) => {
+    const payment = boostPaymentRef.current;
+    if (payment) {
+      try {
+        const response = await fetch('/api/service-requests/urgency/cancel-batch', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'same-origin',
+          body: JSON.stringify({ boostId: payment.id }),
+        });
+        if (response.ok) {
+          boostPaymentRef.current = null;
+          setBoostPayment(null);
+        } else if (response.status !== 409) {
+          const payload = await response.json();
+          throw new Error(payload?.error || 'Unable to release this checkout.');
+        }
+      } catch (cancelError) {
+        console.error('Unable to release failed request boost checkout:', cancelError);
+        toast.error(cancelError.message || 'Unable to release this checkout.');
+        return;
+      }
+    }
+    toast.error(error?.message || 'PayPal checkout failed. Please try again.');
+  };
 
   const updateField = (requestId, field, value) => {
     setForms((current) => ({
@@ -255,6 +428,146 @@ export default function MyRequestsPage() {
             )}
           </header>
 
+          {isSignedIn && eligibleRequests.length > 0 && (
+            <section className="rounded-2xl bg-amber-50 p-5 sm:p-6">
+              <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
+                <div>
+                  <h2 className="font-semibold text-gray-900">
+                    Give your request a better chance to be seen
+                  </h2>
+                  <p className="mt-1 max-w-3xl text-sm leading-6 text-gray-700">
+                    Standard and low-priority requests appear after boosted requests in agent queues. In a competitive market, that can mean fewer chances to connect while suitable properties are still available. A boost moves your request higher in the queue, but cannot guarantee a response or a property.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  disabled={boostTargetRequestIds.length > 0}
+                  onClick={() => startBoost(eligibleRequests.map((request) => request.id))}
+                  className="shrink-0 rounded-xl bg-accent px-4 py-3 text-sm font-semibold text-white transition hover:bg-accent/90 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  Boost all {eligibleRequests.length} request{eligibleRequests.length === 1 ? '' : 's'}
+                </button>
+              </div>
+            </section>
+          )}
+
+          {isSignedIn && boostTargetRequestIds.length > 0 && (
+            <section id="request-priority-boost" className="rounded-2xl bg-white p-5 sm:p-6">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <h2 className="text-lg font-bold text-gray-900">Increase request priority</h2>
+                  <p className="mt-1 text-sm text-gray-600">
+                    {boostTargetRequestIds.length === 1
+                      ? 'Choose a boost for this request.'
+                      : `Choose a boost for all ${boostTargetRequestIds.length} selected requests.`}
+                    {' '}The price is charged once per request.
+                  </p>
+                </div>
+                {!boostPayment && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setBoostTargetRequestIds([]);
+                      setAcceptedBoostTerms(false);
+                    }}
+                    className="rounded-lg bg-gray-100 px-3 py-2 text-sm font-semibold text-gray-600 hover:bg-gray-200"
+                  >
+                    Close
+                  </button>
+                )}
+              </div>
+
+              <div className="mt-4 grid grid-cols-2 gap-3">
+                {[
+                  { urgency: 'high', title: 'High priority', detail: 'Move ahead of standard requests' },
+                  { urgency: 'urgent', title: 'Urgent priority', detail: 'Get the highest queue position' },
+                ].map((option) => {
+                  const unitPrice = urgencyPrices[option.urgency];
+                  const totalPrice = unitPrice * boostTargetRequestIds.length;
+                  return (
+                    <button
+                      key={option.urgency}
+                      type="button"
+                      disabled={!urgencyPricesAvailable || Boolean(boostPayment) || boostLoading}
+                      aria-pressed={boostTargetUrgency === option.urgency}
+                      onClick={() => {
+                        setBoostTargetUrgency(option.urgency);
+                        setBoostPayment(null);
+                        boostPaymentRef.current = null;
+                      }}
+                      className={`rounded-xl bg-white p-4 text-left ring-1 transition ${
+                        boostTargetUrgency === option.urgency
+                          ? 'bg-accent/5 ring-2 ring-accent'
+                          : 'ring-gray-200 hover:ring-accent'
+                      } disabled:cursor-not-allowed disabled:opacity-60`}
+                    >
+                      <span className="block text-sm font-semibold text-gray-900">{option.title}</span>
+                      <span className="mt-1 block text-xs text-gray-600">{option.detail}</span>
+                      <span className="mt-3 block text-base font-bold text-gray-900">
+                        {urgencyPricesAvailable
+                          ? `${formatUsd(totalPrice)} total`
+                          : urgencyPricesLoaded ? 'Unavailable' : 'Loading price…'}
+                      </span>
+                      {urgencyPricesAvailable && boostTargetRequestIds.length > 1 && (
+                        <span className="mt-1 block text-xs text-gray-500">
+                          {formatUsd(unitPrice)} × {boostTargetRequestIds.length} requests
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+
+              <p className="mt-3 text-xs leading-5 text-gray-500">
+                Higher priority improves visibility in agent queues; it does not guarantee an agent response or secure a property.
+              </p>
+              <label className="mt-4 flex items-start gap-2.5 text-sm text-gray-700">
+                <input
+                  type="checkbox"
+                  checked={acceptedBoostTerms}
+                  onChange={(event) => setAcceptedBoostTerms(event.target.checked)}
+                  className="mt-1 h-4 w-4 rounded border-gray-300 text-accent focus:ring-accent"
+                />
+                <span>
+                  I understand this is a non-refundable priority fee, except where required by law, and no response or property is guaranteed.
+                </span>
+              </label>
+
+              {!PAYPAL_CLIENT_ID ? (
+                <p className="mt-5 rounded-xl bg-amber-50 p-4 text-sm leading-6 text-amber-900">
+                  Online checkout is temporarily unavailable. Your requests remain at their current priority.
+                </p>
+              ) : !urgencyPricesAvailable ? (
+                <p className="mt-5 rounded-xl bg-amber-50 p-4 text-sm leading-6 text-amber-900">
+                  Priority checkout is unavailable until current prices can be confirmed.
+                </p>
+              ) : (
+                <div className="mt-5">
+                  <PayPalScriptProvider options={{
+                    'client-id': PAYPAL_CLIENT_ID,
+                    currency: 'USD',
+                    intent: 'capture',
+                    components: 'buttons',
+                  }}>
+                    <PayPalButtons
+                      forceReRender={[
+                        boostTargetUrgency,
+                        boostTargetRequestIds.join(','),
+                        urgencyPrices[boostTargetUrgency],
+                      ]}
+                      disabled={boostLoading || !acceptedBoostTerms || !urgencyPricesAvailable}
+                      style={{ layout: 'vertical', color: 'gold', shape: 'rect', label: 'pay' }}
+                      createOrder={createBoostOrder}
+                      onApprove={captureBoostOrder}
+                      onCancel={() => toast('Checkout canceled. You can try again when ready.')}
+                      onError={handleBoostCheckoutError}
+                    />
+                  </PayPalScriptProvider>
+                </div>
+              )}
+            </section>
+          )}
+
           {!isLoaded || loading ? (
             <div className="rounded-xl bg-white p-8 text-center text-sm text-gray-500">
               Loading your requests…
@@ -270,9 +583,10 @@ export default function MyRequestsPage() {
           ) : (
             requests.map((request) => {
               const form = forms[request.id] || createEditForm(request);
-              const editable = !['completed', 'cancelled', 'deleted'].includes(
-                request.status
+              const editable = !['completed', 'cancelled', 'deleted', 'withdrawn'].includes(
+                String(request.status || '').toLowerCase()
               );
+              const canBoost = eligibleRequests.some((item) => item.id === request.id);
               const isEditing = editingRequestId === request.id;
               const isBuyRequest =
                 String(request.request_type || '').toLowerCase() === 'buy';
@@ -407,26 +721,6 @@ export default function MyRequestsPage() {
                             }
                             className={`${fieldClass} mt-1`}
                           />
-                        </label>
-                        <label className="text-xs font-medium text-gray-600">
-                          Urgency
-                          <select
-                            value={form.urgency}
-                            onChange={(event) =>
-                              updateField(
-                                request.id,
-                                'urgency',
-                                event.target.value
-                              )
-                            }
-                            className={`${fieldClass} mt-1`}
-                          >
-                            {['low', 'normal', 'high', 'urgent'].map((value) => (
-                              <option key={value} value={value}>
-                                {value}
-                              </option>
-                            ))}
-                          </select>
                         </label>
                         <label className="text-xs font-medium text-gray-600">
                           Minimum budget (JMD)
@@ -602,21 +896,33 @@ export default function MyRequestsPage() {
                           </dd>
                         </div>
                       </dl>
-                      {editable && (
-                        <div className="mt-4 flex justify-end">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setForms((current) => ({
-                                ...current,
-                                [request.id]: createEditForm(request),
-                              }));
-                              setEditingRequestId(request.id);
-                            }}
-                            className="rounded-xl bg-gray-100 px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-200"
-                          >
-                            Edit request
-                          </button>
+                      {(editable || canBoost) && (
+                        <div className="mt-4 flex flex-wrap justify-end gap-2">
+                          {canBoost && (
+                            <button
+                              type="button"
+                              disabled={boostTargetRequestIds.length > 0}
+                              onClick={() => startBoost([request.id])}
+                              className="rounded-xl bg-accent px-4 py-2.5 text-sm font-semibold text-white hover:bg-accent/90 disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                              Boost this request
+                            </button>
+                          )}
+                          {editable && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setForms((current) => ({
+                                  ...current,
+                                  [request.id]: createEditForm(request),
+                                }));
+                                setEditingRequestId(request.id);
+                              }}
+                              className="rounded-xl bg-gray-100 px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-200"
+                            >
+                              Edit request
+                            </button>
+                          )}
                         </div>
                       )}
                     </>

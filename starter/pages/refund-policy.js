@@ -20,7 +20,7 @@ export default function RefundPolicy() {
               <section className="mb-8">
                 <h2 className="text-2xl font-bold text-gray-900 mb-4">1. Overview</h2>
                 <p className="text-gray-700 mb-4">
-                  This Refund Policy applies to paid Tenant Service Advertisement services on Dosnine Limited. We are committed to providing fair and transparent refund procedures.
+                  This Refund Policy applies to paid Tenant Service Advertisement services and the Dosnine Property Search service.
                 </p>
                 <p className="text-gray-700">
                   Please read this policy carefully before purchasing any paid services. By making a purchase, you acknowledge that you have read and agree to this Refund Policy.
@@ -42,6 +42,13 @@ export default function RefundPolicy() {
                   <li>Contacting property owners</li>
                   <li>Managing your listings</li>
                 </ul>
+              </section>
+
+              <section className="mb-8">
+                <h2 className="text-2xl font-bold text-gray-900 mb-4">Dosnine Property Search</h2>
+                <p className="text-gray-700">
+                  The J$2,500 or US$9.99 property search fee is charged per request and is non-refundable after payment because it covers sourcing work and introductions, not a guaranteed property or transaction. A request is submitted before payment and remains private until payment is confirmed. This does not limit any refund rights that cannot be excluded under applicable law or remedies for a duplicate or incorrectly processed charge. Contact admin@dosnine.com if you believe a payment was processed incorrectly.
+                </p>
               </section>
 
               <section className="mb-8">

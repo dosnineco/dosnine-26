@@ -1072,6 +1072,9 @@ export default function RegularDashboard() {
                 const requestType = String(request.request_type || '').toLowerCase();
                 const TypeIcon = REQUEST_TYPE_ICONS[requestType] || FileText;
                 const status = String(request.status || 'open').toLowerCase();
+                const requestUrgency = String(request.urgency || 'normal').toLowerCase();
+                const canBoostRequest = ['low', 'normal'].includes(requestUrgency) &&
+                  !['completed', 'cancelled', 'deleted', 'withdrawn'].includes(status);
                 const statusDot = STATUS_DOT[status] || 'bg-gray-400';
                 const statusColor = REQUEST_STATUS_STYLES[status] || 'text-gray-600';
 
@@ -1288,6 +1291,30 @@ export default function RegularDashboard() {
                     </div>
 
                     <div className="flex flex-wrap items-center gap-2 border-t border-gray-100 bg-gray-50/60 px-5 py-3">
+                      {canBoostRequest && (
+                        <div className="flex w-full flex-col gap-2 rounded-xl bg-amber-50 p-3 sm:flex-row sm:items-center sm:justify-between">
+                          <div>
+                            <p className="text-xs font-semibold text-amber-950">
+                              Standard priority · Boost to High or Urgent
+                            </p>
+                            <p className="mt-0.5 text-[11px] leading-5 text-amber-900">
+                              Boosted requests appear ahead of standard requests in agent queues, which can help you connect sooner while listings are available.
+                            </p>
+                          </div>
+                          <Link
+                            href={{ pathname: '/my-requests', query: { boostRequest: request.id } }}
+                            className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-lg bg-[#6E026F] px-3.5 py-2.5 text-xs font-semibold text-white transition hover:bg-[#6E026F]/90"
+                          >
+                            Increase priority
+                            <ArrowRight size={13} />
+                          </Link>
+                        </div>
+                      )}
+                      {!canBoostRequest && ['high', 'urgent'].includes(requestUrgency) && (
+                        <span className="inline-flex items-center rounded-full bg-[#6E026F]/10 px-3 py-1.5 text-xs font-semibold capitalize text-[#6E026F]">
+                          {requestUrgency} priority
+                        </span>
+                      )}
                       {isBuyRequest && (
                         <button
                           type="button"

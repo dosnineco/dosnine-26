@@ -1,5 +1,6 @@
 import { getDbClient, requireAgentAccountUser } from '@/lib/apiAuth';
 import { enforceMethods } from '@/lib/apiSecurity';
+import { compareServiceRequestPriority } from '@/lib/serviceRequestPriority';
 
 export default async function handler(req, res) {
   if (!enforceMethods(req, res, ['GET'])) return;
@@ -105,7 +106,8 @@ export default async function handler(req, res) {
               documents: documentsByAssessment.get(assessment.id) || [],
             },
           };
-        }),
+        })
+        .sort(compareServiceRequestPriority),
     });
   } catch (error) {
     console.error('Loading shared buyer requests failed:', error);

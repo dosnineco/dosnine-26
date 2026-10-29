@@ -1,5 +1,6 @@
 import { getDbClient, requireAgentAccountUser } from '@/lib/apiAuth';
 import { addAgentBuyerReadiness } from '@/lib/buyerPrequalification';
+import { compareServiceRequestPriority } from '@/lib/serviceRequestPriority';
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') {
@@ -27,7 +28,7 @@ export default async function handler(req, res) {
 
     let srQuery = db
       .from('service_requests')
-      .select('id, request_type, property_type, location, parish, bedrooms, bathrooms, budget_min, budget_max, description, created_at')
+      .select('id, request_type, property_type, location, parish, bedrooms, bathrooms, budget_min, budget_max, description, urgency, created_at')
       .eq('status', 'open')
       .order('created_at', { ascending: false });
 
@@ -112,12 +113,13 @@ export default async function handler(req, res) {
       budget_min: visitor.budget_min,
       budget_max: null,
       description: '',
+      urgency: 'normal',
       created_at: visitor.created_at,
     }));
 
     const serviceDataWithReadiness = await addAgentBuyerReadiness(db, serviceData);
     const requests = [...serviceDataWithReadiness, ...visitorData]
-      .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+      .sort(compareServiceRequestPriority);
     const areasSet = new Set();
     (srRes.data || []).forEach((request) => request.location && areasSet.add(request.location));
     (veRes.data || []).forEach((visitor) => visitor.area && areasSet.add(visitor.area));

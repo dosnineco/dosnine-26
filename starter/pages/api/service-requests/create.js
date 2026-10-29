@@ -1,6 +1,8 @@
+import { createHash, randomBytes } from 'node:crypto';
 import { getClerkUserId, getDbClient, getDbUserByClerkId } from '@/lib/apiAuth';
 import { enforceRateLimitDistributed } from '@/lib/rateLimit';
 import { z } from 'zod';
+import { getRequestUrgencyPrices } from '@/lib/requestUrgencyPricing';
 import {
   enforceMethods,
   isBotLikely,
@@ -237,6 +239,7 @@ export default async function handler(req, res) {
   const parsedBathrooms = sanitizeInt(parsed.bathrooms ?? 0, 0, 99);
   const parsedDescription = parsed.description ? sanitizeString(parsed.description, 5000) : null;
   const parsedUrgency = parsed.urgency || 'normal';
+  const paidUrgency = ['high', 'urgent'].includes(parsedUrgency) ? parsedUrgency : null;
   const parsedFromAds = Boolean(parsed.fromAds ?? parsed.from_ads);
   const parsedPropertyOwnerId = parsed.propertyOwnerId || parsed.property_owner_id || null;
 
@@ -285,6 +288,11 @@ export default async function handler(req, res) {
       }
     }
 
+    const chargedUrgency = submittingAgentId ? null : paidUrgency;
+    const requestUrgencyPrices = chargedUrgency
+      ? await getRequestUrgencyPrices(db)
+      : null;
+
     let assignedAgentId = submittingAgentId;
     if (!assignedAgentId && parsedPropertyOwnerId) {
       const { data: ownerAgent } = await db
@@ -319,7 +327,7 @@ export default async function handler(req, res) {
         bedrooms: parsedBedrooms,
         bathrooms: parsedBathrooms,
         description: enrichedDescription,
-        urgency: parsedUrgency,
+        urgency: chargedUrgency ? 'normal' : parsedUrgency,
         status: assignedAgentId ? 'assigned' : 'open',
         assigned_agent_id: assignedAgentId,
         ...(submittingAgentId ? { assigned_at: new Date().toISOString() } : {}),
@@ -329,6 +337,34 @@ export default async function handler(req, res) {
 
     if (error) {
       return res.status(500).json({ error: 'Failed to create service request' });
+    }
+
+    let urgencyPayment = null;
+    let urgencyPaymentError = null;
+    if (chargedUrgency && data?.id) {
+      const token = randomBytes(32).toString('hex');
+      const { data: payment, error: paymentError } = await db
+        .from('service_request_urgency_payments')
+        .insert([{
+          service_request_id: data.id,
+          urgency: chargedUrgency,
+          amount: requestUrgencyPrices[chargedUrgency],
+          token_hash: createHash('sha256').update(token).digest('hex'),
+        }])
+        .select('id, amount')
+        .single();
+
+      if (paymentError) {
+        console.error('Failed to create service request urgency payment:', paymentError);
+        urgencyPaymentError = 'Your request was submitted at normal priority, but we could not set up its paid boost.';
+      } else {
+        urgencyPayment = {
+          paymentId: payment.id,
+          token,
+          urgency: chargedUrgency,
+          amount: Number(payment.amount),
+        };
+      }
     }
 
     if (assignedAgentId && data?.id) {
@@ -398,11 +434,14 @@ export default async function handler(req, res) {
     return res.status(200).json({ 
       success: true,
       request: data,
+      urgencyPayment,
+      urgencyPaymentError,
       dashboardInvitationEmailSent,
       message: 'Service request submitted successfully'
     });
 
   } catch (error) {
-    return res.status(500).json({ error: 'Internal server error' });
+    console.error('Service request creation failed:', error);
+    return res.status(500).json({ error: error?.message || 'Internal server error' });
   }
 }

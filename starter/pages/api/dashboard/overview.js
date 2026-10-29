@@ -162,7 +162,7 @@ export default async function handler(req, res) {
     let serviceRequests = [];
     const { data: requests, error: requestsError } = await db
       .from('service_requests')
-      .select('id, request_type, property_type, location, budget_min, budget_max, description, status, created_at, assigned_agent_id, agent:assigned_agent_id(id, business_name, users:user_id(full_name, email))')
+      .select('id, request_type, property_type, location, budget_min, budget_max, description, urgency, status, created_at, assigned_agent_id, agent:assigned_agent_id(id, business_name, users:user_id(full_name, email))')
       .eq('client_user_id', userData.id)
       .order('created_at', { ascending: false });
 

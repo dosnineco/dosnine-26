@@ -42,6 +42,13 @@ export default function TermsOfService() {
                 <p className="text-gray-700">
                   Dosnine Limited acts as a platform facilitator only. We are not a party to any rental agreements between landlords and renters.
                 </p>
+                <h3 className="mt-5 mb-3 text-xl font-semibold text-gray-900">Property search service</h3>
+                <p className="mb-4 text-gray-700">
+                  For each property-search request, Dosnine charges J$2,500 or US$9.99. The client submits the request before payment; it remains private and is not published for sourcing until payment is confirmed. This fee pays for the search and introduction service, not for a property, a real estate agency or brokerage service, legal or financial advice, or a guaranteed result. The fee is non-refundable after payment except where applicable law requires otherwise.
+                </p>
+                <p className="text-gray-700">
+                  Dosnine and its staff are not real estate agents or brokers and do not represent buyers, renters, or property owners. We do not negotiate or enter into property transactions on a client&apos;s behalf and do not guarantee that a property is available, suitable, accurately described, or ultimately rented or purchased. Clients are responsible for independently verifying the property, ownership, condition, and all transaction terms directly with the owner.
+                </p>
               </section>
 
               <section className="mb-8">

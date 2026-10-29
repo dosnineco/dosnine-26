@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useUser } from '@clerk/nextjs';
 import toast from 'react-hot-toast';
 import { X } from 'lucide-react';
+import { PayPalButtons, PayPalScriptProvider } from '@paypal/react-paypal-js';
+import { DEFAULT_REQUEST_URGENCY_PRICES } from '@/lib/requestUrgencyPricing';
 
 const BUDGET_RANGES = {
   rent: { min: 70000, max: 4000000, step: 10000 },
@@ -12,14 +14,9 @@ const BUDGET_RANGES = {
   default: { min: 70000, max: 100000000, step: 10000 }
 };
 
-const URGENCY_OPTIONS = [
-  { value: 'low', label: 'Low', classes: 'bg-emerald-100 text-emerald-800 border-emerald-200 hover:bg-emerald-200' },
-  { value: 'normal', label: 'Normal', classes: 'bg-sky-100 text-sky-800 border-sky-200 hover:bg-sky-200' },
-  { value: 'high', label: 'High', classes: 'bg-orange-100 text-orange-800 border-orange-200 hover:bg-orange-200' },
-  { value: 'urgent', label: 'Urgent', classes: 'bg-red-100 text-red-800 border-red-200 hover:bg-red-200' }
-];
-
 const formatJmd = (value) => `J$${Number(value || 0).toLocaleString()}`;
+const formatUsd = (value) => `US$${Number(value).toFixed(2)}`;
+const PAYPAL_CLIENT_ID = process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID;
 
 export default function RequestAgentPopup() {
   const { isSignedIn, user } = useUser();
@@ -28,6 +25,11 @@ export default function RequestAgentPopup() {
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
   const [step, setStep] = useState(1);
+  const [urgencyPrices, setUrgencyPrices] = useState(DEFAULT_REQUEST_URGENCY_PRICES);
+  const [urgencyPricesLoaded, setUrgencyPricesLoaded] = useState(false);
+  const [urgencyPricesAvailable, setUrgencyPricesAvailable] = useState(false);
+  const [requestPayment, setRequestPayment] = useState(null);
+  const [acceptedUrgencyTerms, setAcceptedUrgencyTerms] = useState(false);
 
  const [formData, setFormData] = useState({
   name: '',
@@ -47,6 +49,27 @@ export default function RequestAgentPopup() {
 
   const getBudgetRange = (requestType) => BUDGET_RANGES[requestType] || BUDGET_RANGES.default;
   const budgetRange = getBudgetRange(formData.requestType);
+
+  useEffect(() => {
+    const loadUrgencyPrices = async () => {
+      try {
+        const response = await fetch('/api/site-settings/request-urgency-prices');
+        const payload = await response.json();
+        if (!response.ok || !payload?.success) {
+          throw new Error(payload?.error || 'Unable to load request priority prices.');
+        }
+        setUrgencyPrices(payload.requestUrgencyPrices);
+        setUrgencyPricesAvailable(true);
+      } catch (error) {
+        console.error('Failed to load request priority prices:', error);
+        toast.error('Paid request priority is temporarily unavailable.');
+      } finally {
+        setUrgencyPricesLoaded(true);
+      }
+    };
+
+    loadUrgencyPrices();
+  }, []);
 
 
   /* -----------------------------
@@ -298,6 +321,13 @@ if (!formData.name || !formData.email || !formData.phone ||
       toast.error('Please fill all required fields');
       return;
     }
+    if (
+      ['high', 'urgent'].includes(formData.urgency) &&
+      (!urgencyPricesLoaded || !urgencyPricesAvailable)
+    ) {
+      toast.error('Paid request priority is unavailable. Select normal priority or try again later.');
+      return;
+    }
 
     const selectedRange = getBudgetRange(formData.requestType);
     const budgetMin = parseInt(formData.budgetMin, 10);
@@ -352,15 +382,73 @@ if (!formData.name || !formData.email || !formData.phone ||
         return;
       }
 
+      if (payload.urgencyPayment) {
+        setRequestPayment({
+          ...payload.urgencyPayment,
+          requestId: payload.request?.id || null,
+        });
+        toast('Request submitted. Complete checkout to apply the paid priority.');
+        return;
+      }
+      if (payload.urgencyPaymentError) toast.error(payload.urgencyPaymentError);
+      finishSubmission();
+    } catch (err) {
+      console.error('Visitor request submission failed:', err);
+      toast.error('Submission failed');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const finishSubmission = () => {
       localStorage.setItem('visitor-lead-submitted', 'true');
-      toast.success('Request submitted successfully!', {
-        duration: 5000,
-      });
+      toast.success('Request submitted successfully!', { duration: 5000 });
+      setRequestPayment(null);
       setSubmitted(true);
       setShowPopup(false);
+  };
 
-    } catch (err) {
-      toast.error('Submission failed');
+  const createUrgencyOrder = async () => {
+    if (!requestPayment) throw new Error('Submit your request before paying for priority.');
+    setLoading(true);
+    try {
+      const response = await fetch('/api/service-requests/urgency/create-order', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          paymentId: requestPayment.paymentId,
+          token: requestPayment.token,
+          acceptedTerms: acceptedUrgencyTerms,
+        }),
+      });
+      const payload = await response.json();
+      if (!response.ok || !payload?.success || !payload?.orderId) {
+        throw new Error(payload?.error || 'Unable to start PayPal checkout.');
+      }
+      return payload.orderId;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const captureUrgencyOrder = async (data) => {
+    if (!requestPayment) throw new Error('Request priority payment details are missing.');
+    setLoading(true);
+    try {
+      const response = await fetch('/api/service-requests/urgency/capture-order', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          paymentId: requestPayment.paymentId,
+          token: requestPayment.token,
+          orderId: data.orderID,
+        }),
+      });
+      const payload = await response.json();
+      if (!response.ok || !payload?.success) {
+        throw new Error(payload?.error || 'Unable to confirm PayPal payment.');
+      }
+      finishSubmission();
     } finally {
       setLoading(false);
     }
@@ -373,15 +461,81 @@ return (
 
     <div className="relative max-h-[90vh] w-full max-w-4xl overflow-y-auto bg-white shadow-2xl sm:rounded-2xl">
 
-      {/* CLOSE BUTTON */}
-      <button
-        type="button"
-        onClick={handleDismiss}
-        aria-label="Close request form"
-        className="absolute right-4 top-4 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-white/90 text-gray-700 transition hover:bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-white sm:right-6 sm:top-6"
-      >
-        <X size={18} />
-      </button>
+      {!requestPayment && (
+        <button
+          type="button"
+          onClick={handleDismiss}
+          aria-label="Close request form"
+          className="absolute right-4 top-4 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-white/90 text-gray-700 transition hover:bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-white sm:right-6 sm:top-6"
+        >
+          <X size={18} />
+        </button>
+      )}
+
+      {requestPayment ? (
+        <section className="mx-auto max-w-2xl p-6 sm:p-10">
+          <p className="text-xs font-bold uppercase tracking-[0.16em] text-accent">
+            Request priority boost
+          </p>
+          <h2 className="mt-2 text-2xl font-bold text-gray-900">
+            Complete your {requestPayment.urgency} priority payment
+          </h2>
+          <p className="mt-3 text-sm leading-6 text-gray-600">
+            Your request is submitted at normal priority. Pay {formatUsd(requestPayment.amount)} once to raise it to {requestPayment.urgency} priority and increase the effort we give to sourcing a property. A boost is non-refundable except where required by law and does not guarantee that a suitable property will be found.
+          </p>
+          <label className="mt-4 flex items-start gap-2.5 text-sm text-gray-700">
+            <input
+              type="checkbox"
+              checked={acceptedUrgencyTerms}
+              onChange={(event) => setAcceptedUrgencyTerms(event.target.checked)}
+              className="mt-1 h-4 w-4 rounded border-gray-300 text-accent focus:ring-accent"
+            />
+            <span>I understand this is a non-refundable priority fee, except where required by law, and no property or result is guaranteed.</span>
+          </label>
+
+          {!PAYPAL_CLIENT_ID ? (
+            <p className="mt-5 rounded-xl bg-amber-50 p-4 text-sm leading-6 text-amber-900">
+              Online checkout is temporarily unavailable. Your request remains submitted at normal priority.
+            </p>
+          ) : (
+            <div className="mt-6">
+              <PayPalScriptProvider options={{
+                'client-id': PAYPAL_CLIENT_ID,
+                currency: 'USD',
+                intent: 'capture',
+                components: 'buttons',
+              }}>
+                <PayPalButtons
+                  forceReRender={[requestPayment.paymentId, requestPayment.amount]}
+                  disabled={loading || !acceptedUrgencyTerms}
+                  style={{ layout: 'vertical', color: 'gold', shape: 'rect', label: 'pay' }}
+                  createOrder={createUrgencyOrder}
+                  onApprove={captureUrgencyOrder}
+                  onCancel={() => {
+                    setLoading(false);
+                    toast('Checkout cancelled. Your request remains at normal priority.');
+                  }}
+                  onError={(error) => {
+                    console.error('Request priority PayPal checkout failed:', error);
+                    setLoading(false);
+                    toast.error(error?.message || 'PayPal checkout failed. Please try again.');
+                  }}
+                />
+              </PayPalScriptProvider>
+            </div>
+          )}
+
+          <button
+            type="button"
+            disabled={loading}
+            onClick={finishSubmission}
+            className="mt-4 w-full rounded-xl border border-gray-300 px-5 py-3 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-60"
+          >
+            Continue without boost
+          </button>
+        </section>
+      ) : (
+        <>
 
       {/* HEADER */}
       <div className="bg-accent p-6 text-white sm:p-10">
@@ -606,23 +760,49 @@ return (
             </h2>
 
             <div>
-              <label className="mb-3 block text-sm font-medium text-gray-700">Urgency Level</label>
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                {URGENCY_OPTIONS.map((option) => (
+              <h3 className="mb-1 text-sm font-semibold text-gray-900">Request priority</h3>
+              <p className="text-xs leading-5 text-gray-600">
+                Higher-priority requests are shown to agents before standard requests.
+              </p>
+              <div className="mt-4 grid grid-cols-3 gap-2 sm:gap-3" role="group" aria-label="Choose request priority">
+                {[
+                  { value: 'normal', label: 'Standard', price: 'Free', detail: 'Regular review' },
+                  {
+                    value: 'high',
+                    label: 'High',
+                    price: urgencyPricesAvailable ? formatUsd(urgencyPrices.high) : urgencyPricesLoaded ? 'Unavailable' : 'Loading…',
+                    detail: 'Higher priority'
+                  },
+                  {
+                    value: 'urgent',
+                    label: 'Urgent',
+                    price: urgencyPricesAvailable ? formatUsd(urgencyPrices.urgent) : urgencyPricesLoaded ? 'Unavailable' : 'Loading…',
+                    detail: 'Highest priority'
+                  }
+                ].map((option) => (
                   <button
                     key={option.value}
                     type="button"
-                    onClick={() => setFormData(prev => ({ ...prev, urgency: option.value }))}
-                    className={`rounded-full border px-3 py-2 text-sm font-semibold ${
+                    aria-pressed={formData.urgency === option.value}
+                    disabled={option.value !== 'normal' && !urgencyPricesAvailable}
+                    onClick={() => setFormData((prev) => ({ ...prev, urgency: option.value }))}
+                    className={`flex min-h-28 flex-col justify-between rounded-xl bg-white p-3 text-left ring-1 transition sm:p-4 ${
                       formData.urgency === option.value
-                        ? 'border-transparent bg-accent text-white'
-                        : option.classes
-                    }`}
+                        ? 'bg-accent/5 ring-2 ring-accent'
+                        : 'ring-gray-200 hover:ring-accent'
+                    } disabled:cursor-not-allowed disabled:opacity-50`}
                   >
-                    {option.label}
+                    <span>
+                      <span className="block text-sm font-semibold text-gray-900">{option.label}</span>
+                      <span className="mt-1 block text-[11px] leading-4 text-gray-500 sm:text-xs">{option.detail}</span>
+                    </span>
+                    <span className="mt-3 block text-sm font-bold text-gray-900">{option.price}</span>
                   </button>
                 ))}
               </div>
+              <p className="mt-2 text-xs leading-5 text-gray-600">
+                Paid priority boosts are one-time and non-refundable except where required by law. They do not guarantee that a property will be found or secured.
+              </p>
             </div>
 
             <div className="space-y-5 rounded-2xl bg-gray-50 p-5 sm:p-6">
@@ -700,6 +880,8 @@ return (
         )}
 
       </form>
+        </>
+      )}
     </div>
 
     <style jsx global>{`
