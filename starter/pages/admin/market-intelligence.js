@@ -37,6 +37,11 @@ const TONE_STYLES = {
   slate: { bg: 'bg-slate-100', text: 'text-slate-600' },
 };
 
+const formatCompactJMD = (amount) => `JMD ${new Intl.NumberFormat('en-JM', {
+  notation: 'compact',
+  maximumFractionDigits: 1,
+}).format(Number(amount) || 0)}`;
+
 /* ============================================================
  * Page
  * ============================================================ */
@@ -355,6 +360,57 @@ export default function AdminMarketIntelligence() {
               </div>
             </CollapsibleSection>
 
+            <section className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.22em] text-accent">
+                  Popular Communities Seeking Property
+                </p>
+                <p className="mt-1 text-sm text-slate-600">
+                  Locations with the most active buyer, renter, and property inquiries.
+                </p>
+              </div>
+              {(metrics.communityDemand || []).length === 0 ? (
+                <div className="mt-4"><EmptyRow /></div>
+              ) : (
+                <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                  {metrics.communityDemand.map((item, index) => {
+                    const hasBudgetMin = item.averageBudgetMin != null;
+                    const hasBudgetMax = item.averageBudgetMax != null;
+                    const budgetRange = hasBudgetMin && hasBudgetMax
+                      ? `${formatCompactJMD(item.averageBudgetMin)} - ${formatCompactJMD(item.averageBudgetMax)}`
+                      : hasBudgetMin
+                        ? formatCompactJMD(item.averageBudgetMin)
+                        : hasBudgetMax
+                          ? formatCompactJMD(item.averageBudgetMax)
+                          : 'Not available';
+
+                    return (
+                      <article
+                        key={item.community}
+                        className="rounded-xl bg-slate-50 p-4"
+                      >
+                        <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-accent">
+                          #{index + 1} Community
+                        </p>
+                        <h3 className="mt-2 text-lg font-bold text-slate-900">
+                          {item.community}
+                        </h3>
+                        <p className="mt-1 text-sm font-semibold text-slate-700">
+                          {Number(item.count || 0).toLocaleString()} requests
+                        </p>
+                        <p className="mt-3 text-sm capitalize text-slate-600">
+                          {item.topDemand}
+                        </p>
+                        <p className="mt-2 text-xs text-slate-500">
+                          Average budget: {budgetRange}
+                        </p>
+                      </article>
+                    );
+                  })}
+                </div>
+              )}
+            </section>
+
             {/* ============================================================
                 Buy / Rent + Urgency
                 ============================================================ */}
@@ -617,7 +673,7 @@ export default function AdminMarketIntelligence() {
  * ============================================================ */
 
 function CollapsibleSection({ icon: Icon, label, children }) {
-  const [isOpen, setIsOpen] = useState(false);
+  const [isOpen, setIsOpen] = useState(true);
 
   return (
     <section>
@@ -706,7 +762,7 @@ function HighlightCard({ icon: Icon, tone = 'accent', label, value, sub }) {
 }
 
 function Panel({ title, subtitle, children }) {
-  const [isOpen, setIsOpen] = useState(false);
+  const [isOpen, setIsOpen] = useState(true);
 
   return (
     <section className="rounded-2xl border border-slate-200 bg-white p-5">

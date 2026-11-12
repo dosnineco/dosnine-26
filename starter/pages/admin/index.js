@@ -22,11 +22,16 @@ import {
   Package,
   Briefcase,
   MapPin,
+  Zap,
 } from 'lucide-react';
 
 /* -------------------- helpers -------------------- */
 
 const formatNumber = (value) => Number(value || 0).toLocaleString();
+const formatUSD = (amount) => new Intl.NumberFormat('en-US', {
+  style: 'currency',
+  currency: 'USD',
+}).format(Number(amount) || 0);
 
 const AD_PRICING = {
   '7-day': 11999,
@@ -291,6 +296,7 @@ export default function AdminDashboardIndex() {
         requestsThisMonth: data.market?.metrics?.requestsThisMonth || 0,
         averageBudget: data.market?.metrics?.averageBudget || 0,
         topParish: data.market?.metrics?.mostRequestedParish || '—',
+        intelligence: data.market?.metrics || null,
       },
     };
   }, [data]);
@@ -506,6 +512,24 @@ export default function AdminDashboardIndex() {
             </div>
           </div>
         </div>
+
+        {metrics.market.intelligence?.monetization ? (
+          <RevenueOpportunities
+            monetization={metrics.market.intelligence.monetization}
+            mostRequestedParish={metrics.market.intelligence.mostRequestedParish}
+            mostRequestedProperty={metrics.market.intelligence.mostRequestedProperty}
+            growthSignals={{
+              requestsThisMonth: metrics.market.intelligence.requestsThisMonth,
+              topParishRequests: metrics.market.intelligence.parishDemand?.[0]?.count || 0,
+              verifiedBudgetCount: metrics.market.intelligence.verifiedBudgetCount,
+              averageVerifiedBudget: metrics.market.intelligence.averageVerifiedBudget,
+              urgentRequests: Number(metrics.market.intelligence.urgencyCounts?.high || 0)
+                + Number(metrics.market.intelligence.urgencyCounts?.urgent || 0),
+            }}
+          />
+        ) : null}
+
+        <AdminAgentBrief metrics={metrics} />
 
         <section aria-labelledby="admin-action-items">
           <div className="mb-3">
@@ -747,6 +771,398 @@ function StatusPill({ label, value, tone = 'slate' }) {
         {label}
       </p>
       <p className={`mt-2 text-2xl font-bold ${style.text}`}>{value}</p>
+    </div>
+  );
+}
+
+function RevenueOpportunities({
+  monetization,
+  mostRequestedParish,
+  mostRequestedProperty,
+  growthSignals,
+}) {
+  const current = monetization.currentMonth || {};
+  const previous = monetization.previousMonth || {};
+  const opportunity = monetization.opportunities || {};
+  const currentJmd = current.jmd || {};
+  const previousJmd = previous.jmd || {};
+  const currentUsd = current.usd || {};
+  const previousUsd = previous.usd || {};
+  const revenueRows = [
+    { label: 'Agent plans', current: currentJmd.agentPlans, previous: previousJmd.agentPlans },
+    { label: 'Sponsor advertising', current: currentJmd.sponsorships, previous: previousJmd.sponsorships },
+    { label: 'HTV completed orders', current: currentJmd.htvRevenue, previous: previousJmd.htvRevenue },
+    { label: 'Paid property searches', current: currentJmd.propertySearches, previous: previousJmd.propertySearches },
+  ];
+  const usdRows = [
+    { label: 'Paid property searches', current: currentUsd.propertySearches, previous: previousUsd.propertySearches },
+    { label: 'Priority upgrades', current: currentUsd.urgencyBoosts, previous: previousUsd.urgencyBoosts },
+  ];
+  const potentialAgentRevenue = Number(opportunity.eligibleAgentRevenueCeiling || 0);
+  const monthlyAgentPrice = Number(opportunity.monthlyAgentPrice || 0);
+  const monthlyAdPrice = Number(opportunity.monthlyAdPrice || 0);
+  const potentialAdRevenue = Number(opportunity.remainingSponsorSlots || 0) * monthlyAdPrice;
+  const urgencyPrices = opportunity.urgencyPrices || {};
+  const adImpressions = Number(opportunity.advertisementImpressions || 0);
+  const adClicks = Number(opportunity.advertisementClicks || 0);
+  const adClickRate = adImpressions > 0
+    ? `${((adClicks / adImpressions) * 100).toFixed(1)}%`
+    : 'Not enough impression data';
+  const hasAgentOpportunity = Number(opportunity.eligibleAgents || 0) > 0;
+  const hasSponsorOpportunity = Number(opportunity.remainingSponsorSlots || 0) > 0;
+
+  return (
+    <section className="rounded-2xl border border-emerald-200 bg-emerald-50 p-5 sm:p-6">
+      <div>
+        <p className="text-xs font-semibold uppercase tracking-[0.22em] text-emerald-700">
+          Revenue & ways to grow it
+        </p>
+        <h2 className="mt-2 text-xl font-bold tracking-tight text-slate-900">
+          Money this month
+        </h2>
+        <p className="mt-1 text-sm text-slate-600">
+          Confirmed payments for {monetization.monthLabel}. Compared with the same elapsed
+          period last month; USD is kept separate from JMD.
+        </p>
+      </div>
+
+      <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <RevenueSummaryCard
+          label="JMD revenue received"
+          value={formatJMD(currentJmd.totalRevenue)}
+          sub={`Previous period: ${formatJMD(previousJmd.totalRevenue)}`}
+        />
+        <RevenueSummaryCard
+          label="HTV estimated profit"
+          value={formatJMD(currentJmd.htvProfit)}
+          sub={`After recorded HTV expenses: ${formatJMD(currentJmd.htvExpenses)}`}
+        />
+        <RevenueSummaryCard
+          label="USD add-on revenue"
+          value={formatUSD(currentUsd.totalRevenue)}
+          sub={`Previous period: ${formatUSD(previousUsd.totalRevenue)}`}
+        />
+      </div>
+
+      <div className="mt-5 grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <div className="rounded-xl bg-white p-4">
+          <h3 className="text-sm font-bold text-slate-900">Confirmed JMD sales</h3>
+          <div className="mt-3 space-y-2">
+            {revenueRows.map((row) => (
+              <RevenueComparisonRow
+                key={row.label}
+                label={row.label}
+                current={row.current}
+                previous={row.previous}
+                format={formatJMD}
+              />
+            ))}
+            <RevenueComparisonRow
+              label="Total"
+              current={currentJmd.totalRevenue}
+              previous={previousJmd.totalRevenue}
+              format={formatJMD}
+              emphasized
+            />
+          </div>
+        </div>
+        <div className="rounded-xl bg-white p-4">
+          <h3 className="text-sm font-bold text-slate-900">Confirmed USD sales</h3>
+          <div className="mt-3 space-y-2">
+            {usdRows.map((row) => (
+              <RevenueComparisonRow
+                key={row.label}
+                label={row.label}
+                current={row.current}
+                previous={row.previous}
+                format={formatUSD}
+              />
+            ))}
+            <RevenueComparisonRow
+              label="Total"
+              current={currentUsd.totalRevenue}
+              previous={previousUsd.totalRevenue}
+              format={formatUSD}
+              emphasized
+            />
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-5 rounded-xl bg-white p-4">
+        <h3 className="text-sm font-bold text-slate-900">Monthly sales opportunities</h3>
+        <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-3">
+          <OpportunityCard
+            title="Agent plans"
+            detail={`${Number(opportunity.eligibleAgents || 0)} approved agents have free or expired plans.`}
+            value={monthlyAgentPrice > 0
+              ? `${formatJMD(monthlyAgentPrice)} per 30 days`
+              : 'Plan price unavailable'}
+            estimate={potentialAgentRevenue > 0
+              ? `Up to ${formatJMD(potentialAgentRevenue)} if all convert`
+              : null}
+          />
+          <OpportunityCard
+            title="Sponsor advertising"
+            detail={`${Number(opportunity.unpaidSponsors || 0)} unpaid sponsor submissions; ${Number(opportunity.remainingSponsorSlots || 0)} of ${Number(opportunity.sponsorCapacity || 40)} monthly slots remain. ${Number(opportunity.activeAdvertisements || 0)} active ads have ${Number(opportunity.advertisementImpressions || 0).toLocaleString()} impressions and ${Number(opportunity.advertisementClicks || 0).toLocaleString()} clicks.`}
+            value={monthlyAdPrice > 0
+              ? `${formatJMD(monthlyAdPrice)} per 30 days`
+              : '30-day plan price unavailable'}
+            estimate={potentialAdRevenue > 0
+              ? `Up to ${formatJMD(potentialAdRevenue)} at that plan price`
+              : null}
+          />
+          <OpportunityCard
+            title="Sell where demand is"
+            detail={`${Number(growthSignals.topParishRequests || 0).toLocaleString()} requests come from the top parish; ${Number(growthSignals.verifiedBudgetCount || 0).toLocaleString()} buyers have verified budgets.`}
+            value={`Prioritize ${mostRequestedProperty || 'property'} in ${mostRequestedParish || 'your top parish'}`}
+            estimate={Number(growthSignals.averageVerifiedBudget || 0) > 0
+              ? `Average verified budget: ${formatJMD(growthSignals.averageVerifiedBudget)}`
+              : 'Use the budget ranges below to guide inventory and ad packages.'}
+          />
+        </div>
+        <p className="mt-3 text-xs text-slate-500">
+          Add-ons currently priced at JMD {Number(opportunity.paidSearchJmdPrice || 0).toLocaleString()}
+          {' '}or USD {Number(opportunity.paidSearchUsdPrice || 0).toFixed(2)} for a paid property search.
+          {' '}Priority upgrades: high {formatUSD(urgencyPrices.high)} · urgent {formatUSD(urgencyPrices.urgent)}.
+        </p>
+      </div>
+
+      <div className="mt-5 rounded-xl bg-white p-4">
+        <h3 className="text-sm font-bold text-slate-900">Growth actions from these signals</h3>
+        <p className="mt-1 text-xs text-slate-500">
+          {Number(growthSignals.requestsThisMonth || 0).toLocaleString()} requests have come in this month.
+          {' '}Use these steps to turn current demand into paid conversions.
+        </p>
+        <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-3">
+          <GrowthAction
+            number="1"
+            title="Convert eligible agents"
+            detail={hasAgentOpportunity
+              ? `${Number(opportunity.eligibleAgents).toLocaleString()} approved agents could generate up to ${formatJMD(potentialAgentRevenue)} per 30 days. Contact them with the current plan offer.`
+              : 'Review plan renewals and keep approved agents active with a clear monthly value proposition.'}
+            href="/admin/users?tab=agents"
+            linkLabel="Manage agents"
+          />
+          <GrowthAction
+            number="2"
+            title="Close sponsor leads"
+            detail={Number(opportunity.unpaidSponsors) > 0
+              ? `Follow up with ${Number(opportunity.unpaidSponsors).toLocaleString()} unpaid sponsor submissions; ${Number(opportunity.remainingSponsorSlots).toLocaleString()} monthly slots remain.`
+              : hasSponsorOpportunity
+                ? `Pitch local advertisers while ${Number(opportunity.remainingSponsorSlots).toLocaleString()} of ${Number(opportunity.sponsorCapacity || 40).toLocaleString()} monthly slots remain. Active ad click-through rate: ${adClickRate}.`
+                : 'Review ad performance and prepare next month’s advertiser renewals.'}
+            href="/admin/advertisements"
+            linkLabel="Review advertising"
+          />
+          <GrowthAction
+            number="3"
+            title="Monetize buyer demand"
+            detail={`${Number(growthSignals.urgentRequests || 0).toLocaleString()} requests are marked high or urgent. Promote paid search and priority upgrades where they clearly improve buyer results.`}
+            href="/admin/market-intelligence"
+            linkLabel="Review demand signals"
+          />
+        </div>
+      </div>
+
+      {monetization.unavailableSources?.length ? (
+        <p className="mt-4 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">
+          Some revenue data is unavailable because its database table or column is missing:
+          {' '}{monetization.unavailableSources.join(', ')}. Apply the related migration to include it.
+        </p>
+      ) : null}
+      <p className="mt-3 text-xs text-slate-500">
+        Opportunity amounts are maximum scenarios, not forecasts. Only recorded paid sales are
+        counted as revenue. Unpaid leads, investor interest, and buyer property budgets are not
+        income; extra-listing counters lack transaction dates and prices, so they cannot be
+        included in monthly revenue.
+      </p>
+    </section>
+  );
+}
+
+function AdminAgentBrief({ metrics }) {
+  const [sending, setSending] = useState(false);
+  const [digestMessage, setDigestMessage] = useState('');
+  const market = metrics.market.intelligence;
+  const monetization = market?.monetization;
+  const opportunities = monetization?.opportunities || {};
+
+  const sendDigest = async () => {
+    setSending(true);
+    setDigestMessage('');
+    try {
+      const response = await fetch('/api/admin/operations-digest', {
+        method: 'POST',
+        credentials: 'include',
+      });
+      const payload = await response.json().catch(() => null);
+      if (!response.ok || !payload?.success) {
+        throw new Error(payload?.error || 'Unable to send the operations brief.');
+      }
+      setDigestMessage('Operations brief sent to the configured admin email.');
+    } catch (error) {
+      console.error('Failed to send operations brief:', error);
+      setDigestMessage(error.message || 'Unable to send the operations brief.');
+    } finally {
+      setSending(false);
+    }
+  };
+
+  return (
+    <section className="rounded-2xl border border-blue-200 bg-blue-50 p-5 sm:p-6">
+      <div className="flex items-start gap-3">
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-blue-600">
+          <Zap size={18} />
+        </span>
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-blue-700">
+            Administrative agent
+          </p>
+          <h2 className="mt-1 text-lg font-bold text-slate-900">
+            Daily operations brief and review queue
+          </h2>
+          <p className="mt-1 max-w-3xl text-sm text-slate-600">
+            An 8:00 AM Jamaica-time email summarizes outstanding work and compares the last 7
+            days with the previous week. Payment verification and customer follow-ups remain
+            admin-approved.
+          </p>
+        </div>
+      </div>
+
+      <div className="mt-4 flex flex-wrap items-center gap-3">
+        <button
+          type="button"
+          onClick={sendDigest}
+          disabled={sending}
+          className="rounded-full bg-accent px-4 py-2 text-sm font-semibold text-white transition hover:bg-accent/90 disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {sending ? 'Sending brief…' : 'Send brief now'}
+        </button>
+        {digestMessage ? (
+          <p role="status" className="text-sm text-slate-600">{digestMessage}</p>
+        ) : null}
+      </div>
+
+      <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <AgentWorkflowCard
+          title="Verify payments"
+          detail={`${formatNumber(metrics.agents.pendingPayments)} agent receipts await review.`}
+          action="Review receipts"
+          href="/admin/users?tab=agents"
+        />
+        <AgentWorkflowCard
+          title="Process requests"
+          detail={`${formatNumber(metrics.requests.open)} requests and ${formatNumber(metrics.applications.pending)} agent applications need attention.`}
+          action="Open request queue"
+          href="/admin/requests"
+        />
+        <AgentWorkflowCard
+          title="Follow up on leads"
+          detail={`${formatNumber(opportunities.unpaidSponsors || 0)} sponsor leads and ${formatNumber(opportunities.eligibleAgents || 0)} agents may need follow-up. Messages are not sent automatically.`}
+          action="Review sponsor leads"
+          href="/admin/advertisements"
+          secondaryAction="Review agents"
+          secondaryHref="/admin/users?tab=agents"
+        />
+        <AgentWorkflowCard
+          title="Analyze the market"
+          detail={market
+            ? `${formatNumber(market.requestsThisMonth)} requests this month; top parish: ${market.mostRequestedParish || '—'}.`
+            : 'Market demand and budget signals are loading or unavailable.'}
+          action="View market signals"
+          href="/admin/market-intelligence"
+        />
+      </div>
+
+      <p className="mt-4 text-xs text-slate-500">
+        Scheduled email requires Vercel Cron, CRON_SECRET, BREVO_API_KEY, and ADMIN_NOTIFICATION_EMAIL
+        (or ADMIN_EMAIL). OpenAI analysis, WhatsApp/n8n messaging, and automatic payment confirmation
+        are not enabled.
+      </p>
+    </section>
+  );
+}
+
+function AgentWorkflowCard({
+  title,
+  detail,
+  action,
+  href,
+  secondaryAction,
+  secondaryHref,
+}) {
+  return (
+    <div className="rounded-xl bg-white p-4">
+      <p className="text-sm font-bold text-slate-900">{title}</p>
+      <p className="mt-1 min-h-10 text-xs leading-5 text-slate-600">{detail}</p>
+      <Link
+        href={href}
+        className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-accent hover:underline"
+      >
+        {action}
+        <span aria-hidden="true">→</span>
+      </Link>
+      {secondaryAction && secondaryHref ? (
+        <Link
+          href={secondaryHref}
+          className="ml-4 mt-3 inline-flex items-center gap-1 text-xs font-semibold text-accent hover:underline"
+        >
+          {secondaryAction}
+          <span aria-hidden="true">→</span>
+        </Link>
+      ) : null}
+    </div>
+  );
+}
+
+function RevenueSummaryCard({ label, value, sub }) {
+  return (
+    <div className="rounded-xl bg-white p-4">
+      <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">{label}</p>
+      <p className="mt-2 text-2xl font-bold text-slate-900">{value}</p>
+      <p className="mt-1 text-xs text-slate-500">{sub}</p>
+    </div>
+  );
+}
+
+function RevenueComparisonRow({ label, current, previous, format, emphasized = false }) {
+  return (
+    <div className={`flex items-center justify-between gap-3 text-sm ${emphasized ? 'border-t border-slate-200 pt-2 font-bold' : ''}`}>
+      <span className="text-slate-600">{label}</span>
+      <span className="shrink-0 text-right">
+        <span className="font-semibold text-slate-900">{format(current)}</span>
+        <span className="ml-2 text-xs text-slate-500">vs {format(previous)}</span>
+      </span>
+    </div>
+  );
+}
+
+function OpportunityCard({ title, detail, value, estimate }) {
+  return (
+    <div className="rounded-lg bg-slate-50 p-3">
+      <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">{title}</p>
+      <p className="mt-2 text-sm font-semibold text-slate-900">{value}</p>
+      <p className="mt-1 text-xs text-slate-600">{detail}</p>
+      {estimate ? <p className="mt-2 text-xs font-medium text-emerald-700">{estimate}</p> : null}
+    </div>
+  );
+}
+
+function GrowthAction({ number, title, detail, href, linkLabel }) {
+  return (
+    <div className="rounded-lg bg-slate-50 p-3">
+      <p className="text-xs font-semibold uppercase tracking-wider text-emerald-700">
+        {number}. {title}
+      </p>
+      <p className="mt-2 text-xs leading-5 text-slate-600">{detail}</p>
+      <Link
+        href={href}
+        className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-accent hover:underline"
+      >
+        {linkLabel}
+        <span aria-hidden="true">→</span>
+      </Link>
     </div>
   );
 }

@@ -3,11 +3,12 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --hostname 0.0.0.0 --port 3000",
+    "dev": "next dev --hostname 0.0.0.0",
     "build": "next build",
     "start": "next start"
   },
   "dependencies": {
+    "@clerk/clerk-react": "4.30.0",
     "@clerk/nextjs": "4.28.0",
     "@getbrevo/brevo": "^3.0.1",
     "@headlessui/react": "^2.2.9",
