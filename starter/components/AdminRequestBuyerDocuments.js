@@ -63,7 +63,7 @@ export default function AdminRequestBuyerDocuments({ prequalification, onUpdated
     <section className="mt-4 rounded-xl bg-slate-50 p-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <h4 className="text-sm font-semibold text-slate-900">Buyer financial readiness</h4>
+          <h4 className="text-sm font-semibold text-slate-900">Buyer document readiness</h4>
           <p className="mt-0.5 text-xs text-slate-600">
             {prequalification.buyer_name} · {prequalification.status?.replaceAll('_', ' ')} · Level {prequalification.qualification_level}
           </p>

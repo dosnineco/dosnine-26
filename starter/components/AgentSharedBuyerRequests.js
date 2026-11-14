@@ -287,10 +287,11 @@ export default function AgentSharedBuyerRequests() {
                     </p>
                     <p className="mt-0.5 text-xs text-gray-800">
                       <span className="font-semibold capitalize">
-                        {request.buyer_prequalification.status?.replaceAll(
-                          '_',
-                          ' '
-                        ) || '—'}
+                        {request.buyer_prequalification.status === 'verified'
+                          ? 'documents verified'
+                          : request.buyer_prequalification.status === 'confirmed'
+                            ? 'financing confirmed'
+                            : request.buyer_prequalification.status?.replaceAll('_', ' ') || '—'}
                       </span>
                       <span className="mx-1.5 text-gray-300">·</span>
                       Level{' '}

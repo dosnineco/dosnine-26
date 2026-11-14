@@ -7,7 +7,7 @@ import { PayPalButtons, PayPalScriptProvider } from '@paypal/react-paypal-js';
 import BuyerRequestAgentSharing from '@/components/BuyerRequestAgentSharing';
 import BuyerReadinessProgress from '@/components/BuyerReadinessProgress';
 import { clampBuyerLevel } from '@/lib/buyerReadiness';
-import { ArrowRight, FileText } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 import { DEFAULT_REQUEST_URGENCY_PRICES } from '@/lib/requestUrgencyPricing';
 
 const fieldClass =
@@ -30,7 +30,7 @@ function createEditForm(request) {
  * Circular 4-level indicator
  * Red = no documents, Amber = pending, Green = reviewed
  * ============================================================ */
-function LevelCircle({ level, hasDocuments, hasReviewed }) {
+function LevelCircle({ level, hasDocuments, hasReviewed, isVerified }) {
   const size = 96;
   const stroke = 9;
   const radius = (size - stroke) / 2;
@@ -39,7 +39,7 @@ function LevelCircle({ level, hasDocuments, hasReviewed }) {
   const segmentLength = circumference / segments;
   const gap = 8;
 
-  const filledColor = hasReviewed
+  const filledColor = isVerified || hasReviewed
     ? '#10b981'
     : hasDocuments
       ? '#f59e0b'
@@ -373,66 +373,72 @@ export default function MyRequestsPage() {
           content="View and update your property requests."
         />
       </Head>
-      <main className="min-h-screen bg-gray-100 px-4 py-10">
+      <main className="min-h-screen bg-gray-50 px-4 py-8 sm:py-10">
         <div className="mx-auto max-w-5xl space-y-5">
-          <header className="rounded-2xl bg-white p-6 sm:p-8">
-            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-accent">
-              Your property journey
-            </p>
-            <h1 className="mt-2 text-2xl font-bold text-gray-900">
-              My requests
-            </h1>
-            <p className="mt-1 text-sm text-gray-600">
-              Buying, rental, and other property requests linked to this account
-              appear here.
-            </p>
-            {requests.length > 0 && (
-              <div className="mt-5 flex flex-wrap gap-2">
-                <span className="rounded-full bg-gray-100 px-3 py-1.5 text-xs font-semibold text-gray-700">
-                  {requests.length} request
-                  {requests.length === 1 ? '' : 's'}
-                </span>
-                <span className="rounded-full bg-accent/10 px-3 py-1.5 text-xs font-semibold text-accent">
-                  {
-                    requests.filter(
+          <header className="rounded-2xl border border-gray-200 bg-white p-5 sm:p-7">
+            <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-accent">
+                  Your property journey
+                </p>
+                <h1 className="mt-1.5 text-2xl font-bold tracking-tight text-gray-900 sm:text-3xl">
+                  My requests
+                </h1>
+                <p className="mt-1.5 max-w-xl text-sm leading-6 text-gray-600">
+                  Buying, rental, and other property requests linked to this account appear here.
+                </p>
+              </div>
+              {requests.length > 0 && (
+                <div className="flex flex-wrap gap-2 sm:justify-end">
+                  <span className="rounded-lg bg-gray-100 px-3 py-2 text-xs font-semibold text-gray-700">
+                    {requests.length} request
+                    {requests.length === 1 ? '' : 's'}
+                  </span>
+                  <span className="rounded-lg bg-accent/10 px-3 py-2 text-xs font-semibold text-accent">
+                    {
+                      requests.filter(
+                        (request) =>
+                          String(request.request_type).toLowerCase() === 'buy'
+                      ).length
+                    }{' '}
+                    purchase request
+                    {requests.filter(
                       (request) =>
                         String(request.request_type).toLowerCase() === 'buy'
-                    ).length
-                  }{' '}
-                  purchase request
-                  {requests.filter(
-                    (request) =>
-                      String(request.request_type).toLowerCase() === 'buy'
-                  ).length === 1
-                    ? ''
-                    : 's'}
-                </span>
-                <span className="rounded-full bg-gray-100 px-3 py-1.5 text-xs font-semibold text-gray-700">
-                  {
-                    requests.filter((request) =>
+                    ).length === 1
+                      ? ''
+                      : 's'}
+                  </span>
+                  <span className="rounded-lg bg-gray-100 px-3 py-2 text-xs font-semibold text-gray-700">
+                    {
+                      requests.filter((request) =>
+                        ['rent', 'lease'].includes(
+                          String(request.request_type).toLowerCase()
+                        )
+                      ).length
+                    }{' '}
+                    rental request
+                    {requests.filter((request) =>
                       ['rent', 'lease'].includes(
                         String(request.request_type).toLowerCase()
                       )
-                    ).length
-                  }{' '}
-                  rental request
-                  {requests.filter((request) =>
-                    ['rent', 'lease'].includes(
-                      String(request.request_type).toLowerCase()
-                    )
-                  ).length === 1
-                    ? ''
-                    : 's'}
-                </span>
-              </div>
-            )}
+                    ).length === 1
+                      ? ''
+                      : 's'}
+                  </span>
+                </div>
+              )}
+            </div>
           </header>
 
           {isSignedIn && eligibleRequests.length > 0 && (
-            <section className="rounded-2xl bg-amber-50 p-5 sm:p-6">
+            <section className="rounded-2xl border border-amber-200 bg-white p-5 sm:p-6">
               <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
                 <div>
-                  <h2 className="font-semibold text-gray-900">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-amber-800">
+                    Request visibility
+                  </p>
+                  <h2 className="mt-1 font-semibold text-gray-900">
                     Give your request a better chance to be seen
                   </h2>
                   <p className="mt-1 max-w-3xl text-sm leading-6 text-gray-700">
@@ -443,7 +449,7 @@ export default function MyRequestsPage() {
                   type="button"
                   disabled={boostTargetRequestIds.length > 0}
                   onClick={() => startBoost(eligibleRequests.map((request) => request.id))}
-                  className="shrink-0 rounded-xl bg-accent px-4 py-3 text-sm font-semibold text-white transition hover:bg-accent/90 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="shrink-0 rounded-xl bg-accent px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-accent/90 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   Boost all {eligibleRequests.length} request{eligibleRequests.length === 1 ? '' : 's'}
                 </button>
@@ -609,76 +615,97 @@ export default function MyRequestsPage() {
               return (
                 <article
                   key={request.id}
-                  className="overflow-hidden rounded-2xl bg-white p-5 sm:p-6"
+                  className="overflow-hidden rounded-2xl border border-gray-200 bg-white p-5 sm:p-6"
                 >
                   {/* ============ REQUEST HEADER ============ */}
-                  <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div className="-mx-5 -mt-5 mb-5 flex flex-wrap items-center justify-between gap-3 bg-rose-50/70 px-5 py-4 sm:-mx-6 sm:-mt-6 sm:px-6">
                     <div>
-                      <h2 className="font-semibold capitalize text-gray-900">
-                        {request.request_type} · {request.property_type}
-                      </h2>
-                      <p className="mt-1 text-xs text-gray-500">
-                        Submitted{' '}
-                        {new Date(request.created_at).toLocaleDateString()} ·
-                        Status: {request.status?.replaceAll('_', ' ')}
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="rounded-full bg-white px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-accent ring-1 ring-rose-100">
+                          {request.request_type}
+                        </span>
+                        <h2 className="text-lg font-bold capitalize tracking-tight text-gray-950">
+                          {request.property_type}
+                        </h2>
+                      </div>
+                      <p className="mt-1 text-xs text-gray-600">
+                        Submitted {new Date(request.created_at).toLocaleDateString()}
                       </p>
                     </div>
+                    <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold capitalize ${
+                      String(request.status || '').toLowerCase() === 'open'
+                        ? 'bg-white text-emerald-800 ring-1 ring-emerald-100'
+                        : 'bg-white text-gray-700 ring-1 ring-gray-200'
+                    }`}>
+                      <span className={`h-1.5 w-1.5 rounded-full ${
+                        String(request.status || '').toLowerCase() === 'open'
+                          ? 'bg-emerald-500'
+                          : 'bg-gray-400'
+                      }`} />
+                      {request.status?.replaceAll('_', ' ') || 'Unknown'}
+                    </span>
                   </div>
 
                   {/* ============ BUYER VERIFICATION CARD ============ */}
                   {isBuyRequest && (
-                    <div className="mt-6 rounded-2xl border border-gray-200 p-6 sm:p-8">
-                      <div className="flex flex-col items-start gap-6 sm:flex-row sm:items-center sm:gap-8">
+                    <div className={`relative rounded-2xl border p-4 sm:p-5 ${
+                      isVerified
+                        ? 'border-emerald-100 bg-emerald-50'
+                        : 'border-amber-100 bg-amber-50'
+                    }`}>
+                      {isVerified && (
+                        <span className="absolute right-3 top-3 rounded-full bg-emerald-600 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-white">
+                          Verified
+                        </span>
+                      )}
+                      <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:gap-5">
                         <LevelCircle
                           level={buyerLevel}
                           hasDocuments={hasDocuments}
                           hasReviewed={hasReviewed}
+                          isVerified={isVerified}
                         />
 
-                        <div className="min-w-0 flex-1 space-y-5">
-                          <div>
-                            <h3 className="text-lg font-bold text-gray-900">
-                              {isVerified
-                                ? "You're a verified buyer"
-                                : 'Add documents to get verified'}
-                            </h3>
-                            <p className="mt-1 text-sm text-gray-600">
-                              {isVerified
-                                ? 'Sellers and agents see you first.'
-                                : 'Prove your budget so sellers take you seriously.'}
+                        <div className="min-w-0 flex-1 pr-16 sm:pr-20">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <p className={`text-[10px] font-bold uppercase tracking-[0.14em] ${
+                              isVerified ? 'text-emerald-800' : 'text-gray-500'
+                            }`}>
+                              Buyer readiness · Level {buyerLevel} of 4
                             </p>
                           </div>
-
+                          <h3 className="mt-1 text-lg font-bold tracking-tight text-gray-950 sm:text-xl">
+                            {isVerified
+                              ? "You're a verified buyer"
+                              : 'Add documents to get verified'}
+                          </h3>
+                          <p className="mt-1 text-sm leading-5 text-gray-700">
+                            {isVerified
+                              ? 'Your buyer verification is complete.'
+                              : 'Upload supporting documents to start your verification.'}
+                          </p>
+                          <div className="mt-3 flex flex-wrap items-center gap-2">
+                            <span className="rounded-lg bg-white/80 px-2.5 py-1.5 text-xs font-semibold text-emerald-800 ring-1 ring-emerald-100">
+                              {reviewedDocs} reviewed
+                            </span>
+                            <span className="rounded-lg bg-white/80 px-2.5 py-1.5 text-xs font-semibold text-amber-800 ring-1 ring-amber-100">
+                              {pendingDocs} pending
+                            </span>
+                            {!hasDocuments && (
+                              <span className="text-xs text-gray-600">
+                                No documents uploaded
+                              </span>
+                            )}
+                          </div>
                           {!isVerified && (
-                            <div>
-                              <p className="text-xs font-semibold uppercase tracking-wider text-gray-500">
-                                Accepted documents
-                              </p>
-                              <div className="mt-2 flex flex-wrap gap-2">
-                                <DocPill>Bank statement</DocPill>
-                                <DocPill>Job letter</DocPill>
-                                <DocPill>Pre-approval letter</DocPill>
-                                <DocPill>Proof of deposit</DocPill>
-                              </div>
-                            </div>
-                          )}
-
-                          {hasDocuments && (
-                            <p className="text-xs text-gray-600">
-                              <span className="font-semibold text-emerald-700">
-                                {reviewedDocs} reviewed
-                              </span>
-                              <span className="mx-1.5 text-gray-300">·</span>
-                              <span className="font-semibold text-amber-700">
-                                {pendingDocs} pending
-                              </span>
+                            <p className="mt-3 text-xs leading-5 text-gray-600">
+                              Accepted: bank statement, job letter, pre-approval letter, or proof of deposit.
                             </p>
                           )}
-
                           <button
                             type="button"
                             onClick={() => openBuyerPrequalification(request.id)}
-                            className="group inline-flex items-center gap-2 rounded-xl bg-accent px-5 py-3 text-sm font-semibold text-white transition hover:bg-accent/90"
+                            className="group mt-4 inline-flex items-center gap-2 rounded-xl bg-accent px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-accent/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
                           >
                             {isVerified
                               ? 'Manage documents'
@@ -691,7 +718,7 @@ export default function MyRequestsPage() {
                         </div>
                       </div>
 
-                      <div className="mt-6 border-t border-gray-100 pt-4">
+                      <div className="mt-4 border-t border-emerald-900/10 pt-4">
                         <BuyerRequestAgentSharing
                           requestId={request.id}
                           canShare={Boolean(
@@ -834,76 +861,96 @@ export default function MyRequestsPage() {
                     </>
                   ) : (
                     <>
-                      <dl className="mt-4 grid gap-3 sm:grid-cols-2">
-                        <div>
-                          <dt className="text-xs font-medium text-gray-500">
-                            Location
-                          </dt>
-                          <dd className="mt-1 text-sm text-gray-800">
-                            {request.location || '—'}
-                          </dd>
+                      <details className="group mt-5 border-t border-gray-100 pt-4">
+                        <summary className="flex cursor-pointer list-none items-center justify-between gap-3 rounded-xl bg-gray-50 px-3 py-3 text-sm font-bold text-gray-900 ring-1 ring-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent">
+                          <span>Request details</span>
+                          <span className="text-xs font-semibold text-accent group-open:hidden">
+                            Show details
+                          </span>
+                          <span className="hidden text-xs font-semibold text-accent group-open:inline">
+                            Hide details
+                          </span>
+                        </summary>
+                        <div className="mt-4 grid gap-4 sm:grid-cols-2 sm:gap-x-8">
+                          <section>
+                            <h4 className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">
+                              Location &amp; priority
+                            </h4>
+                            <dl className="mt-2 grid grid-cols-2 gap-3">
+                              <div>
+                                <dt className="text-xs text-gray-500">Location</dt>
+                                <dd className="mt-1 text-sm font-medium text-gray-900">
+                                  {request.location || '—'}
+                                </dd>
+                              </div>
+                              <div>
+                                <dt className="text-xs text-gray-500">Urgency</dt>
+                                <dd className="mt-1 text-sm font-medium capitalize text-gray-900">
+                                  {request.urgency || 'normal'}
+                                </dd>
+                              </div>
+                            </dl>
+                          </section>
+                          <section>
+                            <h4 className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">
+                              Budget (JMD)
+                            </h4>
+                            <dl className="mt-2 grid grid-cols-2 gap-3">
+                              <div>
+                                <dt className="text-xs text-gray-500">Minimum</dt>
+                                <dd className="mt-1 text-sm font-medium text-gray-900">
+                                  {request.budget_min == null
+                                    ? '—'
+                                    : Number(request.budget_min).toLocaleString()}
+                                </dd>
+                              </div>
+                              <div>
+                                <dt className="text-xs text-gray-500">Maximum</dt>
+                                <dd className="mt-1 text-sm font-medium text-gray-900">
+                                  {request.budget_max == null
+                                    ? '—'
+                                    : Number(request.budget_max).toLocaleString()}
+                                </dd>
+                              </div>
+                            </dl>
+                          </section>
+                          <section>
+                            <h4 className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">
+                              Property details
+                            </h4>
+                            <dl className="mt-2 grid grid-cols-2 gap-3">
+                              <div>
+                                <dt className="text-xs text-gray-500">Bedrooms</dt>
+                                <dd className="mt-1 text-sm font-medium text-gray-900">
+                                  {request.bedrooms ?? '—'}
+                                </dd>
+                              </div>
+                              <div>
+                                <dt className="text-xs text-gray-500">Bathrooms</dt>
+                                <dd className="mt-1 text-sm font-medium text-gray-900">
+                                  {request.bathrooms ?? '—'}
+                                </dd>
+                              </div>
+                            </dl>
+                          </section>
+                          <section>
+                            <h4 className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">
+                              Notes
+                            </h4>
+                            <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-gray-800">
+                              {request.description || '—'}
+                            </p>
+                          </section>
                         </div>
-                        <div>
-                          <dt className="text-xs font-medium text-gray-500">
-                            Urgency
-                          </dt>
-                          <dd className="mt-1 text-sm capitalize text-gray-800">
-                            {request.urgency || 'normal'}
-                          </dd>
-                        </div>
-                        <div>
-                          <dt className="text-xs font-medium text-gray-500">
-                            Minimum budget (JMD)
-                          </dt>
-                          <dd className="mt-1 text-sm text-gray-800">
-                            {request.budget_min == null
-                              ? '—'
-                              : Number(request.budget_min).toLocaleString()}
-                          </dd>
-                        </div>
-                        <div>
-                          <dt className="text-xs font-medium text-gray-500">
-                            Maximum budget (JMD)
-                          </dt>
-                          <dd className="mt-1 text-sm text-gray-800">
-                            {request.budget_max == null
-                              ? '—'
-                              : Number(request.budget_max).toLocaleString()}
-                          </dd>
-                        </div>
-                        <div>
-                          <dt className="text-xs font-medium text-gray-500">
-                            Bedrooms
-                          </dt>
-                          <dd className="mt-1 text-sm text-gray-800">
-                            {request.bedrooms ?? '—'}
-                          </dd>
-                        </div>
-                        <div>
-                          <dt className="text-xs font-medium text-gray-500">
-                            Bathrooms
-                          </dt>
-                          <dd className="mt-1 text-sm text-gray-800">
-                            {request.bathrooms ?? '—'}
-                          </dd>
-                        </div>
-                        <div className="sm:col-span-2">
-                          <dt className="text-xs font-medium text-gray-500">
-                            Notes
-                          </dt>
-                          <dd className="mt-1 whitespace-pre-wrap text-sm text-gray-800">
-                            {request.description || '—'}
-                          </dd>
-                        </div>
-                      </dl>
+                      </details>
                       {(editable || canBoost) && (
-                        <div className="mt-4 flex flex-wrap justify-end gap-2">
+                        <div className="mt-5 flex flex-wrap justify-end gap-2 border-t border-gray-100 pt-4">
                           {canBoost && (
                             <button
                               type="button"
                               disabled={boostTargetRequestIds.length > 0}
                               onClick={() => startBoost([request.id])}
-                              className="rounded-xl bg-accent px-4 py-2.5 text-sm font-semibold text-white hover:bg-accent/90 disabled:cursor-not-allowed disabled:opacity-50"
+                              className="rounded-xl bg-accent px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-accent/90 disabled:cursor-not-allowed disabled:opacity-50"
                             >
                               Boost this request
                             </button>
@@ -918,7 +965,7 @@ export default function MyRequestsPage() {
                                 }));
                                 setEditingRequestId(request.id);
                               }}
-                              className="rounded-xl bg-gray-100 px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-200"
+                              className="rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
                             >
                               Edit request
                             </button>
@@ -944,17 +991,5 @@ export default function MyRequestsPage() {
       </main>
 
     </>
-  );
-}
-
-/* ============================================================
- * Small component: document type pill
- * ============================================================ */
-function DocPill({ children }) {
-  return (
-    <span className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-gray-50 px-3 py-1.5 text-xs font-medium text-gray-700">
-      <FileText size={11} className="text-gray-400" />
-      {children}
-    </span>
   );
 }

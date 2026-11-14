@@ -21,7 +21,7 @@ import {
 const levelLabels = {
   1: 'Buyer registered',
   2: 'Documents submitted',
-  3: 'Financially verified',
+  3: 'Documents verified',
   4: 'Financing confirmed',
 };
 
@@ -50,7 +50,7 @@ export default function AdminBuyerPrequalifications() {
   const [prequalifications, setPrequalifications] = useState([]);
   const [status, setStatus] = useState('all');
   const [level, setLevel] = useState('all');
-  const [review, setReview] = useState('pending_documents');
+  const [review, setReview] = useState('all');
   const [pendingDocumentCount, setPendingDocumentCount] = useState(0);
   const [emailResults, setEmailResults] = useState({});
   const [loading, setLoading] = useState(true);
@@ -313,7 +313,7 @@ export default function AdminBuyerPrequalifications() {
 
   const approvalMailto = (prequalification) => {
     const confirmed = prequalification.status === 'confirmed';
-    const statusLabel = confirmed ? 'financing confirmed' : 'financially verified';
+    const statusLabel = confirmed ? 'financing confirmed' : 'documents verified';
     const budget = prequalification.verified_budget_min != null && prequalification.verified_budget_max != null
       ? `\nVerified budget range: ${money(prequalification.verified_budget_min)} - ${money(prequalification.verified_budget_max)}`
       : '';
@@ -682,6 +682,52 @@ export default function AdminBuyerPrequalifications() {
                             {document.document_type ? document.document_type.replaceAll('_', ' ') : 'Document'} · {document.status === 'reviewed' ? 'Approved' : document.status === 'pending' ? 'Needs approval' : 'Rejected'}
                             {document.review_notes ? ` · ${document.review_notes}` : ''}
                           </p>
+                          {document.ai_review_status && document.ai_review_status !== 'not_started' && (
+                            <p className={`mt-1 text-xs ${
+                              document.ai_review_status === 'approved'
+                                ? 'text-emerald-800'
+                                : document.ai_review_status === 'needs_review' || document.ai_review_status === 'failed'
+                                  ? 'text-amber-800'
+                                  : 'text-blue-800'
+                            }`}>
+                              AI review: {document.ai_review_status.replaceAll('_', ' ')}
+                              {Number.isFinite(Number(document.ai_review_result?.confidence))
+                                ? ` · ${Math.round(Number(document.ai_review_result.confidence) * 100)}% confidence`
+                                : ''}
+                              {document.ai_review_error ? ` · ${document.ai_review_error}` : ''}
+                            </p>
+                          )}
+                          {document.ai_review_result?.decision_reasons?.length > 0 && (
+                            <ul className="mt-1 list-disc pl-4 text-xs text-amber-900">
+                              {document.ai_review_result.decision_reasons.map((reason, index) => (
+                                <li key={`${document.id}-ai-reason-${index}`}>{reason}</li>
+                              ))}
+                            </ul>
+                          )}
+                          {document.ai_review_events?.length > 0 && (
+                            <details className="mt-1 text-xs text-gray-700">
+                              <summary className="cursor-pointer font-semibold">Document review history ({document.ai_review_events.length})</summary>
+                              <ol className="mt-1 space-y-1 pl-4">
+                                {document.ai_review_events.map((event) => (
+                                  <li key={event.id}>
+                                    {new Date(event.created_at).toLocaleString()} · {event.status} · {event.model}
+                                    {event.error ? ` · ${event.error}` : ''}
+                                    {event.result?.review_notes ? ` · ${event.result.review_notes}` : ''}
+                                    {event.result?.decision_reasons?.length
+                                      ? ` · ${event.result.decision_reasons.join('; ')}`
+                                      : ''}
+                                  </li>
+                                ))}
+                              </ol>
+                            </details>
+                          )}
+                          {document.ai_review_status === 'approved' &&
+                            ['mortgage_approval', 'nht_documentation'].includes(document.document_type) &&
+                            document.ai_review_result?.financing_outcome === 'approved' && (
+                              <p className="mt-1 text-xs font-medium text-amber-900">
+                                AI found financing approval evidence. Verify it with the lender before confirming Level 4; AI cannot authenticate the issuer.
+                              </p>
+                          )}
                         </div>
                         <a
                           href={`/api/admin/buyer-prequalifications/document/${encodeURIComponent(document.id)}`}
@@ -742,12 +788,16 @@ export default function AdminBuyerPrequalifications() {
                       <span className="mt-1 block">{pendingCount ? `${pendingCount} document${pendingCount === 1 ? '' : 's'} still need approval.` : 'No documents are waiting for review.'}</span>
                     </li>
                     <li className={`rounded-lg p-3 ${level3Ready ? 'bg-emerald-50 text-emerald-900' : 'bg-white text-gray-700'}`}>
-                      <strong>Level 3 · Financially verified</strong>
+                      <strong>Level 3 · Documents verified</strong>
                       <span className="mt-1 block">Requires all documents reviewed, at least one active approved document, and a verified budget range.</span>
                     </li>
-                    <li className={`rounded-lg p-3 ${level4Ready ? 'bg-emerald-50 text-emerald-900' : 'bg-white text-gray-700'}`}>
+                    <li className={`rounded-lg p-3 ${level4Ready ? 'bg-amber-100 text-amber-950' : 'bg-white text-gray-700'}`}>
                       <strong>Level 4 · Financing confirmed</strong>
-                      <span className="mt-1 block">Requires Level 3 plus an active approved mortgage approval or NHT document.</span>
+                      <span className="mt-1 block">
+                        {level4Ready
+                          ? 'AI found a matching approval document. Confirm it with the lender before setting Level 4; AI cannot authenticate the issuer.'
+                          : 'Requires Level 3 plus an active approved mortgage approval or NHT document. Confirm the document with the lender before Level 4.'}
+                      </span>
                     </li>
                     <li className="rounded-lg bg-white p-3 text-gray-700">
                       <strong>Current approval</strong>
@@ -755,6 +805,18 @@ export default function AdminBuyerPrequalifications() {
                     </li>
                   </ol>
                 </div>
+                {item.ai_level_events?.length > 0 && (
+                  <details className="rounded-lg bg-white p-3 text-xs text-gray-700">
+                    <summary className="cursor-pointer font-semibold">Level history ({item.ai_level_events.length})</summary>
+                    <ol className="mt-2 space-y-1">
+                      {item.ai_level_events.map((event) => (
+                        <li key={event.id}>
+                          {new Date(event.created_at).toLocaleString()} · Level {event.from_level} ({event.from_status}) → Level {event.to_level} ({event.to_status})
+                        </li>
+                      ))}
+                    </ol>
+                  </details>
+                )}
                 <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                 <label className="text-xs font-semibold text-gray-700">
                   Verified budget minimum (JMD)
@@ -788,7 +850,7 @@ export default function AdminBuyerPrequalifications() {
                 <div className="flex flex-wrap items-center gap-2 sm:col-span-2 lg:col-span-4">
                   <button type="button" disabled={!level3Ready} onClick={() => setVerification(item, 3, 'verified')}
                     className="rounded-full bg-white px-3.5 py-2 text-xs font-semibold text-blue-700 hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-40">
-                    <Shield size={13} className="mr-1 inline" /> {item.status === 'verified' || item.status === 'confirmed' ? 'Level 3 already verified' : 'Approve Level 3 · Financially verified'}
+                    <Shield size={13} className="mr-1 inline" /> {item.status === 'verified' || item.status === 'confirmed' ? 'Level 3 already verified' : 'Approve Level 3 · Documents verified'}
                   </button>
                   <button type="button" disabled={!level4Ready} onClick={() => setVerification(item, 4, 'confirmed')}
                     className="rounded-full bg-white px-3.5 py-2 text-xs font-semibold text-emerald-700 hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-40">

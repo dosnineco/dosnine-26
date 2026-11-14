@@ -121,27 +121,48 @@ export default function BuyerPrequalificationPage() {
         ) : (
           <>
             {request && (
-              <div className="mt-5 overflow-hidden rounded-2xl bg-white">
-                <section className="bg-white p-5 sm:p-6">
-                  <p className="text-xs font-semibold uppercase tracking-wider text-accent">
-                    Linked purchase request
-                  </p>
-                  <h2 className="mt-2 text-lg font-bold capitalize text-gray-900">
-                    {request.property_type} in {request.location || 'location not specified'}
-                  </h2>
-                  <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-3">
-                    <div>
-                      <dt className="text-gray-500">Request type</dt>
-                      <dd className="mt-1 font-medium capitalize text-gray-900">{request.request_type}</dd>
+              <div className="mx-auto mt-5 max-w-3xl overflow-hidden rounded-2xl bg-white">
+                <section className="bg-white px-5 py-4 sm:px-6">
+                  <div>
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-accent">
+                      Linked purchase request
+                    </p>
+                    <h2 className="mt-1 text-lg font-bold capitalize tracking-tight text-gray-900">
+                      {request.property_type} in {request.location || 'location not specified'}
+                    </h2>
+                  </div>
+                  <dl className="mt-3 grid grid-cols-3 gap-2 sm:gap-4">
+                    <div className="min-w-0">
+                      <dt className="text-[10px] font-medium text-gray-500">
+                        Request type
+                      </dt>
+                      <dd className="mt-0.5 truncate text-xs font-semibold capitalize text-gray-900 sm:text-sm">
+                        {request.request_type}
+                      </dd>
                     </div>
-                    <div>
-                      <dt className="text-gray-500">Budget</dt>
-                      <dd className="mt-1 font-medium text-gray-900">{requestBudget}</dd>
+                    <div className="min-w-0">
+                      <dt className="text-[10px] font-medium text-gray-500">
+                        Budget
+                      </dt>
+                      <dd className="mt-0.5 truncate text-xs font-semibold text-gray-900 sm:text-sm">
+                        {requestBudget}
+                      </dd>
                     </div>
-                    <div>
-                      <dt className="text-gray-500">Status</dt>
-                      <dd className="mt-1 font-medium capitalize text-gray-900">
-                        {String(request.status || 'open').replaceAll('_', ' ')}
+                    <div className="min-w-0">
+                      <dt className="text-[10px] font-medium text-gray-500">
+                        Status
+                      </dt>
+                      <dd className="mt-0.5">
+                        <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold capitalize ${
+                          request.status === 'open'
+                            ? 'bg-emerald-50 text-emerald-800'
+                            : 'bg-gray-100 text-gray-700'
+                        }`}>
+                          <span className={`h-1 w-1 rounded-full ${
+                            request.status === 'open' ? 'bg-emerald-500' : 'bg-gray-400'
+                          }`} />
+                          {String(request.status || 'open').replaceAll('_', ' ')}
+                        </span>
                       </dd>
                     </div>
                   </dl>

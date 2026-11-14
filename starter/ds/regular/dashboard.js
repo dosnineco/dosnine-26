@@ -1111,12 +1111,12 @@ export default function RegularDashboard() {
                     sub: `${pendingDocuments} file${pendingDocuments === 1 ? '' : 's'} being reviewed`,
                   },
                   verified: {
-                    wrap: 'border-gray-200 bg-gray-50',
-                    icon: 'bg-gray-100 text-gray-700',
+                    wrap: 'border-emerald-200 bg-emerald-50',
+                    icon: 'bg-emerald-100 text-emerald-700',
                     title: 'Verified buyer',
                     sub: hasVerifiedBudget
                       ? `Budget verified up to J$${verifiedBudgetMax.toLocaleString()}`
-                      : 'Sellers see you first.',
+                      : 'Your buyer verification is complete.',
                   },
                   expired: {
                     wrap: 'border-red-200 bg-red-50',
@@ -1141,7 +1141,7 @@ export default function RegularDashboard() {
 
                 const ctaClass =
                   verificationStatus === 'verified'
-                    ? 'border border-gray-200 bg-white text-gray-700 hover:bg-gray-50'
+                    ? 'border border-emerald-200 bg-emerald-50 text-emerald-800 hover:bg-emerald-100'
                     : verificationStatus === 'expired'
                       ? 'bg-red-600 text-white hover:bg-red-700'
                       : 'bg-[#6E026F] text-white hover:bg-[#6E026F]/90';
@@ -1167,12 +1167,20 @@ export default function RegularDashboard() {
                           {new Date(request.created_at).toLocaleDateString()}
                         </span>
                       </div>
-                      <span
-                        className={`inline-flex items-center gap-1.5 text-[11px] font-semibold capitalize ${statusColor}`}
-                      >
-                        <span className={`h-1.5 w-1.5 rounded-full ${statusDot}`} />
-                        {status.replaceAll('_', ' ')}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        {verificationStatus === 'verified' && (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-emerald-800">
+                            <CheckCircle2 size={12} />
+                            Verified
+                          </span>
+                        )}
+                        <span
+                          className={`inline-flex items-center gap-1.5 text-[11px] font-semibold capitalize ${statusColor}`}
+                        >
+                          <span className={`h-1.5 w-1.5 rounded-full ${statusDot}`} />
+                          {status.replaceAll('_', ' ')}
+                        </span>
+                      </div>
                     </div>
 
                     <div className="flex flex-1 flex-col gap-4 p-5">
@@ -1233,7 +1241,7 @@ export default function RegularDashboard() {
                             {hasVerifiedBudget && (
                               <CheckCircle2
                                 size={16}
-                                className="flex-shrink-0 text-[#6E026F]"
+                                className="flex-shrink-0 text-emerald-700"
                               />
                             )}
                           </div>
@@ -1242,7 +1250,7 @@ export default function RegularDashboard() {
                               const filled = step <= fillLevel;
                               const color =
                                 verificationStatus === 'verified'
-                                  ? 'bg-[#6E026F]'
+                                  ? 'bg-emerald-500'
                                   : verificationStatus === 'under-review' ||
                                       verificationStatus === 'in-progress'
                                     ? 'bg-[#6E026F]'

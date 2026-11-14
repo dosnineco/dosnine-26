@@ -28,6 +28,7 @@ const schema = z.object({
   lenderName: z.string().trim().max(160).optional(),
   financingConditions: z.string().trim().max(1000).optional(),
   consentToShare: z.literal(true),
+  consentToAiReview: z.boolean().optional().default(false),
   serviceRequestId: z.string().uuid().optional(),
   website: z.string().optional(),
 });
@@ -92,6 +93,14 @@ export default async function handler(req, res) {
         .maybeSingle();
       if (existingError) throw existingError;
       if (existing && sanitizeEmail(existing.buyer_email) === buyerEmail) {
+        const { error: consentError } = await db
+          .from('buyer_prequalifications')
+          .update({
+            ai_document_review_consent: parsed.consentToAiReview,
+            ai_document_review_consent_at: parsed.consentToAiReview ? new Date().toISOString() : null,
+          })
+          .eq('id', existing.id);
+        if (consentError) throw consentError;
         return res.status(200).json({
           success: true,
           prequalification: existing,
@@ -120,6 +129,8 @@ export default async function handler(req, res) {
         financing_conditions: sanitizeString(parsed.financingConditions, 1000) || null,
         consent_to_share: true,
         consent_given_at: new Date().toISOString(),
+        ai_document_review_consent: parsed.consentToAiReview,
+        ai_document_review_consent_at: parsed.consentToAiReview ? new Date().toISOString() : null,
       }])
       .select('id, qualification_level, status')
       .single();

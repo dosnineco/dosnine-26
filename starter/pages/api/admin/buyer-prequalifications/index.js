@@ -72,7 +72,7 @@ async function sendApprovalEmail({ buyerName, buyerEmail, status, budgetMin, bud
 
   const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || 'https://dosnine.com').replace(/\/+$/, '');
   const dashboardUrl = `${siteUrl}/my-requests`;
-  const statusLabel = status === 'confirmed' ? 'financing confirmed' : 'financially verified';
+  const statusLabel = status === 'confirmed' ? 'financing confirmed' : 'documents verified';
   const budgetRange = budgetMin != null && budgetMax != null
     ? `J$${Number(budgetMin).toLocaleString()} - J$${Number(budgetMax).toLocaleString()}`
     : '';
@@ -110,7 +110,10 @@ export default async function handler(req, res) {
 
     if (req.method === 'GET') {
       if (req.query.summary === 'true') {
-        const [{ data: reviews, error: reviewsError }, { data: pendingDocuments, error: documentsError }] =
+        const [
+          { data: reviews, error: reviewsError },
+          { data: pendingDocuments, error: documentsError, count: pendingDocumentCount },
+        ] =
           await Promise.all([
             db
               .from('buyer_prequalifications')
@@ -118,7 +121,7 @@ export default async function handler(req, res) {
               .in('status', ['registered', 'under_review']),
             db
               .from('buyer_documents')
-              .select('prequalification_id')
+              .select('prequalification_id', { count: 'exact' })
               .eq('status', 'pending'),
           ]);
         if (reviewsError) throw reviewsError;
@@ -132,7 +135,7 @@ export default async function handler(req, res) {
         return res.status(200).json({
           success: true,
           pendingReviewCount: reviewIds.size,
-          pendingDocumentCount: (pendingDocuments || []).length,
+          pendingDocumentCount: pendingDocumentCount || 0,
         });
       }
 
@@ -189,6 +192,7 @@ export default async function handler(req, res) {
 
       const ids = (prequalifications || []).map((item) => item.id);
       let documentsByPrequalification = {};
+      let documentAiEventsById = {};
       if (ids.length) {
         const { data: documents, error: documentsError } = await db
           .from('buyer_documents')
@@ -200,6 +204,38 @@ export default async function handler(req, res) {
           (groups[document.prequalification_id] ||= []).push(document);
           return groups;
         }, {});
+        const documentIds = (documents || []).map((document) => document.id);
+        if (documentIds.length) {
+          const { data: aiEvents, error: aiEventsError } = await db
+            .from('buyer_document_ai_review_events')
+            .select('id, document_id, status, model, result, error, created_at')
+            .in('document_id', documentIds)
+            .order('created_at', { ascending: false });
+          if (aiEventsError) throw aiEventsError;
+          documentAiEventsById = (aiEvents || []).reduce((groups, event) => {
+            (groups[event.document_id] ||= []).push(event);
+            return groups;
+          }, {});
+          Object.values(documentsByPrequalification).forEach((group) => {
+            group.forEach((document) => {
+              document.ai_review_events = documentAiEventsById[document.id] || [];
+            });
+          });
+        }
+      }
+
+      let levelEventsByPrequalification = {};
+      if (ids.length) {
+        const { data: levelEvents, error: levelEventsError } = await db
+          .from('buyer_prequalification_ai_level_events')
+          .select('id, prequalification_id, from_status, to_status, from_level, to_level, source, created_at')
+          .in('prequalification_id', ids)
+          .order('created_at', { ascending: false });
+        if (levelEventsError) throw levelEventsError;
+        levelEventsByPrequalification = (levelEvents || []).reduce((groups, event) => {
+          (groups[event.prequalification_id] ||= []).push(event);
+          return groups;
+        }, {});
       }
 
       return res.status(200).json({
@@ -209,6 +245,7 @@ export default async function handler(req, res) {
           ...item,
           linked_request: requestsById[item.service_request_id] || null,
           documents: documentsByPrequalification[item.id] || [],
+          ai_level_events: levelEventsByPrequalification[item.id] || [],
         })),
       });
     }
@@ -345,6 +382,19 @@ export default async function handler(req, res) {
         })
         .eq('id', document.id);
       if (error) throw error;
+      const { error: auditError } = await db
+        .from('buyer_document_ai_review_events')
+        .insert({
+          document_id: document.id,
+          prequalification_id: document.prequalification_id,
+          status: parsed.data.approved ? 'manual_approved' : 'manual_rejected',
+          model: 'human-admin',
+          result: {
+            review_notes: parsed.data.notes || null,
+            reviewed_by: resolved.user.id,
+          },
+        });
+      if (auditError) throw auditError;
 
       let emailSent = null;
       let rejectionEmailError = null;
@@ -446,6 +496,20 @@ export default async function handler(req, res) {
             error: 'Level 4 requires Level 3 verification and an active reviewed mortgage approval or NHT document.',
           });
         }
+      }
+
+      if (values.status !== current.status || values.level !== current.qualification_level) {
+        const { error: auditError } = await db
+          .from('buyer_prequalification_ai_level_events')
+          .insert({
+            prequalification_id: values.prequalificationId,
+            from_status: current.status,
+            to_status: values.status,
+            from_level: current.qualification_level,
+            to_level: values.level,
+            source: 'admin',
+          });
+        if (auditError) throw auditError;
       }
 
       const { data: updated, error } = await db

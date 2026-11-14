@@ -4,8 +4,8 @@ import { clampBuyerLevel } from '../lib/buyerReadiness';
 const BUYER_LEVELS = [
   { number: 1, label: 'Registered', hint: 'No documents yet' },
   { number: 2, label: 'Documents submitted', hint: 'Waiting for review' },
-  { number: 3, label: 'Verified', hint: 'Evidence checked' },
-  { number: 4, label: 'Financing confirmed', hint: 'Lender evidence verified' },
+  { number: 3, label: 'Documents verified', hint: 'Required evidence passed document checks' },
+  { number: 4, label: 'Financing confirmed', hint: 'Lender evidence confirmed by Dosnine' },
 ];
 
 export default function BuyerReadinessProgress({ prequalification }) {

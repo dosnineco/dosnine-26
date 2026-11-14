@@ -103,7 +103,7 @@ export async function recomputeQualificationLevel(prequalificationId) {
         .eq('prequalification_id', prequalificationId),
       db
         .from('buyer_prequalifications')
-        .select('status')
+        .select('status, qualification_level')
         .eq('id', prequalificationId)
         .single(),
     ]);
@@ -130,6 +130,20 @@ export async function recomputeQualificationLevel(prequalificationId) {
   const status = ['rejected', 'expired'].includes(current.status)
     ? current.status
     : statusFromLevel(level);
+
+  if (status !== current.status || level !== current.qualification_level) {
+    const { error: auditError } = await db
+      .from('buyer_prequalification_ai_level_events')
+      .insert({
+        prequalification_id: prequalificationId,
+        from_status: current.status,
+        to_status: status,
+        from_level: Number(current.qualification_level) || 1,
+        to_level: level,
+        source: 'document_upload',
+      });
+    if (auditError) throw auditError;
+  }
 
   const { error: updateError } = await db
     .from('buyer_prequalifications')
@@ -176,6 +190,8 @@ export function getAgentBuyerReadiness(prequalification) {
     !prequalification.consent_to_share ||
     !['verified', 'confirmed'].includes(prequalification.status) ||
     prequalification.qualification_level < 3 ||
+    prequalification.verified_budget_min == null ||
+    prequalification.verified_budget_max == null ||
     (prequalification.verification_expires_at &&
       new Date(prequalification.verification_expires_at).getTime() <= Date.now())
   ) {

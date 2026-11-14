@@ -22,7 +22,7 @@ export default async function handler(req, res) {
     const db = getDbClient();
     const { data: prequalification, error } = await db
       .from('buyer_prequalifications')
-      .select('id, buyer_name, buyer_email, buyer_phone, purchase_method, target_property_price, monthly_income, deposit_available, employment_type, financing_progress, lender_name, financing_conditions, qualification_level, status, verified_budget_min, verified_budget_max, verification_notes, verified_at, verification_expires_at, consent_to_share, service_request_id')
+      .select('id, buyer_name, buyer_email, buyer_phone, purchase_method, target_property_price, monthly_income, deposit_available, employment_type, financing_progress, lender_name, financing_conditions, qualification_level, status, verified_budget_min, verified_budget_max, verification_notes, verified_at, verification_expires_at, consent_to_share, ai_document_review_consent, service_request_id')
       .eq('id', parsed.data.prequalificationId)
       .maybeSingle();
     if (error) throw error;
@@ -30,7 +30,7 @@ export default async function handler(req, res) {
 
     const { data: documents, error: documentsError } = await db
       .from('buyer_documents')
-      .select('id, document_type, file_name, file_size, mime_type, status, review_notes, expires_at, uploaded_at')
+      .select('id, document_type, file_name, file_size, mime_type, status, review_notes, expires_at, uploaded_at, ai_review_status, ai_review_result, ai_reviewed_at, ai_review_error')
       .eq('prequalification_id', prequalification.id)
       .order('uploaded_at', { ascending: false });
     if (documentsError) throw documentsError;
