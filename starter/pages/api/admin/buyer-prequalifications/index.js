@@ -28,6 +28,11 @@ const verificationSchema = z.object({
   expiresAt: z.string().datetime().nullable().optional(),
 });
 
+const approvalEmailSchema = z.object({
+  action: z.literal('send-approval-email'),
+  prequalificationId: z.string().uuid(),
+});
+
 const upsertPrequalificationSchema = z.object({
   action: z.literal('upsert-prequalification'),
   id: z.string().uuid().optional(),
@@ -58,6 +63,41 @@ const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => 
   '"': '&quot;',
   "'": '&#39;',
 })[char]);
+
+async function sendApprovalEmail({ buyerName, buyerEmail, status, budgetMin, budgetMax }) {
+  const recipient = String(buyerEmail || '').trim();
+  if (!recipient || recipient.endsWith('@dosnine.local')) {
+    return { emailSent: false, emailError: 'The buyer has no deliverable email address.' };
+  }
+
+  const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || 'https://dosnine.com').replace(/\/+$/, '');
+  const dashboardUrl = `${siteUrl}/my-requests`;
+  const statusLabel = status === 'confirmed' ? 'financing confirmed' : 'financially verified';
+  const budgetRange = budgetMin != null && budgetMax != null
+    ? `J$${Number(budgetMin).toLocaleString()} - J$${Number(budgetMax).toLocaleString()}`
+    : '';
+  try {
+    await sendBrevoEmail({
+      to: recipient,
+      subject: status === 'confirmed'
+        ? 'Your Dosnine financing has been confirmed'
+        : 'Your Dosnine buyer assessment has been approved',
+      htmlContent: `<div style="font-family:Arial,sans-serif;line-height:1.6;color:#111827"><h2>${status === 'confirmed' ? 'Financing confirmed' : 'Buyer assessment approved'}</h2><p>Hi ${escapeHtml(buyerName || 'there')},</p><p>Your Dosnine buyer assessment is now <strong>${escapeHtml(statusLabel)}</strong>.</p>${budgetRange ? `<p>Your verified budget range: <strong>${escapeHtml(budgetRange)}</strong></p>` : ''}<p><a href="${escapeHtml(dashboardUrl)}">View your requests</a></p><p>Thank you,<br />Dosnine</p></div>`,
+      textContent: [
+        status === 'confirmed' ? 'Your Dosnine financing has been confirmed.' : 'Your Dosnine buyer assessment has been approved.',
+        `Hi ${buyerName || 'there'},`,
+        `Your assessment is now ${statusLabel}.`,
+        budgetRange ? `Verified budget range: ${budgetRange}` : '',
+        `View your requests: ${dashboardUrl}`,
+        'Thank you, Dosnine',
+      ].filter(Boolean).join('\n\n'),
+    });
+    return { emailSent: true };
+  } catch (error) {
+    console.error('Sending buyer verification approval email failed:', error);
+    return { emailSent: false, emailError: 'The approval email could not be sent.' };
+  }
+}
 
 export default async function handler(req, res) {
   const allowedMethods = ['GET', 'POST'];
@@ -92,16 +132,31 @@ export default async function handler(req, res) {
         return res.status(200).json({
           success: true,
           pendingReviewCount: reviewIds.size,
+          pendingDocumentCount: (pendingDocuments || []).length,
         });
       }
 
       const status = typeof req.query.status === 'string' ? req.query.status : 'all';
       const level = typeof req.query.level === 'string' ? req.query.level : 'all';
+      const review = typeof req.query.review === 'string' ? req.query.review : 'all';
       if (
         (status !== 'all' && !['registered', 'under_review', 'verified', 'confirmed', 'rejected', 'expired'].includes(status)) ||
-        (level !== 'all' && !/^[1-4]$/.test(level))
+        (level !== 'all' && !/^[1-4]$/.test(level)) ||
+        !['all', 'pending_documents'].includes(review)
       ) {
         return res.status(400).json({ error: 'Invalid filters' });
+      }
+
+      const { data: pendingDocuments, error: pendingDocumentsError, count: pendingDocumentCount } = await db
+        .from('buyer_documents')
+        .select('prequalification_id', { count: 'exact' })
+        .eq('status', 'pending');
+      if (pendingDocumentsError) throw pendingDocumentsError;
+      const pendingPrequalificationIds = [...new Set((pendingDocuments || [])
+        .map((document) => document.prequalification_id)
+        .filter(Boolean))];
+      if (review === 'pending_documents' && pendingPrequalificationIds.length === 0) {
+        return res.status(200).json({ success: true, prequalifications: [], pendingDocumentCount: 0 });
       }
 
       let query = db
@@ -111,6 +166,7 @@ export default async function handler(req, res) {
         .limit(250);
       if (status !== 'all') query = query.eq('status', status);
       if (level !== 'all') query = query.eq('qualification_level', Number(level));
+      if (review === 'pending_documents') query = query.in('id', pendingPrequalificationIds);
 
       const { data: prequalifications, error } = await query;
       if (error) throw error;
@@ -148,6 +204,7 @@ export default async function handler(req, res) {
 
       return res.status(200).json({
         success: true,
+        pendingDocumentCount: pendingDocumentCount || 0,
         prequalifications: (prequalifications || []).map((item) => ({
           ...item,
           linked_request: requestsById[item.service_request_id] || null,
@@ -236,6 +293,31 @@ export default async function handler(req, res) {
 
       const url = await createSignedDownloadUrl(document.file_path, 300);
       return res.status(200).json({ success: true, url });
+    }
+
+    if (body.action === 'send-approval-email') {
+      const parsed = approvalEmailSchema.safeParse(body);
+      if (!parsed.success) return res.status(400).json({ error: 'Invalid approval email request' });
+      const { data: buyer, error } = await db
+        .from('buyer_prequalifications')
+        .select('buyer_name, buyer_email, status, qualification_level, verified_budget_min, verified_budget_max')
+        .eq('id', parsed.data.prequalificationId)
+        .maybeSingle();
+      if (error) throw error;
+      if (!buyer) return res.status(404).json({ error: 'Prequalification not found' });
+      if (!['verified', 'confirmed'].includes(buyer.status) ||
+        buyer.qualification_level < 3) {
+        return res.status(400).json({ error: 'Only Level 3 or Level 4 approvals can be emailed' });
+      }
+
+      const result = await sendApprovalEmail({
+        buyerName: buyer.buyer_name,
+        buyerEmail: buyer.buyer_email,
+        status: buyer.status,
+        budgetMin: buyer.verified_budget_min,
+        budgetMax: buyer.verified_budget_max,
+      });
+      return res.status(200).json({ success: true, ...result });
     }
 
     if (body.action === 'verify-document') {
@@ -329,11 +411,42 @@ export default async function handler(req, res) {
 
       const { data: current, error: currentError } = await db
         .from('buyer_prequalifications')
-        .select('buyer_name, buyer_email, status')
+        .select('buyer_name, buyer_email, status, qualification_level')
         .eq('id', values.prequalificationId)
         .maybeSingle();
       if (currentError) throw currentError;
       if (!current) return res.status(404).json({ error: 'Prequalification not found' });
+      if (values.status === 'verified' && current.status === 'confirmed') {
+        return res.status(400).json({ error: 'Level 4 financing confirmation cannot be downgraded to Level 3.' });
+      }
+
+      if (values.status === 'verified' || values.status === 'confirmed') {
+        const { data: documents, error: documentsError } = await db
+          .from('buyer_documents')
+          .select('document_type, status, expires_at')
+          .eq('prequalification_id', values.prequalificationId);
+        if (documentsError) throw documentsError;
+        const now = Date.now();
+        const activeReviewedDocuments = (documents || []).filter((document) =>
+          document.status === 'reviewed' &&
+          (!document.expires_at || new Date(document.expires_at).getTime() > now)
+        );
+        const hasPendingDocuments = (documents || []).some((document) => document.status === 'pending');
+        const hasLenderEvidence = activeReviewedDocuments.some((document) =>
+          ['mortgage_approval', 'nht_documentation'].includes(document.document_type)
+        );
+        if (values.status === 'verified' && (!activeReviewedDocuments.length || hasPendingDocuments)) {
+          return res.status(400).json({
+            error: 'Review all pending documents and verify at least one active document before marking Level 3 verified.',
+          });
+        }
+        if (values.status === 'confirmed' &&
+          (!['verified', 'confirmed'].includes(current.status) || !hasLenderEvidence)) {
+          return res.status(400).json({
+            error: 'Level 4 requires Level 3 verification and an active reviewed mortgage approval or NHT document.',
+          });
+        }
+      }
 
       const { data: updated, error } = await db
         .from('buyer_prequalifications')
@@ -358,40 +471,15 @@ export default async function handler(req, res) {
       const isApproved = ['verified', 'confirmed'].includes(values.status);
       const wasAlreadyApproved = ['verified', 'confirmed'].includes(current.status);
       if (isApproved && values.status !== current.status && (!wasAlreadyApproved || values.status === 'confirmed')) {
-        const recipient = String(current.buyer_email || '').trim();
-        if (!recipient || recipient.endsWith('@dosnine.local')) {
-          emailSent = false;
-          emailError = 'Verification was saved, but the buyer has no deliverable email address.';
-        } else {
-          const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || 'https://dosnine.com').replace(/\/+$/, '');
-          const dashboardUrl = `${siteUrl}/my-requests`;
-          const statusLabel = values.status === 'confirmed'
-            ? 'financing confirmed'
-            : 'financially verified';
-          const budgetRange = values.verifiedBudgetMin != null && values.verifiedBudgetMax != null
-            ? `J$${Number(values.verifiedBudgetMin).toLocaleString()} - J$${Number(values.verifiedBudgetMax).toLocaleString()}`
-            : '';
-          try {
-            await sendBrevoEmail({
-              to: recipient,
-              subject: 'Your Dosnine buyer assessment has been approved',
-              htmlContent: `<div style="font-family:Arial,sans-serif;line-height:1.6;color:#111827"><h2>Your buyer assessment has been approved</h2><p>Hi ${escapeHtml(current.buyer_name || 'there')},</p><p>Your Dosnine buyer assessment is now <strong>${escapeHtml(statusLabel)}</strong>.</p>${budgetRange ? `<p>Your verified budget range: <strong>${escapeHtml(budgetRange)}</strong></p>` : ''}<p><a href="${escapeHtml(dashboardUrl)}">View your requests</a></p><p>Thank you,<br />Dosnine</p></div>`,
-              textContent: [
-                'Your Dosnine buyer assessment has been approved.',
-                `Hi ${current.buyer_name || 'there'},`,
-                `Your assessment is now ${statusLabel}.`,
-                budgetRange ? `Verified budget range: ${budgetRange}` : '',
-                `View your requests: ${dashboardUrl}`,
-                'Thank you, Dosnine',
-              ].filter(Boolean).join('\n\n'),
-            });
-            emailSent = true;
-          } catch (sendError) {
-            console.error('Sending buyer verification approval email failed:', sendError);
-            emailSent = false;
-            emailError = 'Verification was saved, but the approval email could not be sent.';
-          }
-        }
+        const result = await sendApprovalEmail({
+          buyerName: current.buyer_name,
+          buyerEmail: current.buyer_email,
+          status: values.status,
+          budgetMin: values.verifiedBudgetMin,
+          budgetMax: values.verifiedBudgetMax,
+        });
+        emailSent = result.emailSent;
+        if (result.emailError) emailError = `Verification was saved, but ${result.emailError.toLowerCase()}`;
       }
       return res.status(200).json({
         success: true,

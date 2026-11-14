@@ -128,7 +128,7 @@ export default function AdminLayout({ children }) {
             ).length
           : current.htv,
         buyerPrequalifications: buyerPrequalificationsRes.ok && buyerPrequalificationsPayload?.success
-          ? Number(buyerPrequalificationsPayload.pendingReviewCount) || 0
+          ? Number(buyerPrequalificationsPayload.pendingDocumentCount) || 0
           : current.buyerPrequalifications,
       }));
     } catch (error) {
@@ -162,7 +162,7 @@ export default function AdminLayout({ children }) {
     },
     {
       href: '/admin/buyer-prequalifications',
-      label: 'Buyer Prequalifications',
+      label: 'Buyer Document Approvals',
       icon: FiUser,
       badge: counts.buyerPrequalifications,
     },

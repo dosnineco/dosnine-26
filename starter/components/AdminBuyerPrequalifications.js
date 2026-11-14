@@ -9,6 +9,7 @@ import {
   ExternalLink,
   FileText,
   Image as ImageIcon,
+  Mail,
   Pencil,
   Plus,
   RefreshCw,
@@ -49,6 +50,9 @@ export default function AdminBuyerPrequalifications() {
   const [prequalifications, setPrequalifications] = useState([]);
   const [status, setStatus] = useState('all');
   const [level, setLevel] = useState('all');
+  const [review, setReview] = useState('pending_documents');
+  const [pendingDocumentCount, setPendingDocumentCount] = useState(0);
+  const [emailResults, setEmailResults] = useState({});
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
   const [budgets, setBudgets] = useState({});
@@ -66,7 +70,7 @@ export default function AdminBuyerPrequalifications() {
     setLoading(true);
     setLoadError('');
     try {
-      const params = new URLSearchParams({ status, level });
+      const params = new URLSearchParams({ status, level, review });
       const token = await getToken();
       if (!token) throw new Error('Your admin session has expired. Please sign in again.');
       const response = await fetch(`/api/admin/buyer-prequalifications?${params}`, {
@@ -78,6 +82,7 @@ export default function AdminBuyerPrequalifications() {
         throw new Error(payload.error || 'Unable to load buyer assessments');
       }
       setPrequalifications(payload.prequalifications || []);
+      setPendingDocumentCount(Number(payload.pendingDocumentCount) || 0);
     } catch (error) {
       console.error('Buyer prequalification list failed:', error);
       setLoadError(error.message || 'Unable to load buyer assessments');
@@ -85,7 +90,7 @@ export default function AdminBuyerPrequalifications() {
     } finally {
       setLoading(false);
     }
-  }, [status, level, authLoaded, userId, getToken]);
+  }, [status, level, review, authLoaded, userId, getToken]);
 
   useEffect(() => {
     if (!authLoaded) return;
@@ -199,11 +204,8 @@ export default function AdminBuyerPrequalifications() {
     }
   };
 
-  const reviewDocument = async (document, approved) => {
-    const notes = window.prompt(
-      approved ? 'Optional review note:' : 'Reason for rejecting this document:',
-      ''
-    );
+  const reviewDocument = async (document, approved, prequalification) => {
+    const notes = approved ? '' : window.prompt('Reason for rejecting this document:');
     if (notes === null) return;
     if (!approved && !notes.trim()) {
       toast.error('Add a reason when rejecting a document.');
@@ -222,7 +224,14 @@ export default function AdminBuyerPrequalifications() {
       } else {
         toast.success(approved ? 'Document verified' : 'Document rejected and buyer notified');
       }
-      await loadPrequalifications();
+      const otherPendingDocuments = (prequalification.documents || []).filter(
+        (item) => item.status === 'pending' && item.id !== document.id
+      );
+      if (otherPendingDocuments.length === 0) {
+        setReview('all');
+      } else {
+        await loadPrequalifications();
+      }
     } catch (error) {
       toast.error(error.message || 'Unable to review document');
     }
@@ -253,6 +262,14 @@ export default function AdminBuyerPrequalifications() {
         verifiedBudgetMax: max,
         notes: values.notes || '',
       });
+      setEmailResults((current) => ({
+        ...current,
+        [prequalification.id]: result.emailSent === false
+          ? { sent: false, error: result.emailError || 'The approval email could not be sent.' }
+          : result.emailSent === true
+            ? { sent: true, error: '' }
+            : current[prequalification.id],
+      }));
       if (result.emailSent === false) {
         toast.error(result.emailError || 'Buyer readiness updated, but the approval email could not be sent.');
       } else {
@@ -262,6 +279,50 @@ export default function AdminBuyerPrequalifications() {
     } catch (error) {
       toast.error(error.message || 'Unable to update verification');
     }
+  };
+
+  const resendApprovalEmail = async (prequalification) => {
+    try {
+      const result = await sendAction({
+        action: 'send-approval-email',
+        prequalificationId: prequalification.id,
+      });
+      setEmailResults((current) => ({
+        ...current,
+        [prequalification.id]: {
+          sent: result.emailSent,
+          error: result.emailError || '',
+        },
+      }));
+      if (result.emailSent) {
+        toast.success('Approval email sent to the buyer');
+      } else {
+        toast.error(result.emailError || 'The approval email could not be sent');
+      }
+    } catch (error) {
+      setEmailResults((current) => ({
+        ...current,
+        [prequalification.id]: {
+          sent: false,
+          error: error.message || 'The approval email could not be sent.',
+        },
+      }));
+      toast.error(error.message || 'Unable to send approval email');
+    }
+  };
+
+  const approvalMailto = (prequalification) => {
+    const confirmed = prequalification.status === 'confirmed';
+    const statusLabel = confirmed ? 'financing confirmed' : 'financially verified';
+    const budget = prequalification.verified_budget_min != null && prequalification.verified_budget_max != null
+      ? `\nVerified budget range: ${money(prequalification.verified_budget_min)} - ${money(prequalification.verified_budget_max)}`
+      : '';
+    const subject = confirmed
+      ? 'Your Dosnine financing has been confirmed'
+      : 'Your Dosnine buyer assessment has been approved';
+    const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || 'https://dosnine.com').replace(/\/+$/, '');
+    const message = `Hi ${prequalification.buyer_name || 'there'},\n\nYour Dosnine buyer assessment is ${statusLabel}.${budget}\n\nView your requests: ${siteUrl}/my-requests\n\nThank you,\nDosnine`;
+    return `mailto:${encodeURIComponent(prequalification.buyer_email || '')}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(message)}`;
   };
 
   const rejectPrequalification = async (prequalification) => {
@@ -301,7 +362,31 @@ export default function AdminBuyerPrequalifications() {
         </div>
       </div>
 
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-amber-50 p-4 text-amber-950">
+        <div>
+          <p className="font-semibold">Pending document approvals</p>
+          <p className="mt-0.5 text-sm">Review each file first. After the last pending file, the assessment stays open so you can continue to Level 3 or Level 4.</p>
+        </div>
+        <span className="rounded-full bg-white px-3 py-1.5 text-sm font-bold">
+          {pendingDocumentCount} pending
+        </span>
+      </div>
+
       <div className="flex flex-wrap items-end gap-4 rounded-2xl bg-white p-4 sm:p-5">
+        <label className="flex min-w-[220px] flex-1 flex-col gap-1.5 text-xs font-semibold uppercase tracking-wide text-gray-700 sm:flex-none">
+          Review queue
+          <span className="relative">
+            <select
+              value={review}
+              onChange={(event) => setReview(event.target.value)}
+              className="w-full appearance-none rounded-xl border border-gray-300 bg-white py-2.5 pl-3.5 pr-10 text-sm font-medium normal-case tracking-normal text-gray-900 transition hover:border-gray-400 focus:border-red-700 focus:outline-none focus:ring-2 focus:ring-red-100"
+            >
+              <option value="pending_documents">Pending document approvals ({pendingDocumentCount})</option>
+              <option value="all">All assessments</option>
+            </select>
+            <ChevronDown size={16} aria-hidden="true" className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-600" />
+          </span>
+        </label>
         <label className="flex min-w-[190px] flex-1 flex-col gap-1.5 text-xs font-semibold uppercase tracking-wide text-gray-700 sm:flex-none">
           Status
           <span className="relative">
@@ -512,7 +597,11 @@ export default function AdminBuyerPrequalifications() {
           Buyer assessments could not be loaded: {loadError}
         </div>
       ) : prequalifications.length === 0 ? (
-        <div className="rounded-xl bg-white p-10 text-center text-sm text-gray-700">No buyer assessments found.</div>
+        <div className="rounded-xl bg-white p-10 text-center text-sm text-gray-700">
+          {review === 'pending_documents'
+            ? 'No pending document approvals. All uploaded documents have been reviewed.'
+            : 'No buyer assessments found.'}
+        </div>
       ) : (
         <div className="space-y-4">
           {prequalifications.map((item) => (
@@ -577,7 +666,9 @@ export default function AdminBuyerPrequalifications() {
               </div>
 
               <div className="mt-5 border-t border-gray-100 pt-4">
-                <h3 className="text-sm font-semibold text-gray-800">Documents ({item.documents?.length || 0})</h3>
+                <h3 className="text-sm font-semibold text-gray-800">
+                  Documents ({item.documents?.length || 0}) · {item.documents?.filter((document) => document.status === 'pending').length || 0} pending approval
+                </h3>
                 {item.documents?.length ? (
                   <div className="mt-2 space-y-2">
                     {item.documents.map((document) => (
@@ -588,7 +679,7 @@ export default function AdminBuyerPrequalifications() {
                         <div className="min-w-0 flex-1">
                           <p className="truncate text-sm font-medium text-gray-800">{document.file_name}</p>
                           <p className="text-xs text-gray-700">
-                            {document.document_type ? document.document_type.replaceAll('_', ' ') : 'Document'} · {document.status}
+                            {document.document_type ? document.document_type.replaceAll('_', ' ') : 'Document'} · {document.status === 'reviewed' ? 'Approved' : document.status === 'pending' ? 'Needs approval' : 'Rejected'}
                             {document.review_notes ? ` · ${document.review_notes}` : ''}
                           </p>
                         </div>
@@ -604,13 +695,13 @@ export default function AdminBuyerPrequalifications() {
                         </a>
                         {document.status === 'pending' && (
                           <>
-                            <button type="button" onClick={() => reviewDocument(document, true)}
-                              className="rounded-lg bg-white p-2 text-emerald-700 hover:bg-emerald-50" aria-label="Approve document">
-                              <CheckCircle2 size={16} />
+                            <button type="button" onClick={() => reviewDocument(document, true, item)}
+                              className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-800 hover:bg-emerald-100" aria-label={`Approve ${document.file_name}`}>
+                              <CheckCircle2 size={15} /> Approve
                             </button>
-                            <button type="button" onClick={() => reviewDocument(document, false)}
-                              className="rounded-lg bg-white p-2 text-red-700 hover:bg-red-50" aria-label="Reject document">
-                              <XCircle size={16} />
+                            <button type="button" onClick={() => reviewDocument(document, false, item)}
+                              className="inline-flex items-center gap-1.5 rounded-lg bg-red-50 px-3 py-2 text-xs font-semibold text-red-800 hover:bg-red-100" aria-label={`Reject ${document.file_name}`}>
+                              <XCircle size={15} /> Reject
                             </button>
                           </>
                         )}
@@ -622,7 +713,49 @@ export default function AdminBuyerPrequalifications() {
                 )}
               </div>
 
-              <div className="mt-5 grid gap-3 rounded-2xl bg-gray-50 p-4 sm:grid-cols-2 lg:grid-cols-4">
+              {(() => {
+                const documents = item.documents || [];
+                const now = Date.now();
+                const activeReviewedDocuments = documents.filter((document) =>
+                  document.status === 'reviewed' &&
+                  (!document.expires_at || new Date(document.expires_at).getTime() > now)
+                );
+                const pendingCount = documents.filter((document) => document.status === 'pending').length;
+                const hasLenderEvidence = activeReviewedDocuments.some((document) =>
+                  ['mortgage_approval', 'nht_documentation'].includes(document.document_type)
+                );
+                const minValue = budgets[item.id]?.min ?? item.verified_budget_min ?? '';
+                const maxValue = budgets[item.id]?.max ?? item.verified_budget_max ?? '';
+                const level3Ready = activeReviewedDocuments.length > 0 && pendingCount === 0 &&
+                  !['verified', 'confirmed'].includes(item.status) &&
+                  minValue !== '' && maxValue !== '' && Number(minValue) <= Number(maxValue);
+                const level4Ready = item.status === 'verified' && hasLenderEvidence;
+                const emailResult = emailResults[item.id];
+
+                return (
+              <div className="mt-5 space-y-3 rounded-2xl bg-gray-50 p-4">
+                <div>
+                  <h3 className="text-sm font-bold text-gray-900">Approval steps</h3>
+                  <ol className="mt-2 grid gap-2 text-xs sm:grid-cols-2">
+                    <li className={`rounded-lg p-3 ${pendingCount === 0 ? 'bg-emerald-50 text-emerald-900' : 'bg-amber-100 text-amber-950'}`}>
+                      <strong>Level 2 · Document review</strong>
+                      <span className="mt-1 block">{pendingCount ? `${pendingCount} document${pendingCount === 1 ? '' : 's'} still need approval.` : 'No documents are waiting for review.'}</span>
+                    </li>
+                    <li className={`rounded-lg p-3 ${level3Ready ? 'bg-emerald-50 text-emerald-900' : 'bg-white text-gray-700'}`}>
+                      <strong>Level 3 · Financially verified</strong>
+                      <span className="mt-1 block">Requires all documents reviewed, at least one active approved document, and a verified budget range.</span>
+                    </li>
+                    <li className={`rounded-lg p-3 ${level4Ready ? 'bg-emerald-50 text-emerald-900' : 'bg-white text-gray-700'}`}>
+                      <strong>Level 4 · Financing confirmed</strong>
+                      <span className="mt-1 block">Requires Level 3 plus an active approved mortgage approval or NHT document.</span>
+                    </li>
+                    <li className="rounded-lg bg-white p-3 text-gray-700">
+                      <strong>Current approval</strong>
+                      <span className="mt-1 block">Level {item.qualification_level}: {levelLabels[item.qualification_level] || 'Unknown level'} · {String(item.status || 'registered').replaceAll('_', ' ')}</span>
+                    </li>
+                  </ol>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                 <label className="text-xs font-semibold text-gray-700">
                   Verified budget minimum (JMD)
                   <input type="number" min="0" step="1"
@@ -653,20 +786,48 @@ export default function AdminBuyerPrequalifications() {
                     className="mt-1 w-full rounded-lg bg-white px-3 py-2 text-sm text-gray-900" />
                 </label>
                 <div className="flex flex-wrap items-center gap-2 sm:col-span-2 lg:col-span-4">
-                  <button type="button" onClick={() => setVerification(item, 3, 'verified')}
-                    className="rounded-full bg-white px-3.5 py-2 text-xs font-semibold text-blue-700 hover:bg-blue-50">
-                    <Shield size={13} className="mr-1 inline" /> Mark Level 3 verified
+                  <button type="button" disabled={!level3Ready} onClick={() => setVerification(item, 3, 'verified')}
+                    className="rounded-full bg-white px-3.5 py-2 text-xs font-semibold text-blue-700 hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-40">
+                    <Shield size={13} className="mr-1 inline" /> {item.status === 'verified' || item.status === 'confirmed' ? 'Level 3 already verified' : 'Approve Level 3 · Financially verified'}
                   </button>
-                  <button type="button" onClick={() => setVerification(item, 4, 'confirmed')}
-                    className="rounded-full bg-white px-3.5 py-2 text-xs font-semibold text-emerald-700 hover:bg-emerald-50">
-                    <CheckCircle2 size={13} className="mr-1 inline" /> Confirm Level 4
+                  <button type="button" disabled={!level4Ready} onClick={() => setVerification(item, 4, 'confirmed')}
+                    className="rounded-full bg-white px-3.5 py-2 text-xs font-semibold text-emerald-700 hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-40">
+                    <CheckCircle2 size={13} className="mr-1 inline" /> {item.status === 'confirmed' ? 'Level 4 already confirmed' : 'Confirm Level 4 · Financing confirmed'}
                   </button>
                   <button type="button" onClick={() => rejectPrequalification(item)}
                     className="ml-auto rounded-full bg-white px-3.5 py-2 text-xs font-semibold text-red-700 hover:bg-red-50">
                     <AlertCircle size={13} className="mr-1 inline" /> Reject assessment
                   </button>
                 </div>
+                </div>
+                {emailResult && (
+                  <div className={`flex flex-wrap items-center justify-between gap-2 rounded-lg p-3 text-sm ${emailResult.sent ? 'bg-emerald-50 text-emerald-900' : 'bg-red-50 text-red-900'}`}>
+                    <span>{emailResult.sent ? 'Approval email sent to the buyer.' : `${emailResult.error} You can share it manually below.`}</span>
+                    {!emailResult.sent && item.buyer_email && (
+                      <a href={approvalMailto(item)} className="font-semibold underline">Share email manually</a>
+                    )}
+                  </div>
+                )}
+                {['verified', 'confirmed'].includes(item.status) && (
+                  <div className="flex flex-wrap items-center gap-3 border-t border-gray-200 pt-3">
+                    {item.buyer_email ? (
+                      <>
+                        <button type="button" onClick={() => resendApprovalEmail(item)}
+                          className="inline-flex items-center gap-1.5 rounded-lg bg-white px-3 py-2 text-xs font-semibold text-gray-800 hover:bg-gray-100">
+                          <Mail size={14} /> Resend Level {item.qualification_level} approval email
+                        </button>
+                        <a href={approvalMailto(item)} className="text-xs font-semibold text-accent hover:underline">
+                          Share approval email manually
+                        </a>
+                      </>
+                    ) : (
+                      <span className="text-xs font-medium text-red-800">No buyer email on file; add one in Edit assessment to send or share the approval.</span>
+                    )}
+                  </div>
+                )}
               </div>
+                );
+              })()}
             </details>
           ))}
         </div>
