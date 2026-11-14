@@ -35,6 +35,7 @@ import {
 import AutoAssignModal from '../../components/AutoAssignModal';
 import BudgetRejectionEmailer from '../../components/BudgetRejectionEmailer';
 import AdminRequestBuyerDocuments from '../../components/AdminRequestBuyerDocuments';
+import AdminBuyerWhatsAppFollowUp from '../../components/AdminBuyerWhatsAppFollowUp';
 import { DEFAULT_REQUEST_URGENCY_PRICES } from '../../lib/requestUrgencyPricing';
 
 /* ----------------------------------------------------------
@@ -1974,6 +1975,10 @@ function AssignRequestCard({
             {request.client_phone}
           </a>
         </div>
+        <AdminBuyerWhatsAppFollowUp
+          request={request}
+          formatWhatsAppNumber={formatWhatsAppNumber}
+        />
         <AdminRequestBuyerDocuments
           prequalification={request.buyer_prequalification}
           onUpdated={onBuyerDocumentUpdated}
