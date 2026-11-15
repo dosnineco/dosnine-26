@@ -69,7 +69,7 @@ const drawWrappedText = (context, text, x, y, maxWidth, lineHeight) => {
   return y;
 };
 
-const downloadFollowUpImage = (name, nextStep, requestFields) => {
+const createFollowUpImage = (name, nextStep, requestFields) => {
   const canvas = document.createElement('canvas');
   canvas.width = 1080;
   canvas.height = 1600;
@@ -138,10 +138,22 @@ const downloadFollowUpImage = (name, nextStep, requestFields) => {
   context.font = '24px Arial, sans-serif';
   context.fillText('Dosnine Limited | dosnine.com', 118, 1570);
 
+  const dataUrl = canvas.toDataURL('image/png');
+  const binary = atob(dataUrl.split(',')[1]);
+  const bytes = new Uint8Array(binary.length);
+  for (let index = 0; index < binary.length; index += 1) {
+    bytes[index] = binary.charCodeAt(index);
+  }
+  const fileName = `dosnine-buyer-follow-up-${name.toLowerCase().replace(/[^a-z0-9]+/g, '-') || 'client'}.png`;
+  return new File([new Blob([bytes], { type: 'image/png' })], fileName, { type: 'image/png' });
+};
+
+const downloadImage = (image) => {
   const link = document.createElement('a');
-  link.download = `dosnine-buyer-follow-up-${name.toLowerCase().replace(/[^a-z0-9]+/g, '-') || 'client'}.png`;
-  link.href = canvas.toDataURL('image/png');
+  link.download = image.name;
+  link.href = URL.createObjectURL(image);
   link.click();
+  setTimeout(() => URL.revokeObjectURL(link.href), 1000);
 };
 
 export default function AdminBuyerWhatsAppFollowUp({ request, formatWhatsAppNumber }) {
@@ -159,10 +171,41 @@ export default function AdminBuyerWhatsAppFollowUp({ request, formatWhatsAppNumb
     getFollowUpText(name, needsAccount, requestFields)
   )}`;
 
+  const createImage = () => createFollowUpImage(name, nextStep, requestFields);
+
   const handleDownload = () => {
     try {
-      downloadFollowUpImage(name, nextStep, requestFields);
-      toast.success('Follow-up image downloaded. Attach it in WhatsApp.');
+      downloadImage(createImage());
+      toast.success('Follow-up image downloaded.');
+    } catch (error) {
+      console.error('Failed to create buyer follow-up image:', error);
+      toast.error(error.message || 'Unable to create the follow-up image.');
+    }
+  };
+
+  const handleShare = () => {
+    try {
+      const image = createImage();
+      const shareData = {
+        files: [image],
+        title: 'Dosnine buyer follow-up',
+        text: getFollowUpText(name, needsAccount, requestFields),
+      };
+
+      if (!navigator.share || !navigator.canShare?.(shareData)) {
+        downloadImage(image);
+        toast.success('Image downloaded. Your browser cannot share it directly; attach it in WhatsApp.');
+        return;
+      }
+
+      navigator.share(shareData)
+        .then(() => toast.success('Choose WhatsApp, select the buyer and send.'))
+        .catch((error) => {
+          if (error.name !== 'AbortError') {
+            console.error('Failed to share buyer follow-up image:', error);
+            toast.error(error.message || 'Unable to share the follow-up image.');
+          }
+        });
     } catch (error) {
       console.error('Failed to create buyer follow-up image:', error);
       toast.error(error.message || 'Unable to create the follow-up image.');
@@ -176,11 +219,19 @@ export default function AdminBuyerWhatsAppFollowUp({ request, formatWhatsAppNumb
       </p>
       <button
         type="button"
+        onClick={handleShare}
+        className="inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-100"
+      >
+        <MessageCircle size={14} />
+        Share image
+      </button>
+      <button
+        type="button"
         onClick={handleDownload}
         className="inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-100"
       >
         <ImageDown size={14} />
-        Download image
+        Download
       </button>
       <a
         href={phone ? whatsappUrl : undefined}
