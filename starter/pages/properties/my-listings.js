@@ -20,6 +20,7 @@ export default function MyPropertiesPage() {
   const [editingProperty, setEditingProperty] = useState(null);
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
+  const [premiumActive, setPremiumActive] = useState(false);
 
   useEffect(() => {
     if (!isLoaded || !user || !authLoaded || !userId) return;
@@ -51,6 +52,10 @@ export default function MyPropertiesPage() {
       }
       if (!response.ok || !payload?.success) throw new Error(payload?.error || 'Failed to fetch properties');
       setProperties(payload.properties || []);
+      const profileResponse = await authedFetch('/api/user/profile');
+      const profile = await profileResponse.json();
+      if (!profileResponse.ok) throw new Error(profile?.error || 'Unable to load your profile access.');
+      setPremiumActive(Boolean(profile.premium));
     } catch (err) {
       console.error('Error fetching properties:', err);
       toast.error('Failed to fetch properties');
@@ -143,7 +148,7 @@ export default function MyPropertiesPage() {
                 <article key={property.id} className="flex min-w-0 flex-col overflow-hidden rounded-2xl bg-white shadow-[0_10px_30px_rgba(15,23,42,0.06)] transition hover:-translate-y-1">
                   <div className="relative aspect-[4/3] bg-slate-200">
                     {firstImage ? <img src={firstImage} alt={property.title} className="h-full w-full object-cover" /> : <div className="flex h-full items-center justify-center text-sm text-slate-400">No image</div>}
-                    <span className="absolute left-3 top-3 rounded-full bg-white/90 px-3 py-1 text-xs font-bold uppercase tracking-wide text-accent">{property.type || 'rent'}</span>
+                    <span className="absolute left-3 top-3 rounded-full bg-white/90 px-3 py-1 text-xs font-bold uppercase tracking-wide text-accent">{property.is_off_market ? 'Off market' : property.type || 'rent'}</span>
                   </div>
                   <div className="flex flex-1 flex-col p-4">
                     <div className="flex-1">
@@ -166,6 +171,7 @@ export default function MyPropertiesPage() {
                         <textarea value={form.description} onChange={(event) => updateForm('description', event.target.value)} placeholder="Description" rows="3" required className="w-full rounded-lg bg-white px-3 py-2 text-sm" />
                         {['town', 'parish', 'address', 'phone_number'].map((field) => <input key={field} value={form[field] || ''} onChange={(event) => updateForm(field, event.target.value)} placeholder={field.replace('_', ' ')} required={['town', 'parish'].includes(field)} className="w-full rounded-lg bg-white px-3 py-2 text-sm" />)}
                         <div className="grid grid-cols-2 gap-2"><input type="number" min="0" value={form.price} onChange={(event) => updateForm('price', event.target.value)} placeholder="Price" required className="w-full rounded-lg bg-white px-3 py-2 text-sm" /><select value={form.type} onChange={(event) => updateForm('type', event.target.value)} className="w-full rounded-lg bg-white px-3 py-2 text-sm"><option value="rent">Rent</option><option value="sale">Sale</option></select></div>
+                        {(premiumActive || form.is_off_market) && <label className="flex items-center gap-2 text-sm text-slate-700"><input type="checkbox" checked={Boolean(form.is_off_market)} onChange={(event) => updateForm('is_off_market', event.target.checked)} className="h-4 w-4 rounded accent-[#6E026F]" /> Keep this property off-market for Premium members</label>}
                         <div className="grid grid-cols-2 gap-2"><input type="number" min="0" value={form.bedrooms} onChange={(event) => updateForm('bedrooms', event.target.value)} placeholder="Bedrooms" className="w-full rounded-lg bg-white px-3 py-2 text-sm" /><input type="number" min="0" value={form.bathrooms} onChange={(event) => updateForm('bathrooms', event.target.value)} placeholder="Bathrooms" className="w-full rounded-lg bg-white px-3 py-2 text-sm" /></div>
                         <div className="flex gap-2"><button disabled={saving} className="btn-primary flex-1"><FiSave /> {saving ? 'Saving...' : 'Save changes'}</button><button type="button" onClick={() => setEditingProperty(null)} className="rounded-lg bg-white px-3 text-sm font-semibold text-slate-600"><FiX /></button></div>
                       </div>

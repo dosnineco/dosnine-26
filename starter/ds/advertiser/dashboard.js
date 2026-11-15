@@ -2,7 +2,7 @@ import { useState } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
 import { useAuth } from '@clerk/nextjs';
-import { BarChart3, CalendarDays, Eye, MousePointer2, Plus, Trash2 } from 'lucide-react';
+import { BarChart3, CalendarDays, Eye, MousePointer2, Plus, Trash2, UserRound } from 'lucide-react';
 
 const formatDate = (value) => {
   if (!value) return 'Not set';
@@ -118,6 +118,10 @@ export default function AdvertiserDashboardPage({ overview, isAdmin = false, onR
             <p className="mt-2 text-gray-600">Manage your ads, payment status, campaign dates, and results.</p>
           </div>
           <div className="flex flex-wrap gap-3">
+            <Link href="/profile" className="inline-flex items-center justify-center gap-2 rounded-xl bg-gray-100 px-5 py-3 font-semibold text-gray-800 hover:bg-gray-200">
+              <UserRound className="h-4 w-4" aria-hidden="true" />
+              My profile
+            </Link>
             {isAdmin && (
               <Link href="/admin" className="inline-flex items-center justify-center rounded-xl bg-gray-900 px-5 py-3 font-semibold text-white hover:bg-gray-700">
                 Open Admin Dashboard

@@ -1,6 +1,7 @@
 import { getDbClient, requireDbUser } from '@/lib/apiAuth';
 import { normalizeParish } from '@/lib/normalizeParish';
 import { canManageProperties } from '@/lib/rbac';
+import { hasActiveRegularPremium } from '@/lib/premiumAccess';
 
 export default async function handler(req, res) {
   if (req.method !== 'PATCH') return res.status(405).json({ error: 'Method not allowed' });
@@ -16,16 +17,21 @@ export default async function handler(req, res) {
     if (!id || !form.title || !form.description || !form.parish || !form.town || !form.price) {
       return res.status(400).json({ error: 'Missing required property fields' });
     }
-
+    if (form.is_off_market !== undefined && typeof form.is_off_market !== 'boolean') {
+      return res.status(400).json({ error: 'Off-market status must be true or false.' });
+    }
     const db = getDbClient();
     const { data: property, error: propertyError } = await db
       .from('properties')
-      .select('id, owner_id')
+      .select('id, owner_id, is_off_market')
       .eq('id', id)
       .single();
 
     if (propertyError || !property) return res.status(404).json({ error: 'Property not found' });
     if (property.owner_id !== resolved.user.id) return res.status(403).json({ error: 'Forbidden' });
+    if (form.is_off_market === true && !property.is_off_market && !hasActiveRegularPremium(resolved.user)) {
+      return res.status(403).json({ error: 'Active premium access is required to create an off-market listing.' });
+    }
 
     const updatePayload = {
       title: form.title,
@@ -43,6 +49,7 @@ export default async function handler(req, res) {
     };
 
     if (form.property_type) updatePayload.property_type = form.property_type;
+    if (form.is_off_market !== undefined) updatePayload.is_off_market = form.is_off_market;
 
     let { data, error } = await db
       .from('properties')

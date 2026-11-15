@@ -45,7 +45,9 @@ export async function getServerSideProps(context) {
   let payload = {};
 
   try {
-    response = await fetch(`${baseUrl}/api/properties/detail?slug=${encodeURIComponent(slug)}`);
+    response = await fetch(`${baseUrl}/api/properties/detail?slug=${encodeURIComponent(slug)}`, {
+      headers: context.req.headers.cookie ? { cookie: context.req.headers.cookie } : {},
+    });
     payload = await response.json().catch(() => ({}));
   } catch (error) {
     return { notFound: true };

@@ -23,6 +23,7 @@ import {
   Briefcase,
   MapPin,
   Zap,
+  Gift,
 } from 'lucide-react';
 
 /* -------------------- helpers -------------------- */
@@ -539,6 +540,10 @@ export default function AdminDashboardIndex() {
             <p className="mt-1 text-sm text-slate-600">
               These counts stay visible until the related work is completed.
             </p>
+            <Link href="/admin/giveaway" className="mt-3 inline-flex items-center gap-2 rounded-xl bg-accent px-4 py-2.5 text-sm font-semibold text-white hover:bg-accent/90">
+              <Gift className="h-4 w-4" aria-hidden="true" />
+              Manage member giveaway
+            </Link>
           </div>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
             <ActionCard

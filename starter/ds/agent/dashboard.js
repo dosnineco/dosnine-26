@@ -17,6 +17,7 @@ import {
   AlertCircle, Clock, Plus, RotateCcw, Trash2, BellDot, MessageCircle,
   Phone as PhoneIcon, CreditCard, Info, MessageSquare, Search, ShieldCheck,
   ExternalLink, FileText,
+  UserRound,
 } from 'lucide-react';
 
 export default function AgentDashboardPage() {
@@ -338,16 +339,22 @@ export default function AgentDashboardPage() {
                 Keep every client conversation moving. Review your assigned requests, record contact, and close or release work as needed.
               </p>
             </div>
-            {!isOwner && !isAdminDashboardView && (
-              <button
-                type="button"
-                onClick={() => setShowCreateRequestModal(true)}
-                className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-[#2373F4] px-5 py-3 text-sm font-semibold text-white transition hover:opacity-90"
-              >
-                <Plus className="h-4 w-4" />
-                Create request
-              </button>
-            )}
+            <div className="flex flex-wrap gap-3">
+              <Link href="/profile" className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-gray-100 px-5 py-3 text-sm font-semibold text-gray-800 hover:bg-gray-200">
+                <UserRound className="h-4 w-4" aria-hidden="true" />
+                My profile
+              </Link>
+              {!isOwner && !isAdminDashboardView && (
+                <button
+                  type="button"
+                  onClick={() => setShowCreateRequestModal(true)}
+                  className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-[#2373F4] px-5 py-3 text-sm font-semibold text-white transition hover:opacity-90"
+                >
+                  <Plus className="h-4 w-4" />
+                  Create request
+                </button>
+              )}
+            </div>
           </header>
 
           {/* Quick Actions Section */}
@@ -688,6 +695,11 @@ export default function AgentDashboardPage() {
                               Buyer readiness · Level {readiness.qualification_level ?? 0}
                             </span>
                           )}
+                          {request.rental_readiness && (
+                            <span className="rounded-lg border border-gray-200 bg-gray-50 px-2.5 py-1 text-xs font-semibold text-gray-700">
+                              Rental readiness · Level {request.rental_readiness.qualification_level} of 4
+                            </span>
+                          )}
                           {request.urgency === 'urgent' && (
                             <span className="rounded-lg bg-[#2373F4]/10 px-2.5 py-1 text-xs font-semibold text-[#2373F4]">
                               Urgent
@@ -770,6 +782,16 @@ export default function AgentDashboardPage() {
                                   : `J$${Number(readiness.verified_budget_max).toLocaleString()}`}
                               </p>
                             )}
+                          </div>
+                        )}
+
+                        {request.rental_readiness && (
+                          <div className="mt-3 rounded-lg border border-gray-200 bg-white px-3 py-2.5">
+                            <p className="text-[10px] font-bold uppercase tracking-wider text-gray-500">Rental readiness</p>
+                            <p className="mt-1 text-xs text-gray-800">
+                              Level {request.rental_readiness.qualification_level} of 4 · Self-reported affordability profile
+                            </p>
+                            <p className="mt-1 text-[11px] text-gray-500">Income and rent amounts are kept private and are not independently verified.</p>
                           </div>
                         )}
 

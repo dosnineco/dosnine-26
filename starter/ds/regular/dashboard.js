@@ -26,6 +26,7 @@ import {
   CheckCircle2,
   AlertCircle,
   X,
+  UserRound,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import AdvertiserDashboard from '../advertiser/dashboard';
@@ -552,6 +553,10 @@ export default function RegularDashboard() {
           <div>
             <h1 className="text-3xl font-bold">Hi, {user?.username || 'User'}!</h1>
           </div>
+          <Link href="/profile" className="inline-flex items-center gap-2 rounded-xl bg-gray-100 px-4 py-2.5 text-sm font-semibold text-gray-800 hover:bg-gray-200">
+            <UserRound className="h-4 w-4" aria-hidden="true" />
+            My profile
+          </Link>
         </div>
 
         {accountType === 'regular' && !isHomeownerProfile && !homeownerUpgradeDismissed && (

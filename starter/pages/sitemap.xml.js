@@ -16,6 +16,7 @@ export async function getServerSideProps({ res }) {
     const { data: properties, error } = await supabase
       .from('properties')
       .select('slug, updated_at, status')
+      .eq('is_off_market', false)
       .in('status', ['available', 'active', 'coming_soon'])
       .limit(1000);
     const urls = [];
@@ -78,6 +79,7 @@ export async function getServerSideProps({ res }) {
       const { data: searchVariants } = await supabase
         .from('properties')
         .select('parish, bedrooms, town')
+        .eq('is_off_market', false)
         .eq('status', 'available')
         .limit(500);
 

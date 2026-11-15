@@ -1,6 +1,7 @@
 import { getDbClient, requireDbUser } from '@/lib/apiAuth';
 import { canManageProperties, isAdmin } from '@/lib/rbac';
 import { normalizeParish } from '@/lib/normalizeParish';
+import { hasActiveRegularPremium } from '@/lib/premiumAccess';
 
 export const config = {
   api: {
@@ -63,7 +64,6 @@ export default async function handler(req, res) {
     if (!canManageProperties(resolved.user)) {
       return res.status(403).json({ error: 'A verified homeowner or agent account is required to post properties.' });
     }
-
     if (!admin && accountType === 'regular') {
       const { count, error: countError } = await db
         .from('properties')
@@ -97,6 +97,12 @@ export default async function handler(req, res) {
     }
 
     const { form, images = [] } = req.body || {};
+    if (form?.is_off_market !== undefined && typeof form.is_off_market !== 'boolean') {
+      return res.status(400).json({ error: 'Off-market status must be true or false.' });
+    }
+    if (form?.is_off_market === true && !admin && !hasActiveRegularPremium(resolved.user)) {
+      return res.status(403).json({ error: 'Active premium access is required to create an off-market listing.' });
+    }
 
     if (!form?.title || !form?.description || !form?.parish || !form?.town || !form?.price || !form?.property_type) {
       return res.status(400).json({ error: 'Missing required property fields' });
@@ -131,6 +137,7 @@ export default async function handler(req, res) {
       status: form.status || 'available',
       available_date: form.available_date || null,
       phone_number: form.phone_number || null,
+      is_off_market: Boolean(form.is_off_market),
     };
 
     if (form.property_type) {

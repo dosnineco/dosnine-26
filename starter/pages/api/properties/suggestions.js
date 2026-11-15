@@ -18,6 +18,7 @@ export default async function handler(req, res) {
     const { data, error } = await db
       .from('properties')
       .select('town, parish, address, formatted_address, title, description')
+      .eq('is_off_market', false)
       .or(`town.ilike.${searchTerm},address.ilike.${searchTerm},parish.ilike.${searchTerm},formatted_address.ilike.${searchTerm},title.ilike.${searchTerm},description.ilike.${searchTerm}`)
       .limit(30);
 

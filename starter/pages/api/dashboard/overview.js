@@ -20,6 +20,12 @@ export default async function handler(req, res) {
     const accountType = requestedView || userData.account_type ||
       (userData.user_type === 'agent' ? 'agent' : null);
 
+    const { error: activityError } = await db
+      .from('users')
+      .update({ last_active_at: new Date().toISOString() })
+      .eq('id', userData.id);
+    if (activityError) throw activityError;
+
     if (!accountType) {
       return res.status(200).json({
         success: true,

@@ -3,6 +3,8 @@ import { normalizeParish } from '@/lib/normalizeParish';
 import { z } from 'zod';
 import { enforceMethods } from '@/lib/apiSecurity';
 import { enforceRateLimitDistributed } from '@/lib/rateLimit';
+import { getClerkUserId, getDbClient, requireDbUser } from '@/lib/apiAuth';
+import { hasActiveRegularPremium } from '@/lib/premiumAccess';
 
 const PUBLIC_PROPERTY_DETAIL_FIELDS = [
   'id',
@@ -27,6 +29,7 @@ const PUBLIC_PROPERTY_DETAIL_FIELDS = [
   'views',
   'status',
   'created_at',
+  'is_off_market',
 ].join(',');
 
 const LEGACY_PROPERTY_DETAIL_FIELDS = [
@@ -114,8 +117,35 @@ export default async function handler(req, res) {
       propertyError = legacyResult.error;
     }
 
+    if ((propertyError || !property) && getClerkUserId(req)) {
+      const { data: privateProperty, error: privatePropertyError } = await getDbClient()
+        .from('properties')
+        .select(PUBLIC_PROPERTY_DETAIL_FIELDS)
+        .eq('slug', slug)
+        .in('status', PUBLIC_VISIBLE_STATUSES)
+        .eq('is_off_market', true)
+        .maybeSingle();
+      if (privatePropertyError) throw privatePropertyError;
+      if (privateProperty) {
+        property = privateProperty;
+        propertyError = null;
+      }
+    }
+
     if (propertyError || !property) {
       return res.status(404).json({ error: 'Property not found' });
+    }
+
+    if (property.is_off_market) {
+      if (!getClerkUserId(req)) return res.status(404).json({ error: 'Property not found' });
+      const resolved = await requireDbUser(req, res, { createIfMissing: true });
+      if (!resolved) return;
+      if (
+        property.owner_id !== resolved.user.id &&
+        !hasActiveRegularPremium(resolved.user)
+      ) {
+        return res.status(404).json({ error: 'Property not found' });
+      }
     }
 
     const { data: updatedViews, error: viewError } = await db.rpc('increment_property_views', {
@@ -147,6 +177,7 @@ export default async function handler(req, res) {
       .from('properties')
       .select(PUBLIC_SIMILAR_PROPERTY_FIELDS)
       .in('status', PUBLIC_VISIBLE_STATUSES)
+      .eq('is_off_market', false)
       .eq('parish', normalizeParish(propertyData.parish))
       .neq('id', propertyData.id)
       .limit(4);

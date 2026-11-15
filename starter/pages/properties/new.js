@@ -16,6 +16,7 @@ export default function NewProperty() {
   const [images, setImages] = useState([]);
   const [uploadingImages, setUploadingImages] = useState(false);
   const [extraListingFee, setExtraListingFee] = useState(null);
+  const [premiumActive, setPremiumActive] = useState(false);
 
   // Check payment status for agents before loading page
   useEffect(() => {
@@ -35,6 +36,7 @@ export default function NewProperty() {
         });
 
         const profile = profileResponse.data;
+        setPremiumActive(Boolean(profile.premium));
         if (!canManageProperties(profile)) {
           router.replace('/verify?role=homeowner');
           return;
@@ -81,6 +83,7 @@ export default function NewProperty() {
     status: 'available',
     available_date: '',
     phone_number: '',
+    is_off_market: false,
   };
 
   const [form, setForm] = useState(initialFormState);
@@ -481,6 +484,25 @@ const handleSubmit = async (e) => {
               <option value="sale">Sale</option>
             </select>
           </div>
+        </div>
+        <div className="mb-5 rounded-xl bg-gray-50 p-4">
+          <label className={`flex items-start gap-3 ${premiumActive ? 'cursor-pointer' : 'cursor-not-allowed'}`}>
+            <input
+              type="checkbox"
+              checked={Boolean(form.is_off_market)}
+              disabled={!premiumActive}
+              onChange={(event) => setForm({ ...form, is_off_market: event.target.checked })}
+              className="mt-1 h-4 w-4 rounded accent-[#6E026F]"
+            />
+            <span>
+              <span className="block font-semibold text-gray-900">Off-market listing</span>
+              <span className="mt-1 block text-sm text-gray-600">
+                {premiumActive
+                  ? 'Keep this property private and show it only to members with active Premium access.'
+                  : 'Active Premium access is required to publish an off-market listing.'}
+              </span>
+            </span>
+          </label>
         </div>
 
         {/* Image Upload */}

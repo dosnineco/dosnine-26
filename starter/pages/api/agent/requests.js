@@ -1,5 +1,6 @@
 import { getDbClient, requireDbUser } from '@/lib/apiAuth';
 import { addAgentBuyerReadiness, addAssignedAgentBuyerDocuments } from '@/lib/buyerPrequalification';
+import { addAgentRentalReadiness } from '@/lib/renterReadiness';
 import { compareServiceRequestPriority } from '@/lib/serviceRequestPriority';
 
 // Get service requests for agent
@@ -66,7 +67,8 @@ export default async function handler(req, res) {
 
     const prioritizedRequests = (requests || []).sort(compareServiceRequestPriority);
     const requestsWithReadiness = await addAgentBuyerReadiness(db, prioritizedRequests);
-    const requestsWithBuyerDocuments = await addAssignedAgentBuyerDocuments(db, requestsWithReadiness);
+    const requestsWithRentalReadiness = await addAgentRentalReadiness(db, requestsWithReadiness);
+    const requestsWithBuyerDocuments = await addAssignedAgentBuyerDocuments(db, requestsWithRentalReadiness);
     return res.status(200).json({ requests: requestsWithBuyerDocuments });
 
   } catch (error) {

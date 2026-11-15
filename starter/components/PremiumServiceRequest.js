@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useUser } from '@clerk/nextjs';
+import { SignInButton, useUser } from '@clerk/nextjs';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 import { MapPin, DollarSign, Home, Calendar, Star, Lock, Zap } from 'lucide-react';
@@ -62,7 +62,7 @@ export default function PremiumServiceRequest() {
           <Lock className="w-16 h-16 text-[var(--accent-color)] mx-auto mb-4" />
           <h1 className="text-2xl font-bold text-gray-800 mb-2">Find Me a Place (Done‑For‑You)</h1>
           <p className="text-gray-600 mb-6">
-            We'll match you with a specific verified agent and deliver 3 options within 72 hours.
+            We&apos;ll match you with a specific verified agent and deliver 3 options within 72 hours.
           </p>
           <div className="bg-gray-50 p-4 rounded-lg mb-6">
             <p className="text-sm text-gray-700 mb-3">
@@ -81,7 +81,8 @@ export default function PremiumServiceRequest() {
             <p className="text-xs text-gray-500 mt-1">{formatJmd(SERVICE_PRICE_USD)} (est.)</p>
           </div>
           <div className="mt-4">
-            <PayPalScriptProvider options={{ "client-id": process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID }}>
+            {user?.id ? (
+              <PayPalScriptProvider options={{ "client-id": process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID }}>
               <PayPalButtons
                 style={{ layout: 'vertical', color: 'gold', shape: 'rect', label: 'pay' }}
                 createOrder={(data, actions) => {
@@ -98,7 +99,9 @@ export default function PremiumServiceRequest() {
                   try {
                     await actions.order.capture();
                     if (user?.id) {
-                      const res = await axios.post('/api/user/upgrade-premium');
+                      const res = await axios.post('/api/user/upgrade-premium', {
+                        orderId: data.orderID,
+                      });
                       if (res.data.success) {
                         toast.success('Premium activated!');
                         setIsPremium(true);
@@ -118,7 +121,14 @@ export default function PremiumServiceRequest() {
                   toast.error('Payment failed. Please try again.');
                 }}
               />
-            </PayPalScriptProvider>
+              </PayPalScriptProvider>
+            ) : (
+              <SignInButton mode="modal">
+                <button type="button" className="w-full rounded-xl bg-accent px-5 py-3 font-semibold text-white hover:bg-accent/90">
+                  Sign in before paying
+                </button>
+              </SignInButton>
+            )}
           </div>
         </div>
       </div>

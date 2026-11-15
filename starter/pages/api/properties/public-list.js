@@ -72,6 +72,7 @@ export default async function handler(req, res) {
     let query = db
       .from('properties')
       .select(PUBLIC_PROPERTY_LIST_FIELDS, { count: 'exact' })
+      .eq('is_off_market', false)
       .order('is_featured', { ascending: false })
       .order('created_at', { ascending: false });
 
