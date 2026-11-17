@@ -119,7 +119,7 @@ export default async function handler(req, res) {
       { data: campaign, error: campaignError },
     ] = await Promise.all([
       db.from('users')
-        .select('id, clerk_id, email, full_name, phone, role, account_type, profile_intent, user_type, created_at, last_active_at, premium_service_request, premium_service_request_expires')
+        .select('id, clerk_id, email, full_name, phone, role, account_type, profile_intent, user_type, identity_verified, id_verification_status, created_at, last_active_at, premium_service_request, premium_service_request_expires')
         .eq('id', resolved.user.id)
         .single(),
       db.from('agents').select('*').eq('user_id', resolved.user.id).maybeSingle(),
