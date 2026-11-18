@@ -337,31 +337,25 @@ export default function AgentDashboardPage() {
 
       <div className="agent-dashboard min-h-screen bg-[#f5f7fb]">
         <div className="max-w-7xl mx-auto px-6 sm:px-6 lg:px-8 py-8">
-          <header className="mb-7 flex justify-end rounded-2xl bg-white p-6 sm:p-8">
-            <div className="flex flex-wrap gap-3">
-              <Link href="/profile" className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-gray-100 px-5 py-3 text-sm font-semibold text-gray-800 hover:bg-gray-200">
-                <UserRound className="h-4 w-4" aria-hidden="true" />
-                My profile
-              </Link>
-              {!isOwner && !isAdminDashboardView && (
-                <button
-                  type="button"
-                  onClick={() => setShowCreateRequestModal(true)}
-                  className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-[#2373F4] px-5 py-3 text-sm font-semibold text-white transition hover:opacity-90"
-                >
-                  <Plus className="h-4 w-4" />
-                  Create request
-                </button>
-              )}
+          {!isOwner && !isAdminDashboardView && (
+            <div className="mb-7 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setShowCreateRequestModal(true)}
+                className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-[#2373F4] px-5 py-3 text-sm font-semibold text-white transition hover:opacity-90"
+              >
+                <Plus className="h-4 w-4" />
+                Create request
+              </button>
             </div>
-          </header>
+          )}
 
           {/* Quick Actions Section */}
           <div className="mb-8">
-            <div className={`grid grid-cols-1 gap-3 sm:grid-cols-2 ${initialUserData?.role === 'admin' ? 'xl:grid-cols-6' : 'xl:grid-cols-5'}`}>
+            <div className="flex gap-3 overflow-x-auto pb-2">
               <Link
                 href="/properties/my-listings"
-                className="group flex h-full items-center gap-3 rounded-xl bg-white p-4 transition hover:bg-gray-100"
+                className="group flex shrink-0 items-center gap-3 whitespace-nowrap rounded-xl bg-white p-4 transition hover:bg-gray-100"
               >
                 <Home className="h-5 w-5 text-[#2373F4] transition group-hover:scale-110" />
                 <h3 className="text-sm font-semibold text-gray-900">Manage Properties</h3>
@@ -369,7 +363,7 @@ export default function AgentDashboardPage() {
 
               <Link
                 href="/properties/new"
-                className="group flex h-full items-center gap-3 rounded-xl bg-white p-4 transition hover:bg-gray-100"
+                className="group flex shrink-0 items-center gap-3 whitespace-nowrap rounded-xl bg-white p-4 transition hover:bg-gray-100"
               >
                 <Plus className="h-5 w-5 text-[#2373F4] transition group-hover:scale-110" />
                 <h3 className="text-sm font-semibold text-gray-900">New Property</h3>
@@ -378,7 +372,7 @@ export default function AgentDashboardPage() {
               {!isOwner && (
                 <Link
                   href={canBulkCreate() ? '/properties/bulk-create' : '/agent/payment'}
-                  className="group flex h-full items-center gap-3 rounded-xl bg-white p-4 transition hover:bg-gray-100"
+                  className="group flex shrink-0 items-center gap-3 whitespace-nowrap rounded-xl bg-white p-4 transition hover:bg-gray-100"
                   aria-label={canBulkCreate()
                     ? 'Bulk create properties'
                     : 'Upgrade to a 1-month or 3-month plan to bulk create properties'}
@@ -395,7 +389,7 @@ export default function AgentDashboardPage() {
               {isOwner && (
                 <Link
                   href="/agent/payment"
-                  className="group flex h-full items-center gap-3 rounded-xl bg-white p-4 transition hover:bg-gray-100"
+                  className="group flex shrink-0 items-center gap-3 whitespace-nowrap rounded-xl bg-white p-4 transition hover:bg-gray-100"
                 >
                   <DollarSign className="h-5 w-5 text-[#2373F4] transition group-hover:scale-110" />
                   <h3 className="text-sm font-semibold text-gray-900">Rent Your House</h3>
@@ -405,7 +399,7 @@ export default function AgentDashboardPage() {
               {!isOwner && (
                 <Link
                   href="/agent/parish-requests"
-                  className="group relative flex h-full items-center gap-3 rounded-xl bg-white p-4 transition hover:bg-gray-100"
+                  className="group relative flex shrink-0 items-center gap-3 whitespace-nowrap rounded-xl bg-white p-4 transition hover:bg-gray-100"
                 >
                   <span className="absolute -right-1 -top-1 z-10 rounded-full bg-[#2373F4] px-1.5 py-0.5 text-[10px] font-bold text-white">
                     NEW
@@ -414,6 +408,13 @@ export default function AgentDashboardPage() {
                   <h3 className="font-semibold text-gray-900">Parish Search</h3>
                 </Link>
               )}
+              <Link
+                href="/profile"
+                className="group flex shrink-0 items-center gap-3 whitespace-nowrap rounded-xl bg-white p-4 transition hover:bg-gray-100"
+              >
+                <UserRound className="h-5 w-5 text-[#2373F4] transition group-hover:scale-110" aria-hidden="true" />
+                <h3 className="text-sm font-semibold text-gray-900">My profile</h3>
+              </Link>
             </div>
           </div>
 
