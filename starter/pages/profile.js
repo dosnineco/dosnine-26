@@ -262,7 +262,7 @@ export default function ProfilePage() {
                   <div>
                     <p className="font-semibold text-gray-900">Buyer readiness</p>
                     <p className="mt-1 text-sm text-gray-600">Current level: {profile?.readiness?.buyerLevel || 'Not started'}{profile?.readiness?.buyerLevel ? ' of 4' : ''}. Complete your buyer verification to unlock verified buyer benefits.</p>
-                    <Link href="/buyer-prequalification" className="mt-2 inline-flex text-sm font-semibold text-accent hover:underline">Open buyer readiness</Link>
+                    <Link href="/buyer-prequalification" className="mt-2 inline-flex text-sm font-semibold text-accent hover:underline">Update readiness level</Link>
                   </div>
                 </div>
               </div>

@@ -32,6 +32,7 @@ export default function AdminLayout({ children }) {
     agents: 0,
     htv: 0,
     buyerPrequalifications: 0,
+    payments: 0,
   });
 
   // Desktop: collapsed = icon-only rail. Mobile: whether drawer is open.
@@ -76,7 +77,7 @@ export default function AdminLayout({ children }) {
   /* -------------------- Fetch unresolved-work badge counts -------------------- */
   const fetchCounts = useCallback(async () => {
     try {
-      const [requestsRes, applicationsRes, advertisementsRes, accountsRes, agentsRes, htvRes, buyerPrequalificationsRes] =
+      const [requestsRes, applicationsRes, advertisementsRes, accountsRes, agentsRes, htvRes, buyerPrequalificationsRes, paymentsRes] =
         await Promise.all([
           fetch('/api/admin/requests', { credentials: 'include' }),
           fetch('/api/admin/agent-applications', { credentials: 'include' }),
@@ -85,9 +86,10 @@ export default function AdminLayout({ children }) {
           fetch('/api/admin/agents/notifications?pending=true', { credentials: 'include' }),
           fetch('/api/admin/htv-orders', { credentials: 'include' }),
           fetch('/api/admin/buyer-prequalifications?summary=true', { credentials: 'include' }),
+          fetch('/api/admin/payments', { credentials: 'include' }),
         ]);
 
-      const [requestsPayload, applicationsPayload, advertisementsPayload, accountsPayload, agentsPayload, htvPayload, buyerPrequalificationsPayload] =
+      const [requestsPayload, applicationsPayload, advertisementsPayload, accountsPayload, agentsPayload, htvPayload, buyerPrequalificationsPayload, paymentsPayload] =
         await Promise.all([
             requestsRes.json().catch(() => null),
             applicationsRes.json().catch(() => null),
@@ -96,6 +98,7 @@ export default function AdminLayout({ children }) {
             agentsRes.json().catch(() => null),
             htvRes.json().catch(() => null),
             buyerPrequalificationsRes.json().catch(() => null),
+            paymentsRes.json().catch(() => null),
           ]);
 
       setCounts((current) => ({
@@ -130,6 +133,11 @@ export default function AdminLayout({ children }) {
         buyerPrequalifications: buyerPrequalificationsRes.ok && buyerPrequalificationsPayload?.success
           ? Number(buyerPrequalificationsPayload.pendingDocumentCount) || 0
           : current.buyerPrequalifications,
+        payments: paymentsRes.ok && Array.isArray(paymentsPayload?.payments)
+          ? paymentsPayload.payments.filter(
+              (item) => String(item?.status || '').toLowerCase() === 'pending'
+            ).length
+          : current.payments,
       }));
     } catch (error) {
       console.error('Failed to refresh admin action counts:', error);
@@ -172,8 +180,8 @@ export default function AdminLayout({ children }) {
       icon: FiZap,
       badge: counts.applications,
     },
-
     { href: '/admin/htv', label: 'HTV', icon: FiPackage, badge: counts.htv },
+    { href: '/admin/payments', label: 'Payments', icon: FiDollarSign, badge: counts.payments },
     {
       href: '/admin/advertisements',
       label: 'Advertisements',

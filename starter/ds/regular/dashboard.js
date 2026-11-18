@@ -636,7 +636,7 @@ export default function RegularDashboard() {
               </div>
             </div>
             <span             className="inline-flex shrink-0 items-center justify-center rounded-xl bg-emerald-500 px-5 py-3 text-sm font-semibold text-white hover:bg-emerald-600">
-              View premium benefits
+              Upgrade
             </span>
           </Link>
         )}
@@ -805,7 +805,7 @@ export default function RegularDashboard() {
                       Complete buyer verification to unlock verified buyer benefits.
                     </p>
                     <span className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-accent">
-                      Open buyer readiness <ArrowRight size={16} aria-hidden="true" />
+                      Update readiness level <ArrowRight size={16} aria-hidden="true" />
                     </span>
                   </div>
                 </div>

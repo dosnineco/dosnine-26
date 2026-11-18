@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import Head from 'next/head';
 import { useAuth, useUser } from '@clerk/nextjs';
 import toast from 'react-hot-toast';
-import { CheckCircle, XCircle, Clock, Copy, Check, Trash2, Phone, Mail, User, Loader2 } from 'lucide-react';
+import { CheckCircle, XCircle, Clock, Copy, Check, Trash2, Phone, Mail, User, Loader2, Upload } from 'lucide-react';
 import { useRoleProtection } from '../../lib/useRoleProtection';
 import { isVerifiedAgent } from '../../lib/rbac';
 
@@ -18,6 +18,8 @@ export default function MyApplicationsPage() {
   const [requestCost, setRequestCost] = useState(500);
   const [copied, setCopied] = useState(null);
   const [activeTab, setActiveTab] = useState('all');
+  const [receiptFile, setReceiptFile] = useState(null);
+  const [submittingReceipt, setSubmittingReceipt] = useState(false);
 
   useEffect(() => {
     if (initialUserData?.agent?.id) {
@@ -164,6 +166,34 @@ export default function MyApplicationsPage() {
   }, 0);
 
   const pendingIds = pendingApplications.map(a => a.request_id).join(', ');
+  const submitApplicationPayment = async () => {
+    if (!receiptFile) return toast.error('Choose a receipt image first.');
+    if (totalDue < 1) return;
+    setSubmittingReceipt(true);
+    const toastId = toast.loading('Submitting payment receipt...');
+    try {
+      const form = new FormData();
+      form.append('receipt', receiptFile);
+      form.append('amount', String(totalDue));
+      form.append('payer_name', initialUserData?.agent?.business_name || initialUserData?.agent?.name || initialUserData?.full_name || 'Agent');
+      form.append('reference_ids', pendingIds);
+      const token = await getToken();
+      const response = await fetch('/api/agent/application-payment-receipt', {
+        method: 'POST',
+        credentials: 'include',
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        body: form,
+      });
+      const payload = await response.json().catch(() => null);
+      if (!response.ok || !payload?.success) throw new Error(payload?.error || 'Unable to submit payment receipt.');
+      setReceiptFile(null);
+      toast.success('Payment receipt submitted for review.', { id: toastId });
+    } catch (error) {
+      toast.error(error.message || 'Unable to submit payment receipt.', { id: toastId });
+    } finally {
+      setSubmittingReceipt(false);
+    }
+  };
 
   const tabs = [
     { id: 'all', label: 'All Applications' },
@@ -222,18 +252,28 @@ export default function MyApplicationsPage() {
 
                 <div className="flex flex-col justify-between">
                   <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 p-4 rounded text-sm mb-4">
-                    <strong>Instructions:</strong> Transfer the total amount and upload proof via WhatsApp.
-                    <br />Include your Agent Name and the Request IDs below.
+                    <strong>Instructions:</strong> Transfer the total amount, then upload the receipt below.
+                    <br />The pending Request IDs will be included automatically.
                   </div>
-                  
-                  <a
-                    href={`https://wa.me/18763369045?text=Payment proof for pending requests.%0AAgent: ${initialUserData?.agent?.name}%0ATotal: J$${totalDue}%0ARequest IDs: ${pendingIds}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="block text-center bg-accent hover:bg-accent/90 text-white py-3 rounded-lg font-bold transition"
+
+                  <label className="mb-3 block text-sm font-semibold text-gray-700">
+                    Transfer receipt
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp"
+                      onChange={(event) => setReceiptFile(event.target.files?.[0] || null)}
+                      className="mt-2 block w-full rounded-lg bg-white px-3 py-2 text-sm"
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    onClick={submitApplicationPayment}
+                    disabled={!receiptFile || submittingReceipt}
+                    className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-accent px-4 py-3 font-bold text-white disabled:cursor-not-allowed disabled:opacity-60"
                   >
-                    Upload Proof on WhatsApp
-                  </a>
+                    {submittingReceipt ? <Loader2 size={18} className="animate-spin" /> : <Upload size={18} />}
+                    {submittingReceipt ? 'Submitting receipt...' : 'Submit payment receipt'}
+                  </button>
                 </div>
               </div>
             </div>

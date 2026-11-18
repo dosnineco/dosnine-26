@@ -21,7 +21,6 @@ import {
   RefreshCw,
   Package,
   Briefcase,
-  MapPin,
   Gift,
 } from 'lucide-react';
 
@@ -409,6 +408,20 @@ export default function AdminDashboardIndex() {
         <AdminAnalyticsPanel />
 
         <Link
+          href="/admin/payments"
+          className="mb-4 flex items-center justify-between gap-4 rounded-2xl bg-white p-5 ring-1 ring-gray-200 transition hover:ring-accent"
+        >
+          <div className="flex items-center gap-3">
+            <DollarSign className="h-6 w-6 text-accent" aria-hidden="true" />
+            <div>
+              <h2 className="font-semibold text-slate-900">Submitted payments</h2>
+              <p className="mt-1 text-sm text-slate-600">Review and approve bank-transfer receipts across the platform.</p>
+            </div>
+          </div>
+          <ArrowRight className="h-5 w-5 shrink-0 text-slate-400" aria-hidden="true" />
+        </Link>
+
+        <Link
           href="/admin/payment-pricing"
           className="mb-6 flex items-center justify-between gap-4 rounded-2xl bg-white p-5 ring-1 ring-gray-200 transition hover:ring-accent"
         >
@@ -632,36 +645,6 @@ export default function AdminDashboardIndex() {
             />
           </div>
         </section>
-
-        {/* Ads + market intelligence */}
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-          <KpiCard
-            label="Active Advertisements"
-            value={formatNumber(metrics.ads.active)}
-            icon={Megaphone}
-            tone="accent"
-            sub="Currently displayed"
-            href="/admin/advertisements"
-          />
-          <KpiCard
-            label="Top Parish"
-            value={metrics.market.topParish}
-            icon={MapPin}
-            tone="blue"
-            sub={`${formatNumber(metrics.market.totalRequests)} total requests`}
-            href="/admin/market-intelligence"
-          />
-          <KpiCard
-            label="Average Budget"
-            value={formatJMD(metrics.market.averageBudget)}
-            icon={DollarSign}
-            tone="emerald"
-            sub={`${formatNumber(metrics.market.requestsThisMonth)} this month`}
-            href="/admin/market-intelligence"
-          />
-        </div>
-
-       
       </div>
     </>
   );
@@ -821,11 +804,6 @@ function RevenueOpportunities({
   const urgencyPrices = opportunity.urgencyPrices || {};
   const adImpressions = Number(opportunity.advertisementImpressions || 0);
   const adClicks = Number(opportunity.advertisementClicks || 0);
-  const adClickRate = adImpressions > 0
-    ? `${((adClicks / adImpressions) * 100).toFixed(1)}%`
-    : 'Not enough impression data';
-  const hasAgentOpportunity = Number(opportunity.eligibleAgents || 0) > 0;
-  const hasSponsorOpportunity = Number(opportunity.remainingSponsorSlots || 0) > 0;
 
   return (
     <section className="rounded-2xl border border-emerald-200 bg-emerald-50 p-5 sm:p-6">
@@ -944,55 +922,12 @@ function RevenueOpportunities({
         </p>
       </div>
 
-      <div className="mt-5 rounded-xl bg-white p-4">
-        <h3 className="text-sm font-bold text-slate-900">Growth actions from these signals</h3>
-        <p className="mt-1 text-xs text-slate-500">
-          {Number(growthSignals.requestsThisMonth || 0).toLocaleString()} requests have come in this month.
-          {' '}Use these steps to turn current demand into paid conversions.
-        </p>
-        <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-3">
-          <GrowthAction
-            number="1"
-            title="Convert eligible agents"
-            detail={hasAgentOpportunity
-              ? `${Number(opportunity.eligibleAgents).toLocaleString()} approved agents could generate up to ${formatJMD(potentialAgentRevenue)} per 30 days. Contact them with the current plan offer.`
-              : 'Review plan renewals and keep approved agents active with a clear monthly value proposition.'}
-            href="/admin/users?tab=agents"
-            linkLabel="Manage agents"
-          />
-          <GrowthAction
-            number="2"
-            title="Close sponsor leads"
-            detail={Number(opportunity.unpaidSponsors) > 0
-              ? `Follow up with ${Number(opportunity.unpaidSponsors).toLocaleString()} unpaid sponsor submissions; ${Number(opportunity.remainingSponsorSlots).toLocaleString()} monthly slots remain.`
-              : hasSponsorOpportunity
-                ? `Pitch local advertisers while ${Number(opportunity.remainingSponsorSlots).toLocaleString()} of ${Number(opportunity.sponsorCapacity || 40).toLocaleString()} monthly slots remain. Active ad click-through rate: ${adClickRate}.`
-                : 'Review ad performance and prepare next month’s advertiser renewals.'}
-            href="/admin/advertisements"
-            linkLabel="Review advertising"
-          />
-          <GrowthAction
-            number="3"
-            title="Monetize buyer demand"
-            detail={`${Number(growthSignals.urgentRequests || 0).toLocaleString()} requests are marked high or urgent. Promote paid search and priority upgrades where they clearly improve buyer results.`}
-            href="/admin/market-intelligence"
-            linkLabel="Review demand signals"
-          />
-        </div>
-      </div>
-
       {monetization.unavailableSources?.length ? (
         <p className="mt-4 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">
           Some revenue data is unavailable because its database table or column is missing:
           {' '}{monetization.unavailableSources.join(', ')}. Apply the related migration to include it.
         </p>
       ) : null}
-      <p className="mt-3 text-xs text-slate-500">
-        Opportunity amounts are maximum scenarios, not forecasts. Only recorded paid sales are
-        counted as revenue. Unpaid leads, investor interest, and buyer property budgets are not
-        income; extra-listing counters lack transaction dates and prices, so they cannot be
-        included in monthly revenue.
-      </p>
     </section>
   );
 }
@@ -1026,24 +961,6 @@ function OpportunityCard({ title, detail, value, estimate }) {
       <p className="mt-2 text-sm font-semibold text-slate-900">{value}</p>
       <p className="mt-1 text-xs text-slate-600">{detail}</p>
       {estimate ? <p className="mt-2 text-xs font-medium text-emerald-700">{estimate}</p> : null}
-    </div>
-  );
-}
-
-function GrowthAction({ number, title, detail, href, linkLabel }) {
-  return (
-    <div className="rounded-lg bg-slate-50 p-3">
-      <p className="text-xs font-semibold uppercase tracking-wider text-emerald-700">
-        {number}. {title}
-      </p>
-      <p className="mt-2 text-xs leading-5 text-slate-600">{detail}</p>
-      <Link
-        href={href}
-        className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-accent hover:underline"
-      >
-        {linkLabel}
-        <span aria-hidden="true">→</span>
-      </Link>
     </div>
   );
 }
