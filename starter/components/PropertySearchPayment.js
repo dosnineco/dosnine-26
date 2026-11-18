@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { PayPalButtons, PayPalScriptProvider } from '@paypal/react-paypal-js';
 import { Search, ShieldCheck } from 'lucide-react';
@@ -8,6 +8,7 @@ const PAYPAL_CLIENT_ID = process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID;
 const fieldClass = 'mt-1.5 w-full rounded-lg bg-white px-3.5 py-3 text-sm text-gray-900 outline-none ring-1 ring-gray-200 focus:ring-2 focus:ring-[#6E026F]';
 
 export default function PropertySearchPayment() {
+  const [prices, setPrices] = useState({ USD: 9.99, JMD: 2500 });
   const [form, setForm] = useState({
     requestType: 'rent',
     propertyType: 'house',
@@ -25,13 +26,30 @@ export default function PropertySearchPayment() {
   const [paymentComplete, setPaymentComplete] = useState(false);
   const [paymentRequestId, setPaymentRequestId] = useState(null);
   const [serviceRequestId, setServiceRequestId] = useState(null);
+  useEffect(() => {
+    fetch('/api/site-settings/payment-prices', { credentials: 'include' })
+      .then(async (response) => {
+        const payload = await response.json();
+        if (!response.ok) throw new Error(payload?.error || 'Unable to load payment prices.');
+        setPrices({
+          USD: Number(payload?.prices?.paid_property_search_prices?.USD) || 9.99,
+          JMD: Number(payload?.prices?.paid_property_search_prices?.JMD) || 2500,
+        });
+      })
+      .catch((error) => {
+        console.error('Unable to load property search pricing:', error);
+        toast.error('Unable to load current property search pricing.');
+      });
+  }, []);
   const budgetMin = Number(form.budgetMin) || 0;
   const budgetMax = Number(form.budgetMax) || 0;
   const canSubmitRequest = form.acceptedTerms &&
     form.location.trim().length >= 2 &&
     form.phone.trim().length >= 7 &&
     (!budgetMin || !budgetMax || budgetMin <= budgetMax);
-  const price = form.currency === 'JMD' ? 'J$2,500' : 'US$9.99';
+  const price = form.currency === 'JMD'
+    ? `J$${prices.JMD.toLocaleString()}`
+    : `US$${prices.USD.toFixed(2)}`;
 
   const update = (field, value) => {
     setForm((current) => ({ ...current, [field]: value }));
@@ -185,8 +203,8 @@ export default function PropertySearchPayment() {
         <label className="text-sm font-semibold text-gray-700">
           Request fee currency
           <select className={fieldClass} value={form.currency} onChange={(event) => update('currency', event.target.value)}>
-            <option value="USD">US$9.99 USD</option>
-            <option value="JMD">J$2,500 JMD</option>
+            <option value="USD">US${prices.USD.toFixed(2)} USD</option>
+            <option value="JMD">J${prices.JMD.toLocaleString()} JMD</option>
           </select>
         </label>
         <label className="text-sm font-semibold text-gray-700 sm:col-span-2">
@@ -198,7 +216,7 @@ export default function PropertySearchPayment() {
       <div className="mx-5 mb-5 rounded-xl bg-amber-50 p-4 text-sm leading-6 text-amber-950 sm:mx-7">
         <p className="font-semibold">Service and payment terms</p>
         <p className="mt-1">
-          One-time fee per request: <strong>J$2,500 or US$9.99</strong>. Your request is created first and remains private until payment is confirmed; no payment is collected when you submit it. The fee is non-refundable after payment, except where required by law. Dosnine sources property information and facilitates introductions; we are not real estate agents or brokers, do not represent either party, and cannot guarantee availability, suitability, a viewing, or a completed transaction. You must independently verify a property, its owner, and all terms.
+          One-time fee per request: <strong>J${prices.JMD.toLocaleString()} or US${prices.USD.toFixed(2)}</strong>. Your request is created first and remains private until payment is confirmed; no payment is collected when you submit it. The fee is non-refundable after payment, except where required by law. Dosnine sources property information and facilitates introductions; we are not real estate agents or brokers, do not represent either party, and cannot guarantee availability, suitability, a viewing, or a completed transaction. You must independently verify a property, its owner, and all terms.
         </p>
         <label className="mt-3 flex items-start gap-2.5">
           <input type="checkbox" disabled={Boolean(paymentRequestId)} className="mt-1 h-4 w-4 rounded border-amber-400 text-[#6E026F] focus:ring-[#6E026F] disabled:opacity-60" checked={form.acceptedTerms} onChange={(event) => update('acceptedTerms', event.target.checked)} />

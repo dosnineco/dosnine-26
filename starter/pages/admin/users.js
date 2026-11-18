@@ -47,7 +47,7 @@ const labelClass =
 
 const DEFAULT_AGENT_PLAN_PRICES = {
   '7-day': 1499,
-  '30-day': 4999,
+  '30-day': 5175,
   '90-day': 14999,
   free: 0,
 };

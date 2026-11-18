@@ -18,6 +18,7 @@ import {
   Phone as PhoneIcon, CreditCard, Info, MessageSquare, Search, ShieldCheck,
   ExternalLink, FileText,
   UserRound,
+  LockKeyhole,
 } from 'lucide-react';
 
 export default function AgentDashboardPage() {
@@ -104,6 +105,11 @@ export default function AgentDashboardPage() {
 
   const isFreePlan = () => agentData?.payment_status === 'free';
   const shouldShowUpgrade = () => isFreePlan() || isAccessExpired();
+  const canBulkCreate = () =>
+    initialUserData?.role === 'admin' ||
+    (['30-day', '90-day'].includes(agentData?.payment_status) &&
+      Boolean(agentData?.access_expiry) &&
+      new Date(agentData.access_expiry) > new Date());
 
   useEffect(() => {
     if (initialUserData) {
@@ -329,7 +335,7 @@ export default function AgentDashboardPage() {
 
       <RequestNotificationPopup />
 
-      <div className="min-h-screen bg-[#f5f7fb]">
+      <div className="agent-dashboard min-h-screen bg-[#f5f7fb]">
         <div className="max-w-7xl mx-auto px-6 sm:px-6 lg:px-8 py-8">
           <header className="mb-7 flex flex-col gap-5 rounded-2xl bg-white p-6 sm:flex-row sm:items-center sm:justify-between sm:p-8">
             <div>
@@ -378,11 +384,18 @@ export default function AgentDashboardPage() {
 
               {!isOwner && (
                 <Link
-                  href="/properties/bulk-create"
+                  href={canBulkCreate() ? '/properties/bulk-create' : '/agent/payment'}
                   className="group flex h-full items-center gap-3 rounded-xl bg-white p-4 transition hover:bg-gray-100"
+                  aria-label={canBulkCreate()
+                    ? 'Bulk create properties'
+                    : 'Upgrade to a 1-month or 3-month plan to bulk create properties'}
                 >
-                  <Plus className="h-5 w-5 text-[#2373F4] transition group-hover:scale-110" />
-                  <h3 className="text-sm font-semibold text-gray-900">Bulk Create</h3>
+                  {canBulkCreate()
+                    ? <Plus className="h-5 w-5 text-[#2373F4] transition group-hover:scale-110" />
+                    : <LockKeyhole className="h-5 w-5 text-[#2373F4] transition group-hover:scale-110" />}
+                  <h3 className="text-sm font-semibold text-gray-900">
+                    {canBulkCreate() ? 'Bulk Create' : 'Bulk Create · Upgrade'}
+                  </h3>
                 </Link>
               )}
 

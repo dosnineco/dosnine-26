@@ -16,9 +16,20 @@ export default async function handler(req, res) {
 
       if (error) throw error;
 
+      const sortedUsers = [...(data || [])].sort((a, b) => {
+        const isPending = (user) =>
+          ['pending', 'submitted', 'under_review'].includes(
+            String(user.id_verification_status || '').toLowerCase()
+          ) ||
+          ['pending', 'under_review'].includes(
+            String(user.account_status || '').toLowerCase()
+          );
+        return Number(isPending(b)) - Number(isPending(a));
+      });
+
       return res.status(200).json({
         success: true,
-        users: data || [],
+        users: sortedUsers,
       });
     }
 

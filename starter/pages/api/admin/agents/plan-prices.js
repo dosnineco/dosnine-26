@@ -2,7 +2,7 @@ import { getDbClient, requireAdminUser } from '../../../../lib/apiAuth';
 
 const DEFAULT_PLAN_PRICES = {
   '7-day': 1499,
-  '30-day': 4999,
+  '30-day': 5175,
   '90-day': 14999,
   free: 0,
 };

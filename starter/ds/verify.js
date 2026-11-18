@@ -355,8 +355,8 @@ function VerifyIdentityPageContent() {
 
   if (submitted) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-accent/5 to-gray-50 flex items-center justify-center px-4 py-10">
-        <div className="max-w-md w-full bg-white rounded-3xl shadow-xl shadow-gray-200/60 border border-gray-100 p-8 sm:p-10 text-center">
+      <div className="dashboard-inspired min-h-screen bg-gradient-to-b from-accent/5 to-gray-50 flex items-center justify-center px-4 py-10">
+        <div className="dashboard-panel max-w-md w-full p-8 text-center sm:p-10">
           <div className="relative mx-auto mb-6 w-20 h-20">
             <span className="absolute inset-0 rounded-full bg-green-100 animate-ping opacity-40"></span>
             <div className="relative w-20 h-20 rounded-full bg-green-100 flex items-center justify-center">
@@ -391,10 +391,11 @@ function VerifyIdentityPageContent() {
     const selectedOption = ACCOUNT_OPTIONS.find((option) => option.value === role) || ACCOUNT_OPTIONS[0];
 
     return (
-      <main className="min-h-screen bg-gray-50 px-4 py-12">
+      <main className="dashboard-inspired min-h-screen bg-gray-50 px-4 py-12">
         <div className="mx-auto max-w-4xl">
-          <header className="mx-auto mb-8 max-w-2xl text-center">
-            <h1 className="mt-2 text-3xl font-bold text-gray-900">What type of account do you need?</h1>
+          <header className="dashboard-panel mx-auto mb-6 max-w-2xl p-6 text-center sm:p-8">
+            <p className="dashboard-eyebrow">Set up your profile</p>
+            <h1 className="dashboard-page-heading mt-2 text-3xl">What type of account do you need?</h1>
             <p className="mt-3 text-gray-600">
               Choose how you plan to use Dosnine. We’ll only ask for identity documents when the account type requires verification.
             </p>
@@ -419,7 +420,7 @@ function VerifyIdentityPageContent() {
                   aria-pressed={selected}
                   disabled={(roleLocked && !selected) || accountTypeConflict}
                   onClick={() => setRole(option.value)}
-                  className={`flex min-h-40 flex-col rounded-2xl p-6 text-left transition focus:outline-none focus:ring-2 focus:ring-accent disabled:cursor-not-allowed disabled:opacity-50 ${
+                  className={`dashboard-panel flex min-h-40 flex-col rounded-2xl p-6 text-left transition focus:outline-none focus:ring-2 focus:ring-accent disabled:cursor-not-allowed disabled:opacity-50 ${
                     selected ? 'bg-accent/10 ring-2 ring-accent' : 'bg-white hover:bg-gray-100'
                   }`}
                 >
@@ -470,8 +471,8 @@ function VerifyIdentityPageContent() {
   }
 
   return (
-    <main className="min-h-screen bg-gray-50 px-4 py-8 sm:py-12">
-      <section className="mx-auto max-w-3xl overflow-hidden rounded-2xl bg-white">
+    <main className="dashboard-inspired min-h-screen bg-gray-50 px-4 py-8 sm:py-12">
+      <section className="dashboard-panel mx-auto max-w-3xl overflow-hidden rounded-2xl">
         <header className="border-b border-gray-200 px-5 py-6 sm:px-8">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
@@ -667,8 +668,8 @@ export default function VerifyIdentityPage() {
         <VerifyIdentityPageContent />
       </SignedIn>
       <SignedOut>
-        <main className="flex min-h-screen items-center justify-center bg-gray-50 px-4 py-12">
-          <section className="w-full max-w-md rounded-2xl bg-white p-8 text-center">
+        <main className="dashboard-inspired flex min-h-screen items-center justify-center bg-gray-50 px-4 py-12">
+          <section className="dashboard-panel w-full max-w-md p-8 text-center">
             <ShieldCheck className="mx-auto h-10 w-10 text-accent" aria-hidden="true" />
             <h1 className="mt-4 text-2xl font-bold text-gray-900">Sign in to verify your identity</h1>
             <p className="mt-2 text-sm text-gray-600">

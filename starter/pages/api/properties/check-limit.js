@@ -1,5 +1,6 @@
 import { getDbClient, requireDbUser } from '../../../lib/apiAuth';
 import { canManageProperties } from '../../../lib/rbac';
+import { hasActiveRegularPremium } from '../../../lib/premiumAccess';
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') {
@@ -12,7 +13,6 @@ export default async function handler(req, res) {
 
     const db = getDbClient();
     const userData = resolved.user || {};
-    const propertyCount = Number(userData.property_count || 0);
     if (!canManageProperties(userData)) {
       return res.status(403).json({ error: 'A verified homeowner or agent account is required to post properties.' });
     }
@@ -20,7 +20,6 @@ export default async function handler(req, res) {
       return res.status(200).json({ canPost: true, isAdmin: true, unlimited: true });
     }
     const isAgentUser = userData.account_type === 'agent' || userData.user_type === 'agent';
-
     let agentData = null;
     if (isAgentUser) {
       const { data } = await db
@@ -66,29 +65,28 @@ export default async function handler(req, res) {
       });
     }
 
-    // Regular users - 2 free listings, then J$1,500 per additional listing
-    const FREE_LIMIT = 2;
-    const EXTRA_LISTING_FEE = 1500;
-    const extraPaid = Number(userData.extra_listings_paid || 0);
-    const allowedListings = FREE_LIMIT + extraPaid;
+    const { count: propertyCount, error: countError } = await db
+      .from('properties')
+      .select('id', { count: 'exact', head: true })
+      .eq('owner_id', userData.id);
+    if (countError) throw countError;
+    const actualPropertyCount = Number(propertyCount || 0);
 
-    if (propertyCount >= allowedListings) {
+    if (actualPropertyCount >= 1 && !hasActiveRegularPremium(userData)) {
       return res.status(200).json({
-        error: 'Property limit reached',
+        error: 'Premium is required to post more than one property.',
         canPost: false,
-        reason: 'payment_required_extra_listing',
-        propertyCount,
-        maxProperties: allowedListings,
-        freeLimit: FREE_LIMIT,
-        extraListingFee: EXTRA_LISTING_FEE,
+        reason: 'premium_required',
+        propertyCount: actualPropertyCount,
+        maxProperties: 1,
       });
     }
 
     return res.status(200).json({ 
       canPost: true,
       isAgent: false,
-      propertyCount,
-      maxProperties: allowedListings
+      propertyCount: actualPropertyCount,
+      maxProperties: hasActiveRegularPremium(userData) ? null : 1,
     });
 
   } catch (error) {

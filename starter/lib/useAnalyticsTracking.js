@@ -79,6 +79,7 @@ export function useAnalyticsTracking() {
     if (!router.isReady) return;
 
     const currentPath = router.asPath || router.pathname;
+    const isInitialPage = !mountedRef.current;
     const { device, browser, os } = detectDevice();
 
     // Flush engagement for the previous page
@@ -88,6 +89,7 @@ export function useAnalyticsTracking() {
         send({
           event_type: 'engagement',
           path: currentPathRef.current,
+          page_url: new URL(currentPathRef.current, window.location.origin).href,
           time_on_page_ms: timeOnPage,
           scroll_depth: maxScrollRef.current,
           session_id: getSessionId(),
@@ -112,8 +114,9 @@ export function useAnalyticsTracking() {
       path: currentPath,
       page_url:
         typeof window !== 'undefined' ? window.location.href : currentPath,
-      referrer:
-        typeof document !== 'undefined' ? document.referrer || null : null,
+      referrer: isInitialPage && typeof document !== 'undefined'
+        ? document.referrer || null
+        : null,
       session_id: getSessionId(),
       clerk_user_id: user?.id || null,
       is_authenticated: Boolean(isSignedIn),
@@ -142,6 +145,7 @@ export function useAnalyticsTracking() {
       const payload = JSON.stringify({
         event_type: 'engagement',
         path: currentPathRef.current,
+        page_url: new URL(currentPathRef.current, window.location.origin).href,
         time_on_page_ms: timeOnPage,
         scroll_depth: maxScrollRef.current,
         session_id: getSessionId(),

@@ -3,6 +3,16 @@ export const DEFAULT_REQUEST_URGENCY_PRICES = {
   urgent: 14.99,
 };
 
+export const USD_TO_JMD = 155;
+
+export function formatRequestUrgencyJmd(amount) {
+  const price = Number(amount);
+  return `J$${(price * USD_TO_JMD).toLocaleString('en-JM', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
+}
+
 const isValidPrice = (value) => {
   const price = Number(value);
   const formattedPrice = String(value);

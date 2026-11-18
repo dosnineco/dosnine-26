@@ -4,6 +4,7 @@ import { getDbClient, requireDbUser } from '@/lib/apiAuth';
 import { enforceMethods } from '@/lib/apiSecurity';
 import { enforceRateLimitDistributed } from '@/lib/rateLimit';
 import { getRequestUrgencyPrices } from '@/lib/requestUrgencyPricing';
+import { hasActiveRegularPremium } from '@/lib/premiumAccess';
 
 const schema = z.object({
   requestIds: z.array(z.string().uuid()).min(1).max(10000),
@@ -17,6 +18,9 @@ export default async function handler(req, res) {
   if (!resolved) return;
   if (resolved.user.account_type !== 'regular') {
     return res.status(403).json({ error: 'A regular account is required to boost requests.' });
+  }
+  if (!hasActiveRegularPremium(resolved.user)) {
+    return res.status(402).json({ error: 'Active premium access is required to boost requests.', code: 'premium_required' });
   }
 
   const rate = await enforceRateLimitDistributed(req, res, {

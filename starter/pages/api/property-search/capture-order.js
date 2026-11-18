@@ -4,11 +4,6 @@ import { enforceMethods } from '@/lib/apiSecurity';
 import { callPayPal, PAYPAL_ORDER_API } from '@/lib/paypal';
 import { enforceRateLimitDistributed } from '@/lib/rateLimit';
 
-const PRICE_BY_CURRENCY = {
-  USD: '9.99',
-  JMD: '2500.00',
-};
-
 export default async function handler(req, res) {
   if (!enforceMethods(req, res, ['POST'])) return;
 
@@ -53,8 +48,8 @@ export default async function handler(req, res) {
       return res.status(409).json({ error: 'Create the property request before completing payment.' });
     }
 
-    const expectedAmount = PRICE_BY_CURRENCY[searchRequest.currency];
-    if (!expectedAmount || Number(searchRequest.amount).toFixed(2) !== expectedAmount) {
+    const expectedAmount = Number(searchRequest.amount).toFixed(2);
+    if (!['USD', 'JMD'].includes(searchRequest.currency) || !Number.isFinite(Number(searchRequest.amount)) || Number(searchRequest.amount) <= 0) {
       throw new Error('The saved property request has an invalid payment amount or currency.');
     }
 

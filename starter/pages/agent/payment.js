@@ -18,6 +18,7 @@ import {
   CheckCircle,
   Loader2,
 } from 'lucide-react';
+import { PayPalButtons, PayPalScriptProvider } from '@paypal/react-paypal-js';
 import { supabase } from '../../lib/supabase';
 import { getSiteSettings } from '../../lib/siteSettings';
 
@@ -30,9 +31,7 @@ const plans = [
     price: 1499,
     duration: '7 days',
     headline: 'Get qualified leads for 7 days straight',
-    included: [
-      
-    ],
+    included: [],
     blocked: [
       'No rentals over J$150,000',
       'No buyer requests over J$12M',
@@ -45,18 +44,15 @@ const plans = [
   {
     id: '30-day',
     name: '1 Month Access',
-    price: 4999,
+    price: 5175,
     duration: '30 days',
     headline: 'Full access to all resquest and features',
     included: [
- 
-    ],
-    blocked: [
       'All Access',
       'All budgets and requests included',
       'All sales',
-
     ],
+    blocked: [],
     accent: 'bg-emerald-50',
     badge: 'Most Popular'
   },
@@ -67,14 +63,11 @@ const plans = [
     duration: '3 - months',
     headline: 'Same power, lower cost per day',
     included: [
-   
-    ],
-    blocked: [
       'Everything in 30-Day Access',
       'Discount pricing for 90 days',
       'Early access to new requests'
-
     ],
+    blocked: [],
     accent: 'bg-orange-50',
     badge: 'Best Value'
   },
@@ -108,6 +101,7 @@ const bankDetails = [
 ];
 
 const formatCurrency = (amount) => `J$${amount.toLocaleString()}`;
+const PAYPAL_CLIENT_ID = process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID;
 const OWNER_SERVICE_PRICE_USD = 5;
 const USD_TO_JMD = 155;
 const OWNER_SERVICE_PRICE_JMD = OWNER_SERVICE_PRICE_USD * USD_TO_JMD;
@@ -133,6 +127,7 @@ export default function AgentPayment() {
   const [uploadingReceipt, setUploadingReceipt] = useState(false);
   const [receiptState, setReceiptState] = useState(null);
   const [agentProfile, setAgentProfile] = useState(null);
+  const [paypalLoading, setPaypalLoading] = useState(false);
 
   useEffect(() => {
     if (userData?.agent) setAgentProfile(userData.agent);
@@ -221,7 +216,7 @@ export default function AgentPayment() {
     return () => { mounted = false; };
   }, []);
 
-  const selectedPlanBase = plans.find((plan) => plan.id === selectedPlanId) || plans[2];
+  const selectedPlanBase = plans.find((plan) => plan.id === selectedPlanId) || plans[1];
   const selectedPlan = {
     ...selectedPlanBase,
     price: planPrices[selectedPlanBase.id] ?? selectedPlanBase.price,
@@ -283,6 +278,65 @@ export default function AgentPayment() {
       toast.error(error.message || 'Unable to upload receipt.');
     } finally {
       setUploadingReceipt(false);
+    }
+  };
+
+  const createPlanOrder = async () => {
+    setPaypalLoading(true);
+    try {
+      const token = await getToken();
+      const response = await fetch('/api/agent/create-plan-order', {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ plan: selectedPlan.id }),
+      });
+      const payload = await response.json();
+      if (!response.ok || !payload?.success || !payload?.orderId) {
+        throw new Error(payload?.error || 'Unable to start PayPal checkout.');
+      }
+      return payload.orderId;
+    } catch (error) {
+      toast.error(error.message || 'Unable to start PayPal checkout.');
+      throw error;
+    } finally {
+      setPaypalLoading(false);
+    }
+  };
+
+  const capturePlanOrder = async ({ orderID }) => {
+    setPaypalLoading(true);
+    try {
+      const token = await getToken();
+      const response = await fetch('/api/agent/capture-plan-order', {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ orderId: orderID }),
+      });
+      const payload = await response.json();
+      if (!response.ok || !payload?.success) {
+        throw new Error(payload?.error || 'Unable to confirm PayPal payment.');
+      }
+      setAgentProfile((current) => ({
+        ...current,
+        payment_status: payload.plan,
+        payment_amount: payload.amountJmd,
+        payment_date: new Date().toISOString(),
+        access_expiry: payload.expiresAt,
+      }));
+      setReceiptState(null);
+      toast.success('Payment confirmed. Your agent plan is active.');
+    } catch (error) {
+      toast.error(error.message || 'Unable to confirm PayPal payment.');
+    } finally {
+      setPaypalLoading(false);
     }
   };
   
@@ -594,7 +648,58 @@ export default function AgentPayment() {
 
               {/* Bank Transfer Instructions */}
               {paymentRequired && (
-              <div className="bg-gray-100 border-l-4 border-accent rounded-lg p-4 sm:p-6">
+              <div className="space-y-5 rounded-2xl bg-gray-50 p-4 sm:p-6">
+                <section className="rounded-xl bg-white p-4 sm:p-5">
+                  <h3 className="font-bold text-gray-900">Pay securely with PayPal</h3>
+                  <p className="mt-1 text-sm text-gray-600">
+                    Your plan price is set in Jamaican dollars. PayPal charges the current converted amount in USD.
+                  </p>
+                  {PAYPAL_CLIENT_ID ? (
+                    <div className="mt-4">
+                      <PayPalScriptProvider options={{
+                        'client-id': PAYPAL_CLIENT_ID,
+                        currency: 'USD',
+                        intent: 'capture',
+                      }}>
+                        <PayPalButtons
+                          forceReRender={[selectedPlan.id, selectedPlan.price]}
+                          disabled={paypalLoading}
+                          style={{ layout: 'vertical', shape: 'rect', label: 'pay' }}
+                          createOrder={createPlanOrder}
+                          onApprove={capturePlanOrder}
+                          onCancel={async (data) => {
+                            try {
+                              const response = await fetch('/api/agent/cancel-plan-order', {
+                                method: 'POST',
+                                credentials: 'include',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ orderId: data.orderID }),
+                              });
+                              const payload = await response.json().catch(() => null);
+                              if (!response.ok || !payload?.success) {
+                                throw new Error(payload?.error || 'Unable to cancel PayPal checkout.');
+                              }
+                              toast('PayPal checkout canceled. You can pay by bank transfer instead.');
+                            } catch (error) {
+                              console.error('Unable to cancel agent PayPal order:', error);
+                              toast.error(error.message || 'Unable to cancel PayPal checkout.');
+                            }
+                          }}
+                          onError={(error) => {
+                            console.error('Agent plan PayPal checkout failed:', error);
+                            toast.error(error?.message || 'PayPal checkout failed. Please try again.');
+                          }}
+                        />
+                      </PayPalScriptProvider>
+                    </div>
+                  ) : (
+                    <p className="mt-3 rounded-lg bg-amber-50 p-3 text-sm text-amber-900">
+                      PayPal is temporarily unavailable. Choose bank transfer below.
+                    </p>
+                  )}
+                </section>
+
+              <div className="bg-white border-l-4 border-accent rounded-lg p-4 sm:p-6">
                 <div className="flex items-start gap-3">
                   <AlertCircle className="text-accent flex-shrink-0 mt-0.5" size={18} />
                   <div className="flex-1">
@@ -709,6 +814,7 @@ export default function AgentPayment() {
                     Payment is verified within 24 hours. Your access starts after confirmation.
                   </p>
                 </div>
+              </div>
               </div>
               )}
 

@@ -6,6 +6,7 @@ import axios from 'axios';
 import toast from 'react-hot-toast';
 import { PARISHES } from '../../lib/normalizeParish';
 import { canManageProperties } from '../../lib/rbac';
+import { LockKeyhole } from 'lucide-react';
 
 export default function NewProperty() {
   const { user, isLoaded } = useUser();
@@ -15,8 +16,9 @@ export default function NewProperty() {
   const [checkingAccess, setCheckingAccess] = useState(true);
   const [images, setImages] = useState([]);
   const [uploadingImages, setUploadingImages] = useState(false);
-  const [extraListingFee, setExtraListingFee] = useState(null);
   const [premiumActive, setPremiumActive] = useState(false);
+  const [premiumRequired, setPremiumRequired] = useState(false);
+  const [premiumPrice, setPremiumPrice] = useState(3178.4);
 
   // Check payment status for agents before loading page
   useEffect(() => {
@@ -59,6 +61,12 @@ export default function NewProperty() {
 
     checkAgentPaymentStatus();
   }, [user, isLoaded, router, getToken]);
+
+  useEffect(() => {
+    axios.get('/api/site-settings/payment-prices')
+      .then(({ data }) => setPremiumPrice(Number(data?.prices?.premium_service_price) || 3178.4))
+      .catch((error) => console.error('Unable to load premium price:', error));
+  }, []);
 
   const PROPERTY_TYPES = [
     { value: 'house', label: 'House' },
@@ -160,14 +168,13 @@ const handleSubmit = async (e) => {
       return true;
     }
 
-    if (limitCheck.reason === 'payment_required_extra_listing') {
-      setExtraListingFee(limitCheck.extraListingFee || 1500);
-      toast.error(`Free listing limit reached. Pay J$${(limitCheck.extraListingFee || 1500).toLocaleString()} to post another property.`);
+    if (limitCheck.reason === 'premium_required') {
+      setPremiumRequired(true);
       return true;
     }
 
     if (limitCheck.reason === 'limit_reached') {
-      toast.error('Property limit reached. Regular users can post 2 properties. Become a verified agent for unlimited postings!');
+      toast.error('Property limit reached. Premium is required to post more than one property.');
       return true;
     }
 
@@ -183,7 +190,6 @@ const handleSubmit = async (e) => {
       headers: token ? { Authorization: `Bearer ${token}` } : undefined,
     });
 
-    if (!limitCheck.canPost) setExtraListingFee(null);
     if (handleLimitDenied(limitCheck)) {
       return;
     }
@@ -296,8 +302,28 @@ const handleSubmit = async (e) => {
     );
   }
 
+  if (premiumRequired) {
+    return (
+      <main className="dashboard-inspired flex min-h-screen items-center justify-center bg-gray-50 px-4">
+        <section className="max-w-lg rounded-2xl bg-white p-8 text-center">
+          <LockKeyhole className="mx-auto mb-4 text-accent" size={40} />
+          <h1 className="text-2xl font-bold text-gray-900">Premium required for additional listings</h1>
+          <p className="mt-3 text-gray-600">
+            Your first property is free. Premium costs J${premiumPrice.toLocaleString('en-JM', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} per 30 days and lets you post more properties, with one free 30-day visibility boost.
+          </p>
+          <Link href="/premium-payment" className="mt-6 inline-flex rounded-xl bg-accent px-5 py-3 font-semibold text-white hover:bg-accent/90">
+            Upgrade to Premium
+          </Link>
+          <button type="button" onClick={() => setPremiumRequired(false)} className="mt-4 block w-full text-sm font-medium text-gray-600 hover:text-gray-900">
+            Back to my first listing
+          </button>
+        </section>
+      </main>
+    );
+  }
+
   return (
-    <div className="property-form-page min-h-screen bg-gray-50 px-4 py-6 text-slate-700 sm:px-6">
+    <div className="dashboard-inspired property-form-page min-h-screen bg-gray-50 px-4 py-6 text-slate-700 sm:px-6">
       <div className="container mx-auto flex justify-center">
         <div className="w-full max-w-4xl">
           <div className="mb-6">
@@ -310,19 +336,11 @@ const handleSubmit = async (e) => {
           </div>
           
           <div className="mb-8 rounded-2xl bg-accent px-6 py-8 text-center text-white sm:px-10 sm:py-10">
-            <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">Post a Property</h1>
+            <p className="mb-2 text-xs font-semibold uppercase tracking-[0.16em] text-white/80">New listing</p>
+            <h1 className="text-3xl font-bold tracking-tight text-white sm:text-4xl">Post a Property</h1>
           </div>
 
-          {extraListingFee && (
-            <div className="mb-6 rounded-2xl border border-accent/30 bg-white p-6 text-center shadow-sm">
-              <p className="text-gray-800 font-semibold mb-1">Free listing limit reached</p>
-              <p className="text-gray-600 text-sm mb-4">
-                Pay a one-time fee of <strong>J${extraListingFee.toLocaleString()}</strong> to post this additional property.
-              </p>
-            </div>
-          )}
-
-          <form onSubmit={handleSubmit} className="w-full p-6 sm:p-10">
+          <form onSubmit={handleSubmit} className="dashboard-panel w-full space-y-1 p-5 sm:p-8">
         {/* Basic Info */}
         <div className="mb-4">
           <label className="mb-2 block text-sm font-medium text-gray-700">Title *</label>
@@ -492,7 +510,7 @@ const handleSubmit = async (e) => {
               checked={Boolean(form.is_off_market)}
               disabled={!premiumActive}
               onChange={(event) => setForm({ ...form, is_off_market: event.target.checked })}
-              className="mt-1 h-4 w-4 rounded accent-[#6E026F]"
+              className="mt-1 h-4 w-4 rounded accent-accent"
             />
             <span>
               <span className="block font-semibold text-gray-900">Off-market listing</span>

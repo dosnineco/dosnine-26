@@ -266,6 +266,7 @@ export default function BulkListingCreator() {
               phone_number: sanitizePhone(baseData.phone_number) || null,
             },
             images: images.map((dataUrl) => ({ dataUrl })),
+            bulkUpload: true,
           }),
         });
         const payload = await response.json();
@@ -309,9 +310,10 @@ export default function BulkListingCreator() {
   }, [photosPerListing, allocationMode]);
 
   return (
-    <div className="max-w-4xl mx-auto p-4 pb-24">
+    <div className="dashboard-inspired max-w-4xl mx-auto p-4 pb-24">
       <div className="mb-6">
-        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">Bulk Listing Creator</h1>
+        <p className="dashboard-eyebrow mb-2">New listings</p>
+        <h1 className="dashboard-page-heading text-2xl sm:text-3xl mb-2">Bulk Listing Creator</h1>
         <p className="text-gray-600">Create multiple property listings in one go</p>
       </div>
 

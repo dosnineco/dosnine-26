@@ -572,7 +572,7 @@ export default function PropertyPage({ property, similarProperties, isVerifiedAg
         structuredData={[jsonLdProperty, jsonLdBreadcrumb, jsonLdFAQ]}
       />
 
-      <div className="property-page container mx-auto px-4 py-8 text-slate-700">
+      <div className="dashboard-inspired property-page container mx-auto px-4 py-8 text-slate-700">
         {/* Breadcrumb Navigation */}
         <div className="mb-4">
           <button type="button" onClick={handleBack} className="btn-outline btn-sm inline-flex items-center gap-1">
@@ -631,7 +631,7 @@ export default function PropertyPage({ property, similarProperties, isVerifiedAg
                   <button
                     key={i}
                     onClick={() => setFullscreenIndex(i)}
-                    className={`h-20 rounded-lg overflow-hidden border-2 transition cursor-pointer ${i === currentImageIndex ? 'border-blue-500' : 'border-gray-300 hover:border-gray-400'}`}
+                    className={`h-20 rounded-lg overflow-hidden border-2 transition cursor-pointer ${i === currentImageIndex ? 'border-accent' : 'border-gray-300 hover:border-gray-400'}`}
                   >
                     <img src={imgUrl} alt={`${property.title} ${i + 1}`} className="w-full h-full object-cover hover:opacity-80 transition" />
                   </button>
@@ -645,7 +645,7 @@ export default function PropertyPage({ property, similarProperties, isVerifiedAg
               </p>
             </div>
 
-            <div className="p-6 mb-6">
+            <div className="dashboard-panel p-6 mb-6">
               <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between mb-2 gap-3">
                 <div>
                   <h1 className="text-3xl font-bold">{property.title}</h1>
@@ -667,7 +667,7 @@ export default function PropertyPage({ property, similarProperties, isVerifiedAg
 
               <div className="flex items-center gap-6 mb-6 pb-6 border-b">
                 <div className="text-center">
-                  <div className="text-2xl font-bold text-green-600">
+                  <div className="text-2xl font-bold text-accent">
                     {formatPropertyMoney(property.price, property.currency)}
                   </div>
                   <div className="text-sm text-gray-600">{property.type === 'rent' ? '/ month' : null}</div>
@@ -708,7 +708,7 @@ export default function PropertyPage({ property, similarProperties, isVerifiedAg
 
           {/* Sidebar */}
           <div>
-            <div className="bg-white rounded-xl p-6 relative top-4">
+            <div className="dashboard-panel rounded-xl p-6 relative top-4">
               <h3 className="text-xl font-bold mb-4">
                 {isVerifiedAgent ? 'Contact Agent' : 'Contact Landlord'}
               </h3>

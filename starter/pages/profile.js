@@ -49,6 +49,7 @@ export default function ProfilePage() {
   const { user, isLoaded } = useUser();
   const router = useRouter();
   const [profile, setProfile] = useState(null);
+  const [premiumPrice, setPremiumPrice] = useState(3178.4);
   const [form, setForm] = useState({ full_name: '', phone: '' });
   const [rentalReadiness, setRentalReadiness] = useState(EMPTY_RENTAL_READINESS);
   const [properties, setProperties] = useState([]);
@@ -111,6 +112,18 @@ export default function ProfilePage() {
   useEffect(() => {
     const timer = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    fetch('/api/site-settings/payment-prices')
+      .then(async (response) => {
+        const payload = await response.json();
+        if (!response.ok) throw new Error(payload?.error || 'Unable to load payment prices.');
+        setPremiumPrice(Number(payload?.prices?.premium_service_price) || 3178.4);
+      })
+      .catch((priceError) => {
+        console.error('Unable to load premium price:', priceError);
+      });
   }, []);
 
   const saveProfile = async (event) => {
@@ -177,7 +190,7 @@ export default function ProfilePage() {
             <p className="mt-1 text-gray-600">Manage your account details, readiness, and rewards.</p>
           </div>
           <div className="rounded-xl bg-gray-100 px-4 py-3">
-            <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Subscription</p>
+            <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Account tier</p>
             <p className="mt-1 font-semibold text-gray-900">{profile?.premium ? 'Premium' : 'Standard'}</p>
             {profile?.premium && <p className="mt-0.5 text-xs text-gray-600">Access until {formatDate(profile.premium_service_request_expires)}</p>}
           </div>
@@ -262,6 +275,41 @@ export default function ProfilePage() {
             </div>
           </form>
         </section>
+
+        {profile?.account_type === 'regular' && (
+          <section className="mb-6 rounded-2xl bg-white p-6 ring-1 ring-gray-200">
+            <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <div className="flex items-center gap-2">
+                  <LockKeyhole className="h-5 w-5 text-accent" aria-hidden="true" />
+                  <h2 className="text-xl font-semibold text-gray-900">
+                    {profile?.premium ? 'Premium tier' : 'Upgrade your tier'}
+                  </h2>
+                </div>
+                <p className="mt-2 max-w-2xl text-sm leading-6 text-gray-600">
+                  Your first property listing, property requests, property management, and buyer readiness are free.
+                  Premium is for posting more than one property and includes one 30-day property visibility boost.
+                </p>
+                {!profile?.premium && (
+                  <p className="mt-3 text-sm font-semibold text-gray-900">
+                    <span className="text-emerald-600">Premium tier · J${premiumPrice.toLocaleString('en-JM', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} for 30 days</span>
+                  </p>
+                )}
+                {profile?.premium && (
+                  <p className="mt-3 text-sm text-gray-600">
+                    Your tier is active until {formatDate(profile.premium_service_request_expires)}. Additional 30-day property boosts cost J$500.
+                  </p>
+                )}
+              </div>
+              <Link
+                href="/premium-payment"
+                className="inline-flex shrink-0 items-center justify-center rounded-xl bg-emerald-500 px-5 py-3 text-sm font-semibold text-white transition hover:bg-emerald-600"
+              >
+                {profile?.premium ? 'Manage Premium tier' : 'Upgrade tier'}
+              </Link>
+            </div>
+          </section>
+        )}
 
         {profile?.account_type === 'regular' && (
           <section className="mb-6 rounded-2xl bg-white p-6 ring-1 ring-gray-200">

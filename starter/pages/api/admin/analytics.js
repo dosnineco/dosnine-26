@@ -1,4 +1,7 @@
 import { getDbClient, requireAdminUser } from '@/lib/apiAuth';
+import { getCanonicalSiteHostname, isCanonicalSiteUrl } from '@/lib/analyticsSite';
+
+const PAGE_SIZE = 1000;
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') {
@@ -16,12 +19,13 @@ export default async function handler(req, res) {
     const fromIso = from
       ? new Date(from).toISOString()
       : new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+    const canonicalHostname = getCanonicalSiteHostname();
 
     // Build base query
     const buildQuery = () => {
       let q = db
         .from('page_clicks')
-        .select('*')
+        .select('id, path, page_url, session_id, referrer, device_type, browser, os, event_type, created_at, time_on_page_ms')
         .gte('created_at', fromIso)
         .lte('created_at', toIso);
       if (path) q = q.ilike('path', `%${path}%`);
@@ -30,16 +34,23 @@ export default async function handler(req, res) {
       return q;
     };
 
-    const { data: rows, error } = await buildQuery()
-      .order('created_at', { ascending: false })
-      .limit(50000);
+    const rows = [];
+    for (let offset = 0; ; offset += PAGE_SIZE) {
+      const { data: batch, error } = await buildQuery()
+        .order('created_at', { ascending: true })
+        .order('id', { ascending: true })
+        .range(offset, offset + PAGE_SIZE - 1);
 
-    if (error) {
-      console.error('Analytics query failed:', error);
-      return res.status(500).json({ error: 'Failed to load analytics' });
+      if (error) {
+        console.error('Analytics query failed:', error);
+        return res.status(500).json({ error: 'Failed to load analytics' });
+      }
+
+      rows.push(...batch.filter((row) => isCanonicalSiteUrl(row.page_url, canonicalHostname)));
+      if (batch.length < PAGE_SIZE) break;
     }
 
-    // Aggregate in JS (fine for up to ~50k rows)
+    // Aggregate the complete filtered range, not just the first PostgREST page.
     const totalEvents = rows.length;
     const uniqueSessions = new Set();
     const uniquePaths = new Set();
@@ -53,6 +64,12 @@ export default async function handler(req, res) {
 
     let totalTimeOnPage = 0;
     let timeOnPageSamples = 0;
+    const jamaicaDateFormatter = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'America/Jamaica',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    });
 
     for (const row of rows) {
       if (row.session_id) uniqueSessions.add(row.session_id);
@@ -60,8 +77,13 @@ export default async function handler(req, res) {
 
       // Page
       if (row.path) {
-        const entry = byPage.get(row.path) || { views: 0, sessions: new Set() };
-        entry.views += 1;
+        const entry = byPage.get(row.path) || {
+          views: 0,
+          engagements: 0,
+          sessions: new Set(),
+        };
+        if (row.event_type === 'page_view') entry.views += 1;
+        if (row.event_type === 'engagement') entry.engagements += 1;
         if (row.session_id) entry.sessions.add(row.session_id);
         byPage.set(row.path, entry);
       }
@@ -75,7 +97,9 @@ export default async function handler(req, res) {
             return 'direct';
           }
         })();
-        byReferrer.set(host, (byReferrer.get(host) || 0) + 1);
+        if (!isCanonicalSiteUrl(row.referrer, canonicalHostname)) {
+          byReferrer.set(host, (byReferrer.get(host) || 0) + 1);
+        }
       }
 
       // Device / Browser / OS
@@ -87,7 +111,7 @@ export default async function handler(req, res) {
       if (row.event_type) byEventType.set(row.event_type, (byEventType.get(row.event_type) || 0) + 1);
 
       // Daily
-      const day = String(row.created_at).split('T')[0];
+      const day = jamaicaDateFormatter.format(new Date(row.created_at));
       byDay.set(day, (byDay.get(day) || 0) + 1);
 
       // Time on page
@@ -101,9 +125,12 @@ export default async function handler(req, res) {
       .map(([path, v]) => ({
         path,
         views: v.views,
+        engagements: v.engagements,
         sessions: v.sessions.size,
       }))
-      .sort((a, b) => b.views - a.views)
+      .sort((a, b) => (
+        (event_type === 'engagement' ? b.engagements - a.engagements : b.views - a.views)
+      ))
       .slice(0, 20);
 
     const topReferrers = [...byReferrer.entries()]
@@ -150,7 +177,7 @@ export default async function handler(req, res) {
       osBreakdown,
       eventTypeBreakdown,
       dailyTrend,
-      recent: rows.slice(0, 50),
+      recent: rows.slice(-50).reverse(),
     });
   } catch (error) {
     console.error('Analytics error:', error);

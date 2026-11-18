@@ -62,9 +62,12 @@ export default function AdminAnalyticsPanel() {
 
   const [loading, setLoading] = useState(false);
   const [payload, setPayload] = useState(null);
+  const [error, setError] = useState('');
+  const [updatedAt, setUpdatedAt] = useState(null);
 
   const fetchAnalytics = useCallback(async () => {
     setLoading(true);
+    setError('');
     try {
       const { from, to } = presetToRange(preset);
       const params = new URLSearchParams({ from, to });
@@ -80,18 +83,26 @@ export default function AdminAnalyticsPanel() {
         throw new Error(json?.error || 'Failed to load analytics');
       }
       setPayload(json);
+      setUpdatedAt(new Date());
     } catch (err) {
       console.error('Analytics fetch error:', err);
-      setPayload(null);
+      setError(err.message || 'Failed to load analytics.');
     } finally {
       setLoading(false);
     }
   }, [preset, eventType, device, pathFilter]);
 
-  // Fetch when the panel is opened, or when filters change while open
+  // Refresh while the panel is open and whenever the admin returns to the tab.
   useEffect(() => {
     if (!open) return;
     fetchAnalytics();
+    const interval = setInterval(fetchAnalytics, 60_000);
+    const refreshOnFocus = () => fetchAnalytics();
+    window.addEventListener('focus', refreshOnFocus);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', refreshOnFocus);
+    };
   }, [open, fetchAnalytics]);
 
   const totals = payload?.totals || null;
@@ -265,6 +276,16 @@ export default function AdminAnalyticsPanel() {
 
           {/* Content */}
           <div className="space-y-4 border-t border-slate-100 bg-slate-50/60 px-5 py-5 sm:px-6">
+            {error ? (
+              <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-700">
+                Analytics refresh failed: {error}
+                {updatedAt ? ` Showing data from ${updatedAt.toLocaleTimeString()}.` : ''}
+              </p>
+            ) : updatedAt ? (
+              <p className="text-right text-[11px] text-slate-500">
+                Updated {updatedAt.toLocaleTimeString()}
+              </p>
+            ) : null}
             {loading && !payload ? (
               <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
                 {[1, 2, 3, 4].map((i) => (
@@ -413,7 +434,9 @@ export default function AdminAnalyticsPanel() {
                 </div>
 
                 {/* Top pages */}
-                <Panel title={`Top pages (${topPages.length})`}>
+                <Panel
+                  title={`Top pages (${topPages.length}) · ${eventType === 'engagement' ? 'engagements' : 'views'}`}
+                >
                   {topPages.length === 0 ? (
                     <EmptyRow />
                   ) : (
@@ -430,7 +453,7 @@ export default function AdminAnalyticsPanel() {
                             {p.path}
                           </span>
                           <span className="shrink-0 text-xs font-semibold text-slate-900">
-                            {p.views.toLocaleString()}
+                            {(eventType === 'engagement' ? p.engagements : p.views).toLocaleString()}
                           </span>
                           <span className="hidden shrink-0 text-[11px] text-slate-400 sm:inline">
                             {p.sessions} session{p.sessions === 1 ? '' : 's'}

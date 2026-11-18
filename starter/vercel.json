@@ -5,8 +5,8 @@
       "schedule": "0 9 * * *"
     },
     {
-      "path": "/api/admin/operations-digest",
-      "schedule": "0 13 * * *"
+      "path": "/api/cron/expire-property-boosts",
+      "schedule": "0 * * * *"
     }
   ]
 }

@@ -41,6 +41,7 @@ const PUBLIC_ROUTES = [
   '/property',
   '/property/[slug]',
   '/request',
+  '/premium-payment',
   '/buyer-prequalification',
   '/onboarding',
   '/market',
@@ -116,6 +117,7 @@ const NO_SPONSORED_BANNER_ROUTES = [
   '/fin',
   '/verify',
   '/request',
+  '/premium-payment',
   '/buyer-prequalification',
 ];
 

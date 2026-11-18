@@ -5,7 +5,10 @@ import { useRouter } from 'next/router';
 import Head from 'next/head';
 import toast from 'react-hot-toast';
 import { PayPalButtons, PayPalScriptProvider } from '@paypal/react-paypal-js';
-import { DEFAULT_REQUEST_URGENCY_PRICES } from '@/lib/requestUrgencyPricing';
+import {
+  DEFAULT_REQUEST_URGENCY_PRICES,
+  formatRequestUrgencyJmd,
+} from '@/lib/requestUrgencyPricing';
 
 const BUDGET_RANGES = {
   rent: { min: 50000, max: 4000000, step: 10000 },
@@ -18,7 +21,6 @@ const BUDGET_RANGES = {
 
 const PAYPAL_CLIENT_ID = process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID;
 const formatJmd = (value) => `J$${Number(value || 0).toLocaleString()}`;
-const formatUsd = (value) => `US$${Number(value).toFixed(2)}`;
 const formatBudgetInput = (value) => String(value || '').replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 const parseOptionalInteger = (value) => {
   if (value === '' || value === null || value === undefined) return null;
@@ -337,8 +339,8 @@ export default function RequestAgentPage() {
         <Head>
           <title>Request Submitted - DoSnine</title>
         </Head>
-        <div className="min-h-screen bg-white flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-2xl w-full p-6 sm:p-9">
+        <div className="dashboard-inspired min-h-screen bg-gray-50 flex items-center justify-center p-4">
+          <div className="dashboard-panel max-w-2xl w-full p-6 sm:p-9">
             <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
               <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
@@ -411,8 +413,8 @@ export default function RequestAgentPage() {
       />
     </Head>
 
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center sm:p-6">
-      <div className="bg-white sm:rounded-2xl w-full max-w-4xl overflow-hidden">
+    <div className="dashboard-inspired min-h-screen bg-gray-50 flex items-center justify-center sm:p-6">
+      <div className="dashboard-panel w-full max-w-4xl overflow-hidden sm:rounded-2xl">
         {requestPayment ? (
           <section className="mx-auto max-w-2xl p-6 sm:p-10">
             <p className="text-xs font-bold uppercase tracking-[0.16em] text-accent">
@@ -422,7 +424,7 @@ export default function RequestAgentPage() {
               Complete your {requestPayment.urgency} priority payment
             </h1>
             <p className="mt-3 text-sm leading-6 text-gray-600">
-              Your request is already submitted at normal priority. Pay {formatUsd(requestPayment.amount)} once to raise it to {requestPayment.urgency} priority and increase the effort we give to sourcing a property. A boost is non-refundable except where required by law and does not guarantee that a suitable property will be found.
+              Your request is already submitted at normal priority. Pay {formatRequestUrgencyJmd(requestPayment.amount)} once for this request to raise it to {requestPayment.urgency} priority and increase the effort we give to sourcing a property. A boost is non-refundable except where required by law and does not guarantee that a suitable property will be found.
             </p>
             <label className="mt-4 flex items-start gap-2.5 text-sm text-gray-700">
               <input
@@ -479,7 +481,7 @@ export default function RequestAgentPage() {
           <>
 
         {/* Header */}
-        <div className="bg-accent p-10 text-white">
+        <div className="bg-accent p-6 text-white sm:p-10">
           <h1 className="text-3xl font-bold mb-2">What are you looking for?</h1>
           <p className="opacity-90 mb-6">
             Get matched with verified real estate professionals
@@ -544,7 +546,7 @@ export default function RequestAgentPage() {
                       value={formData.name}
                       onChange={handleInputChange}
                       required
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-accent focus:border-accent outline-none"
+                      className="dashboard-field w-full px-4 py-3 rounded-xl outline-none"
                     />
                   </div>
 
@@ -558,7 +560,7 @@ export default function RequestAgentPage() {
                       value={formData.email}
                       onChange={handleInputChange}
                       required
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-accent focus:border-accent outline-none"
+                      className="dashboard-field w-full px-4 py-3 rounded-xl outline-none"
                     />
                   </div>
 
@@ -572,7 +574,7 @@ export default function RequestAgentPage() {
                       value={formData.phone}
                       onChange={handleInputChange}
                       required
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-accent focus:border-accent outline-none"
+                      className="dashboard-field w-full px-4 py-3 rounded-xl outline-none"
                     />
                   </div>
                 </div>
@@ -635,7 +637,7 @@ export default function RequestAgentPage() {
                   value={formData.propertyType}
                   onChange={handleInputChange}
                   required
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-accent focus:border-accent outline-none"
+                  className="dashboard-field w-full px-4 py-3 rounded-xl outline-none"
                 >
                   <option value="house">House</option>
                   <option value="apartment">Apartment</option>
@@ -655,7 +657,7 @@ export default function RequestAgentPage() {
                   value={formData.location}
                   onChange={handleInputChange}
                   required
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-accent focus:border-accent outline-none"
+                  className="dashboard-field w-full px-4 py-3 rounded-xl outline-none"
                 />
               </div>
 
@@ -739,13 +741,13 @@ export default function RequestAgentPage() {
                     {
                       value: 'high',
                       label: 'High',
-                      price: urgencyPricesAvailable ? formatUsd(urgencyPrices.high) : urgencyPricesLoaded ? 'Unavailable' : 'Loading…',
+                      price: urgencyPricesAvailable ? urgencyPrices.high : null,
                       detail: 'Higher priority'
                     },
                     {
                       value: 'urgent',
                       label: 'Urgent',
-                      price: urgencyPricesAvailable ? formatUsd(urgencyPrices.urgent) : urgencyPricesLoaded ? 'Unavailable' : 'Loading…',
+                      price: urgencyPricesAvailable ? urgencyPrices.urgent : null,
                       detail: 'Highest priority'
                     }
                   ].map((option) => (
@@ -765,12 +767,18 @@ export default function RequestAgentPage() {
                         <span className="block text-sm font-semibold text-gray-900">{option.label}</span>
                         <span className="mt-1 block text-[11px] leading-4 text-gray-500 sm:text-xs">{option.detail}</span>
                       </span>
-                      <span className="mt-3 block text-sm font-bold text-gray-900">{option.price}</span>
+                      <span className="mt-3 block text-xs font-bold leading-5 text-gray-900 sm:text-sm">
+                        {option.value === 'normal'
+                          ? option.price
+                          : option.price !== null
+                            ? <>{formatRequestUrgencyJmd(option.price)} / request</>
+                            : urgencyPricesLoaded ? 'Unavailable' : 'Loading…'}
+                      </span>
                     </button>
                   ))}
                 </div>
                 <p className="mt-3 text-xs leading-5 text-gray-600">
-                  Paid priority boosts are one-time and non-refundable except where required by law. They do not guarantee that a property will be found or secured.
+                  Priority prices are per request. Amounts shown are estimates. Boosts are one-time and non-refundable except where required by law. They do not guarantee that a property will be found or secured.
                 </p>
               </div>
 
@@ -780,7 +788,7 @@ export default function RequestAgentPage() {
                 onChange={handleInputChange}
                 rows="4"
                 placeholder="Any additional requirements..."
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-accent focus:border-accent outline-none"
+                className="dashboard-field w-full px-4 py-3 rounded-xl outline-none"
               />
 
               <div className="flex gap-4">

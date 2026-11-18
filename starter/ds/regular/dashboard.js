@@ -13,6 +13,7 @@ import {
   DollarSign,
   ClipboardList,
   ShieldCheck,
+  LockKeyhole,
   Bed,
   Bath,
   MapPin,
@@ -112,6 +113,8 @@ export default function RegularDashboard() {
   const [loading, setLoading] = useState(true);
   const [redirecting, setRedirecting] = useState(false);
   const [agentData, setAgentData] = useState(null);
+  const [premiumExpiresAt, setPremiumExpiresAt] = useState(null);
+  const [premiumPrice, setPremiumPrice] = useState(3178.4);
   const [showAgentPrompt, setShowAgentPrompt] = useState(false);
   const [queueCount, setQueueCount] = useState(null);
   const [queueLoading, setQueueLoading] = useState(true);
@@ -145,6 +148,12 @@ export default function RegularDashboard() {
   const isRegularOwner = () => userType !== 'agent';
   const isTenantProfile = profileIntent === 'tenant';
   const isHomeownerProfile = profileIntent === 'homeowner';
+  const buyerReadinessLevel = Math.max(
+    0,
+    ...serviceRequests
+      .filter((request) => String(request.request_type || '').toLowerCase() === 'buy')
+      .map((request) => clampBuyerLevel(request.buyer_prequalification?.qualification_level))
+  );
 
   useEffect(() => {
     if (!user?.id) return;
@@ -152,6 +161,18 @@ export default function RegularDashboard() {
       window.localStorage.getItem(`homeowner-upgrade-dismissed-${user.id}`) === 'true'
     );
   }, [user?.id]);
+
+  useEffect(() => {
+    fetch('/api/site-settings/payment-prices')
+      .then(async (response) => {
+        const payload = await response.json();
+        if (!response.ok) throw new Error(payload?.error || 'Unable to load payment prices.');
+        setPremiumPrice(Number(payload?.prices?.premium_service_price) || 3178.4);
+      })
+      .catch((error) => {
+        console.error('Unable to load premium price:', error);
+      });
+  }, []);
 
   useEffect(() => {
     if (retryAfterSeconds <= 0) return undefined;
@@ -364,6 +385,12 @@ export default function RegularDashboard() {
         : (payload?.agent || null);
 
       setAgentData(agent);
+      setPremiumExpiresAt(
+        payload?.user?.premium_service_request &&
+        new Date(payload.user.premium_service_request_expires || 0) > new Date()
+          ? payload.user.premium_service_request_expires
+          : null
+      );
       setUserType(payload?.user?.user_type || 'landlord');
       setAccountType(payload?.user?.account_type || (payload?.user?.user_type === 'agent' ? 'agent' : null));
       setProfileIntent(payload?.user?.profile_intent || null);
@@ -593,6 +620,27 @@ export default function RegularDashboard() {
           </section>
         )}
 
+        {accountType === 'regular' && !premiumExpiresAt && (
+          <Link
+            href="/premium-payment"
+            className="mb-8 flex flex-col gap-4 rounded-2xl bg-white p-5 ring-1 ring-gray-200 transition hover:ring-accent sm:flex-row sm:items-center sm:justify-between sm:p-6"
+          >
+            <div className="flex items-start gap-3">
+              <LockKeyhole className="mt-1 h-6 w-6 shrink-0 text-accent" aria-hidden="true" />
+              <div>
+                <p className="text-xs font-bold uppercase tracking-wider text-emerald-600">30-day property plan · J${premiumPrice.toLocaleString('en-JM', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                <h2 className="mt-1 font-semibold text-gray-900">Unlock the Premium Property Plan</h2>
+                <p className="mt-1 text-sm leading-6 text-gray-600">
+                  Post more than one property and get one free 30-day visibility boost. Your first listing, requests, and buyer readiness remain free.
+                </p>
+              </div>
+            </div>
+            <span             className="inline-flex shrink-0 items-center justify-center rounded-xl bg-emerald-500 px-5 py-3 text-sm font-semibold text-white hover:bg-emerald-600">
+              View premium benefits
+            </span>
+          </Link>
+        )}
+
         {/* ==================== QUICK ACTIONS ==================== */}
         <div className="mb-8">
           <div
@@ -643,7 +691,7 @@ export default function RegularDashboard() {
                 <div className="pointer-events-none absolute -right-10 -top-10 h-36 w-36 rounded-full bg-gray-100 blur-3xl transition-colors duration-300 group-hover:bg-gray-200" />
                 <div className="relative">
                   <div className="flex items-start justify-between">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gray-100 text-gray-700 transition-colors duration-200 group-hover:bg-[#6E026F] group-hover:text-white">
+                    <div className="relative flex h-12 w-12 items-center justify-center rounded-xl bg-gray-100 text-gray-700 transition-colors duration-200 group-hover:bg-[#6E026F] group-hover:text-white">
                       <ClipboardList size={22} />
                     </div>
                     <span className="inline-flex items-center rounded-full bg-[#6E026F]/10 px-2.5 py-1 text-[11px] font-semibold text-[#6E026F]">
@@ -682,7 +730,7 @@ export default function RegularDashboard() {
                 <div className="pointer-events-none absolute -right-10 -top-10 h-36 w-36 rounded-full bg-gray-100 blur-3xl transition-colors duration-300 group-hover:bg-gray-200" />
                 <div className="relative">
                   <div className="flex items-start justify-between">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gray-100 text-gray-700 transition-colors duration-200 group-hover:bg-[#6E026F] group-hover:text-white">
+                    <div className="relative flex h-12 w-12 items-center justify-center rounded-xl bg-gray-100 text-gray-700 transition-colors duration-200 group-hover:bg-[#6E026F] group-hover:text-white">
                       <Home size={22} />
                     </div>
                     <ArrowUpRight
@@ -714,7 +762,7 @@ export default function RegularDashboard() {
                 <div className="pointer-events-none absolute -right-10 -top-10 h-36 w-36 rounded-full bg-[#6E026F]/8 blur-3xl transition-colors duration-300 group-hover:bg-[#6E026F]/15" />
                 <div className="relative">
                   <div className="flex items-start justify-between">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#6E026F]/10 text-[#6E026F] transition-colors duration-200 group-hover:bg-[#6E026F] group-hover:text-white">
+                    <div className="relative flex h-12 w-12 items-center justify-center rounded-xl bg-[#6E026F]/10 text-[#6E026F] transition-colors duration-200 group-hover:bg-[#6E026F] group-hover:text-white">
                       <Plus size={22} />
                     </div>
                     <ArrowUpRight
@@ -730,8 +778,35 @@ export default function RegularDashboard() {
                       Post a Property
                     </h3>
                     <p className="mt-1.5 text-sm leading-6 text-gray-600">
-                      Add a new listing and attract the right buyers or tenants.
+                      Your first property is free. Premium is required to post more than one.
                     </p>
+                  </div>
+                </div>
+              </Link>
+            )}
+            {accountType === 'regular' && (
+              <Link
+                href="/buyer-prequalification"
+                className="group relative overflow-hidden rounded-2xl border border-gray-200 bg-white p-6 transition-all duration-200 hover:-translate-y-0.5 hover:border-gray-300 hover:shadow-lg hover:shadow-gray-200/80"
+              >
+                <div className="relative">
+                  <div className="flex items-start justify-between">
+                    <div className="relative flex h-12 w-12 items-center justify-center rounded-xl bg-gray-100 text-gray-700">
+                      <ShieldCheck size={22} />
+                    </div>
+                    <ArrowUpRight size={18} className="text-gray-300 transition group-hover:text-accent" />
+                  </div>
+                  <div className="mt-6">
+                    <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-gray-600">Buyer readiness</p>
+                    <h3 className="mt-1 text-lg font-semibold text-gray-900">
+                      {`Current level: ${buyerReadinessLevel ? `Level ${buyerReadinessLevel}` : 'Not started'}`}
+                    </h3>
+                    <p className="mt-1.5 text-sm leading-6 text-gray-600">
+                      Complete buyer verification to unlock verified buyer benefits.
+                    </p>
+                    <span className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-accent">
+                      Open buyer readiness <ArrowRight size={16} aria-hidden="true" />
+                    </span>
                   </div>
                 </div>
               </Link>

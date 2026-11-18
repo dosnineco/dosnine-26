@@ -54,13 +54,16 @@ export default async function handler(req, res) {
     const db = getDbClient();
     const { data: agent, error: agentError } = await db
       .from('agents')
-      .select('id, verification_status, payment_receipt_path')
+      .select('id, verification_status, payment_receipt_path, paypal_order_id')
       .eq('user_id', resolved.user.id)
       .maybeSingle();
     if (agentError) throw agentError;
     if (!agent) return res.status(404).json({ error: 'Agent profile not found.' });
     if (agent.verification_status !== 'approved') {
       return res.status(403).json({ error: 'Your agent profile must be approved before submitting payment.' });
+    }
+    if (agent.paypal_order_id) {
+      return res.status(409).json({ error: 'PayPal checkout is in progress. Cancel it before submitting a bank-transfer receipt.' });
     }
 
     const { data: pricing, error: pricingError } = await db

@@ -110,7 +110,19 @@ export default function BuyerPrequalificationPage() {
             Back to My Requests
           </Link>
         </div>
-        {isLoadingRequest ? (
+        {!authLoaded ? (
+          <div className="mx-auto mt-5 max-w-3xl rounded-2xl bg-white p-8 text-center text-sm text-gray-600">
+            Loading your account…
+          </div>
+        ) : !isSignedIn ? (
+          <section className="mx-auto mt-5 max-w-3xl rounded-2xl bg-white p-8 text-center">
+            <h1 className="text-2xl font-bold text-gray-900">Sign in to complete buyer readiness</h1>
+            <p className="mt-3 text-gray-600">Buyer readiness is free for signed-in accounts.</p>
+            <Link href="/dashboard" className="mt-6 inline-flex rounded-xl bg-accent px-5 py-3 font-semibold text-white hover:bg-accent/90">
+              Go to dashboard
+            </Link>
+          </section>
+        ) : isLoadingRequest ? (
           <div className="mx-auto mt-5 max-w-3xl rounded-2xl bg-white p-8 text-center text-sm text-gray-600">
             Loading your purchase request…
           </div>

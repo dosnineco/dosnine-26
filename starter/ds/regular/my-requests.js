@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Head from 'next/head';
+import Link from 'next/link';
 import { useRouter } from 'next/router';
 import toast from 'react-hot-toast';
 import { useUser } from '@clerk/nextjs';
@@ -8,12 +9,14 @@ import BuyerRequestAgentSharing from '@/components/BuyerRequestAgentSharing';
 import BuyerReadinessProgress from '@/components/BuyerReadinessProgress';
 import { clampBuyerLevel } from '@/lib/buyerReadiness';
 import { ArrowRight } from 'lucide-react';
-import { DEFAULT_REQUEST_URGENCY_PRICES } from '@/lib/requestUrgencyPricing';
+import {
+  DEFAULT_REQUEST_URGENCY_PRICES,
+  formatRequestUrgencyJmd,
+} from '@/lib/requestUrgencyPricing';
 
 const fieldClass =
   'w-full rounded-lg bg-gray-50 px-3 py-2.5 text-sm text-gray-900 outline-none ring-1 ring-gray-200 focus:ring-2 focus:ring-accent';
 const PAYPAL_CLIENT_ID = process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID;
-const formatUsd = (amount) => `US$${Number(amount).toFixed(2)}`;
 
 function createEditForm(request) {
   return {
@@ -373,15 +376,15 @@ export default function MyRequestsPage() {
           content="View and update your property requests."
         />
       </Head>
-      <main className="min-h-screen bg-gray-50 px-4 py-8 sm:py-10">
+      <main className="dashboard-inspired min-h-screen bg-gray-50 px-4 py-8 sm:py-10">
         <div className="mx-auto max-w-5xl space-y-5">
-          <header className="rounded-2xl border border-gray-200 bg-white p-5 sm:p-7">
+          <header className="dashboard-panel rounded-2xl border border-gray-200 bg-white p-5 sm:p-7">
             <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-accent">
+                <p className="dashboard-eyebrow">
                   Your property journey
                 </p>
-                <h1 className="mt-1.5 text-2xl font-bold tracking-tight text-gray-900 sm:text-3xl">
+                <h1 className="dashboard-page-heading mt-1.5 text-2xl tracking-tight sm:text-3xl">
                   My requests
                 </h1>
                 <p className="mt-1.5 max-w-xl text-sm leading-6 text-gray-600">
@@ -467,6 +470,7 @@ export default function MyRequestsPage() {
                       ? 'Choose a boost for this request.'
                       : `Choose a boost for all ${boostTargetRequestIds.length} selected requests.`}
                     {' '}The price is charged once per request.
+                    {' '}Displayed JMD amounts are estimates.
                   </p>
                 </div>
                 {!boostPayment && (
@@ -511,12 +515,13 @@ export default function MyRequestsPage() {
                       <span className="mt-1 block text-xs text-gray-600">{option.detail}</span>
                       <span className="mt-3 block text-base font-bold text-gray-900">
                         {urgencyPricesAvailable
-                          ? `${formatUsd(totalPrice)} total`
+                          ? `${formatRequestUrgencyJmd(totalPrice)} total`
                           : urgencyPricesLoaded ? 'Unavailable' : 'Loading price…'}
                       </span>
-                      {urgencyPricesAvailable && boostTargetRequestIds.length > 1 && (
+                      {urgencyPricesAvailable && (
                         <span className="mt-1 block text-xs text-gray-500">
-                          {formatUsd(unitPrice)} × {boostTargetRequestIds.length} requests
+                          {formatRequestUrgencyJmd(unitPrice)} / request
+                          {boostTargetRequestIds.length > 1 && ` × ${boostTargetRequestIds.length} requests`}
                         </span>
                       )}
                     </button>
@@ -615,7 +620,7 @@ export default function MyRequestsPage() {
               return (
                 <article
                   key={request.id}
-                  className="overflow-hidden rounded-2xl border border-gray-200 bg-white p-5 sm:p-6"
+                  className="dashboard-panel overflow-hidden rounded-2xl border border-gray-200 bg-white p-5 sm:p-6"
                 >
                   {/* ============ REQUEST HEADER ============ */}
                   <div className="-mx-5 -mt-5 mb-5 flex flex-wrap items-center justify-between gap-3 bg-rose-50/70 px-5 py-4 sm:-mx-6 sm:-mt-6 sm:px-6">

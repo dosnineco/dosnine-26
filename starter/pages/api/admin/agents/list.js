@@ -109,6 +109,15 @@ export default async function handler(req, res) {
       };
     }));
 
+    agentsWithUrls.sort((a, b) => {
+      const isPending = (agent) =>
+        ['pending', 'submitted', 'under_review'].includes(
+          String(agent.verification_status || '').toLowerCase()
+        ) ||
+        String(agent.payment_receipt_status || '').toLowerCase() === 'pending';
+      return Number(isPending(b)) - Number(isPending(a));
+    });
+
     return res.status(200).json({ agents: agentsWithUrls });
 
   } catch (error) {

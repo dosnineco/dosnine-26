@@ -3,7 +3,10 @@ import { useUser } from '@clerk/nextjs';
 import toast from 'react-hot-toast';
 import { X } from 'lucide-react';
 import { PayPalButtons, PayPalScriptProvider } from '@paypal/react-paypal-js';
-import { DEFAULT_REQUEST_URGENCY_PRICES } from '@/lib/requestUrgencyPricing';
+import {
+  DEFAULT_REQUEST_URGENCY_PRICES,
+  formatRequestUrgencyJmd,
+} from '@/lib/requestUrgencyPricing';
 
 const BUDGET_RANGES = {
   rent: { min: 70000, max: 4000000, step: 10000 },
@@ -15,7 +18,6 @@ const BUDGET_RANGES = {
 };
 
 const formatJmd = (value) => `J$${Number(value || 0).toLocaleString()}`;
-const formatUsd = (value) => `US$${Number(value).toFixed(2)}`;
 const PAYPAL_CLIENT_ID = process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID;
 
 export default function RequestAgentPopup() {
@@ -481,7 +483,7 @@ return (
             Complete your {requestPayment.urgency} priority payment
           </h2>
           <p className="mt-3 text-sm leading-6 text-gray-600">
-            Your request is submitted at normal priority. Pay {formatUsd(requestPayment.amount)} once to raise it to {requestPayment.urgency} priority and increase the effort we give to sourcing a property. A boost is non-refundable except where required by law and does not guarantee that a suitable property will be found.
+            Your request is submitted at normal priority. Pay {formatRequestUrgencyJmd(requestPayment.amount)} once for this request to raise it to {requestPayment.urgency} priority and increase the effort we give to sourcing a property. A boost is non-refundable except where required by law and does not guarantee that a suitable property will be found.
           </p>
           <label className="mt-4 flex items-start gap-2.5 text-sm text-gray-700">
             <input
@@ -770,13 +772,13 @@ return (
                   {
                     value: 'high',
                     label: 'High',
-                    price: urgencyPricesAvailable ? formatUsd(urgencyPrices.high) : urgencyPricesLoaded ? 'Unavailable' : 'Loading…',
+                    price: urgencyPricesAvailable ? urgencyPrices.high : null,
                     detail: 'Higher priority'
                   },
                   {
                     value: 'urgent',
                     label: 'Urgent',
-                    price: urgencyPricesAvailable ? formatUsd(urgencyPrices.urgent) : urgencyPricesLoaded ? 'Unavailable' : 'Loading…',
+                    price: urgencyPricesAvailable ? urgencyPrices.urgent : null,
                     detail: 'Highest priority'
                   }
                 ].map((option) => (
@@ -796,12 +798,18 @@ return (
                       <span className="block text-sm font-semibold text-gray-900">{option.label}</span>
                       <span className="mt-1 block text-[11px] leading-4 text-gray-500 sm:text-xs">{option.detail}</span>
                     </span>
-                    <span className="mt-3 block text-sm font-bold text-gray-900">{option.price}</span>
+                    <span className="mt-3 block text-xs font-bold leading-5 text-gray-900 sm:text-sm">
+                      {option.value === 'normal'
+                        ? option.price
+                        : option.price !== null
+                          ? <>{formatRequestUrgencyJmd(option.price)} / request</>
+                          : urgencyPricesLoaded ? 'Unavailable' : 'Loading…'}
+                    </span>
                   </button>
                 ))}
               </div>
               <p className="mt-2 text-xs leading-5 text-gray-600">
-                Paid priority boosts are one-time and non-refundable except where required by law. They do not guarantee that a property will be found or secured.
+                Priority prices are per request. Amounts shown are estimates. Boosts are one-time and non-refundable except where required by law. They do not guarantee that a property will be found or secured.
               </p>
             </div>
 

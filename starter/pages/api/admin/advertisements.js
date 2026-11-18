@@ -161,6 +161,13 @@ export default async function handler(req, res) {
           }
         })
       );
+      submissionsWithReceipts.sort((a, b) => {
+        const isPending = (submission) =>
+          ['pending', 'pending_payment', 'pending_review', 'waitlisted', 'under_review']
+            .includes(String(submission.status || '').toLowerCase()) ||
+          String(submission.payment_status || '').toLowerCase() === 'pending';
+        return Number(isPending(b)) - Number(isPending(a));
+      });
 
       res.setHeader('Cache-Control', 'no-store, max-age=0');
       return res.status(200).json({

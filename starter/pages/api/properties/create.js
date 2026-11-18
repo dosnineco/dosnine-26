@@ -71,12 +71,12 @@ export default async function handler(req, res) {
         .eq('owner_id', resolved.user.id);
       if (countError) throw countError;
 
-      const propertyLimit = 2 + Number(resolved.user.extra_listings_paid || 0);
-      if (Number(count || 0) >= propertyLimit) {
-        return res.status(403).json({
-          error: 'Property limit reached.',
+      if (Number(count || 0) >= 1 && !hasActiveRegularPremium(resolved.user)) {
+        return res.status(402).json({
+          error: 'Premium is required to post more than one property.',
+          code: 'premium_required',
           propertyCount: Number(count || 0),
-          maxProperties: propertyLimit,
+          maxProperties: 1,
         });
       }
     }
@@ -96,7 +96,26 @@ export default async function handler(req, res) {
       }
     }
 
-    const { form, images = [] } = req.body || {};
+    const { form, images = [], bulkUpload = false } = req.body || {};
+    if (bulkUpload !== undefined && typeof bulkUpload !== 'boolean') {
+      return res.status(400).json({ error: 'Bulk upload flag must be true or false.' });
+    }
+    if (bulkUpload && !admin) {
+      if (accountType !== 'agent') {
+        return res.status(403).json({ error: 'Bulk listing is available to agents on a 1-month or 3-month plan.' });
+      }
+      const { data: agent, error: agentError } = await db
+        .from('agents')
+        .select('verification_status, payment_status, access_expiry')
+        .eq('user_id', resolved.user.id)
+        .maybeSingle();
+      if (agentError) throw agentError;
+      const activePlan = ['30-day', '90-day'].includes(agent?.payment_status);
+      const activeExpiry = Boolean(agent?.access_expiry) && new Date(agent.access_expiry) > new Date();
+      if (agent?.verification_status !== 'approved' || !activePlan || !activeExpiry) {
+        return res.status(403).json({ error: 'An active 1-month or 3-month agent plan is required for bulk listing.' });
+      }
+    }
     if (form?.is_off_market !== undefined && typeof form.is_off_market !== 'boolean') {
       return res.status(400).json({ error: 'Off-market status must be true or false.' });
     }

@@ -3,6 +3,7 @@ import { getAuth } from '@clerk/nextjs/server';
 import { enforceRateLimitDistributed } from '@/lib/rateLimit';
 import { enforceMethods } from '@/lib/apiSecurity';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
+import { isCanonicalSiteHost } from '@/lib/analyticsSite';
 
 const EventSchema = z.object({
   event_type: z.string().trim().min(1).max(50).default('page_view'),
@@ -27,6 +28,10 @@ export default async function handler(req, res) {
   if (!enforceMethods(req, res, ['POST'])) return;
 
   try {
+    if (!isCanonicalSiteHost(req.headers.host)) {
+      return res.status(202).json({ success: true, tracked: false });
+    }
+
     const rate = await enforceRateLimitDistributed(req, res, {
       keyPrefix: 'analytics-track',
       maxRequests: 180,
@@ -76,10 +81,7 @@ export default async function handler(req, res) {
         event_type: parsed.event_type,
         path,
         page_url: parsed.page_url || null,
-        referrer:
-          parsed.referrer ||
-          String(req.headers.referer || '').slice(0, 2000) ||
-          null,
+        referrer: parsed.referrer || null,
         session_id: parsed.session_id || null,
         clerk_user_id: parsed.clerk_user_id || null,
         is_authenticated: parsed.is_authenticated || false,

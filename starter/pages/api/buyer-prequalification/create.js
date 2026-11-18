@@ -59,11 +59,15 @@ export default async function handler(req, res) {
     const buyerEmail = sanitizeEmail(parsed.buyerEmail);
     let buyerUserId = null;
     const clerkId = getClerkUserId(req);
-    if (clerkId) {
-      const { user, error: userError } = await getDbUserByClerkId(clerkId, { createIfMissing: true });
-      if (userError) throw userError;
-      if (sanitizeEmail(user?.email) === buyerEmail) buyerUserId = user.id;
+    if (!clerkId) {
+      return res.status(401).json({ error: 'Sign in to complete buyer readiness.' });
     }
+    const { user, error: userError } = await getDbUserByClerkId(clerkId, { createIfMissing: true });
+    if (userError) throw userError;
+    if (sanitizeEmail(user?.email) !== buyerEmail) {
+      return res.status(403).json({ error: 'Use the email address associated with your account.' });
+    }
+    buyerUserId = user.id;
 
     let linkedServiceRequestId = null;
     if (parsed.serviceRequestId) {

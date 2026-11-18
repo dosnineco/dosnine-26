@@ -40,13 +40,13 @@ export default function BulkCreatePage() {
       const isAdmin = data?.role === 'admin';
       
       // Check if user is verified agent with paid plan
-      const paidPlans = ['7-day', '30-day', '90-day'];
+      const paidPlans = ['30-day', '90-day'];
       const hasPaidPlan = paidPlans.includes(agent?.payment_status);
       const isVerifiedAgent = agent?.verification_status === 'approved';
       
       // Check if access is not expired (for paid plans)
-      const hasValidAccess = !agent?.access_expiry || 
-                            new Date(agent?.access_expiry) > new Date();
+      const hasValidAccess = Boolean(agent?.access_expiry) &&
+                            new Date(agent.access_expiry) > new Date();
       
       const isAgent = isVerifiedAgent && hasPaidPlan && hasValidAccess;
 
@@ -90,19 +90,19 @@ export default function BulkCreatePage() {
       
       <SignedIn>
         {isVerified ? (
-          <div className="min-h-screen bg-gray-50">
+          <div className="dashboard-inspired min-h-screen bg-gray-50">
             <Toaster position="top-center" />
             <div className="py-8">
               <BulkListingCreator />
             </div>
           </div>
         ) : (
-          <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-            <div className="text-center max-w-md p-8">
-              <div className="text-6xl mb-4">🔒</div>
-              <h1 className="text-2xl font-bold text-gray-900 mb-2">Access Restricted</h1>
+          <div className="dashboard-inspired min-h-screen bg-gray-50 flex items-center justify-center px-4">
+            <div className="dashboard-panel max-w-md p-8 text-center">
+              <div className="mb-4 text-6xl text-accent" aria-hidden="true">🔒</div>
+              <h1 className="dashboard-page-heading mb-2 text-2xl">Access Restricted</h1>
               <p className="text-gray-600 mb-4">
-                This feature is only available to verified agents with an active paid plan.
+                Bulk listing is available to verified agents with an active 1-month or 3-month plan.
               </p>
               <p className="text-sm text-gray-500">
                 Redirecting...

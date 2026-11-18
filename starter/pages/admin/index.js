@@ -22,7 +22,6 @@ import {
   Package,
   Briefcase,
   MapPin,
-  Zap,
   Gift,
 } from 'lucide-react';
 
@@ -409,6 +408,20 @@ export default function AdminDashboardIndex() {
 
         <AdminAnalyticsPanel />
 
+        <Link
+          href="/admin/payment-pricing"
+          className="mb-6 flex items-center justify-between gap-4 rounded-2xl bg-white p-5 ring-1 ring-gray-200 transition hover:ring-accent"
+        >
+          <div className="flex items-center gap-3">
+            <DollarSign className="h-6 w-6 text-accent" aria-hidden="true" />
+            <div>
+              <h2 className="font-semibold text-slate-900">Payment pricing</h2>
+              <p className="mt-1 text-sm text-slate-600">Manage plan, premium, property search, and request boost prices.</p>
+            </div>
+          </div>
+          <ArrowRight className="h-5 w-5 shrink-0 text-gray-400" aria-hidden="true" />
+        </Link>
+
         {/* Primary KPIs */}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <KpiCard
@@ -529,8 +542,6 @@ export default function AdminDashboardIndex() {
             }}
           />
         ) : null}
-
-        <AdminAgentBrief metrics={metrics} />
 
         <section aria-labelledby="admin-action-items">
           <div className="mb-3">
@@ -983,141 +994,6 @@ function RevenueOpportunities({
         included in monthly revenue.
       </p>
     </section>
-  );
-}
-
-function AdminAgentBrief({ metrics }) {
-  const [sending, setSending] = useState(false);
-  const [digestMessage, setDigestMessage] = useState('');
-  const market = metrics.market.intelligence;
-  const monetization = market?.monetization;
-  const opportunities = monetization?.opportunities || {};
-
-  const sendDigest = async () => {
-    setSending(true);
-    setDigestMessage('');
-    try {
-      const response = await fetch('/api/admin/operations-digest', {
-        method: 'POST',
-        credentials: 'include',
-      });
-      const payload = await response.json().catch(() => null);
-      if (!response.ok || !payload?.success) {
-        throw new Error(payload?.error || 'Unable to send the operations brief.');
-      }
-      setDigestMessage('Operations brief sent to the configured admin email.');
-    } catch (error) {
-      console.error('Failed to send operations brief:', error);
-      setDigestMessage(error.message || 'Unable to send the operations brief.');
-    } finally {
-      setSending(false);
-    }
-  };
-
-  return (
-    <section className="rounded-2xl border border-blue-200 bg-blue-50 p-5 sm:p-6">
-      <div className="flex items-start gap-3">
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-blue-600">
-          <Zap size={18} />
-        </span>
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-blue-700">
-            Administrative agent
-          </p>
-          <h2 className="mt-1 text-lg font-bold text-slate-900">
-            Daily operations brief and review queue
-          </h2>
-          <p className="mt-1 max-w-3xl text-sm text-slate-600">
-            An 8:00 AM Jamaica-time email summarizes outstanding work and compares the last 7
-            days with the previous week. Payment verification and customer follow-ups remain
-            admin-approved.
-          </p>
-        </div>
-      </div>
-
-      <div className="mt-4 flex flex-wrap items-center gap-3">
-        <button
-          type="button"
-          onClick={sendDigest}
-          disabled={sending}
-          className="rounded-full bg-accent px-4 py-2 text-sm font-semibold text-white transition hover:bg-accent/90 disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          {sending ? 'Sending brief…' : 'Send brief now'}
-        </button>
-        {digestMessage ? (
-          <p role="status" className="text-sm text-slate-600">{digestMessage}</p>
-        ) : null}
-      </div>
-
-      <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <AgentWorkflowCard
-          title="Verify payments"
-          detail={`${formatNumber(metrics.agents.pendingPayments)} agent receipts await review.`}
-          action="Review receipts"
-          href="/admin/users?tab=agents"
-        />
-        <AgentWorkflowCard
-          title="Process requests"
-          detail={`${formatNumber(metrics.requests.open)} requests and ${formatNumber(metrics.applications.pending)} agent applications need attention.`}
-          action="Open request queue"
-          href="/admin/requests"
-        />
-        <AgentWorkflowCard
-          title="Follow up on leads"
-          detail={`${formatNumber(opportunities.unpaidSponsors || 0)} sponsor leads and ${formatNumber(opportunities.eligibleAgents || 0)} agents may need follow-up. Messages are not sent automatically.`}
-          action="Review sponsor leads"
-          href="/admin/advertisements"
-          secondaryAction="Review agents"
-          secondaryHref="/admin/users?tab=agents"
-        />
-        <AgentWorkflowCard
-          title="Analyze the market"
-          detail={market
-            ? `${formatNumber(market.requestsThisMonth)} requests this month; top parish: ${market.mostRequestedParish || '—'}.`
-            : 'Market demand and budget signals are loading or unavailable.'}
-          action="View market signals"
-          href="/admin/market-intelligence"
-        />
-      </div>
-
-      <p className="mt-4 text-xs text-slate-500">
-        Scheduled email requires Vercel Cron, CRON_SECRET, BREVO_API_KEY, and ADMIN_NOTIFICATION_EMAIL
-        (or ADMIN_EMAIL). OpenAI analysis, WhatsApp/n8n messaging, and automatic payment confirmation
-        are not enabled.
-      </p>
-    </section>
-  );
-}
-
-function AgentWorkflowCard({
-  title,
-  detail,
-  action,
-  href,
-  secondaryAction,
-  secondaryHref,
-}) {
-  return (
-    <div className="rounded-xl bg-white p-4">
-      <p className="text-sm font-bold text-slate-900">{title}</p>
-      <p className="mt-1 min-h-10 text-xs leading-5 text-slate-600">{detail}</p>
-      <Link
-        href={href}
-        className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-accent hover:underline"
-      >
-        {action}
-        <span aria-hidden="true">→</span>
-      </Link>
-      {secondaryAction && secondaryHref ? (
-        <Link
-          href={secondaryHref}
-          className="ml-4 mt-3 inline-flex items-center gap-1 text-xs font-semibold text-accent hover:underline"
-        >
-          {secondaryAction}
-          <span aria-hidden="true">→</span>
-        </Link>
-      ) : null}
-    </div>
   );
 }
 

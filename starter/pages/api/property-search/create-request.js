@@ -57,7 +57,20 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { data, error } = await getDbClient().rpc('create_pending_paid_property_search_request', {
+    const db = getDbClient();
+    const { data: priceSettings, error: priceError } = await db
+      .from('site_settings')
+      .select('value')
+      .eq('key', 'paid_property_search_prices')
+      .maybeSingle();
+    if (priceError) throw priceError;
+    const configuredPrices = { USD: 9.99, JMD: 2500, ...(priceSettings?.value || {}) };
+    const requestAmount = Number(configuredPrices[parsed.currency]);
+    if (!Number.isFinite(requestAmount) || requestAmount <= 0) {
+      return res.status(503).json({ error: 'Property search pricing is not configured.' });
+    }
+
+    const { data, error } = await db.rpc('create_pending_paid_property_search_request', {
       p_user_id: resolved.user.id,
       p_client_name: sanitizeString(resolved.user.full_name || 'Dosnine user', 120),
       p_client_email: String(resolved.user.email).trim().toLowerCase(),
@@ -77,6 +90,14 @@ export default async function handler(req, res) {
     if (!data?.payment_request_id || !data?.service_request_id) {
       throw new Error('The property request could not be created.');
     }
+
+    const { error: priceUpdateError } = await db
+      .from('paid_property_search_requests')
+      .update({ amount: requestAmount })
+      .eq('id', data.payment_request_id)
+      .eq('user_id', resolved.user.id)
+      .eq('status', 'awaiting_payment');
+    if (priceUpdateError) throw priceUpdateError;
 
     return res.status(201).json({
       success: true,

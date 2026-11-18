@@ -605,7 +605,7 @@ export default async function handler(req, res) {
       return agent.access_expiry
         && new Date(agent.access_expiry).getTime() < now.getTime();
     }).length;
-    const monthlyAgentPrice = Number(settings.plan_prices?.['30-day']) || 0;
+    const monthlyAgentPrice = Number(settings.plan_prices?.['30-day']) || 5175;
     const monthlyAdPrice = Number(settings.ad_plan_prices?.['30-day']) || 0;
     const paidSponsorSlots = paidSponsorSlotsResult.count || 0;
     const sponsorCapacity = 40;
