@@ -650,7 +650,7 @@ export default function AgentPayment() {
               {paymentRequired && (
               <div className="space-y-5 rounded-2xl bg-gray-50 p-4 sm:p-6">
                 <section className="rounded-xl bg-white p-4 sm:p-5">
-                  <h3 className="font-bold text-gray-900">Pay securely with PayPal</h3>
+                  <h3 className="font-bold text-gray-900">Pay by debit or credit card via PayPal</h3>
                   <p className="mt-1 text-sm text-gray-600">
                     Your plan price is set in Jamaican dollars. PayPal charges the current converted amount in USD.
                   </p>

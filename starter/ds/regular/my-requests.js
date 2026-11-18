@@ -12,7 +12,9 @@ import { ArrowRight } from 'lucide-react';
 import {
   DEFAULT_REQUEST_URGENCY_PRICES,
   formatRequestUrgencyJmd,
+  getRequestUrgencyJmdAmount,
 } from '@/lib/requestUrgencyPricing';
+import BankTransferOption from '@/components/BankTransferOption';
 
 const fieldClass =
   'w-full rounded-lg bg-gray-50 px-3 py-2.5 text-sm text-gray-900 outline-none ring-1 ring-gray-200 focus:ring-2 focus:ring-accent';
@@ -554,6 +556,9 @@ export default function MyRequestsPage() {
                 </p>
               ) : (
                 <div className="mt-5">
+                  <p className="mb-2 text-center text-sm font-semibold text-gray-700">
+                    Pay by debit or credit card via PayPal
+                  </p>
                   <PayPalScriptProvider options={{
                     'client-id': PAYPAL_CLIENT_ID,
                     currency: 'USD',
@@ -575,6 +580,13 @@ export default function MyRequestsPage() {
                     />
                   </PayPalScriptProvider>
                 </div>
+              )}
+              {urgencyPricesAvailable && (
+                <BankTransferOption
+                  service={`${boostTargetUrgency} priority boost for ${boostTargetRequestIds.length} request${boostTargetRequestIds.length === 1 ? '' : 's'}`}
+                  amountJmd={getRequestUrgencyJmdAmount(urgencyPrices[boostTargetUrgency] * boostTargetRequestIds.length)}
+                  reference={boostTargetRequestIds.join(', ')}
+                />
               )}
             </section>
           )}

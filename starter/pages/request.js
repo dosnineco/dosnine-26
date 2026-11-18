@@ -7,8 +7,10 @@ import toast from 'react-hot-toast';
 import { PayPalButtons, PayPalScriptProvider } from '@paypal/react-paypal-js';
 import {
   DEFAULT_REQUEST_URGENCY_PRICES,
+  getRequestUrgencyJmdAmount,
   formatRequestUrgencyJmd,
 } from '@/lib/requestUrgencyPricing';
+import BankTransferOption from '@/components/BankTransferOption';
 
 const BUDGET_RANGES = {
   rent: { min: 50000, max: 4000000, step: 10000 },
@@ -442,6 +444,9 @@ export default function RequestAgentPage() {
               </p>
             ) : (
               <div className="mt-6">
+                <p className="mb-2 text-center text-sm font-semibold text-gray-700">
+                  Pay by debit or credit card via PayPal
+                </p>
                 <PayPalScriptProvider options={{
                   'client-id': PAYPAL_CLIENT_ID,
                   currency: 'USD',
@@ -467,6 +472,11 @@ export default function RequestAgentPage() {
                 </PayPalScriptProvider>
               </div>
             )}
+            <BankTransferOption
+              service={`${requestPayment.urgency} request-priority boost`}
+              amountJmd={getRequestUrgencyJmdAmount(requestPayment.amount)}
+              reference={requestPayment.requestId}
+            />
 
             <button
               type="button"

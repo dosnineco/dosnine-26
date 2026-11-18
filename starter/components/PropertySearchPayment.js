@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { PayPalButtons, PayPalScriptProvider } from '@paypal/react-paypal-js';
 import { Search, ShieldCheck } from 'lucide-react';
 import toast from 'react-hot-toast';
+import BankTransferOption from './BankTransferOption';
 
 const PAYPAL_CLIENT_ID = process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID;
 const fieldClass = 'mt-1.5 w-full rounded-lg bg-white px-3.5 py-3 text-sm text-gray-900 outline-none ring-1 ring-gray-200 focus:ring-2 focus:ring-[#6E026F]';
@@ -242,8 +243,11 @@ export default function PropertySearchPayment() {
           <>
             <div className="mb-3 flex items-center gap-2 text-xs text-gray-500">
               <ShieldCheck size={15} aria-hidden="true" />
-              Request #{serviceRequestId} created • secure one-time PayPal payment • {price}
+              Request #{serviceRequestId} created • {price}
             </div>
+            <p className="mb-2 text-center text-sm font-semibold text-gray-700">
+              Pay by debit or credit card via PayPal
+            </p>
             <PayPalScriptProvider options={{
               'client-id': PAYPAL_CLIENT_ID,
               currency: form.currency,
@@ -273,10 +277,17 @@ export default function PropertySearchPayment() {
             </PayPalScriptProvider>
             <p aria-live="polite" className="mt-3 text-center text-sm text-gray-600">
               {busy
-                ? 'Connecting to PayPal…'
+                ? 'Connecting to secure checkout…'
                 : 'Your request is saved privately. Pay the fee to publish it for property sourcing.'}
             </p>
           </>
+        )}
+        {paymentRequestId && (
+          <BankTransferOption
+            service="property search request"
+            amountJmd={form.currency === 'JMD' ? prices.JMD : prices.USD * 155}
+            reference={serviceRequestId}
+          />
         )}
       </div>
     </section>

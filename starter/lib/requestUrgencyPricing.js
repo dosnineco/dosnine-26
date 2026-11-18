@@ -5,9 +5,12 @@ export const DEFAULT_REQUEST_URGENCY_PRICES = {
 
 export const USD_TO_JMD = 155;
 
+export function getRequestUrgencyJmdAmount(amount) {
+  return Number(amount) * USD_TO_JMD;
+}
+
 export function formatRequestUrgencyJmd(amount) {
-  const price = Number(amount);
-  return `J$${(price * USD_TO_JMD).toLocaleString('en-JM', {
+  return `J$${getRequestUrgencyJmdAmount(amount).toLocaleString('en-JM', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   })}`;

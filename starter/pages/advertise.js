@@ -1370,7 +1370,7 @@ export default function AdvertisePage() {
                     <>
                       {process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID ? (
                         <div className="mt-5 rounded-xl bg-white p-4">
-                          <h4 className="mb-3 text-sm font-semibold text-slate-900">Pay securely with PayPal</h4>
+                          <h4 className="mb-3 text-sm font-semibold text-slate-900">Pay by debit or credit card via PayPal</h4>
                           <PayPalScriptProvider options={{
                             'client-id': process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID,
                             currency: 'USD',

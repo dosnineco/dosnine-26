@@ -337,14 +337,7 @@ export default function AgentDashboardPage() {
 
       <div className="agent-dashboard min-h-screen bg-[#f5f7fb]">
         <div className="max-w-7xl mx-auto px-6 sm:px-6 lg:px-8 py-8">
-          <header className="mb-7 flex flex-col gap-5 rounded-2xl bg-white p-6 sm:flex-row sm:items-center sm:justify-between sm:p-8">
-            <div>
-              <p className="mb-2 text-xs font-bold uppercase tracking-[0.18em] text-[#2373F4]">Agent workspace</p>
-              <h1 className="text-3xl font-bold tracking-tight text-gray-950">Your client requests</h1>
-              <p className="mt-2 max-w-2xl text-sm leading-6 text-gray-600">
-                Keep every client conversation moving. Review your assigned requests, record contact, and close or release work as needed.
-              </p>
-            </div>
+          <header className="mb-7 flex justify-end rounded-2xl bg-white p-6 sm:p-8">
             <div className="flex flex-wrap gap-3">
               <Link href="/profile" className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-gray-100 px-5 py-3 text-sm font-semibold text-gray-800 hover:bg-gray-200">
                 <UserRound className="h-4 w-4" aria-hidden="true" />

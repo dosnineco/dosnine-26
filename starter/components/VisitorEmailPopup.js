@@ -5,8 +5,10 @@ import { X } from 'lucide-react';
 import { PayPalButtons, PayPalScriptProvider } from '@paypal/react-paypal-js';
 import {
   DEFAULT_REQUEST_URGENCY_PRICES,
+  getRequestUrgencyJmdAmount,
   formatRequestUrgencyJmd,
 } from '@/lib/requestUrgencyPricing';
+import BankTransferOption from './BankTransferOption';
 
 const BUDGET_RANGES = {
   rent: { min: 70000, max: 4000000, step: 10000 },
@@ -497,10 +499,13 @@ return (
 
           {!PAYPAL_CLIENT_ID ? (
             <p className="mt-5 rounded-xl bg-amber-50 p-4 text-sm leading-6 text-amber-900">
-              Online checkout is temporarily unavailable. Your request remains submitted at normal priority.
+              Card checkout is temporarily unavailable. Your request remains submitted at normal priority.
             </p>
           ) : (
             <div className="mt-6">
+              <p className="mb-2 text-center text-sm font-semibold text-gray-700">
+                Pay by debit or credit card via PayPal
+              </p>
               <PayPalScriptProvider options={{
                 'client-id': PAYPAL_CLIENT_ID,
                 currency: 'USD',
@@ -526,6 +531,11 @@ return (
               </PayPalScriptProvider>
             </div>
           )}
+          <BankTransferOption
+            service={`${requestPayment.urgency} request-priority boost`}
+            amountJmd={getRequestUrgencyJmdAmount(requestPayment.amount)}
+            reference={requestPayment.requestId}
+          />
 
           <button
             type="button"

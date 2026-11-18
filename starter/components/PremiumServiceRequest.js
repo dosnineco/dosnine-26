@@ -6,6 +6,7 @@ import { PayPalButtons, PayPalScriptProvider } from '@paypal/react-paypal-js';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 import { CheckCircle, LockKeyhole } from 'lucide-react';
+import BankTransferOption from './BankTransferOption';
 
 const DEFAULT_PRICE_JMD = 3178.4;
 
@@ -139,28 +140,34 @@ export default function PremiumServiceRequest() {
                   <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{pricingError}</p>
                 ) : !process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID ? (
                   <p role="alert" className="rounded-lg bg-amber-50 p-3 text-sm text-amber-900">
-                    PayPal checkout is not configured. Please contact Dosnine support.
+                    Debit or credit card checkout is temporarily unavailable.
                   </p>
                 ) : priceLoaded ? (
-                  <PayPalScriptProvider options={{
-                    'client-id': process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID,
-                    currency: 'USD',
-                    intent: 'capture',
-                  }}>
-                    <PayPalButtons
-                      style={{ layout: 'vertical', color: 'gold', shape: 'rect', label: 'pay' }}
-                      createOrder={async () => {
-                        const { data } = await axios.post('/api/user/create-premium-order');
-                        return data.orderId;
-                      }}
-                      onApprove={completePayment}
-                      onError={(error) => {
-                        console.error('Premium PayPal checkout failed:', error);
-                        toast.error('PayPal checkout failed. Please try again.');
-                      }}
-                    />
-                  </PayPalScriptProvider>
+                  <>
+                    <p className="mb-2 text-center text-sm font-semibold text-gray-700">Debit or credit card via PayPal</p>
+                    <PayPalScriptProvider options={{
+                      'client-id': process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID,
+                      currency: 'USD',
+                      intent: 'capture',
+                    }}>
+                      <PayPalButtons
+                        style={{ layout: 'vertical', color: 'gold', shape: 'rect', label: 'pay' }}
+                        createOrder={async () => {
+                          const { data } = await axios.post('/api/user/create-premium-order');
+                          return data.orderId;
+                        }}
+                        onApprove={completePayment}
+                        onError={(error) => {
+                          console.error('Premium PayPal checkout failed:', error);
+                          toast.error('Card checkout failed. Please try again.');
+                        }}
+                      />
+                    </PayPalScriptProvider>
+                  </>
                 ) : null}
+                {user?.id && priceLoaded && !pricingError && (
+                  <BankTransferOption service="30-day Premium Property Plan" amountJmd={priceJmd} reference={user.id} />
+                )}
               </div>
             </>
           )}

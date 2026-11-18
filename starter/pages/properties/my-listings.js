@@ -7,6 +7,7 @@ import toast from 'react-hot-toast';
 import { FiEdit2, FiEye, FiMapPin, FiPlus, FiSave, FiTrash2, FiX } from 'react-icons/fi';
 import { PayPalButtons, PayPalScriptProvider } from '@paypal/react-paypal-js';
 import { formatPropertyMoney } from '../../lib/formatMoney';
+import BankTransferOption from '../../components/BankTransferOption';
 
 const PAYPAL_CLIENT_ID = process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID;
 const PageWrapper = PAYPAL_CLIENT_ID ? PayPalScriptProvider : Fragment;
@@ -285,6 +286,9 @@ export default function MyPropertiesPage() {
                               <p className="mb-1 text-center text-xs text-slate-600">
                                 30-day visibility boost · J${boostPlan.boostPriceJmd.toLocaleString('en-JM')}
                               </p>
+                              <p className="mb-2 text-center text-xs font-semibold text-slate-700">
+                                Pay by debit or credit card via PayPal
+                              </p>
                               <PayPalButtons
                                 style={{ layout: 'horizontal', height: 36, label: 'pay' }}
                                 disabled={Boolean(boostLoading[property.id])}
@@ -295,9 +299,18 @@ export default function MyPropertiesPage() {
                                   toast.error('Boost checkout failed. Please try again.');
                                 }}
                               />
+                              <BankTransferOption
+                                service={`30-day property visibility boost for ${property.title}`}
+                                amountJmd={boostPlan.boostPriceJmd}
+                                reference={property.id}
+                              />
                             </>
                           ) : (
-                            <p className="text-xs text-slate-500">Boosts cost J${boostPlan.boostPriceJmd.toLocaleString('en-JM')} for 30 days.</p>
+                            <BankTransferOption
+                              service={`30-day property visibility boost for ${property.title}`}
+                              amountJmd={boostPlan.boostPriceJmd}
+                              reference={property.id}
+                            />
                           )}
                         </div>
                       )}
