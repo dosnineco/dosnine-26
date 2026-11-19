@@ -2,6 +2,8 @@ import { createHash, randomUUID, timingSafeEqual } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { getDbClient, requireDbUser } from '@/lib/apiAuth';
 import { enforceMethods } from '@/lib/apiSecurity';
+import { getPayerReference } from '@/lib/paymentReference';
+import { getRequestUrgencyJmdAmount } from '@/lib/requestUrgencyPricing';
 
 export const config = { api: { bodyParser: false } };
 
@@ -83,8 +85,8 @@ export default async function handler(req, res) {
         if (!request) return res.status(404).json({ error: 'Service request not found.' });
         owner = request.client_user_id;
         payment = {
-          amount: Number(intent.amount),
-          currency: intent.currency || 'USD',
+          amount: getRequestUrgencyJmdAmount(intent.amount),
+          currency: 'JMD',
           referenceIds: [intent.service_request_id],
           payerName: null,
           payerEmail: null,
@@ -92,8 +94,8 @@ export default async function handler(req, res) {
       } else {
         owner = intent.client_user_id;
         payment = {
-          amount: Number(intent.amount),
-          currency: intent.currency || 'USD',
+          amount: getRequestUrgencyJmdAmount(intent.amount),
+          currency: 'JMD',
           referenceIds: intent.service_request_ids || [],
           payerName: null,
           payerEmail: null,
@@ -204,6 +206,7 @@ export default async function handler(req, res) {
         amount: payment.amount,
         currency: payment.currency,
         reference_ids: payment.referenceIds,
+        payer_reference: getPayerReference(owner),
         receipt_path: path,
         status: 'pending',
         submitted_at: submittedAt,
@@ -228,6 +231,7 @@ export default async function handler(req, res) {
         amount: payment.amount,
         currency: payment.currency,
         referenceIds: payment.referenceIds,
+        payerReference: getPayerReference(owner),
         status: 'pending',
         submittedAt,
         url: signedReceipt.signedUrl,

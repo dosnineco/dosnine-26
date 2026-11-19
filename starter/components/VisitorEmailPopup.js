@@ -2,13 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { useUser } from '@clerk/nextjs';
 import toast from 'react-hot-toast';
 import { X } from 'lucide-react';
-import { PayPalButtons, PayPalScriptProvider } from '@paypal/react-paypal-js';
 import {
   DEFAULT_REQUEST_URGENCY_PRICES,
   getRequestUrgencyJmdAmount,
   formatRequestUrgencyJmd,
 } from '@/lib/requestUrgencyPricing';
-import BankTransferOption from './BankTransferOption';
+import BankTransferPaymentPanel from './BankTransferPaymentPanel';
 
 const BUDGET_RANGES = {
   rent: { min: 70000, max: 4000000, step: 10000 },
@@ -20,7 +19,6 @@ const BUDGET_RANGES = {
 };
 
 const formatJmd = (value) => `J$${Number(value || 0).toLocaleString()}`;
-const PAYPAL_CLIENT_ID = process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID;
 
 export default function RequestAgentPopup() {
   const { isSignedIn, user } = useUser();
@@ -391,7 +389,7 @@ if (!formData.name || !formData.email || !formData.phone ||
           ...payload.urgencyPayment,
           requestId: payload.request?.id || null,
         });
-        toast('Request submitted. Complete checkout to apply the paid priority.');
+        toast('Request submitted. Upload your bank transfer receipt to apply the paid priority.');
         return;
       }
       if (payload.urgencyPaymentError) toast.error(payload.urgencyPaymentError);
@@ -412,47 +410,26 @@ if (!formData.name || !formData.email || !formData.phone ||
       setShowPopup(false);
   };
 
-  const createUrgencyOrder = async () => {
+  const submitUrgencyReceipt = async (file) => {
     if (!requestPayment) throw new Error('Submit your request before paying for priority.');
+    if (!acceptedUrgencyTerms) throw new Error('Accept the payment terms before submitting a receipt.');
     setLoading(true);
     try {
-      const response = await fetch('/api/service-requests/urgency/create-order', {
+      const body = new FormData();
+      body.append('source_type', 'request_urgency');
+      body.append('source_id', requestPayment.paymentId);
+      body.append('token', requestPayment.token);
+      body.append('receipt', file);
+      const response = await fetch('/api/payments/receipt', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          paymentId: requestPayment.paymentId,
-          token: requestPayment.token,
-          acceptedTerms: acceptedUrgencyTerms,
-        }),
-      });
-      const payload = await response.json();
-      if (!response.ok || !payload?.success || !payload?.orderId) {
-        throw new Error(payload?.error || 'Unable to start PayPal checkout.');
-      }
-      return payload.orderId;
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const captureUrgencyOrder = async (data) => {
-    if (!requestPayment) throw new Error('Request priority payment details are missing.');
-    setLoading(true);
-    try {
-      const response = await fetch('/api/service-requests/urgency/capture-order', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          paymentId: requestPayment.paymentId,
-          token: requestPayment.token,
-          orderId: data.orderID,
-        }),
+        body,
       });
       const payload = await response.json();
       if (!response.ok || !payload?.success) {
-        throw new Error(payload?.error || 'Unable to confirm PayPal payment.');
+        throw new Error(payload?.error || 'Unable to submit payment receipt.');
       }
-      finishSubmission();
+      setRequestPayment((current) => ({ ...current, receipt: payload.receipt }));
+      toast.success('Receipt submitted for review. Your request priority changes after payment is verified.');
     } finally {
       setLoading(false);
     }
@@ -497,45 +474,15 @@ return (
             <span>I understand this is a non-refundable priority fee, except where required by law, and no property or result is guaranteed.</span>
           </label>
 
-          {!PAYPAL_CLIENT_ID ? (
-            <p className="mt-5 rounded-xl bg-amber-50 p-4 text-sm leading-6 text-amber-900">
-              Card checkout is temporarily unavailable. Your request remains submitted at normal priority.
-            </p>
-          ) : (
-            <div className="mt-6">
-              <p className="mb-2 text-center text-sm font-semibold text-gray-700">
-                Pay by debit or credit card via PayPal
-              </p>
-              <PayPalScriptProvider options={{
-                'client-id': PAYPAL_CLIENT_ID,
-                currency: 'USD',
-                intent: 'capture',
-                components: 'buttons',
-              }}>
-                <PayPalButtons
-                  forceReRender={[requestPayment.paymentId, requestPayment.amount]}
-                  disabled={loading || !acceptedUrgencyTerms}
-                  style={{ layout: 'vertical', color: 'gold', shape: 'rect', label: 'pay' }}
-                  createOrder={createUrgencyOrder}
-                  onApprove={captureUrgencyOrder}
-                  onCancel={() => {
-                    setLoading(false);
-                    toast('Checkout cancelled. Your request remains at normal priority.');
-                  }}
-                  onError={(error) => {
-                    console.error('Request priority PayPal checkout failed:', error);
-                    setLoading(false);
-                    toast.error(error?.message || 'PayPal checkout failed. Please try again.');
-                  }}
-                />
-              </PayPalScriptProvider>
-            </div>
-          )}
-          <BankTransferOption
-            service={`${requestPayment.urgency} request-priority boost`}
-            amountJmd={getRequestUrgencyJmdAmount(requestPayment.amount)}
-            reference={requestPayment.requestId}
-          />
+          <div className="mt-5">
+            <BankTransferPaymentPanel
+              amount={getRequestUrgencyJmdAmount(requestPayment.amount)}
+              currency="JMD"
+              reference={requestPayment.requestId}
+              receipt={requestPayment.receipt}
+              onSubmit={submitUrgencyReceipt}
+            />
+          </div>
 
           <button
             type="button"

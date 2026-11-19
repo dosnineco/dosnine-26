@@ -24,15 +24,13 @@ async function getGiveaway(db) {
 async function getEligibleEntrants(db, now) {
   const users = [];
   const pageSize = 1000;
-  const activeCutoff = new Date(now.getTime() - (30 * 24 * 60 * 60 * 1000)).toISOString();
   for (let offset = 0; ; offset += pageSize) {
     const { data, error } = await db
       .from('users')
-      .select('id, full_name, email, account_type, last_active_at, premium_service_request, premium_service_request_expires')
+      .select('id, full_name, email, account_type, premium_service_request, premium_service_request_expires')
       .eq('account_type', 'regular')
       .eq('premium_service_request', true)
       .gt('premium_service_request_expires', now.toISOString())
-      .gte('last_active_at', activeCutoff)
       .order('id')
       .range(offset, offset + pageSize - 1);
     if (error) throw error;
@@ -42,14 +40,7 @@ async function getEligibleEntrants(db, now) {
   const userIds = (users || []).map((user) => user.id).filter(Boolean);
   if (!userIds.length) return [];
 
-  const [requestsResult, boostsResult, buyersResult, rentalsResult] = await Promise.all([
-    db.from('service_requests')
-      .select('id, client_user_id, request_type, created_at')
-      .in('client_user_id', userIds),
-    db.from('service_request_urgency_boost_batches')
-      .select('client_user_id, service_request_ids, status')
-      .in('client_user_id', userIds)
-      .eq('status', 'paid'),
+  const [buyersResult, rentalsResult] = await Promise.all([
     db.from('buyer_prequalifications')
       .select('buyer_user_id, qualification_level, status, verification_expires_at')
       .in('buyer_user_id', userIds),
@@ -57,17 +48,12 @@ async function getEligibleEntrants(db, now) {
       .select('user_id, qualification_level')
       .in('user_id', userIds),
   ]);
-  if (requestsResult.error) throw requestsResult.error;
-  if (boostsResult.error) throw boostsResult.error;
   if (buyersResult.error) throw buyersResult.error;
   if (rentalsResult.error) throw rentalsResult.error;
 
   return (users || []).map((user) => {
-    const requests = (requestsResult.data || []).filter((item) => item.client_user_id === user.id);
     const eligibility = getGiveawayEligibility({
       user,
-      requests,
-      boosts: (boostsResult.data || []).filter((item) => item.client_user_id === user.id),
       buyerReadiness: (buyersResult.data || []).filter((item) => item.buyer_user_id === user.id),
       rentalReadiness: (rentalsResult.data || []).find((item) => item.user_id === user.id),
       now,
@@ -77,7 +63,6 @@ async function getEligibleEntrants(db, now) {
       user_id: user.id,
       full_name: user.full_name,
       email: user.email,
-      requests: requests.map(({ id, request_type, created_at }) => ({ id, request_type, created_at })),
       eligibility,
     };
   }).filter(Boolean);
@@ -108,27 +93,26 @@ export default async function handler(req, res) {
       draw_at,
       is_open,
       winner_user_id,
-      winner_request_id,
     } = req.body || {};
 
     if (winner_user_id !== undefined) {
       if (!campaign.is_open || !campaign.draw_at || new Date(campaign.draw_at) > now) {
         return res.status(409).json({ error: 'The winner can only be selected on or after the scheduled draw date.' });
       }
-      if (typeof winner_user_id !== 'string' || typeof winner_request_id !== 'string') {
-        return res.status(400).json({ error: 'Select an eligible winner and one of their requests.' });
+      if (typeof winner_user_id !== 'string') {
+        return res.status(400).json({ error: 'Select an eligible winner.' });
       }
 
       const entrants = await getEligibleEntrants(db, now);
       const selectedEntrant = entrants.find((entrant) => entrant.user_id === winner_user_id);
-      if (!selectedEntrant || !selectedEntrant.requests.some((request) => request.id === winner_request_id)) {
-        return res.status(400).json({ error: 'The selected account or request is no longer eligible.' });
+      if (!selectedEntrant) {
+        return res.status(400).json({ error: 'The selected account is no longer eligible.' });
       }
       const { data, error } = await db
         .from('giveaway_campaigns')
         .update({
           winner_user_id,
-          winner_request_id,
+          winner_request_id: null,
           winner_selected_at: now.toISOString(),
           is_open: false,
           updated_at: now.toISOString(),

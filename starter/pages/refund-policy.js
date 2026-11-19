@@ -96,7 +96,7 @@ export default function RefundPolicy() {
                   <li>Email us at <a href="mailto:admin@dosnine.com" className="text-blue-600 hover:underline">admin@dosnine.com</a></li>
                   <li>Include "Refund Request" in the subject line</li>
                   <li>Provide your account email and property ID</li>
-                  <li>Include your PayPal transaction ID</li>
+                  <li>Include the payment receipt and bank transfer reference</li>
                   <li>Clearly state the reason for your refund request</li>
                   <li>Attach any supporting documentation (screenshots, etc.)</li>
                 </ol>
@@ -106,7 +106,7 @@ export default function RefundPolicy() {
                   <li>Full name and account email</li>
                   <li>Property title and ID</li>
                   <li>Date of purchase</li>
-                  <li>PayPal transaction ID</li>
+                  <li>Bank transfer receipt and reference</li>
                   <li>Detailed explanation of issue</li>
                   <li>Any relevant screenshots or evidence</li>
                 </ul>
@@ -123,19 +123,18 @@ export default function RefundPolicy() {
               <section className="mb-8">
                 <h2 className="text-2xl font-bold text-gray-900 mb-4">6. Refund Methods</h2>
                 
-                <h3 className="text-xl font-semibold text-gray-900 mb-3">6.1 PayPal Refunds</h3>
+                <h3 className="text-xl font-semibold text-gray-900 mb-3">6.1 Bank Transfer Refunds</h3>
                 <p className="text-gray-700 mb-4">
-                  All refunds will be processed through PayPal back to the original payment method used for purchase. Refund processing times:
+                  Approved refunds for bank transfers will be returned to the original sender's bank account after we verify the transfer details. Processing times depend on the banks involved.
                 </p>
                 <ul className="list-disc pl-6 mb-4 text-gray-700 space-y-2">
-                  <li><strong>PayPal Balance:</strong> Immediate upon approval</li>
-                  <li><strong>Credit/Debit Card:</strong> 5-10 business days</li>
-                  <li><strong>Bank Account:</strong> 7-14 business days</li>
+                  <li>Provide accurate account details for the original sender</li>
+                  <li>Allow 5-10 business days after approval for processing</li>
                 </ul>
 
                 <h3 className="text-xl font-semibold text-gray-900 mb-3">6.2 Refund Amount</h3>
                 <p className="text-gray-700 mb-4">
-                  Refunded amounts will be in the original currency (JMD). Any currency conversion fees or PayPal transaction fees are non-refundable.
+                  Refunds will be issued in the currency received. Any bank transfer fees charged by financial institutions are non-refundable.
                 </p>
               </section>
 
@@ -190,7 +189,7 @@ export default function RefundPolicy() {
                   <li>The final review decision is binding</li>
                 </ol>
                 <p className="text-gray-700">
-                  If you remain unsatisfied, you may file a dispute through PayPal's Resolution Center within their specified timeframe.
+                  If you remain unsatisfied, reply to the decision email or contact us to request a final review.
                 </p>
               </section>
 
@@ -203,7 +202,7 @@ export default function RefundPolicy() {
                   <li>Immediate account suspension</li>
                   <li>Removal of all property listings</li>
                   <li>Permanent ban from our platform</li>
-                  <li>Additional fees from PayPal</li>
+                  <li>Additional fees charged by your bank</li>
                 </ul>
                 <p className="text-gray-700">
                   We are committed to resolving issues fairly. Most problems can be resolved through our refund request process.

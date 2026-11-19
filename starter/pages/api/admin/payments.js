@@ -1,4 +1,5 @@
 import { getDbClient, requireAdminUser } from '@/lib/apiAuth';
+import { getPayerReference } from '@/lib/paymentReference';
 
 async function signedReceipt(db, bucket, path) {
   if (!path) return null;
@@ -17,14 +18,14 @@ export default async function handler(req, res) {
 
       const [centralResult, agentResult, sponsorResult] = await Promise.all([
         db.from('bank_transfer_payments')
-          .select('id, source_type, source_id, payer_name, payer_email, amount, currency, reference_ids, receipt_path, status, submitted_at, reviewed_at, notes')
+          .select('id, source_type, source_id, payer_name, payer_email, payer_reference, amount, currency, reference_ids, receipt_path, status, submitted_at, reviewed_at, notes')
           .order('submitted_at', { ascending: false }),
         db.from('agents')
           .select('id, business_name, payment_receipt_path, payment_receipt_submitted_at, payment_receipt_plan, payment_receipt_amount, payment_receipt_status, user_id')
           .not('payment_receipt_submitted_at', 'is', null)
           .order('payment_receipt_submitted_at', { ascending: false }),
         db.from('sponsor_submissions')
-          .select('id, company_name, email, amount, currency, plan_name, payment_status, status, payment_receipt_path, payment_receipt_submitted_at, submitted_at')
+          .select('id, company_name, email, amount, plan_name, payment_status, status, payment_receipt_path, payment_receipt_submitted_at, submitted_at, payer_reference')
           .not('payment_receipt_submitted_at', 'is', null)
           .order('payment_receipt_submitted_at', { ascending: false }),
       ]);
@@ -36,6 +37,7 @@ export default async function handler(req, res) {
           source: row.source_type === 'agent_request_applications' ? 'Agent applications' : row.source_type,
           payerName: row.payer_name,
           payerEmail: row.payer_email,
+          payerReference: row.payer_reference,
           amount: Number(row.amount),
           currency: row.currency || 'JMD',
           reference: (row.reference_ids || []).join(', '),
@@ -54,6 +56,7 @@ export default async function handler(req, res) {
           source: 'Agent plan',
           payerName: row.business_name || 'Agent',
           payerEmail: null,
+          payerReference: getPayerReference(row.user_id),
           amount: Number(row.payment_receipt_amount || 0),
           currency: 'JMD',
           reference: row.payment_receipt_plan || 'Agent plan',
@@ -73,8 +76,9 @@ export default async function handler(req, res) {
           source: 'Advertising',
           payerName: row.company_name || 'Advertiser',
           payerEmail: row.email,
+          payerReference: row.payer_reference,
           amount: Number(row.amount || 0),
-          currency: row.currency || 'JMD',
+          currency: 'JMD',
           reference: row.plan_name || row.id,
           status: row.payment_status === 'paid' ? 'approved'
             : row.payment_status === 'rejected' ? 'rejected' : 'pending',
@@ -110,26 +114,23 @@ export default async function handler(req, res) {
         if (!payment) return res.status(404).json({ error: 'Payment not found.' });
         if (payment.status !== 'pending') return res.status(409).json({ error: 'This payment is no longer pending.' });
 
-        const { error: updateError } = await db
-          .from('bank_transfer_payments')
-          .update({
-            status: action === 'approve' ? 'approved' : 'rejected',
-            reviewed_at: now,
-            reviewed_by: resolved.user?.id || resolved.clerkId || null,
-          })
-          .eq('id', rawId)
-          .eq('status', 'pending');
-        if (updateError) throw updateError;
-
-        if (action === 'approve' && payment.source_type === 'agent_request_applications') {
-          const applicationIds = String(payment.source_id || '').split(',').filter(Boolean);
-          if (applicationIds.length) {
-            const { error: applicationError } = await db
-              .from('agent_request_applications')
-              .update({ status: 'approved', reviewed_at: now })
-              .in('id', applicationIds);
-            if (applicationError) throw applicationError;
-          }
+        if (action === 'approve') {
+          const { error: approvalError } = await db.rpc('approve_bank_transfer_payment', {
+            p_payment_id: rawId,
+            p_reviewed_by: resolved.user?.id || null,
+          });
+          if (approvalError) throw approvalError;
+        } else {
+          const { error: rejectionError } = await db
+            .from('bank_transfer_payments')
+            .update({
+              status: 'rejected',
+              reviewed_at: now,
+              reviewed_by: resolved.user?.id || resolved.clerkId || null,
+            })
+            .eq('id', rawId)
+            .eq('status', 'pending');
+          if (rejectionError) throw rejectionError;
         }
         return res.status(200).json({ success: true });
       }

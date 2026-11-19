@@ -24,19 +24,31 @@ export default async function handler(req, res) {
   if (!parsed.success) return res.status(400).json({ error: 'A valid request boost is required.' });
 
   try {
-    const { data: cancelledBoost, error } = await getDbClient()
+    const db = getDbClient();
+    const { data: pendingReceipt, error: receiptError } = await db
+      .from('bank_transfer_payments')
+      .select('id')
+      .eq('source_type', 'request_urgency_batch')
+      .eq('source_id', parsed.data.boostId)
+      .eq('status', 'pending')
+      .maybeSingle();
+    if (receiptError) throw receiptError;
+    if (pendingReceipt) {
+      return res.status(409).json({ error: 'This boost cannot be closed while its receipt is under review.' });
+    }
+
+    const { data: cancelledBoost, error } = await db
       .from('service_request_urgency_boost_batches')
       .update({ status: 'expired', expires_at: new Date().toISOString() })
       .eq('id', parsed.data.boostId)
       .eq('client_user_id', resolved.user.id)
       .eq('status', 'awaiting_payment')
-      .is('paypal_order_id', null)
       .select('id')
       .maybeSingle();
     if (error) throw error;
     if (!cancelledBoost) {
       return res.status(409).json({
-        error: 'This boost cannot be closed after PayPal checkout starts. Finish checkout or try again later.',
+        error: 'This boost is no longer available to close.',
       });
     }
 

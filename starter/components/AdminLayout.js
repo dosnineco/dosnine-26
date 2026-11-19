@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { useCallback, useEffect, useState } from 'react';
+import { useAuth } from '@clerk/nextjs';
 import {
   FiGrid,
   FiUsers,
@@ -22,6 +23,7 @@ const SIDEBAR_STATE_KEY = 'admin-sidebar-collapsed';
 
 export default function AdminLayout({ children }) {
   const router = useRouter();
+  const { getToken, isLoaded: authLoaded } = useAuth();
   const path = router.pathname;
 
   const [counts, setCounts] = useState({
@@ -77,16 +79,21 @@ export default function AdminLayout({ children }) {
   /* -------------------- Fetch unresolved-work badge counts -------------------- */
   const fetchCounts = useCallback(async () => {
     try {
+      const token = await getToken();
+      const fetchAdminApi = (url) => fetch(url, {
+        credentials: 'include',
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
       const [requestsRes, applicationsRes, advertisementsRes, accountsRes, agentsRes, htvRes, buyerPrequalificationsRes, paymentsRes] =
         await Promise.all([
-          fetch('/api/admin/requests', { credentials: 'include' }),
-          fetch('/api/admin/agent-applications', { credentials: 'include' }),
-          fetch('/api/admin/advertisements', { credentials: 'include' }),
-          fetch('/api/admin/users', { credentials: 'include' }),
-          fetch('/api/admin/agents/notifications?pending=true', { credentials: 'include' }),
-          fetch('/api/admin/htv-orders', { credentials: 'include' }),
-          fetch('/api/admin/buyer-prequalifications?summary=true', { credentials: 'include' }),
-          fetch('/api/admin/payments', { credentials: 'include' }),
+          fetchAdminApi('/api/admin/requests'),
+          fetchAdminApi('/api/admin/agent-applications'),
+          fetchAdminApi('/api/admin/advertisements'),
+          fetchAdminApi('/api/admin/users'),
+          fetchAdminApi('/api/admin/agents/notifications?pending=true'),
+          fetchAdminApi('/api/admin/htv-orders'),
+          fetchAdminApi('/api/admin/buyer-prequalifications?summary=true'),
+          fetchAdminApi('/api/admin/payments'),
         ]);
 
       const [requestsPayload, applicationsPayload, advertisementsPayload, accountsPayload, agentsPayload, htvPayload, buyerPrequalificationsPayload, paymentsPayload] =
@@ -142,9 +149,10 @@ export default function AdminLayout({ children }) {
     } catch (error) {
       console.error('Failed to refresh admin action counts:', error);
     }
-  }, []);
+  }, [getToken]);
 
   useEffect(() => {
+    if (!authLoaded) return undefined;
     fetchCounts();
     const interval = setInterval(fetchCounts, 60000);
     const onFocus = () => fetchCounts();
@@ -156,12 +164,19 @@ export default function AdminLayout({ children }) {
       window.removeEventListener('focus', onFocus);
       router.events.off('routeChangeComplete', fetchCounts);
     };
-  }, [fetchCounts, router.events]);
+  }, [authLoaded, fetchCounts, router.events]);
 
   /* -------------------- Nav items -------------------- */
   const navItems = [
-    { href: '/admin', label: 'Dashboard', icon: FiHome },
-    { href: '/admin/submitted-visitors', label: 'Submitted Visitors', icon: FiMail },
+        { href: '/admin', label: 'Dashboard', icon: FiHome },
+
+    { href: '/admin/payments', label: 'Payments', icon: FiDollarSign, badge: counts.payments },
+      {
+      href: '/admin/advertisements',
+      label: 'Advertisements',
+      icon: FiUsers,
+      badge: counts.advertisements,
+    },
     {
       href: '/admin/requests',
       label: 'Requests',
@@ -181,13 +196,8 @@ export default function AdminLayout({ children }) {
       badge: counts.applications,
     },
     { href: '/admin/htv', label: 'HTV', icon: FiPackage, badge: counts.htv },
-    { href: '/admin/payments', label: 'Payments', icon: FiDollarSign, badge: counts.payments },
-    {
-      href: '/admin/advertisements',
-      label: 'Advertisements',
-      icon: FiUsers,
-      badge: counts.advertisements,
-    },
+    { href: '/admin/submitted-visitors', label: 'Submitted Visitors', icon: FiMail, badge: counts.submittedVisitors },
+
     { href: '/admin/newsletter', label: 'Newsletter', icon: FiMail },
     {
       href: '/admin/market-intelligence',
@@ -196,7 +206,7 @@ export default function AdminLayout({ children }) {
     },
     { href: '/admin/users', label: 'Users & Agents', icon: FiUsers, badge: counts.users + counts.agents },
    
-    { href: '/admin/properties', label: 'Properties', icon: FiUsers },
+    { href: '/admin/properties', label: 'Properties', icon: FiUsers, badge: counts.properties },
     { href: '/admin/api-smoke', label: 'API Smoke', icon: FiGrid },
   ];
 

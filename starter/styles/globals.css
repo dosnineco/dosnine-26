@@ -30,6 +30,7 @@
 /* Accent color system */
 :root {
   --accent-color: #2391FF;
+  --accent-color-rgb: 35 145 255;
   --accent-ring: rgba(245, 83, 83, 0.35);
 }
 
@@ -108,29 +109,6 @@
 
 .dashboard-inspired .dashboard-field:focus {
   box-shadow: inset 0 0 0 2px var(--dashboard-accent);
-}
-
-.agent-dashboard [class~="text-[#2373F4]"] {
-  color: var(--accent-color) !important;
-}
-.agent-dashboard [class~="bg-[#2373F4]"] {
-  background-color: var(--accent-color) !important;
-}
-.agent-dashboard [class~="bg-[#2373F4]/10"] {
-  background-color: color-mix(in srgb, var(--accent-color) 10%, transparent) !important;
-}
-.agent-dashboard [class~="bg-[#2373F4]/15"] {
-  background-color: color-mix(in srgb, var(--accent-color) 15%, transparent) !important;
-}
-.agent-dashboard [class~="border-[#2373F4]"],
-.agent-dashboard [class~="border-t-[#2373F4]"] {
-  border-color: var(--accent-color) !important;
-}
-.agent-dashboard [class~="hover:text-[#2373F4]"]:hover {
-  color: var(--accent-color) !important;
-}
-.agent-dashboard [class~="focus:ring-[#2373F4]"]:focus {
-  --tw-ring-color: var(--accent-color);
 }
 
 /* Standardized Button System */

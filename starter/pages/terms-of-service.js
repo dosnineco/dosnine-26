@@ -143,7 +143,7 @@ export default function TermsOfService() {
               <section className="mb-8">
                 <h2 className="text-2xl font-bold text-gray-900 mb-4">7. Payment Terms</h2>
                 <ul className="list-disc pl-6 mb-4 text-gray-700 space-y-2">
-                  <li>All payments are processed through PayPal</li>
+                  <li>Payments are made by bank transfer; users must upload a receipt for review</li>
                   <li>Prices are displayed in Jamaican Dollars (JMD)</li>
                   <li>Payment must be received before Tenant Service Advertisement activation</li>
                   <li>You are responsible for any payment processing fees</li>

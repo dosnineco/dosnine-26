@@ -21,6 +21,7 @@ import {
   UploadCloud,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import BankTransferNotes from '@/components/BankTransferNotes';
 
 const plans = [
   {
@@ -1346,7 +1347,7 @@ export default function AdvertisePage() {
                         : 'Your payment is confirmed. Your ad is awaiting review and approval. This page will return to a new ad form after the team approves or rejects it.'
                       : receiptSubmittedAt
                         ? 'Your receipt has been submitted. We are verifying the transfer; bank processing times vary and it may take a few business days for payment to appear. Once confirmed, your ad will wait for approval. This page will return to a new ad form after the team approves or rejects it.'
-                        : 'Transfer the amount to the bank account below. Put your submission ID in the transfer notes, then upload your receipt for verification.'}
+                        : 'Transfer the amount to the bank account below. Add the user ID and submission ID shown below to your transfer notes, then upload your receipt for verification.'}
                   </p>
 
                   {!receiptSubmittedAt && paymentStatus !== 'paid' ? (
@@ -1356,10 +1357,8 @@ export default function AdvertisePage() {
                           ['Bank', sponsorBankDetails.bank],
                           ['Account name', sponsorBankDetails.accountName],
                           ['Account number', sponsorBankDetails.accountNumber],
-                          ['Account type', sponsorBankDetails.accountType],
                           ['Branch', sponsorBankDetails.branch],
-                          ['Transfer amount', formatMoney(totalAmount)],
-                          ['Payment notes — use this exact ID', submissionId],
+                          ['Account type', sponsorBankDetails.accountType],
                         ].map(([label, value]) => (
                           <div key={label} className="flex items-center justify-between gap-3 py-3">
                             <div className="min-w-0">
@@ -1369,13 +1368,28 @@ export default function AdvertisePage() {
                             <button
                               type="button"
                               onClick={() => copyToClipboard(value, label)}
-                              className="inline-flex shrink-0 items-center gap-1 rounded-full bg-slate-100 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-200"
+                              className="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-lg bg-accent/10 px-4 py-3 text-sm font-bold text-accent transition hover:bg-accent/20"
                             >
-                              {copied === label ? <Check size={14} /> : <Copy size={14} />}
+                              {copied === label ? <Check size={19} /> : <Copy size={19} />}
                               {copied === label ? 'Copied' : 'Copy'}
                             </button>
                           </div>
                         ))}
+                        <BankTransferNotes reference={submissionId} />
+                        <div className="flex items-center justify-between gap-3 py-3">
+                          <div className="min-w-0">
+                            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Transfer amount</p>
+                            <p className="mt-1 font-medium text-slate-900">{formatMoney(totalAmount)}</p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => copyToClipboard(formatMoney(totalAmount), 'Transfer amount')}
+                            className="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-lg bg-accent/10 px-4 py-3 text-sm font-bold text-accent transition hover:bg-accent/20"
+                          >
+                            {copied === 'Transfer amount' ? <Check size={19} /> : <Copy size={19} />}
+                            {copied === 'Transfer amount' ? 'Copied' : 'Copy'}
+                          </button>
+                        </div>
                       </div>
 
                       <div className="mt-5">

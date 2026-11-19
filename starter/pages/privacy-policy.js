@@ -92,7 +92,7 @@ export default function PrivacyPolicy() {
                   <li>Name and contact information (email address, phone number)</li>
                   <li>Account credentials (username, password)</li>
                   <li>Property listing information (address, photos, descriptions)</li>
-                  <li>Payment information (processed securely through PayPal)</li>
+                  <li>Bank transfer receipt images and payment details submitted for review</li>
                   <li>Communication preferences and correspondence</li>
                 </ul>
 
@@ -145,7 +145,7 @@ export default function PrivacyPolicy() {
                 <ul className="list-disc pl-6 mb-4 text-gray-700 space-y-2">
                   <li>Supabase (database and authentication)</li>
                   <li>Clerk (user authentication)</li>
-                  <li>PayPal (payment processing)</li>
+                  <li>Supabase Storage (private bank transfer receipt storage)</li>
                   <li>Vercel (hosting services)</li>
                 </ul>
 

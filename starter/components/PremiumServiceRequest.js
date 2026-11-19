@@ -132,7 +132,7 @@ export default function PremiumServiceRequest() {
 
               <div className="mt-7">
                 {!isLoaded || loading ? (
-                  <p className="text-center text-sm text-gray-500">Loading Premium checkout…</p>
+                  <p className="text-center text-sm text-gray-500">Loading Premium plan…</p>
                 ) : !user?.id ? (
                   <SignInButton mode="modal">
                     <button type="button" className="w-full rounded-xl bg-accent px-5 py-3 font-semibold text-white hover:bg-accent/90">

@@ -70,15 +70,7 @@ export default function Footer() {
             </p>
 
             {/* Trust pill */}
-            <div className="mt-6 inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5">
-              <span className="relative flex h-1.5 w-1.5">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-                <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500" />
-              </span>
-              <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-600">
-                Live across Jamaica
-              </span>
-            </div>
+           
           </div>
 
           {/* ---------- Marketplace (3 cols) ---------- */}

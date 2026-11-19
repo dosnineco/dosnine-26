@@ -28,15 +28,15 @@ import {
   AlertCircle,
   X,
   UserRound,
+  Gift,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import AdvertiserDashboard from '../advertiser/dashboard';
 import { clampBuyerLevel } from '../../lib/buyerReadiness';
 
-const BRAND = '#6E026F';
 
 const REQUEST_TYPE_STYLES = {
-  buy: 'bg-[#6E026F]/10 text-[#6E026F]',
+  buy: 'bg-accent/10 text-accent',
   rent: 'bg-gray-100 text-gray-700',
   sell: 'bg-gray-200 text-gray-800',
   lease: 'bg-gray-100 text-gray-700',
@@ -52,7 +52,7 @@ const REQUEST_TYPE_ICONS = {
 };
 
 const REQUEST_STATUS_STYLES = {
-  open: 'text-[#6E026F]',
+  open: 'text-accent',
   assigned: 'text-gray-700',
   in_progress: 'text-gray-700',
   completed: 'text-gray-700',
@@ -61,7 +61,7 @@ const REQUEST_STATUS_STYLES = {
 };
 
 const STATUS_DOT = {
-  open: 'bg-[#6E026F]',
+  open: 'bg-accent',
   assigned: 'bg-gray-500',
   in_progress: 'bg-gray-500',
   completed: 'bg-gray-500',
@@ -78,6 +78,15 @@ function formatBudgetRange(min, max) {
   if (hasMax) return `up to J$${Number(max).toLocaleString()}`;
   if (hasMin) return `from J$${Number(min).toLocaleString()}`;
   return 'Not specified';
+}
+
+function formatGiveawayCountdown(value, now) {
+  const distance = Math.max(0, new Date(value).getTime() - now);
+  const days = Math.floor(distance / 86_400_000);
+  const hours = Math.floor((distance % 86_400_000) / 3_600_000);
+  const minutes = Math.floor((distance % 3_600_000) / 60_000);
+  const seconds = Math.floor((distance % 60_000) / 1_000);
+  return `${days}d ${hours}h ${minutes}m ${seconds}s`;
 }
 
 export default function RegularDashboard() {
@@ -115,6 +124,8 @@ export default function RegularDashboard() {
   const [agentData, setAgentData] = useState(null);
   const [premiumExpiresAt, setPremiumExpiresAt] = useState(null);
   const [premiumPrice, setPremiumPrice] = useState(3178.4);
+  const [giveaway, setGiveaway] = useState(null);
+  const [giveawayNow, setGiveawayNow] = useState(Date.now());
   const [showAgentPrompt, setShowAgentPrompt] = useState(false);
   const [queueCount, setQueueCount] = useState(null);
   const [queueLoading, setQueueLoading] = useState(true);
@@ -133,6 +144,9 @@ export default function RegularDashboard() {
   const [editingAdValues, setEditingAdValues] = useState({ title: '', description: '', phone: '', website: '' });
   const [adOperationLoading, setAdOperationLoading] = useState(false);
   const [adMessage, setAdMessage] = useState(null);
+  const giveawayCountdown = giveaway?.draw_at
+    ? formatGiveawayCountdown(giveaway.draw_at, giveawayNow)
+    : '';
 
   const isApprovedAgent = (agent) => {
     const status = String(agent?.verification_status || '').trim().toLowerCase();
@@ -297,6 +311,12 @@ export default function RegularDashboard() {
     };
   }, [shouldLoadData, redirecting]);
 
+  useEffect(() => {
+    if (!giveaway?.draw_at) return undefined;
+    const timer = setInterval(() => setGiveawayNow(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, [giveaway?.draw_at]);
+
   async function checkUserStatus() {
     try {
       setRedirecting(true);
@@ -409,6 +429,7 @@ export default function RegularDashboard() {
 
       setRecentProperties(Array.isArray(payload?.recentProperties) ? payload.recentProperties : []);
       setServiceRequests(Array.isArray(payload?.serviceRequests) ? payload.serviceRequests : []);
+      setGiveaway(payload?.giveaway || null);
       setAdInquiries(Array.isArray(payload?.adInquiries) ? payload.adInquiries : []);
       setAdvertisements(Array.isArray(payload?.advertisements) ? payload.advertisements : []);
       setVerifiedAdvertisements(Array.isArray(payload?.verifiedAdvertisements) ? payload.verifiedAdvertisements : []);
@@ -427,6 +448,7 @@ export default function RegularDashboard() {
       setStats({ properties: 0, applications: 0, activeListings: 0 });
       setRecentProperties([]);
       setServiceRequests([]);
+      setGiveaway(null);
       setAdInquiries([]);
       setAdvertisements([]);
       setVerifiedAdvertisements([]);
@@ -587,19 +609,19 @@ export default function RegularDashboard() {
         </div>
 
         {accountType === 'regular' && !isHomeownerProfile && !homeownerUpgradeDismissed && (
-          <section className="relative mb-8 flex flex-col gap-4 rounded-2xl bg-blue-50 p-5 pr-14 sm:flex-row sm:items-center sm:justify-between sm:p-6 sm:pr-14">
+          <section className="relative mb-8 flex flex-col gap-4 rounded-2xl bg-accent/5 p-5 pr-14 sm:flex-row sm:items-center sm:justify-between sm:p-6 sm:pr-14">
             <div className="flex items-start gap-3">
-              <ShieldCheck className="mt-1 h-6 w-6 shrink-0 text-blue-700" aria-hidden="true" />
+              <ShieldCheck className="mt-1 h-6 w-6 shrink-0 text-accent" aria-hidden="true" />
               <div>
-                <h2 className="font-semibold text-blue-950">Want to list or manage a property?</h2>
-                <p className="mt-1 text-sm leading-6 text-blue-900">
+                <h2 className="font-semibold text-accent">Want to list or manage a property?</h2>
+                <p className="mt-1 text-sm leading-6 text-gray-700">
                   Upgrade to a Homeowner account. You’ll need to verify your identity with a government ID.
                 </p>
               </div>
             </div>
             <Link
               href="/verify?role=homeowner"
-              className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-blue-700 px-5 py-3 text-sm font-semibold text-white transition hover:bg-blue-800"
+              className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-accent px-5 py-3 text-sm font-semibold text-white transition hover:bg-accent/90"
             >
               Upgrade to Homeowner
               <ArrowRight className="h-4 w-4" aria-hidden="true" />
@@ -613,7 +635,7 @@ export default function RegularDashboard() {
                 setHomeownerUpgradeDismissed(true);
               }}
               aria-label="Dismiss homeowner upgrade message"
-              className="absolute right-3 top-3 rounded-lg p-2 text-blue-800 transition hover:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-blue-700 sm:right-4 sm:top-4"
+              className="absolute right-3 top-3 rounded-lg p-2 text-accent transition hover:bg-accent/10 focus:outline-none focus:ring-2 focus:ring-accent sm:right-4 sm:top-4"
             >
               <X className="h-5 w-5" aria-hidden="true" />
             </button>
@@ -622,23 +644,69 @@ export default function RegularDashboard() {
 
         {accountType === 'regular' && !premiumExpiresAt && (
           <Link
-            href="/premium-payment"
+            href="/profile#premium-payment"
             className="mb-8 flex flex-col gap-4 rounded-2xl bg-white p-5 ring-1 ring-gray-200 transition hover:ring-accent sm:flex-row sm:items-center sm:justify-between sm:p-6"
           >
             <div className="flex items-start gap-3">
               <LockKeyhole className="mt-1 h-6 w-6 shrink-0 text-accent" aria-hidden="true" />
               <div>
-                <p className="text-xs font-bold uppercase tracking-wider text-emerald-600">30-day property plan · J${premiumPrice.toLocaleString('en-JM', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
-                <h2 className="mt-1 font-semibold text-gray-900">Unlock the Premium Property Plan</h2>
+                <p className="text-xs font-bold uppercase tracking-wider text-accent">1-month upgrade · J${premiumPrice.toLocaleString('en-JM', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
                 <p className="mt-1 text-sm leading-6 text-gray-600">
-                  Post more than one property and get one free 30-day visibility boost. Your first listing, requests, and buyer readiness remain free.
+                  Post more than one property and get one free 30-day visibility boost, Get a chance to win Airbnb Stays and access to Off-market properties. 
                 </p>
               </div>
             </div>
-            <span             className="inline-flex shrink-0 items-center justify-center rounded-xl bg-emerald-500 px-5 py-3 text-sm font-semibold text-white hover:bg-emerald-600">
+            <span className="inline-flex shrink-0 items-center justify-center rounded-xl bg-accent px-5 py-3 text-sm font-semibold text-white transition hover:opacity-90">
               Upgrade
             </span>
           </Link>
+        )}
+
+        {accountType === 'regular' && (
+          <section className="mb-8 rounded-2xl bg-accent/5 p-6 ring-1 ring-accent/15">
+            {giveaway ? (
+              <>
+                <div className="flex flex-wrap items-start justify-between gap-4">
+                  <div className="flex items-start gap-3">
+                    <Gift className="mt-1 h-6 w-6 shrink-0 text-accent" aria-hidden="true" />
+                    <div>
+                      <p className="text-sm font-semibold uppercase tracking-wide text-accent">Member reward</p>
+                      <h2 className="mt-1 text-2xl font-bold text-gray-900">{giveaway.title}</h2>
+                      <p className="mt-1 text-gray-700">{giveaway.prize_description}</p>
+                    </div>
+                  </div>
+                  <div className="rounded-xl bg-white px-4 py-3 text-center">
+                    <p className="text-xs font-semibold uppercase text-gray-500">Giveaway countdown</p>
+                    <p className="mt-1 font-mono text-lg font-bold text-gray-900">{giveawayCountdown}</p>
+                  </div>
+                </div>
+                <p className="mt-5 text-sm font-semibold text-gray-800">
+                  {giveaway.eligible ? 'You qualify for this giveaway.' : 'Complete the requirements below to qualify.'}
+                </p>
+                <ul className="mt-3 grid gap-2 sm:grid-cols-2">
+                  {[
+                    ['Premium plan active', giveaway.eligibility.isPremium],
+                    ['Level 4 buyer or rental readiness complete', giveaway.eligibility.hasLevelFourReadiness],
+                  ].map(([label, complete]) => (
+                    <li key={label} className="flex items-center gap-2 text-sm text-gray-700">
+                      <CheckCircle2 className={`h-4 w-4 ${complete ? 'text-emerald-600' : 'text-gray-300'}`} aria-hidden="true" />
+                      {label}
+                    </li>
+                  ))}
+                </ul>
+              </>
+            ) : (
+              <>
+                <p className="font-semibold text-gray-900">No giveaway is open right now</p>
+                <p className="mt-1 text-sm text-gray-600">
+                  When the next reward opens, its prize, eligibility checklist, and countdown will appear here.
+                </p>
+                <p className="mt-3 text-sm text-gray-600">
+                  To qualify, activate a Premium plan and complete Level 4 buyer or rental readiness.
+                </p>
+              </>
+            )}
+          </section>
         )}
 
         {/* ==================== QUICK ACTIONS ==================== */}
@@ -651,21 +719,21 @@ export default function RegularDashboard() {
             {/* Card 1 — Submit a request */}
             <Link
               href="/request"
-              className="group relative overflow-hidden rounded-2xl border border-gray-200 bg-white p-6 transition-all duration-200 hover:-translate-y-0.5 hover:border-[#6E026F]/20 hover:shadow-lg hover:shadow-gray-200/80"
+              className="group relative overflow-hidden rounded-2xl border border-gray-200 bg-white p-6 transition-all duration-200 hover:-translate-y-0.5 hover:border-accent/20 hover:shadow-lg hover:shadow-gray-200/80"
             >
-              <div className="pointer-events-none absolute -right-10 -top-10 h-36 w-36 rounded-full bg-[#6E026F]/8 blur-3xl transition-colors duration-300 group-hover:bg-[#6E026F]/15" />
+              <div className="pointer-events-none absolute -right-10 -top-10 h-36 w-36 rounded-full bg-accent/8 blur-3xl transition-colors duration-300 group-hover:bg-accent/15" />
               <div className="relative">
                 <div className="flex items-start justify-between">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#6E026F]/10 text-[#6E026F] transition-colors duration-200 group-hover:bg-[#6E026F] group-hover:text-white">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-accent/10 text-accent transition-colors duration-200 group-hover:bg-accent group-hover:text-white">
                     <FileText size={22} />
                   </div>
                   <ArrowUpRight
                     size={18}
-                    className="text-gray-300 transition-all duration-200 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-[#6E026F]"
+                    className="text-gray-300 transition-all duration-200 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-accent"
                   />
                 </div>
                 <div className="mt-6">
-                  <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#6E026F]">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-accent">
                     Request
                   </p>
                   <h3 className="mt-1 text-lg font-semibold text-gray-900">
@@ -686,15 +754,15 @@ export default function RegularDashboard() {
             {accountType === 'regular' && (
               <Link
                 href="/my-requests"
-                className="group relative overflow-hidden rounded-2xl border border-gray-200 bg-white p-6 transition-all duration-200 hover:-translate-y-0.5 hover:border-[#6E026F]/20 hover:shadow-lg hover:shadow-gray-200/80"
+                className="group relative overflow-hidden rounded-2xl border border-gray-200 bg-white p-6 transition-all duration-200 hover:-translate-y-0.5 hover:border-accent/20 hover:shadow-lg hover:shadow-gray-200/80"
               >
                 <div className="pointer-events-none absolute -right-10 -top-10 h-36 w-36 rounded-full bg-gray-100 blur-3xl transition-colors duration-300 group-hover:bg-gray-200" />
                 <div className="relative">
                   <div className="flex items-start justify-between">
-                    <div className="relative flex h-12 w-12 items-center justify-center rounded-xl bg-gray-100 text-gray-700 transition-colors duration-200 group-hover:bg-[#6E026F] group-hover:text-white">
+                    <div className="relative flex h-12 w-12 items-center justify-center rounded-xl bg-gray-100 text-gray-700 transition-colors duration-200 group-hover:bg-accent group-hover:text-white">
                       <ClipboardList size={22} />
                     </div>
-                    <span className="inline-flex items-center rounded-full bg-[#6E026F]/10 px-2.5 py-1 text-[11px] font-semibold text-[#6E026F]">
+                    <span className="inline-flex items-center rounded-full bg-accent/10 px-2.5 py-1 text-[11px] font-semibold text-accent">
                       {loading
                         ? '…'
                         : `${serviceRequests.length} ${
@@ -730,12 +798,12 @@ export default function RegularDashboard() {
                 <div className="pointer-events-none absolute -right-10 -top-10 h-36 w-36 rounded-full bg-gray-100 blur-3xl transition-colors duration-300 group-hover:bg-gray-200" />
                 <div className="relative">
                   <div className="flex items-start justify-between">
-                    <div className="relative flex h-12 w-12 items-center justify-center rounded-xl bg-gray-100 text-gray-700 transition-colors duration-200 group-hover:bg-[#6E026F] group-hover:text-white">
+                    <div className="relative flex h-12 w-12 items-center justify-center rounded-xl bg-gray-100 text-gray-700 transition-colors duration-200 group-hover:bg-accent group-hover:text-white">
                       <Home size={22} />
                     </div>
                     <ArrowUpRight
                       size={18}
-                      className="text-gray-300 transition-all duration-200 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-[#6E026F]"
+                      className="text-gray-300 transition-all duration-200 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-accent"
                     />
                   </div>
                   <div className="mt-6">
@@ -757,21 +825,21 @@ export default function RegularDashboard() {
             {isHomeownerProfile && (
               <Link
                 href="/properties/new"
-                className="group relative overflow-hidden rounded-2xl border border-gray-200 bg-white p-6 transition-all duration-200 hover:-translate-y-0.5 hover:border-[#6E026F]/20 hover:shadow-lg hover:shadow-gray-200/80"
+                className="group relative overflow-hidden rounded-2xl border border-gray-200 bg-white p-6 transition-all duration-200 hover:-translate-y-0.5 hover:border-accent/20 hover:shadow-lg hover:shadow-gray-200/80"
               >
-                <div className="pointer-events-none absolute -right-10 -top-10 h-36 w-36 rounded-full bg-[#6E026F]/8 blur-3xl transition-colors duration-300 group-hover:bg-[#6E026F]/15" />
+                <div className="pointer-events-none absolute -right-10 -top-10 h-36 w-36 rounded-full bg-accent/8 blur-3xl transition-colors duration-300 group-hover:bg-accent/15" />
                 <div className="relative">
                   <div className="flex items-start justify-between">
-                    <div className="relative flex h-12 w-12 items-center justify-center rounded-xl bg-[#6E026F]/10 text-[#6E026F] transition-colors duration-200 group-hover:bg-[#6E026F] group-hover:text-white">
+                    <div className="relative flex h-12 w-12 items-center justify-center rounded-xl bg-accent/10 text-accent transition-colors duration-200 group-hover:bg-accent group-hover:text-white">
                       <Plus size={22} />
                     </div>
                     <ArrowUpRight
                       size={18}
-                      className="text-gray-300 transition-all duration-200 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-[#6E026F]"
+                      className="text-gray-300 transition-all duration-200 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-accent"
                     />
                   </div>
                   <div className="mt-6">
-                    <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#6E026F]">
+                    <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-accent">
                       New listing
                     </p>
                     <h3 className="mt-1 text-lg font-semibold text-gray-900">
@@ -884,11 +952,11 @@ export default function RegularDashboard() {
         )}
 
         {accountType === 'agent' && pendingAdVerificationAt && (
-          <div className="mb-8 rounded-lg border-l-4 border-[#6E026F] bg-[#6E026F]/5 p-6">
+          <div className="mb-8 rounded-lg border-l-4 border-accent bg-accent/5 p-6">
             <div className="flex items-start gap-3">
-              <Clock className="mt-0.5 h-6 w-6 flex-shrink-0 text-[#6E026F]" />
+              <Clock className="mt-0.5 h-6 w-6 flex-shrink-0 text-accent" />
               <div className="flex-1">
-                <h3 className="mb-1 text-lg font-semibold text-[#6E026F]">
+                <h3 className="mb-1 text-lg font-semibold text-accent">
                   Advertisement Verification Pending
                 </h3>
                 <p className="mb-2 text-gray-700">
@@ -1066,7 +1134,7 @@ export default function RegularDashboard() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5">
               <div className="bg-gray-50 rounded-lg p-4">
                 <p className="text-sm text-gray-600">Total Views</p>
-                <p className="text-3xl font-bold text-[#6E026F]">{Number(adStats.totalViews || 0).toLocaleString()}</p>
+                <p className="text-3xl font-bold text-accent">{Number(adStats.totalViews || 0).toLocaleString()}</p>
               </div>
               <div className="bg-gray-50 rounded-lg p-4">
                 <p className="text-sm text-gray-600">Total Clicks</p>
@@ -1083,7 +1151,7 @@ export default function RegularDashboard() {
                       <p className="text-xs text-gray-500">Expires: {formatDate(ad.expires_at)}</p>
                     </div>
                     <div className="text-right text-sm">
-                      <p className="font-semibold text-[#6E026F]">{Number(ad.impressions || 0).toLocaleString()} views</p>
+                      <p className="font-semibold text-accent">{Number(ad.impressions || 0).toLocaleString()} views</p>
                       <p className="font-semibold text-gray-700">{Number(ad.clicks || 0).toLocaleString()} clicks</p>
                     </div>
                   </div>
@@ -1176,8 +1244,8 @@ export default function RegularDashboard() {
                     sub: 'Add documents to raise your chances.',
                   },
                   'in-progress': {
-                    wrap: 'border-[#6E026F]/15 bg-[#6E026F]/5',
-                    icon: 'bg-[#6E026F]/10 text-[#6E026F]',
+                    wrap: 'border-accent/15 bg-accent/5',
+                    icon: 'bg-accent/10 text-accent',
                     title: 'Verification in progress',
                     sub:
                       reviewedDocuments > 0
@@ -1185,8 +1253,8 @@ export default function RegularDashboard() {
                         : 'Add more documents to reach Level 3.',
                   },
                   'under-review': {
-                    wrap: 'border-[#6E026F]/15 bg-[#6E026F]/5',
-                    icon: 'bg-[#6E026F]/10 text-[#6E026F]',
+                    wrap: 'border-accent/15 bg-accent/5',
+                    icon: 'bg-accent/10 text-accent',
                     title: 'Documents under review',
                     sub: `${pendingDocuments} file${pendingDocuments === 1 ? '' : 's'} being reviewed`,
                   },
@@ -1224,7 +1292,7 @@ export default function RegularDashboard() {
                     ? 'border border-emerald-200 bg-emerald-50 text-emerald-800 hover:bg-emerald-100'
                     : verificationStatus === 'expired'
                       ? 'bg-red-600 text-white hover:bg-red-700'
-                      : 'bg-[#6E026F] text-white hover:bg-[#6E026F]/90';
+                      : 'bg-accent text-white hover:bg-accent/90';
 
                 const fillLevel = Math.max(0, Math.min(4, level));
 
@@ -1333,7 +1401,7 @@ export default function RegularDashboard() {
                                   ? 'bg-emerald-500'
                                   : verificationStatus === 'under-review' ||
                                       verificationStatus === 'in-progress'
-                                    ? 'bg-[#6E026F]'
+                                    ? 'bg-accent'
                                     : 'bg-red-400';
                               return (
                                 <div
@@ -1369,7 +1437,7 @@ export default function RegularDashboard() {
                           {agentUser?.email && (
                             <a
                               href={`mailto:${agentUser.email}`}
-                              className="mt-2 block truncate rounded-md bg-white px-2.5 py-1.5 text-[11px] font-medium text-[#6E026F] transition hover:bg-gray-50"
+                              className="mt-2 block truncate rounded-md bg-white px-2.5 py-1.5 text-[11px] font-medium text-accent transition hover:bg-gray-50"
                             >
                               {agentUser.email}
                             </a>
@@ -1391,7 +1459,7 @@ export default function RegularDashboard() {
                           </div>
                           <Link
                             href={{ pathname: '/my-requests', query: { boostRequest: request.id } }}
-                            className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-lg bg-[#6E026F] px-3.5 py-2.5 text-xs font-semibold text-white transition hover:bg-[#6E026F]/90"
+                            className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-lg bg-accent px-3.5 py-2.5 text-xs font-semibold text-white transition hover:bg-accent/90"
                           >
                             Increase priority
                             <ArrowRight size={13} />
@@ -1399,7 +1467,7 @@ export default function RegularDashboard() {
                         </div>
                       )}
                       {!canBoostRequest && ['high', 'urgent'].includes(requestUrgency) && (
-                        <span className="inline-flex items-center rounded-full bg-[#6E026F]/10 px-3 py-1.5 text-xs font-semibold capitalize text-[#6E026F]">
+                        <span className="inline-flex items-center rounded-full bg-accent/10 px-3 py-1.5 text-xs font-semibold capitalize text-accent">
                           {requestUrgency} priority
                         </span>
                       )}
@@ -1487,7 +1555,7 @@ export default function RegularDashboard() {
                         {new Date(prop.created_at).toLocaleDateString()}
                       </td>
                       <td className="py-3 px-4 text-sm">
-                        <Link href={`/property/${prop.slug}`} className="block text-[#6E026F] hover:underline">
+                        <Link href={`/property/${prop.slug}`} className="block text-accent hover:underline">
                           View
                         </Link>
                       </td>

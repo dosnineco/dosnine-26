@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
-import { useUser } from '@clerk/nextjs';
+import { useAuth, useUser } from '@clerk/nextjs';
 import { ArrowLeft, Gift, Save, Trophy } from 'lucide-react';
 
 function toLocalDateTime(value) {
@@ -12,11 +12,14 @@ function toLocalDateTime(value) {
   return local.toISOString().slice(0, 16);
 }
 
-async function requestApi(method = 'GET', body) {
+async function requestApi(method = 'GET', body, token) {
   const response = await fetch('/api/admin/giveaway', {
     method,
     credentials: 'include',
-    headers: body ? { 'Content-Type': 'application/json' } : {},
+    headers: {
+      ...(body ? { 'Content-Type': 'application/json' } : {}),
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
     body: body ? JSON.stringify(body) : undefined,
   });
   const payload = await response.json().catch(() => null);
@@ -26,11 +29,11 @@ async function requestApi(method = 'GET', body) {
 
 export default function AdminGiveawayPage() {
   const { isLoaded, user } = useUser();
+  const { getToken } = useAuth();
   const [campaign, setCampaign] = useState(null);
   const [entrants, setEntrants] = useState([]);
   const [form, setForm] = useState({});
   const [selectedWinner, setSelectedWinner] = useState('');
-  const [selectedRequest, setSelectedRequest] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -40,7 +43,7 @@ export default function AdminGiveawayPage() {
     setLoading(true);
     setError('');
     try {
-      const payload = await requestApi();
+      const payload = await requestApi('GET', undefined, await getToken());
       const current = payload.campaign;
       setCampaign(current);
       setEntrants(payload.entrants || []);
@@ -56,7 +59,7 @@ export default function AdminGiveawayPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [getToken]);
 
   useEffect(() => {
     if (isLoaded && user) load();
@@ -78,7 +81,7 @@ export default function AdminGiveawayPage() {
         ...form,
         opens_at: form.opens_at ? new Date(form.opens_at).toISOString() : null,
         draw_at: form.draw_at ? new Date(form.draw_at).toISOString() : null,
-      });
+      }, await getToken());
       setCampaign(payload.campaign);
       setNotice('Giveaway settings saved.');
       await load();
@@ -90,15 +93,14 @@ export default function AdminGiveawayPage() {
   };
 
   const pickWinner = async () => {
-    if (!selectedWinner || !selectedRequest) return;
+    if (!selectedWinner) return;
     setSaving(true);
     setError('');
     setNotice('');
     try {
       const payload = await requestApi('PATCH', {
         winner_user_id: selectedWinner,
-        winner_request_id: selectedRequest,
-      });
+      }, await getToken());
       setCampaign(payload.campaign);
       setNotice('Winner selected and giveaway closed.');
       await load();
@@ -124,7 +126,7 @@ export default function AdminGiveawayPage() {
           <Gift className="mt-1 h-7 w-7 text-accent" aria-hidden="true" />
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Member giveaway</h1>
-            <p className="mt-1 text-gray-600">Configure dates and select a qualified request creator on giveaway day.</p>
+            <p className="mt-1 text-gray-600">Configure dates and select a qualified member on giveaway day.</p>
           </div>
         </div>
 
@@ -154,7 +156,7 @@ export default function AdminGiveawayPage() {
             </div>
             <label className="flex items-center gap-3 text-sm font-medium text-gray-700">
               <input type="checkbox" checked={Boolean(form.is_open)} onChange={(event) => setForm((current) => ({ ...current, is_open: event.target.checked }))} className="h-4 w-4 rounded accent-[#6E026F]" />
-              Open giveaway (eligible members will see it on their profile during the configured dates)
+              Open giveaway (eligible members will see it on their dashboard and profile during the configured dates)
             </label>
             <button type="submit" disabled={saving} className="inline-flex items-center gap-2 rounded-xl bg-accent px-5 py-3 font-semibold text-white hover:bg-accent/90 disabled:opacity-50">
               <Save className="h-4 w-4" aria-hidden="true" /> {saving ? 'Saving…' : 'Save settings'}
@@ -166,7 +168,7 @@ export default function AdminGiveawayPage() {
           <div className="flex items-center justify-between gap-3">
             <div>
               <h2 className="text-xl font-semibold text-gray-900">Qualified entrants</h2>
-              <p className="mt-1 text-sm text-gray-600">Only premium, recently active request creators with a paid boost and level 4 readiness appear here.</p>
+              <p className="mt-1 text-sm text-gray-600">Members with an active Premium plan and completed Level 4 buyer or rental readiness appear here.</p>
             </div>
             <span className="rounded-full bg-gray-100 px-3 py-1 text-sm font-semibold text-gray-700">{entrants.length}</span>
           </div>
@@ -184,14 +186,13 @@ export default function AdminGiveawayPage() {
                 <article key={entrant.user_id} className="rounded-xl bg-gray-50 p-4">
                   <p className="font-semibold text-gray-900">{entrant.full_name || 'Member'}</p>
                   <p className="text-sm text-gray-600">{entrant.email}</p>
-                  <p className="mt-2 text-xs text-gray-600">Requests: {entrant.requests.map((request) => `${request.request_type || 'Property'} · ${request.id.slice(0, 8)}`).join(', ')}</p>
+                  <p className="mt-2 text-xs text-gray-600">
+                    Readiness: {entrant.eligibility.hasLevelFourReadiness ? 'Level 4 complete' : 'Incomplete'}
+                  </p>
                   {drawReady && (
                     <button
                       type="button"
-                      onClick={() => {
-                        setSelectedWinner(entrant.user_id);
-                        setSelectedRequest(entrant.requests[0]?.id || '');
-                      }}
+                      onClick={() => setSelectedWinner(entrant.user_id)}
                       className={`mt-3 rounded-lg px-3 py-2 text-sm font-semibold ${selectedWinner === entrant.user_id ? 'bg-accent text-white' : 'bg-white text-gray-800 ring-1 ring-gray-200 hover:bg-gray-100'}`}
                     >
                       {selectedWinner === entrant.user_id ? 'Selected' : 'Select this entrant'}
@@ -204,14 +205,6 @@ export default function AdminGiveawayPage() {
 
           {selectedWinner && winner && drawReady && (
             <div className="mt-5 rounded-xl border border-gray-200 p-4">
-              <label className="block">
-                <span className="mb-1.5 block text-sm font-medium text-gray-700">Winning request</span>
-                <select value={selectedRequest} onChange={(event) => setSelectedRequest(event.target.value)} className="w-full rounded-xl bg-gray-50 px-4 py-3 outline-none focus:ring-2 focus:ring-accent">
-                  {winner.requests.map((request) => (
-                    <option key={request.id} value={request.id}>{request.request_type || 'Property'} · {request.id}</option>
-                  ))}
-                </select>
-              </label>
               <button type="button" disabled={saving} onClick={pickWinner} className="mt-4 rounded-xl bg-gray-900 px-5 py-3 font-semibold text-white hover:bg-gray-700 disabled:opacity-50">
                 {saving ? 'Saving…' : 'Confirm winner'}
               </button>

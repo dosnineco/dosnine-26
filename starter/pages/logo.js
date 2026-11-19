@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
 import Head from 'next/head';
 import toast from 'react-hot-toast';
+import BankTransferNotes from '@/components/BankTransferNotes';
 import {
   ChevronLeft,
   Upload,
@@ -211,6 +212,7 @@ export default function LogoPage() {
   const [submitting, setSubmitting] = useState(false)
   const [copied, setCopied] = useState(false)
   const [orderPlaced, setOrderPlaced] = useState(false)
+  const [orderId, setOrderId] = useState('')
   const fileInputRef = useRef(null)
 
   const price = computePrice(size, quantity);
@@ -296,11 +298,16 @@ export default function LogoPage() {
     reader.readAsDataURL(file);
   };
 
-  const copyToClipboard = (text, field) => {
-    navigator.clipboard.writeText(text);
-    setCopied(field);
-    toast.success('Copied!');
-    setTimeout(() => setCopied(false), 2000);
+  const copyToClipboard = async (text, field) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(field);
+      toast.success('Copied!');
+      setTimeout(() => setCopied(false), 2000);
+    } catch (error) {
+      console.error('Unable to copy payment detail:', error);
+      toast.error('Unable to copy this payment detail.');
+    }
   };
 
   /* ----------------------------------------------------------
@@ -334,19 +341,20 @@ export default function LogoPage() {
           const logoDataUrl = await fileToDataUrl(logoFile);
           const uploadResponse = await fetch('/api/logo-upload', {
             method: 'POST',
+            credentials: 'include',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ file: logoDataUrl, filename: logoFile.name }),
           });
-          const uploadData = await uploadResponse.json();
+          const uploadData = await uploadResponse.json().catch(() => null);
           if (uploadResponse.ok && uploadData.logoUrl) {
             logoUrl = uploadData.logoUrl;
             logoFilename = uploadData.filename;
           } else {
-            throw new Error(uploadData.error || 'Logo upload failed');
+            throw new Error(uploadData?.error || `Logo upload failed (HTTP ${uploadResponse.status}).`);
           }
         } catch (uploadErr) {
           console.error('Logo upload error:', uploadErr);
-          toast.error('Logo upload failed. Please try again.');
+          toast.error(uploadErr.message || 'Logo upload failed. Please try again.');
           setSubmitting(false);
           return;
         }
@@ -379,19 +387,21 @@ export default function LogoPage() {
         notes: `Customer: ${cleanName} · ${color} ${SIZES[size]?.sub} · ${quantity} units`,
       };
 
-      const response = await fetch('/api/admin/htv-orders', {
+      const response = await fetch('/api/htv/orders', {
         method: 'POST',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
-      const data = await response.json();
+      const data = await response.json().catch(() => null);
       if (!response.ok || !data?.success) {
-        throw new Error(data?.error || 'Failed to submit order');
+        throw new Error(data?.error || `Failed to submit order (HTTP ${response.status}).`);
       }
 
       if (!data.clientEmailSent) {
         toast.error('Order placed, but the confirmation email could not be sent. Please contact us on WhatsApp.');
       }
+      setOrderId(data.order?.id || '');
       setOrderPlaced(true)
       setStep(5)
     } catch (err) {
@@ -990,9 +1000,8 @@ export default function LogoPage() {
                           ['Bank', bankDetails[0].bank],
                           ['Account name', bankDetails[0].accountName],
                           ['Account number', bankDetails[0].accountNumber],
-                          ['Account type', bankDetails[0].accountType],
                           ['Branch', bankDetails[0].branch],
-                          ['Amount', formatCurrency(total)],
+                          ['Account type', bankDetails[0].accountType],
                         ].map(([label, value]) => {
                           const field = `logo-${label}`;
                           return (
@@ -1012,19 +1021,36 @@ export default function LogoPage() {
                                   onClick={() =>
                                     copyToClipboard(String(value), field)
                                   }
-                                  className="shrink-0 rounded-md p-1 text-slate-400 transition hover:bg-slate-100 hover:text-accent"
+                                  className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-lg bg-accent/10 p-3 text-accent transition hover:bg-accent/20"
                                   aria-label={`Copy ${label}`}
                                 >
                                   {copied === field ? (
-                                    <Check size={14} />
+                                    <Check size={19} />
                                   ) : (
-                                    <Copy size={14} />
+                                    <Copy size={19} />
                                   )}
                                 </button>
                               </div>
                             </div>
                           );
                         })}
+                        <BankTransferNotes
+                          reference={orderId ? `Order ${String(orderId).slice(0, 8).toUpperCase()}` : ''}
+                        />
+                        <div className="flex items-center justify-between gap-2 py-1 text-sm">
+                          <span className="text-slate-600">Amount</span>
+                          <div className="flex items-center gap-2">
+                            <span className="font-semibold text-slate-900">{formatCurrency(total)}</span>
+                            <button
+                              type="button"
+                              onClick={() => copyToClipboard(formatCurrency(total), 'logo-Amount')}
+                              className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-lg bg-accent/10 p-3 text-accent transition hover:bg-accent/20"
+                              aria-label="Copy amount"
+                            >
+                              {copied === 'logo-Amount' ? <Check size={19} /> : <Copy size={19} />}
+                            </button>
+                          </div>
+                        </div>
                       </div>
                     </div>
                   </div>

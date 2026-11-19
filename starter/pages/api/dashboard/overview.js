@@ -1,5 +1,6 @@
 import { getDbClient, requireDbUser } from '../../../lib/apiAuth';
 import { claimBuyerRequestsByEmail } from '../../../lib/buyerRequests';
+import { getGiveawayEligibility, isGiveawayEligible } from '../../../lib/giveawayEligibility';
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') {
@@ -227,6 +228,53 @@ export default async function handler(req, res) {
         buyerPrequalificationByRequestId.get(request.id) || null,
     }));
 
+    let giveaway = null;
+    if (accountType === 'regular') {
+      const { data: campaign, error: campaignError } = await db.from('giveaway_campaigns')
+        .select('title, prize_description, opens_at, draw_at, is_open')
+        .eq('id', 1)
+        .maybeSingle();
+      if (campaignError) throw campaignError;
+
+      const now = new Date();
+      const open = Boolean(
+        campaign?.is_open &&
+        campaign.opens_at &&
+        new Date(campaign.opens_at) <= now &&
+        campaign.draw_at &&
+        new Date(campaign.draw_at) >= now
+      );
+      if (open) {
+        const [
+          { data: buyerReadiness, error: buyerReadinessError },
+          { data: rentalReadiness, error: rentalReadinessError },
+        ] = await Promise.all([
+          db.from('buyer_prequalifications')
+            .select('qualification_level, status, verification_expires_at')
+            .eq('buyer_user_id', userData.id),
+          db.from('renter_readiness_profiles')
+            .select('qualification_level')
+            .eq('user_id', userData.id)
+            .maybeSingle(),
+        ]);
+        if (buyerReadinessError) throw buyerReadinessError;
+        if (rentalReadinessError) throw rentalReadinessError;
+
+        const eligibility = getGiveawayEligibility({
+          user: userData,
+          buyerReadiness: buyerReadiness || [],
+          rentalReadiness,
+          now,
+        });
+        giveaway = {
+          ...campaign,
+          open: true,
+          eligibility,
+          eligible: isGiveawayEligible(eligibility),
+        };
+      }
+    }
+
     let adInquiries = [];
     let ads = [];
     let submissions = [];
@@ -326,6 +374,7 @@ export default async function handler(req, res) {
       },
       recentProperties: properties,
       serviceRequests,
+      giveaway,
       adInquiries,
       adStats: {
         totalAds: ads.length,

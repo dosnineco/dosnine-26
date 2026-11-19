@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/supabase';
+import { getDbClient } from '@/lib/apiAuth';
 
 export const config = {
   api: {
@@ -76,7 +76,8 @@ export default async function handler(req, res) {
     console.log('Uploading as:', uniqueFilename);
 
     // Upload to Supabase Storage
-    const { data, error } = await supabase.storage
+    const db = getDbClient();
+    const { data, error } = await db.storage
       .from('htv-logos')
       .upload(uniqueFilename, binaryString, {
         contentType: mimeType,
@@ -91,7 +92,7 @@ export default async function handler(req, res) {
     console.log('Upload successful, generating public URL...');
 
     // Get public URL
-    const { data: publicUrlData } = supabase.storage
+    const { data: publicUrlData } = db.storage
       .from('htv-logos')
       .getPublicUrl(uniqueFilename);
 

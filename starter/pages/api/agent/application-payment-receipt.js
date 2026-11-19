@@ -1,6 +1,7 @@
 import { randomUUID } from 'crypto';
 import { readFile } from 'fs/promises';
 import { getDbClient, requireAgentAccountUser } from '@/lib/apiAuth';
+import { getPayerReference } from '@/lib/paymentReference';
 
 export const config = { api: { bodyParser: false } };
 
@@ -31,17 +32,17 @@ export default async function handler(req, res) {
     if (req.method === 'GET') {
       const { data: applications, error: applicationsError } = await db
         .from('agent_request_applications')
-        .select('id')
+        .select('request_id')
         .eq('agent_id', agent.id);
       if (applicationsError) throw applicationsError;
-      const applicationIds = (applications || []).map((application) => application.id);
-      if (!applicationIds.length) return res.status(200).json({ success: true, receipt: null });
+      const requestIds = (applications || []).map((application) => application.request_id).filter(Boolean);
+      if (!requestIds.length) return res.status(200).json({ success: true, receipt: null });
 
       const { data: payments, error: paymentsError } = await db
         .from('bank_transfer_payments')
         .select('id, amount, currency, reference_ids, receipt_path, status, submitted_at')
         .eq('source_type', 'agent_request_applications')
-        .overlaps('reference_ids', applicationIds)
+        .overlaps('reference_ids', requestIds)
         .order('submitted_at', { ascending: false })
         .limit(1);
       if (paymentsError) throw paymentsError;
@@ -110,6 +111,19 @@ export default async function handler(req, res) {
       return res.status(409).json({ error: 'One or more requests are no longer pending.' });
     }
 
+    const { data: existingPayment, error: existingPaymentError } = await db
+      .from('bank_transfer_payments')
+      .select('id')
+      .eq('source_type', 'agent_request_applications')
+      .overlaps('reference_ids', referenceIds)
+      .eq('status', 'pending')
+      .limit(1)
+      .maybeSingle();
+    if (existingPaymentError) throw existingPaymentError;
+    if (existingPayment) {
+      return res.status(409).json({ error: 'A receipt for one or more requests is already awaiting review.' });
+    }
+
     const path = `agent-applications/${agent.id}/${randomUUID()}.${extension}`;
     const { error: uploadError } = await db.storage
       .from('payment-receipts')
@@ -119,6 +133,15 @@ export default async function handler(req, res) {
       });
     if (uploadError) throw uploadError;
 
+    const { data: signedReceipt, error: signedReceiptError } = await db.storage
+      .from('payment-receipts')
+      .createSignedUrl(path, 3600);
+    if (signedReceiptError) {
+      const { error: cleanupError } = await db.storage.from('payment-receipts').remove([path]);
+      if (cleanupError) console.error('Failed to remove payment receipt without a signed URL:', cleanupError);
+      throw signedReceiptError;
+    }
+
     const submittedAt = new Date().toISOString();
     const { error: insertError } = await db
       .from('bank_transfer_payments')
@@ -127,6 +150,7 @@ export default async function handler(req, res) {
         source_id: applicationIds.join(','),
         payer_name: payerName || agent.business_name || 'Agent',
         payer_email: resolved.user?.email_addresses?.[0]?.email_address || null,
+        payer_reference: getPayerReference(resolved.user?.id),
         amount,
         currency: 'JMD',
         reference_ids: referenceIds,
@@ -135,12 +159,27 @@ export default async function handler(req, res) {
         submitted_at: submittedAt,
       });
     if (insertError) {
-      await db.storage.from('payment-receipts').remove([path]);
+      const { error: cleanupError } = await db.storage.from('payment-receipts').remove([path]);
+      if (cleanupError) console.error('Failed to remove unlinked agent application payment receipt:', cleanupError);
       throw insertError;
     }
 
-    return res.status(200).json({ success: true, submittedAt });
+    return res.status(200).json({
+      success: true,
+      receipt: {
+        amount,
+        currency: 'JMD',
+        referenceIds,
+        payerReference: getPayerReference(resolved.user?.id),
+        status: 'pending',
+        submittedAt,
+        url: signedReceipt.signedUrl,
+      },
+    });
   } catch (error) {
+    if (Number(error?.httpCode) === 413) {
+      return res.status(413).json({ error: 'Receipt image must be 5 MB or smaller.' });
+    }
     console.error('Agent application payment receipt upload failed:', error);
     return res.status(500).json({ error: error?.message || 'Unable to submit payment receipt.' });
   }

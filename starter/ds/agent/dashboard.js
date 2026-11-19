@@ -342,7 +342,7 @@ export default function AgentDashboardPage() {
               <button
                 type="button"
                 onClick={() => setShowCreateRequestModal(true)}
-                className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-[#2373F4] px-5 py-3 text-sm font-semibold text-white transition hover:opacity-90"
+                className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-accent px-5 py-3 text-sm font-semibold text-white transition hover:opacity-90"
               >
                 <Plus className="h-4 w-4" />
                 Create request
@@ -357,7 +357,7 @@ export default function AgentDashboardPage() {
                 href="/properties/my-listings"
                 className="group flex shrink-0 items-center gap-3 whitespace-nowrap rounded-xl bg-white p-4 transition hover:bg-gray-100"
               >
-                <Home className="h-5 w-5 text-[#2373F4] transition group-hover:scale-110" />
+                <Home className="h-5 w-5 text-accent transition group-hover:scale-110" />
                 <h3 className="text-sm font-semibold text-gray-900">Manage Properties</h3>
               </Link>
 
@@ -365,7 +365,7 @@ export default function AgentDashboardPage() {
                 href="/properties/new"
                 className="group flex shrink-0 items-center gap-3 whitespace-nowrap rounded-xl bg-white p-4 transition hover:bg-gray-100"
               >
-                <Plus className="h-5 w-5 text-[#2373F4] transition group-hover:scale-110" />
+                <Plus className="h-5 w-5 text-accent transition group-hover:scale-110" />
                 <h3 className="text-sm font-semibold text-gray-900">New Property</h3>
               </Link>
 
@@ -378,8 +378,8 @@ export default function AgentDashboardPage() {
                     : 'Upgrade to a 1-month or 3-month plan to bulk create properties'}
                 >
                   {canBulkCreate()
-                    ? <Plus className="h-5 w-5 text-[#2373F4] transition group-hover:scale-110" />
-                    : <LockKeyhole className="h-5 w-5 text-[#2373F4] transition group-hover:scale-110" />}
+                    ? <Plus className="h-5 w-5 text-accent transition group-hover:scale-110" />
+                    : <LockKeyhole className="h-5 w-5 text-accent transition group-hover:scale-110" />}
                   <h3 className="text-sm font-semibold text-gray-900">
                     {canBulkCreate() ? 'Bulk Create' : 'Bulk Create · Upgrade'}
                   </h3>
@@ -391,7 +391,7 @@ export default function AgentDashboardPage() {
                   href="/agent/payment"
                   className="group flex shrink-0 items-center gap-3 whitespace-nowrap rounded-xl bg-white p-4 transition hover:bg-gray-100"
                 >
-                  <DollarSign className="h-5 w-5 text-[#2373F4] transition group-hover:scale-110" />
+                  <DollarSign className="h-5 w-5 text-accent transition group-hover:scale-110" />
                   <h3 className="text-sm font-semibold text-gray-900">Rent Your House</h3>
                 </Link>
               )}
@@ -401,10 +401,10 @@ export default function AgentDashboardPage() {
                   href="/agent/parish-requests"
                   className="group relative flex shrink-0 items-center gap-3 whitespace-nowrap rounded-xl bg-white p-4 transition hover:bg-gray-100"
                 >
-                  <span className="absolute -right-1 -top-1 z-10 rounded-full bg-[#2373F4] px-1.5 py-0.5 text-[10px] font-bold text-white">
+                  <span className="absolute -right-1 -top-1 z-10 rounded-full bg-accent px-1.5 py-0.5 text-[10px] font-bold text-white">
                     NEW
                   </span>
-                  <Search className="h-6 w-6 text-[#2373F4] transition group-hover:scale-110" />
+                  <Search className="h-6 w-6 text-accent transition group-hover:scale-110" />
                   <h3 className="font-semibold text-gray-900">Parish Search</h3>
                 </Link>
               )}
@@ -412,14 +412,14 @@ export default function AgentDashboardPage() {
                 href="/profile"
                 className="group flex shrink-0 items-center gap-3 whitespace-nowrap rounded-xl bg-white p-4 transition hover:bg-gray-100"
               >
-                <UserRound className="h-5 w-5 text-[#2373F4] transition group-hover:scale-110" aria-hidden="true" />
+                <UserRound className="h-5 w-5 text-accent transition group-hover:scale-110" aria-hidden="true" />
                 <h3 className="text-sm font-semibold text-gray-900">My profile</h3>
               </Link>
             </div>
           </div>
 
           {isOwner && (
-            <div className="bg-white border-l-4 border-[#2373F4] rounded-xl p-5 mb-6">
+            <div className="bg-white border-l-4 border-accent rounded-xl p-5 mb-6">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div className="flex items-start gap-3">
                   <DollarSign className="text-gray-900 flex-shrink-0 mt-0.5" size={24} />
@@ -432,7 +432,7 @@ export default function AgentDashboardPage() {
                 </div>
                 <Link
                   href="/agent/payment"
-                  className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-[#2373F4] text-white font-semibold rounded-lg hover:opacity-90 transition text-sm whitespace-nowrap"
+                  className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-accent text-white font-semibold rounded-lg hover:opacity-90 transition text-sm whitespace-nowrap"
                 >
                   Rent Your House
                 </Link>
@@ -446,7 +446,7 @@ export default function AgentDashboardPage() {
                 <div>
                   <h2 className="text-xl font-bold text-gray-900">Your Advertisements</h2>
                 </div>
-                <Link href="/advertise" className="inline-flex items-center justify-center rounded-lg bg-[#2373F4] px-4 py-2 text-sm font-semibold text-white hover:opacity-90">
+                <Link href="/advertise" className="inline-flex items-center justify-center rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-white hover:opacity-90">
                   Create Ad
                 </Link>
               </div>
@@ -493,21 +493,21 @@ export default function AgentDashboardPage() {
                   <div key={inquiry.id} className="rounded-lg bg-gray-50 p-4">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <p className="min-w-0 truncate font-semibold text-gray-900">{inquiry.advertisements?.title || inquiry.advertisements?.company_name || 'Advertisement enquiry'}</p>
-                      <span className="rounded-full bg-[#2373F4]/10 px-2 py-1 text-xs font-semibold capitalize text-[#2373F4]">{inquiry.status}</span>
+                      <span className="rounded-full bg-accent/10 px-2 py-1 text-xs font-semibold capitalize text-accent">{inquiry.status}</span>
                     </div>
                     <p className="mt-3 line-clamp-3 text-sm leading-5 text-gray-700">{inquiry.message}</p>
                     <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-2 border-t border-gray-200 pt-3 text-xs text-gray-600">
                       <span className="font-semibold text-gray-900">{inquiry.client_name}</span>
                       <a
                         href={`mailto:${inquiry.client_email}`}
-                        className="inline-flex items-center gap-1.5 rounded-md bg-white px-2.5 py-1.5 font-semibold text-gray-700 transition hover:text-[#2373F4]"
+                        className="inline-flex items-center gap-1.5 rounded-md bg-white px-2.5 py-1.5 font-semibold text-gray-700 transition hover:text-accent"
                       >
                         <Mail className="h-3.5 w-3.5" /> Email
                       </a>
                       {inquiry.client_phone && (
                         <a
                           href={`tel:${inquiry.client_phone}`}
-                          className="inline-flex items-center gap-1.5 rounded-md bg-white px-2.5 py-1.5 font-semibold text-gray-700 transition hover:text-[#2373F4]"
+                          className="inline-flex items-center gap-1.5 rounded-md bg-white px-2.5 py-1.5 font-semibold text-gray-700 transition hover:text-accent"
                         >
                           <Phone className="h-3.5 w-3.5" /> Call
                         </a>
@@ -521,9 +521,9 @@ export default function AgentDashboardPage() {
           )}
 
           {!isOwner && isFreePlan() && (
-            <div className="rounded-xl border-l-4 border-[#2373F4] bg-white p-4 mb-6">
+            <div className="rounded-xl border-l-4 border-accent bg-white p-4 mb-6">
               <div className="flex items-start gap-3">
-                <AlertCircle className="text-[#2373F4] flex-shrink-0 mt-0.5" size={24} />
+                <AlertCircle className="text-accent flex-shrink-0 mt-0.5" size={24} />
                 <div className="flex-1">
                   <h3 className="font-bold text-gray-900 mb-1">Free Plan - Limited Access</h3>
                   <p className="text-gray-700 text-sm mb-3">
@@ -531,7 +531,7 @@ export default function AgentDashboardPage() {
                   </p>
                   <Link
                     href="/agent/payment"
-                    className="inline-flex items-center gap-2 px-4 py-2 bg-[#2373F4] text-white font-semibold rounded-lg hover:opacity-90 transition text-sm"
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-accent text-white font-semibold rounded-lg hover:opacity-90 transition text-sm"
                   >
                     <CreditCard className="w-5 h-5" />
                     Upgrade
@@ -542,9 +542,9 @@ export default function AgentDashboardPage() {
           )}
 
           {!isOwner && isAccessExpired() && (
-            <div className="bg-white border-l-4 border-[#2373F4] rounded-xl p-4 mb-6">
+            <div className="bg-white border-l-4 border-accent rounded-xl p-4 mb-6">
               <div className="flex items-start gap-3">
-                <AlertCircle className="text-[#2373F4] flex-shrink-0 mt-0.5" size={24} />
+                <AlertCircle className="text-accent flex-shrink-0 mt-0.5" size={24} />
                 <div className="flex-1">
                   <h3 className="font-bold text-gray-900 mb-1">Access Expired</h3>
                   <p className="text-gray-700 text-sm mb-3">
@@ -552,7 +552,7 @@ export default function AgentDashboardPage() {
                   </p>
                   <Link
                     href="/agent/payment"
-                    className="inline-flex items-center gap-2 px-4 py-2 bg-[#2373F4] text-white font-semibold rounded-lg hover:opacity-90 transition text-sm"
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-accent text-white font-semibold rounded-lg hover:opacity-90 transition text-sm"
                   >
                     <CreditCard className="w-5 h-5" />
                     Upgrade Access Plan
@@ -581,10 +581,10 @@ export default function AgentDashboardPage() {
                 <div className="flex items-center justify-between rounded-2xl bg-white p-5">
                   <div>
                     <p className="text-sm font-medium text-gray-500">In Progress</p>
-                    <p className="mt-1 text-3xl font-bold tracking-tight text-[#2373F4]">{stats.assigned}</p>
+                    <p className="mt-1 text-3xl font-bold tracking-tight text-accent">{stats.assigned}</p>
                   </div>
                   <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-gray-100">
-                    <Clock className="h-6 w-6 text-[#2373F4]" aria-hidden="true" />
+                    <Clock className="h-6 w-6 text-accent" aria-hidden="true" />
                   </span>
                 </div>
                 <div className="flex items-center justify-between rounded-2xl bg-white p-5">
@@ -611,7 +611,7 @@ export default function AgentDashboardPage() {
                           key={status}
                           onClick={() => setFilterStatus(status)}
                           aria-pressed={isActive}
-                          className={`inline-flex items-center gap-2 rounded-xl px-3.5 py-2 text-sm font-medium transition ${isActive ? 'bg-[#2373F4] text-white' : 'bg-white text-gray-700 hover:bg-gray-200'}`}
+                          className={`inline-flex items-center gap-2 rounded-xl px-3.5 py-2 text-sm font-medium transition ${isActive ? 'bg-accent text-white' : 'bg-white text-gray-700 hover:bg-gray-200'}`}
                         >
                           {label}
                           <span className={`rounded-md px-1.5 py-0.5 text-xs ${isActive ? 'bg-white/15 text-white' : 'bg-gray-100 text-gray-500'}`}>
@@ -630,7 +630,7 @@ export default function AgentDashboardPage() {
                           key={urgency}
                           onClick={() => setFilterUrgency(urgency)}
                           aria-pressed={isActive}
-                          className={`rounded-xl px-3.5 py-2 text-sm font-medium transition ${isActive ? 'bg-[#2373F4] text-white' : 'bg-white text-gray-700 hover:bg-gray-200'}`}
+                          className={`rounded-xl px-3.5 py-2 text-sm font-medium transition ${isActive ? 'bg-accent text-white' : 'bg-white text-gray-700 hover:bg-gray-200'}`}
                         >
                           {urgency.charAt(0).toUpperCase() + urgency.slice(1)}
                         </button>
@@ -654,7 +654,7 @@ export default function AgentDashboardPage() {
 
               {loading ? (
                 <div className="rounded-2xl bg-white py-12 text-center">
-                  <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-4 border-gray-200 border-t-[#2373F4]"></div>
+                  <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-4 border-gray-200 border-t-accent"></div>
                   <p className="text-sm text-gray-600">Loading requests...</p>
                 </div>
               ) : filteredRequests.length === 0 ? (
@@ -692,7 +692,7 @@ export default function AgentDashboardPage() {
                             className={`rounded-lg px-2.5 py-1 text-xs font-semibold capitalize ${
                               request.status === 'completed'
                                 ? 'bg-gray-100 text-gray-700'
-                                : 'bg-[#2373F4]/10 text-[#2373F4]'
+                                : 'bg-accent/10 text-accent'
                             }`}
                           >
                             {request.status?.replace('_', ' ')}
@@ -708,7 +708,7 @@ export default function AgentDashboardPage() {
                             </span>
                           )}
                           {request.urgency === 'urgent' && (
-                            <span className="rounded-lg bg-[#2373F4]/10 px-2.5 py-1 text-xs font-semibold text-[#2373F4]">
+                            <span className="rounded-lg bg-accent/10 px-2.5 py-1 text-xs font-semibold text-accent">
                               Urgent
                             </span>
                           )}
@@ -868,7 +868,7 @@ export default function AgentDashboardPage() {
                             </div>
                             <a
                               href={`mailto:${request.client_email}`}
-                              className="inline-flex items-center gap-1.5 hover:text-[#2373F4]"
+                              className="inline-flex items-center gap-1.5 hover:text-accent"
                             >
                               <Mail size={13} className="shrink-0 text-gray-400" />
                               <span className="truncate">{request.client_email}</span>
@@ -876,7 +876,7 @@ export default function AgentDashboardPage() {
                             {request.client_phone && (
                               <a
                                 href={`tel:${request.client_phone}`}
-                                className="inline-flex items-center gap-1.5 hover:text-[#2373F4]"
+                                className="inline-flex items-center gap-1.5 hover:text-accent"
                               >
                                 <Phone size={13} className="shrink-0 text-gray-400" />
                                 <span>{request.client_phone}</span>
@@ -910,7 +910,7 @@ export default function AgentDashboardPage() {
                                     href={`/api/agent/buyer-documents/${encodeURIComponent(document.id)}`}
                                     target="_blank"
                                     rel="noreferrer"
-                                    className="inline-flex shrink-0 items-center gap-1 rounded-md border border-gray-200 bg-white px-2.5 py-1.5 text-[10px] font-semibold text-gray-700 hover:text-[#2373F4]"
+                                    className="inline-flex shrink-0 items-center gap-1 rounded-md border border-gray-200 bg-white px-2.5 py-1.5 text-[10px] font-semibold text-gray-700 hover:text-accent"
                                   >
                                     <ExternalLink size={12} /> Open
                                   </a>
@@ -940,7 +940,7 @@ export default function AgentDashboardPage() {
                         <div className="mt-4 flex flex-wrap gap-2">
                           <button
                             onClick={() => setSelectedRequest(request)}
-                            className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-[#2373F4] px-4 py-2.5 text-sm font-semibold text-white transition hover:opacity-90 sm:flex-none"
+                            className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-accent px-4 py-2.5 text-sm font-semibold text-white transition hover:opacity-90 sm:flex-none"
                           >
                             View details
                           </button>
@@ -981,7 +981,7 @@ export default function AgentDashboardPage() {
                                 disabled={actionLoading}
                                 className={`inline-flex flex-1 items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-sm font-semibold transition disabled:opacity-50 sm:flex-none ${
                                   request.is_contacted
-                                    ? 'bg-[#2373F4]/10 text-[#2373F4] hover:bg-[#2373F4]/15'
+                                    ? 'bg-accent/10 text-accent hover:bg-accent/15'
                                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                                 }`}
                                 title={request.is_contacted ? 'Contacted' : 'Not contacted'}
@@ -1012,7 +1012,7 @@ export default function AgentDashboardPage() {
           >
             <div className="mb-6 flex items-start justify-between gap-4">
               <div>
-                <p className="text-xs font-bold uppercase tracking-[0.16em] text-[#2373F4]">New client lead</p>
+                <p className="text-xs font-bold uppercase tracking-[0.16em] text-accent">New client lead</p>
                 <h2 id="create-request-title" className="mt-1 text-2xl font-bold text-gray-950">Create a request</h2>
                 <p className="mt-2 text-sm text-gray-600">The request will be assigned directly to your dashboard.</p>
               </div>
@@ -1039,7 +1039,7 @@ export default function AgentDashboardPage() {
                       type={type}
                       value={newRequest[field]}
                       onChange={(event) => setNewRequest((current) => ({ ...current, [field]: event.target.value }))}
-                      className="mt-1.5 w-full rounded-xl bg-gray-50 px-4 py-3 text-gray-900 outline-none ring-1 ring-gray-200 focus:ring-2 focus:ring-[#2373F4]"
+                      className="mt-1.5 w-full rounded-xl bg-gray-50 px-4 py-3 text-gray-900 outline-none ring-1 ring-gray-200 focus:ring-2 focus:ring-accent"
                     />
                   </label>
                 ))}
@@ -1048,7 +1048,7 @@ export default function AgentDashboardPage() {
                   <select
                     value={newRequest.requestType}
                     onChange={(event) => setNewRequest((current) => ({ ...current, requestType: event.target.value }))}
-                    className="mt-1.5 w-full rounded-xl bg-gray-50 px-4 py-3 text-gray-900 outline-none ring-1 ring-gray-200 focus:ring-2 focus:ring-[#2373F4]"
+                    className="mt-1.5 w-full rounded-xl bg-gray-50 px-4 py-3 text-gray-900 outline-none ring-1 ring-gray-200 focus:ring-2 focus:ring-accent"
                   >
                     {['buy', 'rent', 'sell', 'lease', 'valuation'].map((type) => <option key={type} value={type}>{type}</option>)}
                   </select>
@@ -1058,33 +1058,33 @@ export default function AgentDashboardPage() {
                   <select
                     value={newRequest.propertyType}
                     onChange={(event) => setNewRequest((current) => ({ ...current, propertyType: event.target.value }))}
-                    className="mt-1.5 w-full rounded-xl bg-gray-50 px-4 py-3 text-gray-900 outline-none ring-1 ring-gray-200 focus:ring-2 focus:ring-[#2373F4]"
+                    className="mt-1.5 w-full rounded-xl bg-gray-50 px-4 py-3 text-gray-900 outline-none ring-1 ring-gray-200 focus:ring-2 focus:ring-accent"
                   >
                     {['house', 'apartment', 'land', 'commercial', 'other'].map((type) => <option key={type} value={type}>{type}</option>)}
                   </select>
                 </label>
                 <label className="block text-sm font-medium text-gray-700">
                   Minimum budget (JMD)
-                  <input type="number" min="0" value={newRequest.budgetMin} onChange={(event) => setNewRequest((current) => ({ ...current, budgetMin: event.target.value }))} className="mt-1.5 w-full rounded-xl bg-gray-50 px-4 py-3 text-gray-900 outline-none ring-1 ring-gray-200 focus:ring-2 focus:ring-[#2373F4]" />
+                  <input type="number" min="0" value={newRequest.budgetMin} onChange={(event) => setNewRequest((current) => ({ ...current, budgetMin: event.target.value }))} className="mt-1.5 w-full rounded-xl bg-gray-50 px-4 py-3 text-gray-900 outline-none ring-1 ring-gray-200 focus:ring-2 focus:ring-accent" />
                 </label>
                 <label className="block text-sm font-medium text-gray-700">
                   Maximum budget (JMD)
-                  <input type="number" min="0" value={newRequest.budgetMax} onChange={(event) => setNewRequest((current) => ({ ...current, budgetMax: event.target.value }))} className="mt-1.5 w-full rounded-xl bg-gray-50 px-4 py-3 text-gray-900 outline-none ring-1 ring-gray-200 focus:ring-2 focus:ring-[#2373F4]" />
+                  <input type="number" min="0" value={newRequest.budgetMax} onChange={(event) => setNewRequest((current) => ({ ...current, budgetMax: event.target.value }))} className="mt-1.5 w-full rounded-xl bg-gray-50 px-4 py-3 text-gray-900 outline-none ring-1 ring-gray-200 focus:ring-2 focus:ring-accent" />
                 </label>
                 <label className="block text-sm font-medium text-gray-700">
                   Bedrooms
-                  <input type="number" min="0" value={newRequest.bedrooms} onChange={(event) => setNewRequest((current) => ({ ...current, bedrooms: event.target.value }))} className="mt-1.5 w-full rounded-xl bg-gray-50 px-4 py-3 text-gray-900 outline-none ring-1 ring-gray-200 focus:ring-2 focus:ring-[#2373F4]" />
+                  <input type="number" min="0" value={newRequest.bedrooms} onChange={(event) => setNewRequest((current) => ({ ...current, bedrooms: event.target.value }))} className="mt-1.5 w-full rounded-xl bg-gray-50 px-4 py-3 text-gray-900 outline-none ring-1 ring-gray-200 focus:ring-2 focus:ring-accent" />
                 </label>
                 <label className="block text-sm font-medium text-gray-700">
                   Bathrooms
-                  <input type="number" min="0" value={newRequest.bathrooms} onChange={(event) => setNewRequest((current) => ({ ...current, bathrooms: event.target.value }))} className="mt-1.5 w-full rounded-xl bg-gray-50 px-4 py-3 text-gray-900 outline-none ring-1 ring-gray-200 focus:ring-2 focus:ring-[#2373F4]" />
+                  <input type="number" min="0" value={newRequest.bathrooms} onChange={(event) => setNewRequest((current) => ({ ...current, bathrooms: event.target.value }))} className="mt-1.5 w-full rounded-xl bg-gray-50 px-4 py-3 text-gray-900 outline-none ring-1 ring-gray-200 focus:ring-2 focus:ring-accent" />
                 </label>
                 <label className="block text-sm font-medium text-gray-700">
                   Urgency
                   <select
                     value={newRequest.urgency}
                     onChange={(event) => setNewRequest((current) => ({ ...current, urgency: event.target.value }))}
-                    className="mt-1.5 w-full rounded-xl bg-gray-50 px-4 py-3 text-gray-900 outline-none ring-1 ring-gray-200 focus:ring-2 focus:ring-[#2373F4]"
+                    className="mt-1.5 w-full rounded-xl bg-gray-50 px-4 py-3 text-gray-900 outline-none ring-1 ring-gray-200 focus:ring-2 focus:ring-accent"
                   >
                     {['low', 'normal', 'high', 'urgent'].map((level) => <option key={level} value={level}>{level}</option>)}
                   </select>
@@ -1092,13 +1092,13 @@ export default function AgentDashboardPage() {
               </div>
               <label className="block text-sm font-medium text-gray-700">
                 Notes
-                <textarea rows={4} value={newRequest.description} onChange={(event) => setNewRequest((current) => ({ ...current, description: event.target.value }))} className="mt-1.5 w-full resize-y rounded-xl bg-gray-50 px-4 py-3 text-gray-900 outline-none ring-1 ring-gray-200 focus:ring-2 focus:ring-[#2373F4]" />
+                <textarea rows={4} value={newRequest.description} onChange={(event) => setNewRequest((current) => ({ ...current, description: event.target.value }))} className="mt-1.5 w-full resize-y rounded-xl bg-gray-50 px-4 py-3 text-gray-900 outline-none ring-1 ring-gray-200 focus:ring-2 focus:ring-accent" />
               </label>
               <div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:justify-end">
                 <button type="button" onClick={() => setShowCreateRequestModal(false)} className="rounded-xl bg-gray-100 px-5 py-3 text-sm font-semibold text-gray-700 hover:bg-gray-200">
                   Cancel
                 </button>
-                <button type="submit" disabled={createRequestLoading} className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#2373F4] px-5 py-3 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-60">
+                <button type="submit" disabled={createRequestLoading} className="inline-flex items-center justify-center gap-2 rounded-xl bg-accent px-5 py-3 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-60">
                   <Plus className="h-4 w-4" />
                   {createRequestLoading ? 'Creating…' : 'Create request'}
                 </button>
@@ -1202,7 +1202,7 @@ export default function AgentDashboardPage() {
                     <button
                       onClick={() => handleRequestAction(selectedRequest.id, 'complete')}
                       disabled={actionLoading}
-                      className="flex-1 min-w-[100px] px-4 py-2 bg-[#2373F4] text-white rounded-lg hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2"
+                      className="flex-1 min-w-[100px] px-4 py-2 bg-accent text-white rounded-lg hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2"
                     >
                       <CheckCircle className="w-4 h-4" />
                       Complete
@@ -1226,7 +1226,7 @@ export default function AgentDashboardPage() {
                     <button
                       onClick={() => handleRequestAction(selectedRequest.id, 'contacted')}
                       disabled={actionLoading}
-                      className={`flex-1 min-w-[100px] px-4 py-2 rounded-lg flex items-center justify-center gap-2 transition disabled:opacity-50 ${selectedRequest.is_contacted ? 'bg-[#2373F4]/10 text-[#2373F4] hover:bg-[#2373F4]/15' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+                      className={`flex-1 min-w-[100px] px-4 py-2 rounded-lg flex items-center justify-center gap-2 transition disabled:opacity-50 ${selectedRequest.is_contacted ? 'bg-accent/10 text-accent hover:bg-accent/15' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
                     >
                       <PhoneIcon className="w-4 h-4" />
                       {selectedRequest.is_contacted ? 'Mark not contacted' : 'Mark contacted'}
@@ -1288,7 +1288,7 @@ export default function AgentDashboardPage() {
                   onChange={(e) => setCommentText(e.target.value)}
                   placeholder="Add any notes or comments about this request..."
                   rows="6"
-                  className="w-full px-4 py-2 rounded-lg bg-gray-50 ring-1 ring-gray-200 focus:ring-2 focus:ring-[#2373F4] resize-none"
+                  className="w-full px-4 py-2 rounded-lg bg-gray-50 ring-1 ring-gray-200 focus:ring-2 focus:ring-accent resize-none"
                 />
               </div>
 
@@ -1308,7 +1308,7 @@ export default function AgentDashboardPage() {
                 <button
                   onClick={() => handleCommentSubmit(selectedRequest.id)}
                   disabled={actionLoading || !commentText.trim()}
-                  className="flex-1 px-4 py-2 bg-[#2373F4] text-white rounded-lg hover:opacity-90 disabled:opacity-50 font-medium"
+                  className="flex-1 px-4 py-2 bg-accent text-white rounded-lg hover:opacity-90 disabled:opacity-50 font-medium"
                 >
                   Save Comment
                 </button>

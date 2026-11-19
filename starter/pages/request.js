@@ -214,7 +214,7 @@ export default function RequestAgentPage() {
       const requestId = payload.request?.id || null;
       if (payload.urgencyPayment) {
         setRequestPayment({ ...payload.urgencyPayment, requestId });
-        toast('Request submitted. Complete checkout to apply the paid priority.');
+        toast('Request submitted. Upload your bank transfer receipt to apply the paid priority.');
         return;
       }
       if (payload.urgencyPaymentError) toast.error(payload.urgencyPaymentError);

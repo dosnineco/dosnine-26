@@ -1,6 +1,7 @@
 // pages/api/sponsors/submit.js
 import { enforceRateLimit } from '@/lib/rateLimit';
 import { getDbClient, isAdvertiserAccount, requireDbUser } from '@/lib/apiAuth';
+import { getPayerReference } from '@/lib/paymentReference';
 
 const AD_PLANS = {
   '14-day': { id: '14-day', name: 'Professional', amount: 17999, durationDays: 14 },
@@ -392,6 +393,7 @@ export default async function handler(req, res) {
       title: title || company_name,
       contact_name: contact_name || null,
       created_by_clerk_id: resolved.clerkId,
+      payer_reference: getPayerReference(resolved.user.id),
     };
 
     const { data: submission, error } = await db

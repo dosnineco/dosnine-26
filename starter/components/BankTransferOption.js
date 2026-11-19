@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import BankTransferNotes from './BankTransferNotes';
 
 const WHATSAPP_NUMBER = '18763369045';
 
@@ -28,6 +29,9 @@ export default function BankTransferOption({ service, amountJmd, reference }) {
         Request bank transfer instructions
       </Link>
       <p className="mt-2 text-xs text-gray-500">We verify the transfer before activating the service.</p>
+      <div className="mt-4 text-left">
+        <BankTransferNotes reference={reference} />
+      </div>
     </div>
   );
 }

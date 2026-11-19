@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { getSiteSettings } from '../../lib/siteSettings';
+import BankTransferNotes from '../../components/BankTransferNotes';
 
 
 
@@ -149,16 +150,6 @@ export default function AgentPayment() {
     }
   }, [selectedPlanId, sessionToken]);
 
-  // Pre-select agent's current plan
-  useEffect(() => {
-    if (agentProfile?.payment_status) {
-      const validPlans = ['free', '7-day', '30-day', '90-day'];
-      if (validPlans.includes(agentProfile.payment_status)) {
-        setSelectedPlanId(agentProfile.payment_status);
-      }
-    }
-  }, [agentProfile?.payment_status]);
-
   useEffect(() => {
     const agent = agentProfile;
     if (agent?.payment_receipt_submitted_at) {
@@ -284,9 +275,9 @@ export default function AgentPayment() {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
         body: formData,
       });
-      const payload = await response.json();
+      const payload = await response.json().catch(() => null);
       if (!response.ok || !payload?.success) {
-        throw new Error(payload?.error || 'Unable to upload receipt.');
+        throw new Error(payload?.error || `Unable to upload receipt (HTTP ${response.status}).`);
       }
       setReceiptState(payload.receipt);
       setReceiptUrl(payload.receipt.url || null);
@@ -294,7 +285,12 @@ export default function AgentPayment() {
       event.target.reset();
       toast.success('Receipt submitted. Your payment is awaiting verification.');
     } catch (error) {
-      toast.error(error.message || 'Unable to upload receipt.');
+      console.error('Agent payment receipt submission failed:', error);
+      toast.error(
+        error?.message === 'Failed to fetch'
+          ? 'Could not reach the payment server. Check your connection and retry.'
+          : error.message || 'Unable to upload receipt.'
+      );
     } finally {
       setUploadingReceipt(false);
     }
@@ -311,11 +307,16 @@ export default function AgentPayment() {
     `Hi Dosnine, I want to join Tenant Services and pay by bank transfer in ${ownerCurrency}. Email: ${userEmail}. Amount: ${ownerCurrency === 'USD' ? `$${OWNER_SERVICE_PRICE_USD}` : `JMD ${OWNER_SERVICE_PRICE_JMD.toLocaleString()}`}. Please send the bank transfer instructions.`
   );
 
-  const copyToClipboard = (text, field) => {
-    navigator.clipboard.writeText(text);
-    setCopied(field);
-    toast.success(`${field} copied!`);
-    setTimeout(() => setCopied(false), 2000);
+  const copyToClipboard = async (text, field) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(field);
+      toast.success(`${field} copied!`);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (error) {
+      console.error('Unable to copy payment detail:', error);
+      toast.error('Unable to copy this payment detail.');
+    }
   };
 
   if (authLoading) {
@@ -458,6 +459,7 @@ export default function AgentPayment() {
                   </div>
 
                   <div className="mt-5 flex flex-col gap-3">
+                    <BankTransferNotes reference="Tenant Services" />
                     <a
                       href={`https://wa.me/18763369045?text=${ownerPaymentWhatsappText}`}
                       target="_blank"
@@ -627,9 +629,7 @@ export default function AgentPayment() {
                       <li>
                         Transfer <strong>{formatCurrency(selectedPlan.price)}</strong> to one of the banks below
                       </li>
-                      <li>
-                        In notes, add: <strong>{selectedPlan.name}</strong> + <strong>{emailHandle}</strong>
-                      </li>
+                      <li>Add the required payment notes shown below.</li>
                       <li>Screenshot the receipt</li>
                       <li>Upload your receipt below</li>
                     </ol>
@@ -655,38 +655,28 @@ export default function AgentPayment() {
                               <div className="flex items-center gap-2">
                                 <span className="font-mono text-gray-900">{value}</span>
                                 <button
+                                  type="button"
                                   onClick={() => copyToClipboard(value, `${bank.bank}-${key}`)}
-                                  className="text-gray-400 hover:text-gray-900 transition p-1"
-                                  title="Copy"
+                                  className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg bg-accent/10 p-3 text-accent transition hover:bg-accent/20"
+                                  aria-label={`Copy ${key}`}
                                 >
-                                  {copied === `${bank.bank}-${key}` ? <Check size={16} /> : <Copy size={16} />}
+                                  {copied === `${bank.bank}-${key}` ? <Check size={19} /> : <Copy size={19} />}
                                 </button>
                               </div>
                             </div>
                           ))}
-                        <div className="flex flex-col gap-2 pt-2 border-t border-gray-200">
-                          <span className="text-gray-600 font-bold text-xs uppercase tracking-wide">Transfer notes:</span>
-                          <div className="flex items-start gap-2">
-                            <span className="font-mono text-gray-900 text-sm break-words flex-1">{selectedPlan.name} - {emailHandle}</span>
-                            <button
-                              onClick={() => copyToClipboard(`${selectedPlan.name} - ${emailHandle}`, `${bank.bank}-notes`)}
-                              className="text-gray-400 hover:text-gray-900 transition p-1 flex-shrink-0"
-                              title="Copy"
-                            >
-                              {copied === `${bank.bank}-notes` ? <Check size={16} /> : <Copy size={16} />}
-                            </button>
-                          </div>
-                        </div>
+                        <BankTransferNotes reference={`${selectedPlan.name} - ${emailHandle}`} />
                         <div className="flex justify-between items-center pt-2 border-t border-gray-200">
                           <span className="text-gray-600 font-bold text-xs uppercase tracking-wide">Amount:</span>
                           <div className="flex items-center gap-2">
                             <span className="font-bold text-gray-900 text-lg">{formatCurrency(selectedPlan.price)}</span>
                             <button
+                              type="button"
                               onClick={() => copyToClipboard(selectedPlan.price.toString(), `${bank.bank}-amount`)}
-                              className="text-gray-400 hover:text-gray-900 transition p-1"
-                              title="Copy"
+                              className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg bg-accent/10 p-3 text-accent transition hover:bg-accent/20"
+                              aria-label="Copy amount"
                             >
-                              {copied === `${bank.bank}-amount` ? <Check size={16} /> : <Copy size={16} />}
+                              {copied === `${bank.bank}-amount` ? <Check size={19} /> : <Copy size={19} />}
                             </button>
                           </div>
                         </div>

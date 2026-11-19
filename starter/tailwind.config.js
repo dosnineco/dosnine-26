@@ -5,7 +5,11 @@ module.exports = {
     './ds/**/*.{js,jsx,ts,tsx}',
   ],
   theme: {
-    extend: {},
+    extend: {
+      colors: {
+        accent: 'rgb(var(--accent-color-rgb) / <alpha-value>)',
+      },
+    },
   },
   plugins: [],
 };

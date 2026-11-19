@@ -102,6 +102,15 @@ export default async function handler(req, res) {
       });
     if (uploadError) throw uploadError;
 
+    const { data: signedReceipt, error: signedReceiptError } = await db.storage
+      .from('agent-payment-receipts')
+      .createSignedUrl(path, 3600);
+    if (signedReceiptError) {
+      const { error: cleanupError } = await db.storage.from('agent-payment-receipts').remove([path]);
+      if (cleanupError) console.error('Failed to remove payment receipt without a signed URL:', cleanupError);
+      throw signedReceiptError;
+    }
+
     const submittedAt = new Date().toISOString();
     const { error: updateError } = await db
       .from('agents')
@@ -127,11 +136,6 @@ export default async function handler(req, res) {
         console.error('Failed to remove replaced agent payment receipt:', previousReceiptError);
       }
     }
-
-    const { data: signedReceipt, error: signedReceiptError } = await db.storage
-      .from('agent-payment-receipts')
-      .createSignedUrl(path, 3600);
-    if (signedReceiptError) throw signedReceiptError;
 
     return res.status(200).json({
       success: true,

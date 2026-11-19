@@ -35,10 +35,6 @@ export default async function handler(req, res) {
   if (!parsed.success) {
     return res.status(400).json({ error: 'Choose one or more valid requests and a priority level.' });
   }
-  if (!process.env.PAYPAL_CLIENT_SECRET) {
-    return res.status(503).json({ error: 'PayPal payments are not configured yet.' });
-  }
-
   const db = getDbClient();
   try {
     const { data: requests, error: requestsError } = await db

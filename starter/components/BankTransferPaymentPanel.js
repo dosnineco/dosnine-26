@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Check, Copy, Loader2, Upload } from 'lucide-react';
 import toast from 'react-hot-toast';
+import BankTransferNotes from './BankTransferNotes';
 
 const bankDetails = [
   {
@@ -18,6 +19,7 @@ export default function BankTransferPaymentPanel({
   reference,
   receipt,
   onSubmit,
+  description = 'Transfer the amount below and upload your receipt.',
 }) {
   const [file, setFile] = useState(null);
   const [submitting, setSubmitting] = useState(false);
@@ -67,13 +69,14 @@ export default function BankTransferPaymentPanel({
       : `J$${numericAmount.toLocaleString('en-JM', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   };
   const previewUrl = file ? localPreview : receipt?.url;
+  const receiptLocked = ['pending', 'approved'].includes(receipt?.status);
 
   return (
     <div className="mb-10 rounded-lg border-l-4 border-accent bg-white p-6 shadow-sm">
       <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
         <div>
           <h3 className="text-xl font-bold text-gray-900">Payment Required</h3>
-          <p className="text-gray-600">Transfer the amount below and upload your receipt.</p>
+          <p className="text-gray-600">{description}</p>
         </div>
         <div className="text-right">
           <p className="text-sm text-gray-500">Total Due</p>
@@ -97,27 +100,32 @@ export default function BankTransferPaymentPanel({
                         type="button"
                         onClick={() => copyToClipboard(value, copyKey)}
                         aria-label={`Copy ${key}`}
-                        className="text-gray-400 hover:text-accent"
+                        className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg bg-accent/10 p-3 text-accent transition hover:bg-accent/20"
                       >
-                        {copied === copyKey ? <Check size={14} /> : <Copy size={14} />}
+                        {copied === copyKey ? <Check size={19} /> : <Copy size={19} />}
                       </button>
                     </span>
                   </div>
                 );
               })}
+              <BankTransferNotes reference={reference} />
             </div>
           ))}
-          <div className="rounded border border-yellow-200 bg-yellow-50 p-4 text-sm text-yellow-800">
-            <strong>Instructions:</strong> Transfer the total amount, then upload the receipt below.
-            {reference ? <p className="mt-1">Use this reference: <span className="font-mono font-semibold">{reference}</span></p> : null}
+          <div className="rounded-lg bg-yellow-50 p-4 text-sm text-yellow-900">
+            Add the User ID shown below Account Type to your bank transfer notes, then upload your receipt.
           </div>
         </div>
 
         <div className="flex flex-col justify-between">
           {receipt ? (
-            <div className="mb-4 rounded-lg bg-emerald-50 p-4 text-sm text-emerald-900">
+            <div className={`mb-4 rounded-lg p-4 text-sm ${
+              receipt.status === 'rejected' ? 'bg-red-50 text-red-900'
+                : receipt.status === 'approved' ? 'bg-emerald-50 text-emerald-900'
+                  : 'bg-yellow-50 text-yellow-900'
+            }`}>
               <p className="font-semibold capitalize">Receipt {receipt.status || 'submitted'}</p>
               {receipt.submittedAt ? <p className="mt-1">{new Date(receipt.submittedAt).toLocaleString()}</p> : null}
+              {receipt.status === 'rejected' ? <p className="mt-1">Upload a corrected receipt to try again.</p> : null}
             </div>
           ) : null}
           <label className="mb-3 block text-sm font-semibold text-gray-700">
@@ -140,20 +148,28 @@ export default function BankTransferPaymentPanel({
                 }
               }}
               className="mt-2 block w-full rounded-lg bg-white px-3 py-2 text-sm"
-              disabled={submitting}
+              disabled={submitting || receiptLocked}
             />
           </label>
           {previewUrl ? (
-            <img src={previewUrl} alt="Payment receipt preview" className="mb-4 max-h-56 rounded-lg object-contain" />
+            <a href={previewUrl} target="_blank" rel="noreferrer" className="mb-4 block">
+              <img src={previewUrl} alt="Payment receipt preview" className="max-h-56 rounded-lg object-contain" />
+            </a>
           ) : null}
           <button
             type="button"
             onClick={submit}
-            disabled={!file || submitting}
+            disabled={!file || submitting || receiptLocked}
             className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-accent px-4 py-3 font-bold text-white disabled:cursor-not-allowed disabled:opacity-60"
           >
             {submitting ? <Loader2 size={18} className="animate-spin" /> : <Upload size={18} />}
-            {submitting ? 'Submitting receipt...' : 'Submit payment receipt'}
+            {submitting
+              ? 'Submitting receipt...'
+              : receipt?.status === 'pending'
+                ? 'Receipt awaiting review'
+                : receipt?.status === 'approved'
+                  ? 'Payment verified'
+                  : 'Submit payment receipt'}
           </button>
         </div>
       </div>

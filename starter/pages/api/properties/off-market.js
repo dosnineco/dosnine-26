@@ -23,7 +23,7 @@ export default async function handler(req, res) {
         .eq('buyer_user_id', resolved.user.id),
       db
       .from('properties')
-      .select('id, slug, title, description, type, property_type, price, currency, bedrooms, bathrooms, town, parish, available_date, image_urls, status, created_at')
+      .select('id, slug, title, description, type, price, currency, bedrooms, bathrooms, town, parish, available_date, image_urls, status, created_at')
       .eq('is_off_market', true)
       .in('status', ['available', 'active', 'coming_soon'])
       .order('created_at', { ascending: false }),

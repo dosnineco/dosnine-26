@@ -114,9 +114,9 @@ export default async function handler(req, res) {
       { data: agentData, error: agentError },
       { data: rentalReadiness, error: rentalError },
       { data: requests, error: requestsError },
-      { data: boosts, error: boostsError },
       { data: buyerReadiness, error: buyerError },
       { data: campaign, error: campaignError },
+      { data: premiumReceipt, error: premiumReceiptError },
     ] = await Promise.all([
       db.from('users')
         .select('id, clerk_id, email, full_name, phone, role, account_type, profile_intent, user_type, identity_verified, id_verification_status, created_at, last_active_at, premium_service_request, premium_service_request_expires')
@@ -130,10 +130,6 @@ export default async function handler(req, res) {
       db.from('service_requests')
         .select('id, request_type, created_at')
         .eq('client_user_id', resolved.user.id),
-      db.from('service_request_urgency_boost_batches')
-        .select('service_request_ids, status')
-        .eq('client_user_id', resolved.user.id)
-        .eq('status', 'paid'),
       db.from('buyer_prequalifications')
         .select('qualification_level, status, verification_expires_at')
         .eq('buyer_user_id', resolved.user.id),
@@ -141,20 +137,43 @@ export default async function handler(req, res) {
         .select('title, prize_description, opens_at, draw_at, is_open, winner_user_id, winner_request_id, winner_selected_at')
         .eq('id', 1)
         .maybeSingle(),
+      resolved.user.account_type === 'regular'
+        ? db.from('bank_transfer_payments')
+          .select('id, amount, currency, reference_ids, receipt_path, status, submitted_at')
+          .eq('source_type', 'premium')
+          .eq('source_id', resolved.user.id)
+          .order('submitted_at', { ascending: false })
+          .limit(1)
+          .maybeSingle()
+        : Promise.resolve({ data: null, error: null }),
     ]);
 
     if (userError) throw userError;
     if (agentError) throw agentError;
     if (rentalError) throw rentalError;
     if (requestsError) throw requestsError;
-    if (boostsError) throw boostsError;
     if (buyerError) throw buyerError;
     if (campaignError) throw campaignError;
+    if (premiumReceiptError) throw premiumReceiptError;
+
+    let premiumPaymentReceipt = null;
+    if (premiumReceipt) {
+      const { data: signedReceipt, error: signedReceiptError } = await db.storage
+        .from('payment-receipts')
+        .createSignedUrl(premiumReceipt.receipt_path, 3600);
+      if (signedReceiptError) throw signedReceiptError;
+      premiumPaymentReceipt = {
+        amount: Number(premiumReceipt.amount),
+        currency: premiumReceipt.currency || 'JMD',
+        referenceIds: premiumReceipt.reference_ids || [],
+        status: premiumReceipt.status,
+        submittedAt: premiumReceipt.submitted_at,
+        url: signedReceipt.signedUrl,
+      };
+    }
 
     const eligibility = getGiveawayEligibility({
       user: userData,
-      requests: requests || [],
-      boosts: boosts || [],
       buyerReadiness: buyerReadiness || [],
       rentalReadiness,
       now,
@@ -177,12 +196,13 @@ export default async function handler(req, res) {
       ...userData,
       agent: agentData || null,
       premium: eligibility.isPremium,
+      premiumPaymentReceipt,
       rentalReadiness: rentalReadiness || null,
       readiness: {
         buyerLevel,
         rentalLevel: Number(rentalReadiness?.qualification_level) || 0,
       },
-      giveaway: giveawayOpen ? {
+      giveaway: userData.account_type === 'regular' && giveawayOpen ? {
         ...campaign,
         open: true,
         eligibility,

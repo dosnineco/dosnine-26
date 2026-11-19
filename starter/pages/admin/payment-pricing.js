@@ -166,7 +166,7 @@ export default function PaymentPricingPage() {
   }
 
   const sections = [
-    ['agent', 'Agent plans', 'These prices control agent PayPal checkout and bank-transfer amounts.'],
+    ['agent', 'Agent plans', 'These prices control agent bank-transfer amounts.'],
     ['ads', 'Advertiser plans', 'These prices control sponsor plan quotes and bank-transfer review.'],
     ['urgency', 'Request boosts', 'Prices are configured and charged in USD per request. Users also see an estimated JMD equivalent at J$155 per US$1.'],
     ['other', 'Premium and property services', 'Premium lasts 30 days and includes one property boost; additional 30-day boosts use the price below.'],
@@ -184,7 +184,7 @@ export default function PaymentPricingPage() {
             <DollarSign size={28} aria-hidden="true" />
             <div>
               <h1 className="text-2xl font-bold">Payment pricing</h1>
-              <p className="mt-1 text-sm text-white/85">Manage the prices used by active checkout flows.</p>
+              <p className="mt-1 text-sm text-white/85">Manage the prices used by active bank-transfer payment flows.</p>
             </div>
           </div>
         </header>

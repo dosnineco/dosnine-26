@@ -791,7 +791,11 @@ function RevenueOpportunities({
     { label: 'Agent plans', current: currentJmd.agentPlans, previous: previousJmd.agentPlans },
     { label: 'Sponsor advertising', current: currentJmd.sponsorships, previous: previousJmd.sponsorships },
     { label: 'HTV completed orders', current: currentJmd.htvRevenue, previous: previousJmd.htvRevenue },
+    { label: 'Premium subscriptions', current: currentJmd.premiumPlans, previous: previousJmd.premiumPlans },
+    { label: 'Property boosts', current: currentJmd.propertyBoosts, previous: previousJmd.propertyBoosts },
+    { label: 'Agent application fees', current: currentJmd.agentApplications, previous: previousJmd.agentApplications },
     { label: 'Paid property searches', current: currentJmd.propertySearches, previous: previousJmd.propertySearches },
+    { label: 'Priority upgrades', current: currentJmd.urgencyBoosts, previous: previousJmd.urgencyBoosts },
   ];
   const usdRows = [
     { label: 'Paid property searches', current: currentUsd.propertySearches, previous: previousUsd.propertySearches },
@@ -815,8 +819,8 @@ function RevenueOpportunities({
           Money this month
         </h2>
         <p className="mt-1 text-sm text-slate-600">
-          Confirmed payments for {monetization.monthLabel}. Compared with the same elapsed
-          period last month; USD is kept separate from JMD.
+          Verified bank transfers and other confirmed payments for {monetization.monthLabel}.
+          Compared with the same elapsed period last month; USD is kept separate from JMD.
         </p>
       </div>
 
@@ -832,7 +836,7 @@ function RevenueOpportunities({
           sub={`After recorded HTV expenses: ${formatJMD(currentJmd.htvExpenses)}`}
         />
         <RevenueSummaryCard
-          label="USD add-on revenue"
+          label="USD revenue received"
           value={formatUSD(currentUsd.totalRevenue)}
           sub={`Previous period: ${formatUSD(previousUsd.totalRevenue)}`}
         />
@@ -883,44 +887,6 @@ function RevenueOpportunities({
         </div>
       </div>
 
-      <div className="mt-5 rounded-xl bg-white p-4">
-        <h3 className="text-sm font-bold text-slate-900">Monthly sales opportunities</h3>
-        <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-3">
-          <OpportunityCard
-            title="Agent plans"
-            detail={`${Number(opportunity.eligibleAgents || 0)} approved agents have free or expired plans.`}
-            value={monthlyAgentPrice > 0
-              ? `${formatJMD(monthlyAgentPrice)} per 30 days`
-              : 'Plan price unavailable'}
-            estimate={potentialAgentRevenue > 0
-              ? `Up to ${formatJMD(potentialAgentRevenue)} if all convert`
-              : null}
-          />
-          <OpportunityCard
-            title="Sponsor advertising"
-            detail={`${Number(opportunity.unpaidSponsors || 0)} unpaid sponsor submissions; ${Number(opportunity.remainingSponsorSlots || 0)} of ${Number(opportunity.sponsorCapacity || 40)} monthly slots remain. ${Number(opportunity.activeAdvertisements || 0)} active ads have ${Number(opportunity.advertisementImpressions || 0).toLocaleString()} impressions and ${Number(opportunity.advertisementClicks || 0).toLocaleString()} clicks.`}
-            value={monthlyAdPrice > 0
-              ? `${formatJMD(monthlyAdPrice)} per 30 days`
-              : '30-day plan price unavailable'}
-            estimate={potentialAdRevenue > 0
-              ? `Up to ${formatJMD(potentialAdRevenue)} at that plan price`
-              : null}
-          />
-          <OpportunityCard
-            title="Sell where demand is"
-            detail={`${Number(growthSignals.topParishRequests || 0).toLocaleString()} requests come from the top parish; ${Number(growthSignals.verifiedBudgetCount || 0).toLocaleString()} buyers have verified budgets.`}
-            value={`Prioritize ${mostRequestedProperty || 'property'} in ${mostRequestedParish || 'your top parish'}`}
-            estimate={Number(growthSignals.averageVerifiedBudget || 0) > 0
-              ? `Average verified budget: ${formatJMD(growthSignals.averageVerifiedBudget)}`
-              : 'Use the budget ranges below to guide inventory and ad packages.'}
-          />
-        </div>
-        <p className="mt-3 text-xs text-slate-500">
-          Add-ons currently priced at JMD {Number(opportunity.paidSearchJmdPrice || 0).toLocaleString()}
-          {' '}or USD {Number(opportunity.paidSearchUsdPrice || 0).toFixed(2)} for a paid property search.
-          {' '}Priority upgrades: high {formatUSD(urgencyPrices.high)} · urgent {formatUSD(urgencyPrices.urgent)}.
-        </p>
-      </div>
 
       {monetization.unavailableSources?.length ? (
         <p className="mt-4 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">

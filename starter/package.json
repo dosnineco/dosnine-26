@@ -13,7 +13,6 @@
     "@getbrevo/brevo": "^3.0.1",
     "@headlessui/react": "^2.2.9",
     "@microsoft/clarity": "^1.0.2",
-    "@paypal/react-paypal-js": "^8.9.2",
     "@sendgrid/mail": "^8.1.4",
     "@supabase/supabase-js": "^2.27.0",
     "@tiptap/extension-image": "^3.22.3",

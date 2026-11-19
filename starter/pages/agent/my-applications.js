@@ -2,9 +2,10 @@ import { useEffect, useState } from 'react';
 import Head from 'next/head';
 import { useAuth, useUser } from '@clerk/nextjs';
 import toast from 'react-hot-toast';
-import { CheckCircle, XCircle, Clock, Copy, Check, Trash2, Phone, Mail, User, Loader2, Upload } from 'lucide-react';
+import { CheckCircle, XCircle, Clock, Trash2, Phone, Mail, User, Loader2 } from 'lucide-react';
 import { useRoleProtection } from '../../lib/useRoleProtection';
 import { isVerifiedAgent } from '../../lib/rbac';
+import BankTransferPaymentPanel from '../../components/BankTransferPaymentPanel';
 
 export default function MyApplicationsPage() {
   const { loading: authLoading, userData: initialUserData } = useRoleProtection({ checkAccess: isVerifiedAgent, redirectTo: '/agent/signup' });
@@ -16,11 +17,8 @@ export default function MyApplicationsPage() {
   const [loading, setLoading] = useState(true);
   const [agentId, setAgentId] = useState(null);
   const [requestCost, setRequestCost] = useState(500);
-  const [copied, setCopied] = useState(null);
   const [activeTab, setActiveTab] = useState('all');
-  const [receiptFile, setReceiptFile] = useState(null);
   const [paymentReceipt, setPaymentReceipt] = useState(null);
-  const [submittingReceipt, setSubmittingReceipt] = useState(false);
 
   useEffect(() => {
     if (initialUserData?.agent?.id) {
@@ -92,12 +90,6 @@ export default function MyApplicationsPage() {
     }
   };
 
-  const copyToClipboard = (text, key) => {
-    navigator.clipboard.writeText(text);
-    setCopied(key);
-    setTimeout(() => setCopied(null), 1500);
-  };
-
   const withdrawApplication = async (appId) => {
     if (!confirm('Are you sure you want to withdraw this application?')) return;
     if (!clerkLoaded) return toast.error('Authentication still loading, please try again');
@@ -136,16 +128,6 @@ export default function MyApplicationsPage() {
     }
   };
 
-  const bankDetails = [
-    {
-      bank: 'Scotiabank Jamaica',
-      accountName: 'Dosnine Limited',
-      accountNumber: '000991881',
-      branch: '50575',
-      accountType: 'Business Savings',
-    }
-  ];
-
   if (loading || authLoading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -179,10 +161,8 @@ export default function MyApplicationsPage() {
   }, 0);
 
   const pendingIds = pendingApplications.map(a => a.request_id).join(', ');
-  const submitApplicationPayment = async () => {
-    if (!receiptFile) return toast.error('Choose a receipt image first.');
-    if (totalDue < 1) return;
-    setSubmittingReceipt(true);
+  const submitApplicationPayment = async (receiptFile) => {
+    if (totalDue < 1) throw new Error('There is no application payment due.');
     const toastId = toast.loading('Submitting payment receipt...');
     try {
       const form = new FormData();
@@ -199,21 +179,11 @@ export default function MyApplicationsPage() {
       });
       const payload = await response.json().catch(() => null);
       if (!response.ok || !payload?.success) throw new Error(payload?.error || 'Unable to submit payment receipt.');
-      setReceiptFile(null);
-      const receiptResponse = await fetch('/api/agent/application-payment-receipt', {
-        credentials: 'include',
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
-      const receiptPayload = await receiptResponse.json();
-      if (!receiptResponse.ok || !receiptPayload?.success) {
-        throw new Error(receiptPayload?.error || 'Receipt submitted, but could not reload its status.');
-      }
-      setPaymentReceipt(receiptPayload.receipt || null);
+      setPaymentReceipt(payload.receipt || null);
       toast.success('Payment receipt submitted for review.', { id: toastId });
     } catch (error) {
-      toast.error(error.message || 'Unable to submit payment receipt.', { id: toastId });
-    } finally {
-      setSubmittingReceipt(false);
+      toast.dismiss(toastId);
+      throw error;
     }
   };
 
@@ -240,68 +210,17 @@ export default function MyApplicationsPage() {
 
           {/* Payment Section for Pending Requests */}
           {totalDue > 0 && (
-            <div className="mb-10 bg-white border-l-4 border-accent p-6 rounded-lg shadow-sm">
-              <div className="flex justify-between items-start flex-wrap gap-4 mb-6">
-                <div>
-                  <h3 className="text-xl font-bold text-gray-900">Payment Required</h3>
-                  <p className="text-gray-600">You have {pendingApplications.length} pending application(s).</p>
-                </div>
-                <div className="text-right">
-                  <p className="text-sm text-gray-500">Total Due</p>
-                  <p className="text-3xl font-bold text-accent">J${totalDue.toLocaleString()}</p>
-                </div>
-              </div>
-
-              <div className="grid md:grid-cols-2 gap-6">
-                {bankDetails.map((bank, i) => (
-                  <div key={i} className="bg-gray-50 p-4 rounded border">
-                    <h4 className="font-bold mb-3">{bank.bank}</h4>
-                    {Object.entries(bank)
-                      .filter(([k]) => k !== 'bank')
-                      .map(([k, v]) => (
-                        <div key={k} className="flex justify-between text-sm mb-2">
-                          <span className="text-gray-600 capitalize">{k.replace(/([A-Z])/g, ' $1').trim()}</span>
-                          <div className="flex gap-2 items-center">
-                            <span className="font-mono font-medium">{v}</span>
-                            <button onClick={() => copyToClipboard(v, `${i}-${k}`)} className="text-gray-400 hover:text-accent">
-                              {copied === `${i}-${k}` ? <Check size={14} /> : <Copy size={14} />}
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-                  </div>
-                ))}
-
-                <div className="flex flex-col justify-between">
-                  <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 p-4 rounded text-sm mb-4">
-                    <strong>Instructions:</strong> Transfer the total amount, then upload the receipt below.
-                    <br />The pending Request IDs will be included automatically.
-                  </div>
-
-                  <label className="mb-3 block text-sm font-semibold text-gray-700">
-                    Transfer receipt
-                    <input
-                      type="file"
-                      accept="image/jpeg,image/png,image/webp"
-                      onChange={(event) => setReceiptFile(event.target.files?.[0] || null)}
-                      className="mt-2 block w-full rounded-lg bg-white px-3 py-2 text-sm"
-                    />
-                  </label>
-                  <button
-                    type="button"
-                    onClick={submitApplicationPayment}
-                    disabled={!receiptFile || submittingReceipt}
-                    className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-accent px-4 py-3 font-bold text-white disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    {submittingReceipt ? <Loader2 size={18} className="animate-spin" /> : <Upload size={18} />}
-                    {submittingReceipt ? 'Submitting receipt...' : 'Submit payment receipt'}
-                  </button>
-                </div>
-              </div>
-            </div>
+            <BankTransferPaymentPanel
+              amount={totalDue}
+              currency="JMD"
+              reference={pendingIds}
+              receipt={paymentReceipt}
+              description={`You have ${pendingApplications.length} pending application(s). Transfer the total amount and upload your receipt.`}
+              onSubmit={submitApplicationPayment}
+            />
           )}
 
-          {paymentReceipt && (
+          {paymentReceipt && totalDue <= 0 && (
             <section className="mb-10 rounded-lg bg-white p-6 shadow-sm">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>

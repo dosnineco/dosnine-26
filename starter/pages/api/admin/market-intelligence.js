@@ -7,6 +7,14 @@ const formatNumber = (value) => {
 
 const formatPercent = (value) => `${Math.round(value)}%`;
 const OPTIONAL_SCHEMA_ERROR_CODES = new Set(['42P01', '42703', 'PGRST204', 'PGRST205']);
+const BANK_TRANSFER_REVENUE_FIELDS = {
+  premium: 'premiumPlans',
+  property_boost: 'propertyBoosts',
+  agent_request_applications: 'agentApplications',
+  property_search: 'propertySearches',
+  request_urgency: 'urgencyBoosts',
+  request_urgency_batch: 'urgencyBoosts',
+};
 
 function getJamaicaMonthStart(date, monthOffset = 0) {
   const parts = new Intl.DateTimeFormat('en-US', {
@@ -79,7 +87,11 @@ function createRevenueBucket() {
       htvRevenue: 0,
       htvExpenses: 0,
       htvProfit: 0,
+      premiumPlans: 0,
+      propertyBoosts: 0,
+      agentApplications: 0,
       propertySearches: 0,
+      urgencyBoosts: 0,
       totalRevenue: 0,
     },
     usd: {
@@ -91,6 +103,9 @@ function createRevenueBucket() {
       agentPlans: 0,
       sponsorships: 0,
       htvOrders: 0,
+      premiumPlans: 0,
+      propertyBoosts: 0,
+      agentApplications: 0,
       propertySearchesJmd: 0,
       propertySearchesUsd: 0,
       urgencyBoosts: 0,
@@ -168,6 +183,7 @@ export default async function handler(req, res) {
     const [
       agentPaymentsResult,
       sponsorPaymentsResult,
+      bankTransferPaymentsResult,
       htvOrdersResult,
       htvExpensesResult,
       paidSearchesResult,
@@ -187,6 +203,14 @@ export default async function handler(req, res) {
         periodQuery('sponsor_submissions', 'amount, paid_at', 'paid_at')
           .eq('payment_status', 'paid'),
         'Sponsor payments'
+      ),
+      optionalRows(
+        periodQuery(
+          'bank_transfer_payments',
+          'source_type, source_id, amount, currency, reviewed_at',
+          'reviewed_at'
+        ).eq('status', 'approved'),
+        'Approved bank transfers'
       ),
       optionalRows(
         periodQuery(
@@ -521,6 +545,27 @@ export default async function handler(req, res) {
       now
     );
 
+    const bankTransferSources = new Set();
+    bankTransferPaymentsResult.rows.forEach((payment) => {
+      if (payment.source_type && payment.source_id) {
+        bankTransferSources.add(`${payment.source_type}:${payment.source_id}`);
+      }
+      addPeriodRevenue(payment.reviewed_at, (bucket) => {
+        const field = BANK_TRANSFER_REVENUE_FIELDS[payment.source_type];
+        if (!field) return;
+        addRevenue(bucket, payment.currency, field, payment.amount);
+        if (payment.source_type === 'property_search') {
+          if (String(payment.currency || '').toLowerCase() === 'jmd') {
+            bucket.counts.propertySearchesJmd += 1;
+          } else if (String(payment.currency || '').toLowerCase() === 'usd') {
+            bucket.counts.propertySearchesUsd += 1;
+          }
+        } else if (payment.source_type === 'request_urgency' || payment.source_type === 'request_urgency_batch') {
+          bucket.counts.urgencyBoosts += 1;
+        }
+      });
+    });
+
     agentPaymentsResult.rows.forEach((payment) => {
       addPeriodRevenue(payment.payment_date, (bucket) => {
         addRevenue(bucket, 'JMD', 'agentPlans', payment.payment_amount);
@@ -571,6 +616,7 @@ export default async function handler(req, res) {
       }
     });
     paidSearchesResult.rows.forEach((payment) => {
+      if (bankTransferSources.has(`property_search:${payment.id}`)) return;
       addPeriodRevenue(payment.paid_at, (bucket) => {
         const currency = String(payment.currency || '').toLowerCase();
         addRevenue(bucket, currency, 'propertySearches', payment.amount);
@@ -580,6 +626,10 @@ export default async function handler(req, res) {
     });
     [urgencyPaymentsResult, urgencyBatchesResult].forEach((result) => {
       result.rows.forEach((payment) => {
+        const sourceType = result === urgencyPaymentsResult
+          ? 'request_urgency'
+          : 'request_urgency_batch';
+        if (bankTransferSources.has(`${sourceType}:${payment.id}`)) return;
         addPeriodRevenue(payment.paid_at, (bucket) => {
           addRevenue(bucket, payment.currency, 'urgencyBoosts', payment.amount);
           bucket.counts.urgencyBoosts += 1;
@@ -591,7 +641,11 @@ export default async function handler(req, res) {
         bucket.jmd.agentPlans +
         bucket.jmd.sponsorships +
         bucket.jmd.htvRevenue +
+        bucket.jmd.premiumPlans +
+        bucket.jmd.propertyBoosts +
+        bucket.jmd.agentApplications +
         bucket.jmd.propertySearches;
+      bucket.jmd.totalRevenue += bucket.jmd.urgencyBoosts;
       bucket.usd.totalRevenue =
         bucket.usd.propertySearches + bucket.usd.urgencyBoosts;
     });
@@ -617,6 +671,7 @@ export default async function handler(req, res) {
     const monetizationSources = [
       agentPaymentsResult,
       sponsorPaymentsResult,
+      bankTransferPaymentsResult,
       htvOrdersResult,
       htvExpensesResult,
       paidSearchesResult,
