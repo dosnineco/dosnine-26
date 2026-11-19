@@ -2,18 +2,10 @@ import { useEffect, useState } from 'react';
 import { useAuth, useUser } from '@clerk/nextjs';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
-import { Fragment } from 'react';
 import toast from 'react-hot-toast';
 import { FiEdit2, FiEye, FiMapPin, FiPlus, FiSave, FiTrash2, FiX } from 'react-icons/fi';
-import { PayPalButtons, PayPalScriptProvider } from '@paypal/react-paypal-js';
 import { formatPropertyMoney } from '../../lib/formatMoney';
-import BankTransferOption from '../../components/BankTransferOption';
-
-const PAYPAL_CLIENT_ID = process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID;
-const PageWrapper = PAYPAL_CLIENT_ID ? PayPalScriptProvider : Fragment;
-const paypalOptions = PAYPAL_CLIENT_ID
-  ? { options: { 'client-id': PAYPAL_CLIENT_ID, currency: 'USD', intent: 'capture' } }
-  : {};
+import BankTransferPaymentPanel from '../../components/BankTransferPaymentPanel';
 
 const emptyForm = {
   title: '', description: '', parish: '', town: '', address: '', phone_number: '',
@@ -33,6 +25,7 @@ export default function MyPropertiesPage() {
   const [boosts, setBoosts] = useState({});
   const [boostPlan, setBoostPlan] = useState({ includedBoostAvailable: false, boostPriceJmd: 500 });
   const [boostLoading, setBoostLoading] = useState({});
+  const [boostReceipts, setBoostReceipts] = useState({});
 
   useEffect(() => {
     if (!isLoaded || !user || !authLoaded || !userId) return;
@@ -163,36 +156,19 @@ export default function MyPropertiesPage() {
     }
   };
 
-  const createBoostOrder = async (propertyId) => {
-    const response = await authedFetch('/api/properties/boost/create-order', {
+  const submitBoostReceipt = async (propertyId, file) => {
+    const body = new FormData();
+    body.append('source_type', 'property_boost');
+    body.append('source_id', propertyId);
+    body.append('receipt', file);
+    const response = await authedFetch('/api/payments/receipt', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ propertyId }),
+      body,
     });
     const payload = await response.json();
-    if (!response.ok || !payload?.success || !payload.orderId) {
-      throw new Error(payload?.error || 'Unable to start boost checkout.');
-    }
-    return payload.orderId;
-  };
-
-  const captureBoostOrder = async (propertyId, data) => {
-    setBoostLoading((current) => ({ ...current, [propertyId]: true }));
-    try {
-      const response = await authedFetch('/api/properties/boost/capture-order', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ orderId: data.orderID }),
-      });
-      const payload = await response.json();
-      if (!response.ok || !payload?.success) throw new Error(payload?.error || 'Unable to confirm payment.');
-      setBoosts((current) => ({ ...current, [propertyId]: payload.boost }));
-      toast.success('Your 30-day property boost is active.');
-    } catch (err) {
-      toast.error(err.message || 'Unable to confirm payment.');
-    } finally {
-      setBoostLoading((current) => ({ ...current, [propertyId]: false }));
-    }
+    if (!response.ok || !payload?.success) throw new Error(payload?.error || 'Unable to submit payment receipt.');
+    setBoostReceipts((current) => ({ ...current, [propertyId]: payload.receipt }));
+    toast.success('Receipt submitted for review. Your boost will start after payment is verified.');
   };
 
   const markUnavailable = async (property) => {
@@ -226,7 +202,6 @@ export default function MyPropertiesPage() {
   }
 
   return (
-    <PageWrapper {...paypalOptions}>
     <main className="dashboard-inspired min-h-screen bg-slate-50 px-4 py-8 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-7xl">
         <header className="mb-8 flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
@@ -281,35 +256,12 @@ export default function MyPropertiesPage() {
                             >
                               {boostLoading[property.id] ? 'Activating...' : 'Use free 30-day boost'}
                             </button>
-                          ) : PAYPAL_CLIENT_ID ? (
-                            <>
-                              <p className="mb-1 text-center text-xs text-slate-600">
-                                30-day visibility boost · J${boostPlan.boostPriceJmd.toLocaleString('en-JM')}
-                              </p>
-                              <p className="mb-2 text-center text-xs font-semibold text-slate-700">
-                                Pay by debit or credit card via PayPal
-                              </p>
-                              <PayPalButtons
-                                style={{ layout: 'horizontal', height: 36, label: 'pay' }}
-                                disabled={Boolean(boostLoading[property.id])}
-                                createOrder={() => createBoostOrder(property.id)}
-                                onApprove={(data) => captureBoostOrder(property.id, data)}
-                                onError={(error) => {
-                                  console.error('Property boost checkout failed:', error);
-                                  toast.error('Boost checkout failed. Please try again.');
-                                }}
-                              />
-                              <BankTransferOption
-                                service={`30-day property visibility boost for ${property.title}`}
-                                amountJmd={boostPlan.boostPriceJmd}
-                                reference={property.id}
-                              />
-                            </>
                           ) : (
-                            <BankTransferOption
-                              service={`30-day property visibility boost for ${property.title}`}
-                              amountJmd={boostPlan.boostPriceJmd}
+                            <BankTransferPaymentPanel
+                              amount={boostPlan.boostPriceJmd}
                               reference={property.id}
+                              receipt={boostReceipts[property.id]}
+                              onSubmit={(file) => submitBoostReceipt(property.id, file)}
                             />
                           )}
                         </div>
@@ -351,6 +303,5 @@ export default function MyPropertiesPage() {
         )}
       </div>
     </main>
-    </PageWrapper>
   );
 }

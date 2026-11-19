@@ -16,13 +16,40 @@ const MIME_EXTENSIONS = {
 const VALID_PAID_PLANS = ['7-day', '30-day', '90-day'];
 
 export default async function handler(req, res) {
-  if (req.method !== 'POST') {
+  if (!['GET', 'POST'].includes(req.method)) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
   try {
     const resolved = await requireAgentAccountUser(req, res);
     if (!resolved) return;
+
+    const db = getDbClient();
+    const { data: agent, error: agentError } = await db
+      .from('agents')
+      .select('id, verification_status, payment_receipt_path, payment_receipt_submitted_at, payment_receipt_plan, payment_receipt_amount, payment_receipt_status')
+      .eq('user_id', resolved.user.id)
+      .maybeSingle();
+    if (agentError) throw agentError;
+    if (!agent) return res.status(404).json({ error: 'Agent profile not found.' });
+
+    if (req.method === 'GET') {
+      if (!agent.payment_receipt_path) return res.status(200).json({ success: true, receipt: null });
+      const { data: signedReceipt, error: signedReceiptError } = await db.storage
+        .from('agent-payment-receipts')
+        .createSignedUrl(agent.payment_receipt_path, 3600);
+      if (signedReceiptError) throw signedReceiptError;
+      return res.status(200).json({
+        success: true,
+        receipt: {
+          submittedAt: agent.payment_receipt_submitted_at,
+          plan: agent.payment_receipt_plan,
+          amount: Number(agent.payment_receipt_amount),
+          status: agent.payment_receipt_status,
+          url: signedReceipt.signedUrl,
+        },
+      });
+    }
 
     const formidable = await import('formidable');
     const form = formidable.formidable({
@@ -51,19 +78,8 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Receipt must be a JPG, PNG, or WebP image.' });
     }
 
-    const db = getDbClient();
-    const { data: agent, error: agentError } = await db
-      .from('agents')
-      .select('id, verification_status, payment_receipt_path, paypal_order_id')
-      .eq('user_id', resolved.user.id)
-      .maybeSingle();
-    if (agentError) throw agentError;
-    if (!agent) return res.status(404).json({ error: 'Agent profile not found.' });
     if (agent.verification_status !== 'approved') {
       return res.status(403).json({ error: 'Your agent profile must be approved before submitting payment.' });
-    }
-    if (agent.paypal_order_id) {
-      return res.status(409).json({ error: 'PayPal checkout is in progress. Cancel it before submitting a bank-transfer receipt.' });
     }
 
     const { data: pricing, error: pricingError } = await db
@@ -112,6 +128,11 @@ export default async function handler(req, res) {
       }
     }
 
+    const { data: signedReceipt, error: signedReceiptError } = await db.storage
+      .from('agent-payment-receipts')
+      .createSignedUrl(path, 3600);
+    if (signedReceiptError) throw signedReceiptError;
+
     return res.status(200).json({
       success: true,
       receipt: {
@@ -119,6 +140,7 @@ export default async function handler(req, res) {
         plan,
         amount,
         status: 'pending',
+        url: signedReceipt.signedUrl,
       },
     });
   } catch (error) {

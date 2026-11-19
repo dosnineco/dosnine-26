@@ -54,7 +54,7 @@ export default async function handler(req, res) {
     const db = getDbClient();
     const { data: submission, error: submissionError } = await db
       .from('sponsor_submissions')
-      .select('id, status, payment_status, payment_receipt_path, paypal_order_id')
+      .select('id, status, payment_status, payment_receipt_path')
       .eq('id', submissionId)
       .eq('created_by_clerk_id', resolved.clerkId)
       .maybeSingle();
@@ -63,10 +63,6 @@ export default async function handler(req, res) {
     if (submission.payment_status === 'paid' || submission.status !== 'pending_payment') {
       return res.status(409).json({ error: 'This submission is no longer awaiting payment.' });
     }
-    if (submission.paypal_order_id) {
-      return res.status(409).json({ error: 'PayPal checkout has already started for this submission. Start a new submission to choose bank transfer.' });
-    }
-
     const path = `${submissionId}/${randomUUID()}.${extension}`;
     const { error: uploadError } = await db.storage
       .from('payment-receipts')

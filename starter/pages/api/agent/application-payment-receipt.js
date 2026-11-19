@@ -11,13 +11,60 @@ const MIME_EXTENSIONS = {
 };
 
 export default async function handler(req, res) {
-  if (req.method !== 'POST') {
+  if (!['GET', 'POST'].includes(req.method)) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
   try {
     const resolved = await requireAgentAccountUser(req, res);
     if (!resolved) return;
+
+    const db = getDbClient();
+    const { data: agent, error: agentError } = await db
+      .from('agents')
+      .select('id, business_name, user_id')
+      .eq('user_id', resolved.user.id)
+      .maybeSingle();
+    if (agentError) throw agentError;
+    if (!agent) return res.status(404).json({ error: 'Agent profile not found.' });
+
+    if (req.method === 'GET') {
+      const { data: applications, error: applicationsError } = await db
+        .from('agent_request_applications')
+        .select('id')
+        .eq('agent_id', agent.id);
+      if (applicationsError) throw applicationsError;
+      const applicationIds = (applications || []).map((application) => application.id);
+      if (!applicationIds.length) return res.status(200).json({ success: true, receipt: null });
+
+      const { data: payments, error: paymentsError } = await db
+        .from('bank_transfer_payments')
+        .select('id, amount, currency, reference_ids, receipt_path, status, submitted_at')
+        .eq('source_type', 'agent_request_applications')
+        .overlaps('reference_ids', applicationIds)
+        .order('submitted_at', { ascending: false })
+        .limit(1);
+      if (paymentsError) throw paymentsError;
+      const payment = payments?.[0];
+      if (!payment) return res.status(200).json({ success: true, receipt: null });
+
+      const { data: signedReceipt, error: signedReceiptError } = await db.storage
+        .from('payment-receipts')
+        .createSignedUrl(payment.receipt_path, 3600);
+      if (signedReceiptError) throw signedReceiptError;
+
+      return res.status(200).json({
+        success: true,
+        receipt: {
+          amount: Number(payment.amount),
+          currency: payment.currency,
+          referenceIds: payment.reference_ids || [],
+          status: payment.status,
+          submittedAt: payment.submitted_at,
+          url: signedReceipt.signedUrl,
+        },
+      });
+    }
 
     const formidable = await import('formidable');
     const form = formidable.formidable({ maxFiles: 1, maxFileSize: 5 * 1024 * 1024, maxFields: 10 });
@@ -49,15 +96,6 @@ export default async function handler(req, res) {
     if (!extension) {
       return res.status(400).json({ error: 'Receipt must be a JPG, PNG, or WebP image.' });
     }
-
-    const db = getDbClient();
-    const { data: agent, error: agentError } = await db
-      .from('agents')
-      .select('id, business_name, user_id')
-      .eq('user_id', resolved.user.id)
-      .maybeSingle();
-    if (agentError) throw agentError;
-    if (!agent) return res.status(404).json({ error: 'Agent profile not found.' });
 
     const { data: applications, error: applicationsError } = await db
       .from('agent_request_applications')

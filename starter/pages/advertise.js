@@ -21,23 +21,6 @@ import {
   UploadCloud,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { PayPalButtons, PayPalScriptProvider } from '@paypal/react-paypal-js';
-
-async function readApiResponse(response, endpoint) {
-  const responseText = await response.text();
-
-  try {
-    return responseText ? JSON.parse(responseText) : null;
-  } catch {
-    const contentType = response.headers.get('content-type') || '';
-    const responseFormat = contentType.includes('text/html') || /^\s*</.test(responseText)
-      ? 'HTML'
-      : 'invalid JSON';
-    throw new Error(
-      `${endpoint} returned ${responseFormat} instead of JSON (HTTP ${response.status}).`
-    );
-  }
-}
 
 const plans = [
   {
@@ -1368,106 +1351,6 @@ export default function AdvertisePage() {
 
                   {!receiptSubmittedAt && paymentStatus !== 'paid' ? (
                     <>
-                      {process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID ? (
-                        <div className="mt-5 rounded-xl bg-white p-4">
-                          <h4 className="mb-3 text-sm font-semibold text-slate-900">Pay by debit or credit card via PayPal</h4>
-                          <PayPalScriptProvider options={{
-                            'client-id': process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID,
-                            currency: 'USD',
-                            intent: 'capture',
-                          }}>
-                            <PayPalButtons
-                              style={{ layout: 'vertical', shape: 'rect', label: 'pay' }}
-                              createOrder={async () => {
-                                const token = await getToken();
-                                const response = await fetch('/api/sponsors/create-order', {
-                                  method: 'POST',
-                                  credentials: 'include',
-                                  headers: {
-                                    'Content-Type': 'application/json',
-                                    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-                                  },
-                                  body: JSON.stringify({ submissionId }),
-                                });
-                                const payload = await readApiResponse(response, '/api/sponsors/create-order');
-                                if (!response.ok || !payload?.success || !payload.orderId) {
-                                  throw new Error(payload?.error || 'Unable to start PayPal checkout.');
-                                }
-                                return payload.orderId;
-                              }}
-                              onApprove={async (data) => {
-                                try {
-                                  const token = await getToken();
-                                  const response = await fetch('/api/sponsors/capture-order', {
-                                    method: 'POST',
-                                    credentials: 'include',
-                                    headers: {
-                                      'Content-Type': 'application/json',
-                                      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-                                    },
-                                    body: JSON.stringify({ submissionId, orderId: data.orderID }),
-                                  });
-                                  const payload = await readApiResponse(response, '/api/sponsors/capture-order');
-                                  if (!response.ok || !payload?.success) {
-                                    throw new Error(payload?.error || 'Unable to confirm payment.');
-                                  }
-                                  setPaymentStatus('paid');
-                                  setSubmissionStatus(payload.status || 'pending_review');
-                                  const savedSubmission = loadPersistedSubmission();
-                                  if (savedSubmission?.submissionId === submissionId) {
-                                    persistSubmission({
-                                      ...savedSubmission,
-                                      paymentStatus: 'paid',
-                                      submissionStatus: payload.status || 'pending_review',
-                                    });
-                                  }
-                                  toast.success('Payment confirmed. Your ad is waiting for review.');
-                                } catch (error) {
-                                  console.error('Sponsor PayPal payment failed:', error);
-                                  toast.error(error.message || 'Unable to confirm PayPal payment.');
-                                }
-                              }}
-                              onCancel={async (data) => {
-                                try {
-                                  const token = await getToken();
-                                  const response = await fetch('/api/sponsors/cancel-order', {
-                                    method: 'POST',
-                                    credentials: 'include',
-                                    headers: {
-                                      'Content-Type': 'application/json',
-                                      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-                                    },
-                                    body: JSON.stringify({ submissionId, orderId: data.orderID }),
-                                  });
-                                  const payload = await readApiResponse(response, '/api/sponsors/cancel-order');
-                                  if (!response.ok || !payload?.success) {
-                                    throw new Error(payload?.error || 'Unable to cancel PayPal checkout.');
-                                  }
-                                  toast('PayPal checkout canceled. You can pay by bank transfer instead.');
-                                } catch (error) {
-                                  console.error('Unable to cancel sponsor PayPal order:', error);
-                                  toast.error('Checkout was canceled, but the payment state could not be refreshed.');
-                                }
-                              }}
-                              onError={(error) => {
-                                console.error('Sponsor PayPal checkout failed:', error);
-                                toast.error(error?.message || 'PayPal checkout failed. Please try again.');
-                              }}
-                            />
-                          </PayPalScriptProvider>
-                          <p className="mt-2 text-center text-xs text-slate-500">
-                            Your ad is sent for review after payment is confirmed.
-                          </p>
-                        </div>
-                      ) : (
-                        <p className="mt-5 rounded-lg bg-amber-50 p-3 text-sm text-amber-900">
-                          PayPal is temporarily unavailable. You can still pay by bank transfer below.
-                        </p>
-                      )}
-
-                      <p className="my-4 text-center text-xs font-semibold uppercase tracking-wide text-slate-400">
-                        Or pay by bank transfer
-                      </p>
                       <div className="mt-5 divide-y divide-slate-100 rounded-lg bg-white px-4">
                         {[
                           ['Bank', sponsorBankDetails.bank],

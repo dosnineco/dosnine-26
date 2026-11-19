@@ -29,8 +29,7 @@
 
 /* Accent color system */
 :root {
-  --accent-color: #F55353;
-  --accent-color-hover: #d14a4a;
+  --accent-color: #2391FF;
   --accent-ring: rgba(245, 83, 83, 0.35);
 }
 

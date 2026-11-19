@@ -1,11 +1,9 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { PayPalButtons, PayPalScriptProvider } from '@paypal/react-paypal-js';
-import { Search, ShieldCheck } from 'lucide-react';
+import { Search } from 'lucide-react';
 import toast from 'react-hot-toast';
-import BankTransferOption from './BankTransferOption';
+import BankTransferPaymentPanel from './BankTransferPaymentPanel';
 
-const PAYPAL_CLIENT_ID = process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID;
 const fieldClass = 'mt-1.5 w-full rounded-lg bg-white px-3.5 py-3 text-sm text-gray-900 outline-none ring-1 ring-gray-200 focus:ring-2 focus:ring-[#6E026F]';
 
 export default function PropertySearchPayment() {
@@ -27,6 +25,7 @@ export default function PropertySearchPayment() {
   const [paymentComplete, setPaymentComplete] = useState(false);
   const [paymentRequestId, setPaymentRequestId] = useState(null);
   const [serviceRequestId, setServiceRequestId] = useState(null);
+  const [receipt, setReceipt] = useState(null);
   useEffect(() => {
     fetch('/api/site-settings/payment-prices', { credentials: 'include' })
       .then(async (response) => {
@@ -80,52 +79,21 @@ export default function PropertySearchPayment() {
     }
   };
 
-  const createOrder = async () => {
-    if (!paymentRequestId) {
-      throw new Error('Submit your property request before paying.');
-    }
-
-    setBusy(true);
-    try {
-      const response = await fetch('/api/property-search/create-order', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ paymentRequestId }),
-      });
-      const payload = await response.json();
-      if (!response.ok || !payload.success || !payload.orderId) {
-        throw new Error(payload.error || 'Unable to start PayPal checkout.');
-      }
-      return payload.orderId;
-    } catch (error) {
-      toast.error(error.message || 'Unable to start PayPal checkout.');
-      throw error;
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const captureOrder = async (data) => {
-    setBusy(true);
-    try {
-      const response = await fetch('/api/property-search/capture-order', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ orderId: data.orderID }),
-      });
-      const payload = await response.json();
-      if (!response.ok || !payload.success) {
-        throw new Error(payload.error || 'Unable to confirm PayPal payment.');
-      }
-      setPaymentComplete(true);
-      toast.success('Payment confirmed. Your property request is now published.');
-    } catch (error) {
-      toast.error(error.message || 'Unable to confirm PayPal payment.');
-    } finally {
-      setBusy(false);
-    }
+  const submitReceipt = async (file) => {
+    const body = new FormData();
+    body.append('source_type', 'property_search');
+    body.append('source_id', paymentRequestId);
+    body.append('receipt', file);
+    const response = await fetch('/api/payments/receipt', {
+      method: 'POST',
+      credentials: 'include',
+      body,
+    });
+    const payload = await response.json();
+    if (!response.ok || !payload?.success) throw new Error(payload?.error || 'Unable to submit payment receipt.');
+    setReceipt(payload.receipt);
+    setPaymentComplete(true);
+    toast.success('Receipt submitted for review. Your request will be published after payment is verified.');
   };
 
   if (paymentComplete) {
@@ -133,7 +101,7 @@ export default function PropertySearchPayment() {
       <section className="mb-8 rounded-2xl bg-emerald-50 p-6 text-emerald-950">
         <h2 className="text-xl font-bold">Property search request submitted</h2>
         <p className="mt-2 text-sm leading-6">
-          Your payment was confirmed. Your request is available in My Requests, and Dosnine will work to source options and connect you with property owners.
+          Your bank transfer receipt is submitted for review. Your request will be published after payment is verified.
         </p>
         <Link href="/my-requests" className="mt-4 inline-flex rounded-xl bg-emerald-800 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-900">
           View My Requests
@@ -235,59 +203,17 @@ export default function PropertySearchPayment() {
           >
             {busy ? 'Creating request…' : `Create request — ${price} due after submission`}
           </button>
-        ) : !PAYPAL_CLIENT_ID ? (
-          <p className="rounded-lg bg-red-50 p-3 text-sm text-red-800">
-            Request #{serviceRequestId} is saved privately. PayPal is not configured; add matching NEXT_PUBLIC_PAYPAL_CLIENT_ID and PAYPAL_CLIENT_SECRET values for the same sandbox or live app.
-          </p>
         ) : (
-          <>
-            <div className="mb-3 flex items-center gap-2 text-xs text-gray-500">
-              <ShieldCheck size={15} aria-hidden="true" />
-              Request #{serviceRequestId} created • {price}
-            </div>
-            <p className="mb-2 text-center text-sm font-semibold text-gray-700">
-              Pay by debit or credit card via PayPal
-            </p>
-            <PayPalScriptProvider options={{
-              'client-id': PAYPAL_CLIENT_ID,
-              currency: form.currency,
-              intent: 'capture',
-              components: 'buttons',
-            }}>
-              <PayPalButtons
-                forceReRender={[
-                  paymentRequestId,
-                  form.currency,
-                ]}
-                style={{ layout: 'vertical', color: 'gold', shape: 'rect', label: 'pay' }}
-                createOrder={createOrder}
-                onApprove={captureOrder}
-                onCancel={() => {
-                  setBusy(false);
-                  toast('PayPal checkout was cancelled. No payment was completed.');
-                }}
-                onError={(error) => {
-                  console.error('PayPal property search checkout failed:', error);
-                  setBusy(false);
-                  toast.error(error?.message === 'Unauthorized'
-                    ? 'PayPal rejected the credentials. Check that the client ID and secret match and that sandbox/live mode is correct.'
-                    : error?.message || 'PayPal checkout failed. Please try again.');
-                }}
-              />
-            </PayPalScriptProvider>
-            <p aria-live="polite" className="mt-3 text-center text-sm text-gray-600">
-              {busy
-                ? 'Connecting to secure checkout…'
-                : 'Your request is saved privately. Pay the fee to publish it for property sourcing.'}
-            </p>
-          </>
-        )}
-        {paymentRequestId && (
-          <BankTransferOption
-            service="property search request"
-            amountJmd={form.currency === 'JMD' ? prices.JMD : prices.USD * 155}
-            reference={serviceRequestId}
-          />
+          <div>
+            <p className="mb-3 text-sm text-gray-600">Request #{serviceRequestId} created · {price}</p>
+            <BankTransferPaymentPanel
+              amount={form.currency === 'JMD' ? prices.JMD : prices.USD}
+              currency={form.currency}
+              reference={serviceRequestId}
+              receipt={receipt}
+              onSubmit={submitReceipt}
+            />
+          </div>
         )}
       </div>
     </section>

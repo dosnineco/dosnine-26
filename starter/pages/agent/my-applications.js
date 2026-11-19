@@ -19,6 +19,7 @@ export default function MyApplicationsPage() {
   const [copied, setCopied] = useState(null);
   const [activeTab, setActiveTab] = useState('all');
   const [receiptFile, setReceiptFile] = useState(null);
+  const [paymentReceipt, setPaymentReceipt] = useState(null);
   const [submittingReceipt, setSubmittingReceipt] = useState(false);
 
   useEffect(() => {
@@ -65,6 +66,18 @@ export default function MyApplicationsPage() {
       setApplications(payload.applications || []);
       setRequests(payload.requests || {});
       if (payload.agentId) setAgentId(payload.agentId);
+
+      const receiptResponse = await fetch('/api/agent/application-payment-receipt', {
+        credentials: 'include',
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      });
+      const receiptPayload = await receiptResponse.json();
+      if (!receiptResponse.ok || !receiptPayload?.success) {
+        throw new Error(receiptPayload?.error || 'Failed to load payment receipt');
+      }
+      setPaymentReceipt(receiptPayload.receipt || null);
     } catch (err) {
       console.error('Error fetching applications:', err);
       const message = err?.message || 'Failed to load applications';
@@ -187,6 +200,15 @@ export default function MyApplicationsPage() {
       const payload = await response.json().catch(() => null);
       if (!response.ok || !payload?.success) throw new Error(payload?.error || 'Unable to submit payment receipt.');
       setReceiptFile(null);
+      const receiptResponse = await fetch('/api/agent/application-payment-receipt', {
+        credentials: 'include',
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      const receiptPayload = await receiptResponse.json();
+      if (!receiptResponse.ok || !receiptPayload?.success) {
+        throw new Error(receiptPayload?.error || 'Receipt submitted, but could not reload its status.');
+      }
+      setPaymentReceipt(receiptPayload.receipt || null);
       toast.success('Payment receipt submitted for review.', { id: toastId });
     } catch (error) {
       toast.error(error.message || 'Unable to submit payment receipt.', { id: toastId });
@@ -277,6 +299,41 @@ export default function MyApplicationsPage() {
                 </div>
               </div>
             </div>
+          )}
+
+          {paymentReceipt && (
+            <section className="mb-10 rounded-lg bg-white p-6 shadow-sm">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <h3 className="text-lg font-bold text-gray-900">Submitted payment receipt</h3>
+                  <p className="mt-1 text-sm text-gray-600">
+                    {paymentReceipt.currency || 'JMD'} {Number(paymentReceipt.amount).toLocaleString()} · Submitted{' '}
+                    {new Date(paymentReceipt.submittedAt).toLocaleString()}
+                  </p>
+                  <p className="mt-1 text-sm capitalize text-gray-600">Status: {paymentReceipt.status}</p>
+                  {paymentReceipt.referenceIds?.length > 0 && (
+                    <p className="mt-1 text-xs text-gray-500">
+                      Request IDs: {paymentReceipt.referenceIds.join(', ')}
+                    </p>
+                  )}
+                </div>
+                <a
+                  href={paymentReceipt.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-sm font-semibold text-accent hover:underline"
+                >
+                  View receipt
+                </a>
+              </div>
+              <a href={paymentReceipt.url} target="_blank" rel="noreferrer" className="mt-4 block max-w-sm">
+                <img
+                  src={paymentReceipt.url}
+                  alt="Uploaded bank transfer receipt"
+                  className="max-h-64 rounded-lg object-contain"
+                />
+              </a>
+            </section>
           )}
 
           {/* Tabs */}

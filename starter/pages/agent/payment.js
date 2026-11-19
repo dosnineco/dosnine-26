@@ -18,7 +18,6 @@ import {
   CheckCircle,
   Loader2,
 } from 'lucide-react';
-import { PayPalButtons, PayPalScriptProvider } from '@paypal/react-paypal-js';
 import { supabase } from '../../lib/supabase';
 import { getSiteSettings } from '../../lib/siteSettings';
 
@@ -101,7 +100,6 @@ const bankDetails = [
 ];
 
 const formatCurrency = (amount) => `J$${amount.toLocaleString()}`;
-const PAYPAL_CLIENT_ID = process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID;
 const OWNER_SERVICE_PRICE_USD = 5;
 const USD_TO_JMD = 155;
 const OWNER_SERVICE_PRICE_JMD = OWNER_SERVICE_PRICE_USD * USD_TO_JMD;
@@ -126,8 +124,8 @@ export default function AgentPayment() {
   const [receiptFile, setReceiptFile] = useState(null);
   const [uploadingReceipt, setUploadingReceipt] = useState(false);
   const [receiptState, setReceiptState] = useState(null);
+  const [receiptUrl, setReceiptUrl] = useState(null);
   const [agentProfile, setAgentProfile] = useState(null);
-  const [paypalLoading, setPaypalLoading] = useState(false);
 
   useEffect(() => {
     if (userData?.agent) setAgentProfile(userData.agent);
@@ -172,6 +170,26 @@ export default function AgentPayment() {
       });
     }
   }, [agentProfile]);
+
+  useEffect(() => {
+    if (!agentProfile?.payment_receipt_path) return;
+    let active = true;
+    fetch('/api/agent/payment-receipt', { credentials: 'include' })
+      .then(async (response) => {
+        const payload = await response.json();
+        if (!response.ok || !payload?.success) {
+          throw new Error(payload?.error || 'Unable to load payment receipt.');
+        }
+        if (active) {
+          setReceiptUrl(payload.receipt?.url || null);
+          if (payload.receipt) setReceiptState(payload.receipt);
+        }
+      })
+      .catch((error) => {
+        console.error('Unable to load agent payment receipt:', error);
+      });
+    return () => { active = false; };
+  }, [agentProfile?.payment_receipt_path]);
 
   useEffect(() => {
     if (receiptState?.status !== 'pending') return undefined;
@@ -271,6 +289,7 @@ export default function AgentPayment() {
         throw new Error(payload?.error || 'Unable to upload receipt.');
       }
       setReceiptState(payload.receipt);
+      setReceiptUrl(payload.receipt.url || null);
       setReceiptFile(null);
       event.target.reset();
       toast.success('Receipt submitted. Your payment is awaiting verification.');
@@ -281,65 +300,6 @@ export default function AgentPayment() {
     }
   };
 
-  const createPlanOrder = async () => {
-    setPaypalLoading(true);
-    try {
-      const token = await getToken();
-      const response = await fetch('/api/agent/create-plan-order', {
-        method: 'POST',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify({ plan: selectedPlan.id }),
-      });
-      const payload = await response.json();
-      if (!response.ok || !payload?.success || !payload?.orderId) {
-        throw new Error(payload?.error || 'Unable to start PayPal checkout.');
-      }
-      return payload.orderId;
-    } catch (error) {
-      toast.error(error.message || 'Unable to start PayPal checkout.');
-      throw error;
-    } finally {
-      setPaypalLoading(false);
-    }
-  };
-
-  const capturePlanOrder = async ({ orderID }) => {
-    setPaypalLoading(true);
-    try {
-      const token = await getToken();
-      const response = await fetch('/api/agent/capture-plan-order', {
-        method: 'POST',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify({ orderId: orderID }),
-      });
-      const payload = await response.json();
-      if (!response.ok || !payload?.success) {
-        throw new Error(payload?.error || 'Unable to confirm PayPal payment.');
-      }
-      setAgentProfile((current) => ({
-        ...current,
-        payment_status: payload.plan,
-        payment_amount: payload.amountJmd,
-        payment_date: new Date().toISOString(),
-        access_expiry: payload.expiresAt,
-      }));
-      setReceiptState(null);
-      toast.success('Payment confirmed. Your agent plan is active.');
-    } catch (error) {
-      toast.error(error.message || 'Unable to confirm PayPal payment.');
-    } finally {
-      setPaypalLoading(false);
-    }
-  };
-  
   // WhatsApp message for bank transfer / free access
   const whatsappText = encodeURIComponent(
     paymentRequired
@@ -643,62 +603,21 @@ export default function AgentPayment() {
                     {receiptState.amount != null && formatCurrency(Number(receiptState.amount))}
                     {receiptState.submittedAt && ` · ${new Date(receiptState.submittedAt).toLocaleString()}`}
                   </p>
+                  {receiptUrl && (
+                    <a href={receiptUrl} target="_blank" rel="noreferrer" className="mt-3 inline-block">
+                      <img
+                        src={receiptUrl}
+                        alt="Uploaded agent plan payment receipt"
+                        className="max-h-56 rounded-lg object-contain"
+                      />
+                    </a>
+                  )}
                 </div>
               )}
 
               {/* Bank Transfer Instructions */}
               {paymentRequired && (
               <div className="space-y-5 rounded-2xl bg-gray-50 p-4 sm:p-6">
-                <section className="rounded-xl bg-white p-4 sm:p-5">
-                  <h3 className="font-bold text-gray-900">Pay by debit or credit card via PayPal</h3>
-                  <p className="mt-1 text-sm text-gray-600">
-                    Your plan price is set in Jamaican dollars. PayPal charges the current converted amount in USD.
-                  </p>
-                  {PAYPAL_CLIENT_ID ? (
-                    <div className="mt-4">
-                      <PayPalScriptProvider options={{
-                        'client-id': PAYPAL_CLIENT_ID,
-                        currency: 'USD',
-                        intent: 'capture',
-                      }}>
-                        <PayPalButtons
-                          forceReRender={[selectedPlan.id, selectedPlan.price]}
-                          disabled={paypalLoading}
-                          style={{ layout: 'vertical', shape: 'rect', label: 'pay' }}
-                          createOrder={createPlanOrder}
-                          onApprove={capturePlanOrder}
-                          onCancel={async (data) => {
-                            try {
-                              const response = await fetch('/api/agent/cancel-plan-order', {
-                                method: 'POST',
-                                credentials: 'include',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ orderId: data.orderID }),
-                              });
-                              const payload = await response.json().catch(() => null);
-                              if (!response.ok || !payload?.success) {
-                                throw new Error(payload?.error || 'Unable to cancel PayPal checkout.');
-                              }
-                              toast('PayPal checkout canceled. You can pay by bank transfer instead.');
-                            } catch (error) {
-                              console.error('Unable to cancel agent PayPal order:', error);
-                              toast.error(error.message || 'Unable to cancel PayPal checkout.');
-                            }
-                          }}
-                          onError={(error) => {
-                            console.error('Agent plan PayPal checkout failed:', error);
-                            toast.error(error?.message || 'PayPal checkout failed. Please try again.');
-                          }}
-                        />
-                      </PayPalScriptProvider>
-                    </div>
-                  ) : (
-                    <p className="mt-3 rounded-lg bg-amber-50 p-3 text-sm text-amber-900">
-                      PayPal is temporarily unavailable. Choose bank transfer below.
-                    </p>
-                  )}
-                </section>
-
               <div className="bg-white border-l-4 border-accent rounded-lg p-4 sm:p-6">
                 <div className="flex items-start gap-3">
                   <AlertCircle className="text-accent flex-shrink-0 mt-0.5" size={18} />

@@ -4,21 +4,19 @@ import Link from 'next/link';
 import { useRouter } from 'next/router';
 import toast from 'react-hot-toast';
 import { useUser } from '@clerk/nextjs';
-import { PayPalButtons, PayPalScriptProvider } from '@paypal/react-paypal-js';
 import BuyerRequestAgentSharing from '@/components/BuyerRequestAgentSharing';
 import BuyerReadinessProgress from '@/components/BuyerReadinessProgress';
 import { clampBuyerLevel } from '@/lib/buyerReadiness';
 import { ArrowRight } from 'lucide-react';
+import BankTransferPaymentPanel from '@/components/BankTransferPaymentPanel';
 import {
   DEFAULT_REQUEST_URGENCY_PRICES,
   formatRequestUrgencyJmd,
   getRequestUrgencyJmdAmount,
 } from '@/lib/requestUrgencyPricing';
-import BankTransferOption from '@/components/BankTransferOption';
 
 const fieldClass =
   'w-full rounded-lg bg-gray-50 px-3 py-2.5 text-sm text-gray-900 outline-none ring-1 ring-gray-200 focus:ring-2 focus:ring-accent';
-const PAYPAL_CLIENT_ID = process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID;
 
 function createEditForm(request) {
   return {
@@ -225,7 +223,7 @@ export default function MyRequestsPage() {
     router.replace('/my-requests', undefined, { shallow: true });
   }, [router, requestedBoostId, loading, isLoaded, isSignedIn, eligibleRequests, startBoost]);
 
-  const createBoostOrder = async () => {
+  const submitBoostReceipt = async (file) => {
     let payment = boostPaymentRef.current;
     if (!payment) {
       const boostResponse = await fetch('/api/buyer/my-requests/boost', {
@@ -245,80 +243,23 @@ export default function MyRequestsPage() {
       boostPaymentRef.current = payment;
       setBoostPayment(payment);
     }
-
-    const response = await fetch('/api/service-requests/urgency/create-batch-order', {
+    if (!acceptedBoostTerms) throw new Error('Accept the payment terms before submitting a receipt.');
+    const body = new FormData();
+    body.append('source_type', 'request_urgency_batch');
+    body.append('source_id', payment.id);
+    body.append('token', payment.token);
+    body.append('accepted_terms', 'true');
+    body.append('receipt', file);
+    const response = await fetch('/api/payments/receipt', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       credentials: 'same-origin',
-      body: JSON.stringify({
-        boostId: payment.id,
-        token: payment.token,
-        acceptedTerms: acceptedBoostTerms,
-      }),
+      body,
     });
     const payload = await response.json();
-    if (!response.ok || !payload?.success || !payload?.orderId) {
-      throw new Error(payload?.error || 'Unable to start PayPal checkout.');
-    }
-    return payload.orderId;
-  };
-
-  const captureBoostOrder = async (data) => {
-    const payment = boostPaymentRef.current;
-    if (!payment) throw new Error('Request priority payment details are missing.');
-    setBoostLoading(true);
-    try {
-      const response = await fetch('/api/service-requests/urgency/capture-batch-order', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'same-origin',
-        body: JSON.stringify({
-          boostId: payment.id,
-          token: payment.token,
-          orderId: data.orderID,
-        }),
-      });
-      const payload = await response.json();
-      if (!response.ok || !payload?.success) {
-        throw new Error(payload?.error || 'Unable to confirm PayPal payment.');
-      }
-      toast.success(`${payment.count} request${payment.count === 1 ? '' : 's'} moved to ${payment.urgency} priority.`);
-      setBoostTargetRequestIds([]);
-      setBoostPayment(null);
-      boostPaymentRef.current = null;
-      setAcceptedBoostTerms(false);
-      await loadRequests();
-    } catch (error) {
-      toast.error(error.message || 'Unable to confirm PayPal payment.');
-    } finally {
-      setBoostLoading(false);
-    }
-  };
-
-  const handleBoostCheckoutError = async (error) => {
-    const payment = boostPaymentRef.current;
-    if (payment) {
-      try {
-        const response = await fetch('/api/service-requests/urgency/cancel-batch', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'same-origin',
-          body: JSON.stringify({ boostId: payment.id }),
-        });
-        if (response.ok) {
-          boostPaymentRef.current = null;
-          setBoostPayment(null);
-        } else if (response.status !== 409) {
-          const payload = await response.json();
-          throw new Error(payload?.error || 'Unable to release this checkout.');
-        }
-      } catch (cancelError) {
-        console.error('Unable to release failed request boost checkout:', cancelError);
-        toast.error(cancelError.message || 'Unable to release this checkout.');
-        return;
-      }
-    }
-    toast.error(error?.message || 'PayPal checkout failed. Please try again.');
+    if (!response.ok || !payload?.success) throw new Error(payload?.error || 'Unable to submit payment receipt.');
+    setBoostPayment((current) => ({ ...current, receipt: payload.receipt }));
+    boostPaymentRef.current = { ...payment, receipt: payload.receipt };
+    toast.success('Receipt submitted for review. Request priority changes after payment is verified.');
   };
 
   const updateField = (requestId, field, value) => {
@@ -546,47 +487,20 @@ export default function MyRequestsPage() {
                 </span>
               </label>
 
-              {!PAYPAL_CLIENT_ID ? (
+              {!urgencyPricesAvailable ? (
                 <p className="mt-5 rounded-xl bg-amber-50 p-4 text-sm leading-6 text-amber-900">
-                  Online checkout is temporarily unavailable. Your requests remain at their current priority.
-                </p>
-              ) : !urgencyPricesAvailable ? (
-                <p className="mt-5 rounded-xl bg-amber-50 p-4 text-sm leading-6 text-amber-900">
-                  Priority checkout is unavailable until current prices can be confirmed.
+                  Priority payment is unavailable until current prices can be confirmed.
                 </p>
               ) : (
                 <div className="mt-5">
-                  <p className="mb-2 text-center text-sm font-semibold text-gray-700">
-                    Pay by debit or credit card via PayPal
-                  </p>
-                  <PayPalScriptProvider options={{
-                    'client-id': PAYPAL_CLIENT_ID,
-                    currency: 'USD',
-                    intent: 'capture',
-                    components: 'buttons',
-                  }}>
-                    <PayPalButtons
-                      forceReRender={[
-                        boostTargetUrgency,
-                        boostTargetRequestIds.join(','),
-                        urgencyPrices[boostTargetUrgency],
-                      ]}
-                      disabled={boostLoading || !acceptedBoostTerms || !urgencyPricesAvailable}
-                      style={{ layout: 'vertical', color: 'gold', shape: 'rect', label: 'pay' }}
-                      createOrder={createBoostOrder}
-                      onApprove={captureBoostOrder}
-                      onCancel={() => toast('Checkout canceled. You can try again when ready.')}
-                      onError={handleBoostCheckoutError}
-                    />
-                  </PayPalScriptProvider>
+                  <BankTransferPaymentPanel
+                    amount={boostPayment?.receipt?.amount || getRequestUrgencyJmdAmount(urgencyPrices[boostTargetUrgency] * boostTargetRequestIds.length)}
+                    currency={boostPayment?.receipt?.currency || 'JMD'}
+                    reference={boostTargetRequestIds.join(', ')}
+                    receipt={boostPayment?.receipt}
+                    onSubmit={submitBoostReceipt}
+                  />
                 </div>
-              )}
-              {urgencyPricesAvailable && (
-                <BankTransferOption
-                  service={`${boostTargetUrgency} priority boost for ${boostTargetRequestIds.length} request${boostTargetRequestIds.length === 1 ? '' : 's'}`}
-                  amountJmd={getRequestUrgencyJmdAmount(urgencyPrices[boostTargetUrgency] * boostTargetRequestIds.length)}
-                  reference={boostTargetRequestIds.join(', ')}
-                />
               )}
             </section>
           )}

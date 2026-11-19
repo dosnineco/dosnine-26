@@ -2,11 +2,10 @@ import { useEffect, useState } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
 import { SignInButton, useUser } from '@clerk/nextjs';
-import { PayPalButtons, PayPalScriptProvider } from '@paypal/react-paypal-js';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 import { CheckCircle, LockKeyhole } from 'lucide-react';
-import BankTransferOption from './BankTransferOption';
+import BankTransferPaymentPanel from './BankTransferPaymentPanel';
 
 const DEFAULT_PRICE_JMD = 3178.4;
 
@@ -25,6 +24,7 @@ export default function PremiumServiceRequest() {
   const [isPremium, setIsPremium] = useState(false);
   const [expiresAt, setExpiresAt] = useState(null);
   const [pricingError, setPricingError] = useState('');
+  const [receipt, setReceipt] = useState(null);
 
   useEffect(() => {
     if (!isLoaded) return undefined;
@@ -64,19 +64,22 @@ export default function PremiumServiceRequest() {
     return () => { active = false; };
   }, [isLoaded, user?.id]);
 
-  const completePayment = async (data) => {
-    try {
-      const { data: result } = await axios.post('/api/user/upgrade-premium', {
-        orderId: data.orderID,
-      });
-      if (!result?.success) throw new Error(result?.error || 'Unable to activate Premium.');
-      setIsPremium(true);
-      setExpiresAt(result.expiresAt || null);
-      toast.success('Premium Property Plan activated.');
-    } catch (error) {
-      console.error('Premium PayPal capture failed:', error);
-      toast.error(error.response?.data?.error || error.message || 'Payment could not be confirmed.');
+  const submitReceipt = async (file) => {
+    const body = new FormData();
+    body.append('source_type', 'premium');
+    body.append('source_id', user.id);
+    body.append('receipt', file);
+    const response = await fetch('/api/payments/receipt', {
+      method: 'POST',
+      credentials: 'include',
+      body,
+    });
+    const result = await response.json();
+    if (!response.ok || !result?.success) {
+      throw new Error(result?.error || 'Unable to submit payment receipt.');
     }
+    setReceipt(result.receipt);
+    toast.success('Receipt submitted for review. Premium access starts after payment is verified.');
   };
 
   return (
@@ -138,36 +141,15 @@ export default function PremiumServiceRequest() {
                   </SignInButton>
                 ) : pricingError ? (
                   <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{pricingError}</p>
-                ) : !process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID ? (
-                  <p role="alert" className="rounded-lg bg-amber-50 p-3 text-sm text-amber-900">
-                    Debit or credit card checkout is temporarily unavailable.
-                  </p>
                 ) : priceLoaded ? (
-                  <>
-                    <p className="mb-2 text-center text-sm font-semibold text-gray-700">Debit or credit card via PayPal</p>
-                    <PayPalScriptProvider options={{
-                      'client-id': process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID,
-                      currency: 'USD',
-                      intent: 'capture',
-                    }}>
-                      <PayPalButtons
-                        style={{ layout: 'vertical', color: 'gold', shape: 'rect', label: 'pay' }}
-                        createOrder={async () => {
-                          const { data } = await axios.post('/api/user/create-premium-order');
-                          return data.orderId;
-                        }}
-                        onApprove={completePayment}
-                        onError={(error) => {
-                          console.error('Premium PayPal checkout failed:', error);
-                          toast.error('Card checkout failed. Please try again.');
-                        }}
-                      />
-                    </PayPalScriptProvider>
-                  </>
+                  <BankTransferPaymentPanel
+                    amount={priceJmd}
+                    currency="JMD"
+                    reference={user.id}
+                    receipt={receipt}
+                    onSubmit={submitReceipt}
+                  />
                 ) : null}
-                {user?.id && priceLoaded && !pricingError && (
-                  <BankTransferOption service="30-day Premium Property Plan" amountJmd={priceJmd} reference={user.id} />
-                )}
               </div>
             </>
           )}
