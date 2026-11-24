@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Image from 'next/image';
 import Head from 'next/head';
 import Link from 'next/link';
-import { useRouter } from 'next/router';
 import axios from 'axios';
 import { SignInButton, SignUpButton, useAuth, useUser } from '@clerk/nextjs';
 import {
@@ -654,7 +653,6 @@ const compressImageFiles = async (files) => {
 };
 
 export default function AdvertisePage() {
-  const router = useRouter();
   const { user, isSignedIn } = useUser();
   const { getToken } = useAuth();
   const [step, setStep] = useState(1);
@@ -674,6 +672,8 @@ export default function AdvertisePage() {
   const [availabilityError, setAvailabilityError] = useState('');
   const [submitError, setSubmitError] = useState('');
   const [fieldErrors, setFieldErrors] = useState({});
+  const [advertiserAccess, setAdvertiserAccess] = useState('checking');
+  const [accountType, setAccountType] = useState(null);
   const [imageFiles, setImageFiles] = useState([]);
   const [imagePreviews, setImagePreviews] = useState([]);
   const [restoredFromStorage, setRestoredFromStorage] = useState(false);
@@ -785,16 +785,18 @@ export default function AdvertisePage() {
 
     let active = true;
     const ensureAdvertiserAccess = async () => {
+      setAdvertiserAccess('checking');
       try {
         const { data } = await axios.get('/api/user/profile', { withCredentials: true });
-        const accountType = data?.account_type || (data?.user_type === 'advertiser' ? 'advertiser' : null);
+        const currentAccountType =
+          data?.account_type ||
+          (data?.user_type === 'advertiser' ? 'advertiser' : null);
         if (!active) return;
-        if (accountType !== 'advertiser') {
-          toast.error('Select the Advertiser account type before submitting an ad.');
-          router.replace('/verify?role=advertiser');
-        }
+        setAccountType(currentAccountType);
+        setAdvertiserAccess(currentAccountType === 'advertiser' ? 'allowed' : 'required');
       } catch (error) {
         console.error('Failed to verify advertiser access:', error);
+        if (active) setAdvertiserAccess('error');
       }
     };
 
@@ -802,7 +804,7 @@ export default function AdvertisePage() {
     return () => {
       active = false;
     };
-  }, [isSignedIn, user?.id, router]);
+  }, [isSignedIn, user?.id]);
 
   useEffect(() => {
     return () => {
@@ -811,7 +813,7 @@ export default function AdvertisePage() {
   }, [imagePreviews]);
 
   const requireSignIn = () => {
-    window.location.assign('/dashboard');
+    window.location.assign('/verify?role=advertiser');
   };
 
   const copyToClipboard = async (value, key) => {
@@ -967,6 +969,10 @@ export default function AdvertisePage() {
     event.preventDefault();
     if (!isSignedIn) {
       requireSignIn();
+      return;
+    }
+    if (advertiserAccess !== 'allowed') {
+      setSubmitError('An Advertiser account is required to submit an ad.');
       return;
     }
 
@@ -1762,33 +1768,73 @@ export default function AdvertisePage() {
                       </div>
                       <div className="flex-1">
                         <h3 className="text-xl font-semibold text-slate-900">
-                          Sign in to create your ad
+                          Create an Advertiser account to post an ad
                         </h3>
                         <p className="mt-1.5 text-sm leading-6 text-slate-600">
-                          Create a free account to unlock the ad builder. You&apos;ll return here
-                          automatically.
+                          Anyone can explore our advertising options. To submit
+                          an ad, create an Advertiser account and complete
+                          account verification.
                         </p>
                       </div>
                     </div>
                     <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-                      <SignInButton mode="modal" afterSignInUrl="/dashboard">
+                      <SignInButton mode="modal" afterSignInUrl="/advertise">
                         <button
                           type="button"
                           className="inline-flex flex-1 items-center justify-center gap-2 rounded-full bg-accent px-6 py-3.5 text-sm font-semibold text-white transition hover:bg-accent/90"
                         >
-                          Sign In
+                          Sign in
                           <ArrowRight className="h-4 w-4" />
                         </button>
                       </SignInButton>
-                      <SignUpButton mode="redirect" redirectUrl="/dashboard" afterSignUpUrl="/dashboard">
+                      <SignUpButton
+                        mode="redirect"
+                        redirectUrl="/verify?role=advertiser"
+                        afterSignUpUrl="/verify?role=advertiser"
+                      >
                         <button
                           type="button"
                           className="inline-flex flex-1 items-center justify-center rounded-full border border-slate-300 bg-white px-6 py-3.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
                         >
-                          Create Free Account
+                          Create Advertiser account
                         </button>
                       </SignUpButton>
                     </div>
+                  </div>
+                ) : advertiserAccess === 'checking' ? (
+                  <p
+                    role="status"
+                    className="mt-12 rounded-xl bg-slate-50 p-6 text-sm text-slate-600"
+                  >
+                    Checking your account type…
+                  </p>
+                ) : advertiserAccess === 'error' ? (
+                  <p
+                    role="alert"
+                    className="mt-12 rounded-xl bg-red-50 p-6 text-sm text-red-800"
+                  >
+                    We couldn&apos;t verify your account type. Refresh the page
+                    and try again before submitting an ad.
+                  </p>
+                ) : advertiserAccess === 'required' ? (
+                  <div className="mt-12 rounded-2xl bg-slate-50 p-8 sm:p-10">
+                    <h3 className="text-xl font-semibold text-slate-900">
+                      An Advertiser account is required
+                    </h3>
+                    <p className="mt-2 text-sm leading-6 text-slate-600">
+                      {accountType
+                        ? `This account is set up as ${accountType}. Sign in with an Advertiser account to submit an ad.`
+                        : 'Choose the Advertiser account type to continue. Account verification is required before an ad can be submitted.'}
+                    </p>
+                    {!accountType && (
+                      <Link
+                        href="/verify?role=advertiser"
+                        className="mt-5 inline-flex items-center gap-2 rounded-full bg-accent px-6 py-3 text-sm font-semibold text-white transition hover:bg-accent/90"
+                      >
+                        Continue advertiser setup
+                        <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                      </Link>
+                    )}
                   </div>
                 ) : (
                   <form onSubmit={onSubmit} noValidate className="mt-12 space-y-6">
