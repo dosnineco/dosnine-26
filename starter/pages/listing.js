@@ -226,12 +226,15 @@ function RoleCard({ title, subtitle, icon: Icon, bgColor, textColor, link, user,
 
 
 export default function Home() {
-  const { user } = useUser();
+  const { user, isLoaded } = useUser();
+  const userId = user?.id;
   const [properties, setProperties] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
   const [page, setPage] = useState(1);
   const [filters, setFilters] = useState({ parish: '', minPrice: '', maxPrice: '', location: '', bedrooms: '' });
+  const [premiumActive, setPremiumActive] = useState(false);
+  const [showOffMarket, setShowOffMarket] = useState(false);
   const [totalCount, setTotalCount] = useState(0);
   const [locationSuggestions, setLocationSuggestions] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -242,6 +245,33 @@ export default function Home() {
   // Restore list state if present (page, filters, scroll position)
   const [restoring, setRestoring] = useState(false);
   const restoreRef = useRef(null);
+  const offMarketCache = useRef(null);
+
+  useEffect(() => {
+    if (!isLoaded) return undefined;
+    offMarketCache.current = null;
+    setPremiumActive(false);
+    setShowOffMarket(false);
+    if (!userId) return undefined;
+
+    let active = true;
+    fetch('/api/user/profile', { credentials: 'include' })
+      .then(async (response) => {
+        const payload = await response.json();
+        if (!response.ok) throw new Error(payload?.error || 'Unable to verify Premium access.');
+        if (active) {
+          setPremiumActive(Boolean(payload?.premium && payload?.account_type === 'regular'));
+        }
+      })
+      .catch((error) => {
+        console.error('Unable to verify Premium access:', error);
+        if (active) setPremiumActive(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [isLoaded, userId]);
 
   useEffect(() => {
     try {
@@ -281,6 +311,49 @@ export default function Home() {
         location: locationFilter,
       });
 
+      if (showOffMarket && premiumActive) {
+        let allOffMarketProperties = offMarketCache.current;
+        if (!allOffMarketProperties) {
+          const offMarketResponse = await fetch('/api/properties/off-market', { credentials: 'include' });
+          const offMarketPayload = await offMarketResponse.json();
+          if (!offMarketResponse.ok || !offMarketPayload?.success) {
+            throw new Error(offMarketPayload?.error || 'Unable to load off-market properties.');
+          }
+          allOffMarketProperties = Array.isArray(offMarketPayload.properties) ? offMarketPayload.properties : [];
+          offMarketCache.current = allOffMarketProperties;
+        }
+
+        const normalizedParish = normalizeParish(filters.parish).toLowerCase();
+        const min = filters.minPrice ? Number(filters.minPrice) : null;
+        const max = filters.maxPrice ? Number(filters.maxPrice) : null;
+        const bedrooms = filters.bedrooms ? Number(filters.bedrooms) : null;
+        const locationTerms = locationFilter
+          .split(/\s+(?:and|or)\s+|[,;]+/i)
+          .map((term) => term.trim().toLowerCase())
+          .filter(Boolean);
+        const filteredProperties = allOffMarketProperties.filter((property) => {
+          if (normalizedParish && normalizeParish(property.parish).toLowerCase() !== normalizedParish) return false;
+          if (min !== null && Number(property.price) < min) return false;
+          if (max !== null && Number(property.price) > max) return false;
+          if (bedrooms !== null && Number(property.bedrooms) !== bedrooms) return false;
+          if (locationTerms.length > 0) {
+            const searchable = [
+              property.town,
+              property.address,
+              property.parish,
+              property.title,
+              property.description,
+            ].join(' ').toLowerCase();
+            if (!locationTerms.some((term) => searchable.includes(term))) return false;
+          }
+          return true;
+        });
+        const start = (page - 1) * PROPERTIES_PER_PAGE;
+        setProperties(filteredProperties.slice(start, start + PROPERTIES_PER_PAGE));
+        setTotalCount(filteredProperties.length);
+        return;
+      }
+
       const response = await fetch(`/api/properties/public-list?${params.toString()}`);
       const raw = await response.text();
       let payload = null;
@@ -309,7 +382,7 @@ export default function Home() {
     } finally {
       setLoading(false);
     }
-  }, [filters, page]);
+  }, [filters, page, premiumActive, showOffMarket]);
 
   useEffect(() => {
     fetchProperties();
@@ -351,7 +424,7 @@ export default function Home() {
   };
 
   // Check if any filter is active
-  const hasActiveFilters = filters.parish || filters.minPrice || filters.maxPrice || filters.location || filters.bedrooms;
+  const hasActiveFilters = showOffMarket || filters.parish || filters.minPrice || filters.maxPrice || filters.location || filters.bedrooms;
 
   const activeFilterEntries = [
     filters.location ? { key: 'location', label: `Location: ${filters.location}` } : null,
@@ -359,9 +432,15 @@ export default function Home() {
     filters.bedrooms ? { key: 'bedrooms', label: `Bedrooms: ${filters.bedrooms}` } : null,
     filters.minPrice ? { key: 'minPrice', label: `Min: J$${Number(filters.minPrice).toLocaleString()}` } : null,
     filters.maxPrice ? { key: 'maxPrice', label: `Max: J$${Number(filters.maxPrice).toLocaleString()}` } : null,
+    showOffMarket ? { key: 'offMarket', label: 'Off-market properties' } : null,
   ].filter(Boolean);
 
   const handleRemoveFilter = (field) => {
+    if (field === 'offMarket') {
+      setShowOffMarket(false);
+      setPage(1);
+      return;
+    }
     setFilters((prev) => ({ ...prev, [field]: '' }));
     setPage(1);
   };
@@ -495,7 +574,7 @@ export default function Home() {
             </div>
           </div>
 
-          <div className="mt-3 flex items-center justify-between gap-3 flex-wrap">
+          <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex flex-wrap gap-2 text-sm">
               <span className="text-gray-500">Try:</span>
 
@@ -520,13 +599,30 @@ export default function Home() {
               ))}
             </div>
 
-            <button
-              type="button"
-              onClick={() => setShowFilterPanel((current) => !current)}
-              className="inline-flex items-center justify-center px-3 py-2 rounded-lg border border-gray-200 bg-gray-50 text-sm font-medium text-gray-700 hover:bg-gray-100"
-            >
-              {showFilterPanel ? 'Hide filters' : 'Filters'}
-            </button>
+            <div className="flex flex-wrap items-center gap-3">
+              {premiumActive && (
+                <label className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-accent/10 px-3 py-2 text-sm font-semibold text-accent">
+                  <input
+                    type="checkbox"
+                    checked={showOffMarket}
+                    onChange={(event) => {
+                      setShowOffMarket(event.target.checked);
+                      setPage(1);
+                    }}
+                    className="h-4 w-4 rounded accent-accent"
+                  />
+                  Off-market only
+                  <span className="rounded-full bg-white px-2 py-0.5 text-xs">Premium</span>
+                </label>
+              )}
+              <button
+                type="button"
+                onClick={() => setShowFilterPanel((current) => !current)}
+                className="inline-flex min-h-11 items-center justify-center px-3 py-2 rounded-lg border border-gray-200 bg-gray-50 text-sm font-medium text-gray-700 hover:bg-gray-100"
+              >
+                {showFilterPanel ? 'Hide filters' : 'Filters'}
+              </button>
+            </div>
           </div>
 
           {showFilterPanel && (
@@ -637,7 +733,9 @@ export default function Home() {
           </div>
         ) : properties.length === 0 ? (
           <div className="text-center py-12">
-            {hasActiveFilters ? (
+            {showOffMarket ? (
+              <p className="text-gray-600">No off-market properties match your filters right now.</p>
+            ) : hasActiveFilters ? (
               // Turn an unsuccessful search into a prefilled request.
              <div className="max-w-2xl mx-auto bg-blue-50 border-2 border-blue-200 rounded-xl p-8 text-center">
               <FiSearch className="w-12 h-12 text-blue-600 mx-auto mb-4" />

@@ -1,6 +1,7 @@
 import { supabase } from '@/lib/supabase';
 import { normalizeParish } from '@/lib/normalizeParish';
 import { z } from 'zod';
+import { clerkClient } from '@clerk/nextjs/server';
 import { enforceMethods } from '@/lib/apiSecurity';
 import { enforceRateLimitDistributed } from '@/lib/rateLimit';
 import { getClerkUserId, getDbClient, requireDbUser } from '@/lib/apiAuth';
@@ -161,17 +162,27 @@ export default async function handler(req, res) {
       views: viewError ? property.views : Number(updatedViews || property.views || 0),
     };
 
-    const { data: ownerData } = await db
+    const { data: ownerData, error: ownerError } = await db
       .from('users')
-      .select('full_name, agent_is_verified, verified_at')
+      .select('clerk_id, full_name, profile_image_url, agent_is_verified, verified_at')
       .eq('id', propertyData.owner_id)
-      .single();
+      .maybeSingle();
+    if (ownerError) throw ownerError;
 
     const { data: agentData } = await db
       .from('agents')
       .select('business_name, verification_status')
       .eq('user_id', propertyData.owner_id)
       .maybeSingle();
+
+    let clerkOwner = null;
+    if (ownerData?.clerk_id && (!ownerData.full_name || !ownerData.profile_image_url)) {
+      try {
+        clerkOwner = await clerkClient.users.getUser(ownerData.clerk_id);
+      } catch (clerkError) {
+        console.error('Unable to load Clerk profile for property owner:', clerkError);
+      }
+    }
 
     const { data: similarProperties } = await db
       .from('properties')
@@ -188,9 +199,12 @@ export default async function handler(req, res) {
       similarProperties: similarProperties || [],
       isVerifiedAgent: ownerData?.agent_is_verified || false,
       owner: {
-        name: ownerData?.full_name || 'Property owner',
+        name: ownerData?.full_name ||
+          [clerkOwner?.firstName, clerkOwner?.lastName].filter(Boolean).join(' ') ||
+          'Property owner',
         businessName: agentData?.business_name || null,
         isAgent: Boolean(agentData),
+        profileImageUrl: ownerData?.profile_image_url || clerkOwner?.imageUrl || null,
       },
     });
   } catch (error) {

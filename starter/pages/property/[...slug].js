@@ -1,5 +1,6 @@
 import Head from 'next/head';
 import Link from 'next/link';
+import Image from 'next/image';
 import Seo from '../../components/Seo';
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { useRouter } from 'next/router';
@@ -715,10 +716,30 @@ export default function PropertyPage({ property, similarProperties, isVerifiedAg
 
               <div className="mb-5 rounded-xl bg-slate-50 p-4">
                 <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Posted by</p>
-                <p className="mt-1 text-lg font-semibold text-slate-950">
-                  {owner?.businessName || owner?.name || 'Property owner'}
-                </p>
-                {owner?.businessName && <p className="text-sm text-slate-500">{owner.name}</p>}
+                <div className="mt-3 flex items-center gap-3">
+                  {owner?.profileImageUrl ? (
+                    <Image
+                      src={owner.profileImageUrl}
+                      alt={`${owner.name || 'Property owner'} profile picture`}
+                      width={48}
+                      height={48}
+                      unoptimized
+                      className="h-12 w-12 rounded-full object-cover"
+                    />
+                  ) : (
+                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-slate-200 text-lg font-semibold text-slate-600" aria-hidden="true">
+                      {(owner?.name || 'P').charAt(0).toUpperCase()}
+                    </div>
+                  )}
+                  <div className="min-w-0">
+                    <p className="text-lg font-semibold text-slate-950">
+                      {owner?.name || 'Property owner'}
+                    </p>
+                    {owner?.isAgent && owner?.businessName && (
+                      <p className="text-sm text-slate-600">Brokerage: {owner.businessName}</p>
+                    )}
+                  </div>
+                </div>
                 {isVerifiedAgent && (
                   <p className="mt-2 text-xs font-semibold text-blue-700">Verified real estate agent</p>
                 )}

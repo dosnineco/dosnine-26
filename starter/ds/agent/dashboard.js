@@ -64,6 +64,7 @@ export default function AgentDashboardPage() {
   const [loading, setLoading] = useState(true);
   const [userRole, setUserRole] = useState(null);
   const [agentData, setAgentData] = useState(initialUserData?.agent || null);
+  const [agentPlanResolved, setAgentPlanResolved] = useState(false);
   const isOwner = initialUserData?.user_type === 'owner';
   const [requests, setRequests] = useState([]);
   const [filterStatus, setFilterStatus] = useState('all');
@@ -96,15 +97,13 @@ export default function AgentDashboardPage() {
   const [adInquiries, setAdInquiries] = useState([]);
 
   const isAccessExpired = () => {
-    if (!agentData) return false;
     const paidPlans = ['7-day', '30-day', '90-day'];
-    if (!paidPlans.includes(agentData.payment_status)) return false;
-    if (!agentData.access_expiry) return false;
-    return new Date(agentData.access_expiry) <= new Date();
+    if (!paidPlans.includes(agentData?.payment_status)) return false;
+    const expiry = agentData.access_expiry ? new Date(agentData.access_expiry).getTime() : NaN;
+    return !Number.isFinite(expiry) || expiry <= Date.now();
   };
 
   const isFreePlan = () => agentData?.payment_status === 'free';
-  const shouldShowUpgrade = () => isFreePlan() || isAccessExpired();
   const canBulkCreate = () =>
     initialUserData?.role === 'admin' ||
     (['30-day', '90-day'].includes(agentData?.payment_status) &&
@@ -118,6 +117,35 @@ export default function AgentDashboardPage() {
       setLoading(false);
     }
   }, [initialUserData, router]);
+
+  useEffect(() => {
+    if (!isAgentAccount || isAdminDashboardView || !authLoaded || !userId) {
+      setAgentPlanResolved(true);
+      return undefined;
+    }
+
+    setAgentPlanResolved(false);
+    let active = true;
+    const refreshAgentPlan = async () => {
+      try {
+        const token = await getToken();
+        const response = await axios.get('/api/user/profile', {
+          headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+          withCredentials: true,
+        });
+        if (active) setAgentData(response.data?.agent || null);
+      } catch (error) {
+        console.error('Unable to refresh agent plan:', error);
+      } finally {
+        if (active) setAgentPlanResolved(true);
+      }
+    };
+
+    refreshAgentPlan();
+    return () => {
+      active = false;
+    };
+  }, [authLoaded, getToken, isAgentAccount, isAdminDashboardView, userId]);
 
   useEffect(() => {
     if (!isAgentAccount || !authLoaded || !userId) return;
@@ -520,7 +548,7 @@ export default function AgentDashboardPage() {
             </div>
           )}
 
-          {!isOwner && isFreePlan() && (
+          {!isOwner && agentPlanResolved && isFreePlan() && (
             <div className="rounded-xl border-l-4 border-accent bg-white p-4 mb-6">
               <div className="flex items-start gap-3">
                 <AlertCircle className="text-accent flex-shrink-0 mt-0.5" size={24} />
@@ -541,7 +569,7 @@ export default function AgentDashboardPage() {
             </div>
           )}
 
-          {!isOwner && isAccessExpired() && (
+          {!isOwner && agentPlanResolved && isAccessExpired() && (
             <div className="bg-white border-l-4 border-accent rounded-xl p-4 mb-6">
               <div className="flex items-start gap-3">
                 <AlertCircle className="text-accent flex-shrink-0 mt-0.5" size={24} />

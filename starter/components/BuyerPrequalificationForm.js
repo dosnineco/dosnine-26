@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/router';
+import { useUser } from '@clerk/nextjs';
 import toast from 'react-hot-toast';
 import { CheckCircle2, FileText, Image as ImageIcon, ShieldCheck, Upload, X } from 'lucide-react';
 
@@ -74,8 +75,12 @@ export default function BuyerPrequalificationForm({
   initialAccessToken,
 }) {
   const router = useRouter();
+  const { user } = useUser();
   const initialBuyerName = initialBuyer.buyerName || '';
   const initialBuyerEmail = initialBuyer.buyerEmail || '';
+  const accountBuyerName = user?.fullName ||
+    [user?.firstName, user?.lastName].filter(Boolean).join(' ');
+  const accountBuyerEmail = user?.primaryEmailAddress?.emailAddress || '';
   const initialBuyerPhone = initialBuyer.buyerPhone || '';
   const initialTargetPropertyPrice = initialBuyer.targetPropertyPrice || '';
   const initialServiceRequestId = initialBuyer.serviceRequestId || serviceRequestId;
@@ -126,8 +131,8 @@ export default function BuyerPrequalificationForm({
     }
     prefill = {
       ...prefill,
-      buyerName: initialBuyerName || prefill?.buyerName || '',
-      buyerEmail: initialBuyerEmail || prefill?.buyerEmail || '',
+      buyerName: initialBuyerName || prefill?.buyerName || accountBuyerName || '',
+      buyerEmail: initialBuyerEmail || prefill?.buyerEmail || accountBuyerEmail,
       buyerPhone: initialBuyerPhone || prefill?.buyerPhone || '',
       targetPropertyPrice: initialTargetPropertyPrice || prefill?.targetPropertyPrice || '',
       serviceRequestId: initialServiceRequestId,
@@ -208,6 +213,8 @@ export default function BuyerPrequalificationForm({
     serviceRequestId,
     initialBuyerName,
     initialBuyerEmail,
+    accountBuyerName,
+    accountBuyerEmail,
     initialBuyerPhone,
     initialTargetPropertyPrice,
     initialServiceRequestId,

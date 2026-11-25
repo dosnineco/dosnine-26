@@ -4,7 +4,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { UserProfile, useAuth, useUser } from '@clerk/nextjs';
-import { ArrowLeft, CheckCircle2, Clock3, Home, LockKeyhole, Save, ShieldCheck } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, Clock3, Home, LoaderCircle, LockKeyhole, Save, ShieldCheck } from 'lucide-react';
 import BankTransferPaymentPanel from '@/components/BankTransferPaymentPanel';
 
 function formatDate(value) {
@@ -47,6 +47,7 @@ export default function ProfilePage() {
   const [now, setNow] = useState(Date.now());
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [profileImageAction, setProfileImageAction] = useState(null);
   const [editingProfile, setEditingProfile] = useState(false);
   const [showClerkProfile, setShowClerkProfile] = useState(false);
   const [showReceiptPending, setShowReceiptPending] = useState(false);
@@ -171,15 +172,73 @@ export default function ProfilePage() {
 
   const giveaway = profile?.giveaway;
   const eligibilityItems = giveaway ? [
-    ['Premium plan active', giveaway.eligibility.isPremium],
-    ['Level 4 buyer or rental readiness complete', giveaway.eligibility.hasLevelFourReadiness],
+    ['Premium plan active', giveaway.eligibility.isPremium, '/profile#premium-payment'],
+    ['Level 4 buyer or rental readiness complete', giveaway.eligibility.hasLevelFourReadiness, '/buyer-prequalification'],
   ] : [];
   const levelFour = Math.max(profile?.readiness?.buyerLevel || 0, profile?.readiness?.rentalLevel || 0) >= 4;
+  const profileImageUrl = profile?.profile_image_url || user?.imageUrl || null;
+
+  const uploadProfileImage = async (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+
+    setProfileImageAction('upload');
+    setError('');
+    setNotice('');
+    try {
+      const token = await getToken();
+      if (!token) throw new Error('Your session has expired. Please sign in again.');
+      const body = new FormData();
+      body.append('file', file);
+      const response = await fetch('/api/user/profile-image', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { Authorization: `Bearer ${token}` },
+        body,
+      });
+      const payload = await response.json();
+      if (!response.ok || !payload?.success) {
+        throw new Error(payload?.error || 'Unable to upload profile image.');
+      }
+      setProfile((current) => ({ ...current, profile_image_url: payload.profile_image_url }));
+      setNotice('Profile picture updated.');
+    } catch (uploadError) {
+      setError(uploadError.message || 'Unable to upload profile image.');
+    } finally {
+      setProfileImageAction(null);
+    }
+  };
+
+  const removeProfileImage = async () => {
+    setProfileImageAction('remove');
+    setError('');
+    setNotice('');
+    try {
+      const token = await getToken();
+      if (!token) throw new Error('Your session has expired. Please sign in again.');
+      const response = await fetch('/api/user/profile-image', {
+        method: 'DELETE',
+        credentials: 'include',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const payload = await response.json();
+      if (!response.ok || !payload?.success) {
+        throw new Error(payload?.error || 'Unable to remove profile image.');
+      }
+      setProfile((current) => ({ ...current, profile_image_url: null }));
+      setNotice('Using your sign-in profile picture.');
+    } catch (removeError) {
+      setError(removeError.message || 'Unable to remove profile image.');
+    } finally {
+      setProfileImageAction(null);
+    }
+  };
 
   return (
     <>
       <Head><title>My Profile — Dosnine</title></Head>
-      <main className="mx-auto max-w-5xl px-4 py-8">
+      <main className="mx-auto max-w-5xl px-4 py-6 sm:py-8">
         {showReceiptPending && profile?.premiumPaymentReceipt?.status === 'pending' && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-950/50 p-4">
             <section
@@ -205,15 +264,15 @@ export default function ProfilePage() {
             </section>
           </div>
         )}
-        <div className="mb-7 flex flex-wrap items-center justify-between gap-3">
+        <div className="mb-7 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <Link href={profileLink} className="inline-flex items-center gap-2 text-sm font-medium text-gray-600 hover:text-gray-900">
               <ArrowLeft className="h-4 w-4" aria-hidden="true" /> Back to dashboard
             </Link>
-            <h1 className="mt-4 text-3xl font-bold text-gray-900">My profile</h1>
+            <h1 className="mt-4 text-2xl font-bold text-gray-900 sm:text-3xl">My profile</h1>
             <p className="mt-1 text-gray-600">Manage your account details and rewards.</p>
           </div>
-          <div className="rounded-xl bg-gray-100 px-4 py-3">
+          <div className="w-full rounded-xl bg-gray-100 px-4 py-3 sm:w-auto">
             <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Account tier</p>
             <p className="mt-1 font-semibold text-gray-900">{profile?.premium ? 'Premium' : 'Standard'}</p>
             {profile?.premium && <p className="mt-0.5 text-xs text-gray-600">Access until {formatDate(profile.premium_service_request_expires)}</p>}
@@ -224,7 +283,7 @@ export default function ProfilePage() {
         {notice && <p role="status" className="mb-5 rounded-xl bg-emerald-50 px-4 py-3 text-sm text-emerald-800">{notice}</p>}
 
         {profile?.account_type === 'regular' && (
-          <section id="premium-payment" className="mb-6 rounded-2xl bg-white p-6 ring-1 ring-gray-200">
+          <section id="premium-payment" className="mb-6 rounded-2xl bg-gray-50 p-4 sm:p-6">
             <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
               <div>
                 <div className="flex items-center gap-2">
@@ -233,7 +292,7 @@ export default function ProfilePage() {
                   </h2>
                 </div>
                 <p className="mt-2 max-w-2xl text-sm leading-6 text-gray-600">
-                  Your first property listing, property requests, property management, and buyer readiness are free.
+                  Your first property listing, property requests, and buyer readiness are free.
                   Premium is for posting more than one property and includes one 30-day property visibility boost.
                 </p>
                 {profile?.premium && (
@@ -256,7 +315,6 @@ export default function ProfilePage() {
                 <BankTransferPaymentPanel
                   amount={premiumPrice}
                   currency="JMD"
-                  reference={profile.id}
                   receipt={profile.premiumPaymentReceipt}
                   onSubmit={submitPremiumReceipt}
                 />
@@ -280,27 +338,85 @@ export default function ProfilePage() {
           </section>
         )}
 
-        <section className="mb-6 rounded-2xl bg-white p-6 ring-1 ring-gray-200">
+        <section className="mb-6 rounded-2xl bg-gray-50 p-4 sm:p-6">
           <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
             <div>
               <h2 className="text-xl font-semibold text-gray-900">Account details</h2>
               <p className="mt-1 text-sm text-gray-600">Email and username are managed by your verified sign-in identity.</p>
             </div>
-            <div className="flex flex-wrap gap-2">
+            <div className="grid w-full gap-2 sm:flex sm:w-auto">
               <button
                 type="button"
                 onClick={() => setEditingProfile((current) => !current)}
-                className="rounded-xl bg-gray-100 px-4 py-2 text-sm font-semibold text-gray-800 hover:bg-gray-200"
+                className="rounded-xl bg-gray-100 px-4 py-3 text-sm font-semibold text-gray-800 hover:bg-gray-200 sm:py-2"
               >
                 {editingProfile ? 'Close editing' : 'Edit profile'}
               </button>
               <button
                 type="button"
                 onClick={() => setShowClerkProfile((current) => !current)}
-                className="rounded-xl bg-gray-100 px-4 py-2 text-sm font-semibold text-gray-800 hover:bg-gray-200"
+                className="rounded-xl bg-gray-100 px-4 py-3 text-sm font-semibold text-gray-800 hover:bg-gray-200 sm:py-2"
               >
                 {showClerkProfile ? 'Close sign-in settings' : 'Edit email or username'}
               </button>
+            </div>
+          </div>
+          <div
+            className="mb-6 flex flex-col gap-4 rounded-xl bg-white p-4 sm:flex-row sm:items-center"
+            aria-busy={Boolean(profileImageAction)}
+          >
+            {profileImageUrl ? (
+              <Image
+                src={profileImageUrl}
+                alt="Your profile picture"
+                width={80}
+                height={80}
+                unoptimized
+                className="h-20 w-20 rounded-full object-cover"
+              />
+            ) : (
+              <div className="flex h-20 w-20 items-center justify-center rounded-full bg-gray-200 text-2xl font-semibold text-gray-600" aria-hidden="true">
+                {(profile?.full_name || user?.firstName || 'U').charAt(0).toUpperCase()}
+              </div>
+            )}
+            <div className="flex-1">
+              <h3 className="font-semibold text-gray-900">Profile picture</h3>
+              <p className="mt-1 text-sm text-gray-600">
+                {profile?.profile_image_url
+                  ? 'Your uploaded picture is shown on your listings.'
+                  : 'Using your sign-in profile picture until you upload a custom one.'}
+                {' '}JPEG, PNG, or WebP up to 5 MB.
+              </p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <label className={`inline-flex cursor-pointer items-center gap-2 rounded-xl bg-accent px-4 py-2 text-sm font-semibold text-white hover:bg-accent/90 ${profileImageAction ? 'pointer-events-none opacity-50' : ''}`}>
+                  {profileImageAction === 'upload' && <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />}
+                  {profileImageAction === 'upload' ? 'Uploading…' : 'Upload picture'}
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    onChange={uploadProfileImage}
+                    disabled={Boolean(profileImageAction)}
+                    className="sr-only"
+                  />
+                </label>
+                {profile?.profile_image_url && (
+                  <button
+                    type="button"
+                    onClick={removeProfileImage}
+                    disabled={Boolean(profileImageAction)}
+                    className="inline-flex items-center gap-2 rounded-xl bg-gray-100 px-4 py-2 text-sm font-semibold text-gray-800 hover:bg-gray-200 disabled:opacity-50"
+                  >
+                    {profileImageAction === 'remove' && <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />}
+                    Use sign-in picture
+                  </button>
+                )}
+              </div>
+              {profileImageAction && (
+                <p role="status" aria-live="polite" className="mt-3 inline-flex items-center gap-2 text-sm text-gray-600">
+                  <LoaderCircle className="h-4 w-4 animate-spin text-accent" aria-hidden="true" />
+                  {profileImageAction === 'upload' ? 'Uploading your picture…' : 'Updating your profile picture…'}
+                </p>
+              )}
             </div>
           </div>
           <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -355,7 +471,7 @@ export default function ProfilePage() {
         </section>
 
         {profile?.account_type === 'regular' && (
-          <section className="mb-6 rounded-2xl bg-white p-6 ring-1 ring-gray-200">
+          <section className="mb-6 rounded-2xl bg-gray-50 p-4 sm:p-6">
             <div className="mb-4 flex items-start gap-3">
               <Home className="mt-0.5 h-5 w-5 text-accent" aria-hidden="true" />
               <div>
@@ -400,12 +516,16 @@ export default function ProfilePage() {
         )}
 
         {profile?.account_type === 'regular' && (giveaway ? (
-          <section className="rounded-2xl bg-[#6E026F]/5 p-6 ring-1 ring-[#6E026F]/15">
+          <section className="rounded-2xl bg-[#6E026F]/5 p-4 sm:p-6">
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div>
                 <p className="text-sm font-semibold uppercase tracking-wide text-accent">Member reward</p>
                 <h2 className="mt-1 text-2xl font-bold text-gray-900">{giveaway.title}</h2>
-                <p className="mt-1 text-gray-700">{giveaway.prize_description}</p>
+                <p className="mt-1 text-gray-700">
+                  {giveaway.prize_description === 'A 3-night Airbnb stay'
+                    ? 'A 3-night Airbnb stay for two guests'
+                    : giveaway.prize_description}
+                </p>
               </div>
               <div className="rounded-xl bg-white px-4 py-3 text-center">
                 <Clock3 className="mx-auto h-5 w-5 text-accent" aria-hidden="true" />
@@ -416,14 +536,19 @@ export default function ProfilePage() {
             <p className="mt-5 text-sm font-semibold text-gray-800">
               {giveaway.eligible ? 'You qualify for this giveaway.' : 'Complete the requirements below to qualify.'}
             </p>
-            <ul className="mt-3 grid gap-2 sm:grid-cols-2">
-              {eligibilityItems.map(([label, complete]) => (
+            <ol className="mt-3 grid gap-2 sm:grid-cols-2">
+              {eligibilityItems.map(([label, complete, href], index) => (
                 <li key={label} className="flex items-center gap-2 text-sm text-gray-700">
+                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white text-xs font-bold text-gray-700" aria-hidden="true">
+                    {index + 1}
+                  </span>
                   <CheckCircle2 className={`h-4 w-4 ${complete ? 'text-emerald-600' : 'text-gray-300'}`} aria-hidden="true" />
-                  {label}
+                  <Link href={href} className="font-medium text-accent underline-offset-2 hover:underline">
+                    {label}
+                  </Link>
                 </li>
               ))}
-            </ul>
+            </ol>
             <p className="mt-4 text-xs text-gray-500">One giveaway entry per eligible account.</p>
           </section>
         ) : (

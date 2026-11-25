@@ -123,6 +123,7 @@ export default function RegularDashboard() {
   const [redirecting, setRedirecting] = useState(false);
   const [agentData, setAgentData] = useState(null);
   const [premiumExpiresAt, setPremiumExpiresAt] = useState(null);
+  const [premiumStatusLoaded, setPremiumStatusLoaded] = useState(false);
   const [premiumPrice, setPremiumPrice] = useState(3178.4);
   const [giveaway, setGiveaway] = useState(null);
   const [giveawayNow, setGiveawayNow] = useState(Date.now());
@@ -411,6 +412,7 @@ export default function RegularDashboard() {
           ? payload.user.premium_service_request_expires
           : null
       );
+      setPremiumStatusLoaded(true);
       setUserType(payload?.user?.user_type || 'landlord');
       setAccountType(payload?.user?.account_type || (payload?.user?.user_type === 'agent' ? 'agent' : null));
       setProfileIntent(payload?.user?.profile_intent || null);
@@ -642,7 +644,7 @@ export default function RegularDashboard() {
           </section>
         )}
 
-        {accountType === 'regular' && !premiumExpiresAt && (
+        {accountType === 'regular' && premiumStatusLoaded && !premiumExpiresAt && (
           <Link
             href="/profile#premium-payment"
             className="mb-8 flex flex-col gap-4 rounded-2xl bg-white p-5 ring-1 ring-gray-200 transition hover:ring-accent sm:flex-row sm:items-center sm:justify-between sm:p-6"
@@ -683,17 +685,22 @@ export default function RegularDashboard() {
                 <p className="mt-5 text-sm font-semibold text-gray-800">
                   {giveaway.eligible ? 'You qualify for this giveaway.' : 'Complete the requirements below to qualify.'}
                 </p>
-                <ul className="mt-3 grid gap-2 sm:grid-cols-2">
+                <ol className="mt-3 grid gap-2 sm:grid-cols-2">
                   {[
-                    ['Premium plan active', giveaway.eligibility.isPremium],
-                    ['Level 4 buyer or rental readiness complete', giveaway.eligibility.hasLevelFourReadiness],
-                  ].map(([label, complete]) => (
+                    ['Premium plan active', giveaway.eligibility.isPremium, '/profile#premium-payment'],
+                    ['Level 4 buyer or rental readiness complete', giveaway.eligibility.hasLevelFourReadiness, '/buyer-prequalification'],
+                  ].map(([label, complete, href], index) => (
                     <li key={label} className="flex items-center gap-2 text-sm text-gray-700">
+                      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white text-xs font-bold text-gray-700" aria-hidden="true">
+                        {index + 1}
+                      </span>
                       <CheckCircle2 className={`h-4 w-4 ${complete ? 'text-emerald-600' : 'text-gray-300'}`} aria-hidden="true" />
-                      {label}
+                      <Link href={href} className="font-medium text-accent underline-offset-2 hover:underline">
+                        {label}
+                      </Link>
                     </li>
                   ))}
-                </ul>
+                </ol>
               </>
             ) : (
               <>
@@ -719,29 +726,27 @@ export default function RegularDashboard() {
             {/* Card 1 — Submit a request */}
             <Link
               href="/request"
-              className="group relative overflow-hidden rounded-2xl border border-gray-200 bg-white p-6 transition-all duration-200 hover:-translate-y-0.5 hover:border-accent/20 hover:shadow-lg hover:shadow-gray-200/80"
+              className="group rounded-2xl bg-accent/5 p-5 transition-colors hover:bg-accent/10"
             >
-              <div className="pointer-events-none absolute -right-10 -top-10 h-36 w-36 rounded-full bg-accent/8 blur-3xl transition-colors duration-300 group-hover:bg-accent/15" />
-              <div className="relative">
-                <div className="flex items-start justify-between">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-accent/10 text-accent transition-colors duration-200 group-hover:bg-accent group-hover:text-white">
-                    <FileText size={22} />
+              <div className="flex items-start gap-4">
+                <span className="mt-1 flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-accent text-white">
+                  <FileText size={21} aria-hidden="true" />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-accent">Request</p>
+                    <ArrowUpRight
+                      size={18}
+                      className="shrink-0 text-accent transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
+                      aria-hidden="true"
+                    />
                   </div>
-                  <ArrowUpRight
-                    size={18}
-                    className="text-gray-300 transition-all duration-200 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-accent"
-                  />
-                </div>
-                <div className="mt-6">
-                  <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-accent">
-                    Request
-                  </p>
                   <h3 className="mt-1 text-lg font-semibold text-gray-900">
                     {isTenantProfile
                       ? 'Find a Property'
                       : 'Submit a Property Request'}
                   </h3>
-                  <p className="mt-1.5 text-sm leading-6 text-gray-600">
+                  <p className="mt-1.5 text-sm leading-6 text-gray-700">
                     {isTenantProfile
                       ? 'Tell us what you need in a home and track the search from your dashboard.'
                       : 'Tell us what property you are looking for.'}
@@ -754,28 +759,25 @@ export default function RegularDashboard() {
             {accountType === 'regular' && (
               <Link
                 href="/my-requests"
-                className="group relative overflow-hidden rounded-2xl border border-gray-200 bg-white p-6 transition-all duration-200 hover:-translate-y-0.5 hover:border-accent/20 hover:shadow-lg hover:shadow-gray-200/80"
+                className="group rounded-2xl border border-gray-200 bg-white p-5 transition-colors hover:border-accent/40 hover:bg-gray-50"
               >
-                <div className="pointer-events-none absolute -right-10 -top-10 h-36 w-36 rounded-full bg-gray-100 blur-3xl transition-colors duration-300 group-hover:bg-gray-200" />
-                <div className="relative">
-                  <div className="flex items-start justify-between">
-                    <div className="relative flex h-12 w-12 items-center justify-center rounded-xl bg-gray-100 text-gray-700 transition-colors duration-200 group-hover:bg-accent group-hover:text-white">
-                      <ClipboardList size={22} />
+                <div className="flex items-start gap-4">
+                  <span className="mt-1 flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gray-100 text-gray-800 transition-colors group-hover:bg-accent group-hover:text-white">
+                    <ClipboardList size={21} aria-hidden="true" />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-gray-600">Requests</p>
+                      <span className="inline-flex items-center rounded-full bg-accent/10 px-2.5 py-1 text-[11px] font-semibold text-accent">
+                        {loading
+                          ? '…'
+                          : `${serviceRequests.length} ${
+                              serviceRequests.length === 1
+                                ? 'request'
+                                : 'requests'
+                            }`}
+                      </span>
                     </div>
-                    <span className="inline-flex items-center rounded-full bg-accent/10 px-2.5 py-1 text-[11px] font-semibold text-accent">
-                      {loading
-                        ? '…'
-                        : `${serviceRequests.length} ${
-                            serviceRequests.length === 1
-                              ? 'request'
-                              : 'requests'
-                          }`}
-                    </span>
-                  </div>
-                  <div className="mt-6">
-                    <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-gray-600">
-                      Requests
-                    </p>
                     <h3 className="mt-1 text-lg font-semibold text-gray-900">
                       My Requests
                     </h3>
@@ -793,23 +795,21 @@ export default function RegularDashboard() {
             {isHomeownerProfile && (
               <Link
                 href="/properties/my-listings"
-                className="group relative overflow-hidden rounded-2xl border border-gray-200 bg-white p-6 transition-all duration-200 hover:-translate-y-0.5 hover:border-gray-300 hover:shadow-lg hover:shadow-gray-200/80"
+                className="group rounded-2xl bg-gray-100 p-5 transition-colors hover:bg-gray-200"
               >
-                <div className="pointer-events-none absolute -right-10 -top-10 h-36 w-36 rounded-full bg-gray-100 blur-3xl transition-colors duration-300 group-hover:bg-gray-200" />
-                <div className="relative">
-                  <div className="flex items-start justify-between">
-                    <div className="relative flex h-12 w-12 items-center justify-center rounded-xl bg-gray-100 text-gray-700 transition-colors duration-200 group-hover:bg-accent group-hover:text-white">
-                      <Home size={22} />
+                <div className="flex items-start gap-4">
+                  <span className="mt-1 flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white text-gray-800">
+                    <Home size={21} aria-hidden="true" />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-gray-600">Listings</p>
+                      <ArrowUpRight
+                        size={18}
+                        className="shrink-0 text-gray-500 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
+                        aria-hidden="true"
+                      />
                     </div>
-                    <ArrowUpRight
-                      size={18}
-                      className="text-gray-300 transition-all duration-200 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-accent"
-                    />
-                  </div>
-                  <div className="mt-6">
-                    <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-gray-600">
-                      Listings
-                    </p>
                     <h3 className="mt-1 text-lg font-semibold text-gray-900">
                       Manage Properties
                     </h3>
@@ -825,27 +825,25 @@ export default function RegularDashboard() {
             {isHomeownerProfile && (
               <Link
                 href="/properties/new"
-                className="group relative overflow-hidden rounded-2xl border border-gray-200 bg-white p-6 transition-all duration-200 hover:-translate-y-0.5 hover:border-accent/20 hover:shadow-lg hover:shadow-gray-200/80"
+                className="group rounded-2xl bg-accent p-5 text-white transition-colors hover:bg-accent/90"
               >
-                <div className="pointer-events-none absolute -right-10 -top-10 h-36 w-36 rounded-full bg-accent/8 blur-3xl transition-colors duration-300 group-hover:bg-accent/15" />
-                <div className="relative">
-                  <div className="flex items-start justify-between">
-                    <div className="relative flex h-12 w-12 items-center justify-center rounded-xl bg-accent/10 text-accent transition-colors duration-200 group-hover:bg-accent group-hover:text-white">
-                      <Plus size={22} />
+                <div className="flex items-start gap-4">
+                  <span className="mt-1 flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white/15 text-white">
+                    <Plus size={21} aria-hidden="true" />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-white/80">New listing</p>
+                      <ArrowUpRight
+                        size={18}
+                        className="shrink-0 text-white/80 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
+                        aria-hidden="true"
+                      />
                     </div>
-                    <ArrowUpRight
-                      size={18}
-                      className="text-gray-300 transition-all duration-200 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-accent"
-                    />
-                  </div>
-                  <div className="mt-6">
-                    <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-accent">
-                      New listing
-                    </p>
-                    <h3 className="mt-1 text-lg font-semibold text-gray-900">
+                    <h3 className="mt-1 text-lg font-semibold text-white">
                       Post a Property
                     </h3>
-                    <p className="mt-1.5 text-sm leading-6 text-gray-600">
+                    <p className="mt-1.5 text-sm leading-6 text-white/85">
                       Your first property is free. Premium is required to post more than one.
                     </p>
                   </div>
@@ -855,24 +853,24 @@ export default function RegularDashboard() {
             {accountType === 'regular' && (
               <Link
                 href="/buyer-prequalification"
-                className="group relative overflow-hidden rounded-2xl border border-gray-200 bg-white p-6 transition-all duration-200 hover:-translate-y-0.5 hover:border-gray-300 hover:shadow-lg hover:shadow-gray-200/80"
+                className="group rounded-2xl border-l-4 border-accent bg-gray-50 p-5 transition-colors hover:bg-gray-100"
               >
-                <div className="relative">
-                  <div className="flex items-start justify-between">
-                    <div className="relative flex h-12 w-12 items-center justify-center rounded-xl bg-gray-100 text-gray-700">
-                      <ShieldCheck size={22} />
+                <div className="flex items-start gap-4">
+                  <span className="mt-1 flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white text-accent">
+                    <ShieldCheck size={21} aria-hidden="true" />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-gray-600">Buyer readiness</p>
+                      <ArrowUpRight size={18} className="shrink-0 text-gray-500 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" aria-hidden="true" />
                     </div>
-                    <ArrowUpRight size={18} className="text-gray-300 transition group-hover:text-accent" />
-                  </div>
-                  <div className="mt-6">
-                    <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-gray-600">Buyer readiness</p>
                     <h3 className="mt-1 text-lg font-semibold text-gray-900">
                       {`Current level: ${buyerReadinessLevel ? `Level ${buyerReadinessLevel}` : 'Not started'}`}
                     </h3>
                     <p className="mt-1.5 text-sm leading-6 text-gray-600">
                       Complete buyer verification to unlock verified buyer benefits.
                     </p>
-                    <span className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-accent">
+                    <span className="mt-3 inline-flex items-center gap-2 text-sm font-semibold text-accent">
                       Update readiness level <ArrowRight size={16} aria-hidden="true" />
                     </span>
                   </div>

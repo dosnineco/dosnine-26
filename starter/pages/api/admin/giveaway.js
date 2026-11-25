@@ -4,7 +4,7 @@ import { getGiveawayEligibility, isGiveawayEligible } from '../../../lib/giveawa
 async function getGiveaway(db) {
   const { data, error } = await db
     .from('giveaway_campaigns')
-    .select('id, title, prize_description, opens_at, draw_at, is_open, winner_user_id, winner_request_id, winner_selected_at')
+    .select('id, title, prize_description, image_urls, opens_at, draw_at, is_open, winner_user_id, winner_request_id, winner_selected_at')
     .eq('id', 1)
     .maybeSingle();
   if (error) throw error;
@@ -12,6 +12,7 @@ async function getGiveaway(db) {
     id: 1,
     title: 'Win a 3-night Airbnb stay',
     prize_description: 'A 3-night Airbnb stay',
+    image_urls: [],
     opens_at: null,
     draw_at: null,
     is_open: false,
@@ -89,6 +90,7 @@ export default async function handler(req, res) {
     const {
       title,
       prize_description,
+      image_urls,
       opens_at,
       draw_at,
       is_open,
@@ -119,7 +121,7 @@ export default async function handler(req, res) {
         })
         .eq('id', 1)
         .is('winner_user_id', null)
-        .select('id, title, prize_description, opens_at, draw_at, is_open, winner_user_id, winner_request_id, winner_selected_at')
+        .select('id, title, prize_description, image_urls, opens_at, draw_at, is_open, winner_user_id, winner_request_id, winner_selected_at')
         .maybeSingle();
       if (error) throw error;
       if (!data) return res.status(409).json({ error: 'A winner has already been selected for this giveaway.' });
@@ -138,6 +140,27 @@ export default async function handler(req, res) {
         return res.status(400).json({ error: 'Enter a prize description no longer than 500 characters.' });
       }
       update.prize_description = prize_description.trim();
+    }
+    if (image_urls !== undefined) {
+      if (
+        !Array.isArray(image_urls) ||
+        image_urls.length > 8 ||
+        image_urls.some((imageUrl) => {
+          if (typeof imageUrl !== 'string' || imageUrl.length > 2048) return true;
+          try {
+            const parsedUrl = new URL(imageUrl);
+            return !(
+              parsedUrl.origin === process.env.NEXT_PUBLIC_SUPABASE_URL &&
+              parsedUrl.pathname.startsWith('/storage/v1/object/public/property-images/giveaways/')
+            );
+          } catch {
+            return true;
+          }
+        })
+      ) {
+        return res.status(400).json({ error: 'Add up to 8 valid giveaway images.' });
+      }
+      update.image_urls = image_urls;
     }
     if (opens_at !== undefined) {
       const timestamp = opens_at ? Date.parse(opens_at) : NaN;
@@ -179,7 +202,7 @@ export default async function handler(req, res) {
     const { data, error } = await db
       .from('giveaway_campaigns')
       .upsert({ id: 1, ...campaign, ...update }, { onConflict: 'id' })
-      .select('id, title, prize_description, opens_at, draw_at, is_open, winner_user_id, winner_request_id, winner_selected_at')
+      .select('id, title, prize_description, image_urls, opens_at, draw_at, is_open, winner_user_id, winner_request_id, winner_selected_at')
       .single();
     if (error) throw error;
     return res.status(200).json({ success: true, campaign: data });

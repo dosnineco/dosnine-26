@@ -1,13 +1,13 @@
 import Head from 'next/head';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
-import { useAuth } from '@clerk/nextjs';
+import { useUser } from '@clerk/nextjs';
 import { useEffect, useState } from 'react';
 import BuyerPrequalificationForm from '@/components/BuyerPrequalificationForm';
 
 export default function BuyerPrequalificationPage() {
   const router = useRouter();
-  const { isLoaded: authLoaded, isSignedIn } = useAuth();
+  const { isLoaded: authLoaded, isSignedIn } = useUser();
   const serviceRequestId = router.isReady && typeof router.query.serviceRequestId === 'string'
     ? router.query.serviceRequestId
     : undefined;

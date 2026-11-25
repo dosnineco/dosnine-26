@@ -364,6 +364,8 @@ export default async function handler(req, res) {
         identity_verified: Boolean(userData.identity_verified),
         id_verification_status: userData.id_verification_status || null,
         account_status: userData.account_status || null,
+        premium_service_request: Boolean(userData.premium_service_request),
+        premium_service_request_expires: userData.premium_service_request_expires || null,
       },
       agent: agentData,
       stats: {

@@ -29,7 +29,7 @@
 
 /* Accent color system */
 :root {
-  --accent-color: #2391FF;
+  --accent-color: #BF092F;
   --accent-color-rgb: 35 145 255;
   --accent-ring: rgba(245, 83, 83, 0.35);
 }
@@ -247,14 +247,14 @@ body {
   overflow-x: hidden;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   font-size: 16px;
-  color: #374151;
+  color: #000;
   scroll-behavior: smooth;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
 body {
-  background: #f9fafb;
+  background: white;
 }
 
 .container {

@@ -2,7 +2,43 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
 import { useAuth, useUser } from '@clerk/nextjs';
-import { ArrowLeft, Gift, Save, Trophy } from 'lucide-react';
+import { supabase } from '@/lib/supabase';
+import { ArrowLeft, Gift, ImagePlus, Save, Trophy, X } from 'lucide-react';
+
+function compressImageToWebP(file, maxWidth = 1600, quality = 0.82) {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    const objectUrl = URL.createObjectURL(file);
+
+    image.onload = () => {
+      const canvas = document.createElement('canvas');
+      const ratio = image.width > maxWidth ? maxWidth / image.width : 1;
+      canvas.width = Math.round(image.width * ratio);
+      canvas.height = Math.round(image.height * ratio);
+      const context = canvas.getContext('2d');
+      if (!context) {
+        URL.revokeObjectURL(objectUrl);
+        reject(new Error('Unable to process image.'));
+        return;
+      }
+      context.drawImage(image, 0, 0, canvas.width, canvas.height);
+      canvas.toBlob((blob) => {
+        URL.revokeObjectURL(objectUrl);
+        if (!blob) {
+          reject(new Error('Image compression failed.'));
+          return;
+        }
+        resolve(new File([blob], `${file.name.replace(/\.[^.]+$/, '')}.webp`, { type: 'image/webp' }));
+      }, 'image/webp', quality);
+    };
+
+    image.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      reject(new Error('Invalid image file.'));
+    };
+    image.src = objectUrl;
+  });
+}
 
 function toLocalDateTime(value) {
   if (!value) return '';
@@ -50,6 +86,7 @@ export default function AdminGiveawayPage() {
       setForm({
         title: current.title || '',
         prize_description: current.prize_description || '',
+        image_urls: current.image_urls || [],
         opens_at: toLocalDateTime(current.opens_at),
         draw_at: toLocalDateTime(current.draw_at),
         is_open: Boolean(current.is_open),
@@ -70,6 +107,40 @@ export default function AdminGiveawayPage() {
     [entrants, selectedWinner]
   );
   const drawReady = campaign?.draw_at && new Date(campaign.draw_at).getTime() <= Date.now();
+
+  const uploadImages = async (event) => {
+    const files = Array.from(event.target.files || []);
+    event.target.value = '';
+    if (!files.length) return;
+    if ((form.image_urls || []).length + files.length > 8) {
+      setError('A giveaway can have up to 8 images.');
+      return;
+    }
+
+    setError('');
+    setNotice('');
+    setSaving(true);
+    try {
+      for (const file of files) {
+        if (!file.type.startsWith('image/') || file.size > 10 * 1024 * 1024) {
+          throw new Error('Choose image files smaller than 10 MB.');
+        }
+        const compressedImage = await compressImageToWebP(file);
+        const filePath = `giveaways/${Date.now()}-${Math.random().toString(36).slice(2, 9)}.webp`;
+        const { error: uploadError } = await supabase.storage
+          .from('property-images')
+          .upload(filePath, compressedImage, { cacheControl: '3600', contentType: 'image/webp' });
+        if (uploadError) throw new Error(uploadError.message || 'Image upload failed.');
+        const { data } = supabase.storage.from('property-images').getPublicUrl(filePath);
+        if (!data?.publicUrl) throw new Error('Unable to get the uploaded image URL.');
+        setForm((current) => ({ ...current, image_urls: [...(current.image_urls || []), data.publicUrl] }));
+      }
+    } catch (uploadError) {
+      setError(uploadError.message || 'Unable to upload giveaway images.');
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const saveCampaign = async (event) => {
     event.preventDefault();
@@ -144,6 +215,38 @@ export default function AdminGiveawayPage() {
               <span className="mb-1.5 block text-sm font-medium text-gray-700">Prize description</span>
               <textarea value={form.prize_description || ''} onChange={(event) => setForm((current) => ({ ...current, prize_description: event.target.value }))} maxLength={500} required rows={2} className="w-full rounded-xl bg-gray-50 px-4 py-3 outline-none focus:ring-2 focus:ring-accent" />
             </label>
+            <div>
+              <span className="mb-1.5 block text-sm font-medium text-gray-700">Giveaway images (up to 8)</span>
+              <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl bg-gray-100 px-4 py-3 text-sm font-semibold text-gray-800 hover:bg-gray-200">
+                <ImagePlus className="h-4 w-4" aria-hidden="true" />
+                Add images
+                <input type="file" accept="image/*" multiple onChange={uploadImages} disabled={saving} className="sr-only" />
+              </label>
+              <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
+                {(form.image_urls || []).map((imageUrl, index) => (
+                  <div key={imageUrl} className="relative">
+                    <div
+                      role="img"
+                      aria-label={`Giveaway preview ${index + 1}`}
+                      className="h-28 w-full rounded-xl bg-cover bg-center"
+                      style={{ backgroundImage: `url('${imageUrl}')` }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setForm((current) => ({
+                        ...current,
+                        image_urls: current.image_urls.filter((url) => url !== imageUrl),
+                      }))}
+                      aria-label={`Remove giveaway image ${index + 1}`}
+                      className="absolute right-2 top-2 rounded-full bg-white/90 p-1 text-gray-700 hover:bg-white"
+                    >
+                      <X className="h-4 w-4" aria-hidden="true" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+              <p className="mt-2 text-xs text-gray-500">Images rotate automatically in the homepage giveaway promotion.</p>
+            </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <label className="block">
                 <span className="mb-1.5 block text-sm font-medium text-gray-700">Opening date and time</span>
