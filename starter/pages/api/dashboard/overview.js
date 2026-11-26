@@ -245,25 +245,8 @@ export default async function handler(req, res) {
         new Date(campaign.draw_at) >= now
       );
       if (open) {
-        const [
-          { data: buyerReadiness, error: buyerReadinessError },
-          { data: rentalReadiness, error: rentalReadinessError },
-        ] = await Promise.all([
-          db.from('buyer_prequalifications')
-            .select('qualification_level, status, verification_expires_at')
-            .eq('buyer_user_id', userData.id),
-          db.from('renter_readiness_profiles')
-            .select('qualification_level')
-            .eq('user_id', userData.id)
-            .maybeSingle(),
-        ]);
-        if (buyerReadinessError) throw buyerReadinessError;
-        if (rentalReadinessError) throw rentalReadinessError;
-
         const eligibility = getGiveawayEligibility({
           user: userData,
-          buyerReadiness: buyerReadiness || [],
-          rentalReadiness,
           now,
         });
         giveaway = {

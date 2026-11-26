@@ -191,8 +191,7 @@ export default function PropertyRequestsPage() {
           </p>
 
           <p className="mt-4 max-w-xl text-sm leading-7 text-white/75 sm:text-base">
-            Join Dosnine Pro for a chance to win. An active Pro plan
-            and Level 4 buyer or rental readiness are required to qualify.
+            Join Dosnine Pro for a chance to win. An active Pro plan is required to qualify.
           </p>
 
           {giveawayNow !== null && (

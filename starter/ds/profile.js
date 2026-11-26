@@ -172,8 +172,7 @@ export default function ProfilePage() {
 
   const giveaway = profile?.giveaway;
   const eligibilityItems = giveaway ? [
-    ['Premium plan active', giveaway.eligibility.isPremium, '/profile#premium-payment'],
-    ['Level 4 buyer or rental readiness complete', giveaway.eligibility.hasLevelFourReadiness, '/buyer-prequalification'],
+    ['Active Pro account', giveaway.eligibility.isPremium, '/profile#premium-payment'],
   ] : [];
   const levelFour = Math.max(profile?.readiness?.buyerLevel || 0, profile?.readiness?.rentalLevel || 0) >= 4;
   const profileImageUrl = profile?.profile_image_url || user?.imageUrl || null;

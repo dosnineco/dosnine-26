@@ -271,7 +271,7 @@ export default function AdminGiveawayPage() {
           <div className="flex items-center justify-between gap-3">
             <div>
               <h2 className="text-xl font-semibold text-gray-900">Qualified entrants</h2>
-              <p className="mt-1 text-sm text-gray-600">Members with an active Premium plan and completed Level 4 buyer or rental readiness appear here.</p>
+              <p className="mt-1 text-sm text-gray-600">Members with an active Pro plan appear here.</p>
             </div>
             <span className="rounded-full bg-gray-100 px-3 py-1 text-sm font-semibold text-gray-700">{entrants.length}</span>
           </div>
@@ -289,9 +289,6 @@ export default function AdminGiveawayPage() {
                 <article key={entrant.user_id} className="rounded-xl bg-gray-50 p-4">
                   <p className="font-semibold text-gray-900">{entrant.full_name || 'Member'}</p>
                   <p className="text-sm text-gray-600">{entrant.email}</p>
-                  <p className="mt-2 text-xs text-gray-600">
-                    Readiness: {entrant.eligibility.hasLevelFourReadiness ? 'Level 4 complete' : 'Incomplete'}
-                  </p>
                   {drawReady && (
                     <button
                       type="button"

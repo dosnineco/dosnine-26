@@ -38,27 +38,8 @@ async function getEligibleEntrants(db, now) {
     users.push(...(data || []));
     if (!data || data.length < pageSize) break;
   }
-  const userIds = (users || []).map((user) => user.id).filter(Boolean);
-  if (!userIds.length) return [];
-
-  const [buyersResult, rentalsResult] = await Promise.all([
-    db.from('buyer_prequalifications')
-      .select('buyer_user_id, qualification_level, status, verification_expires_at')
-      .in('buyer_user_id', userIds),
-    db.from('renter_readiness_profiles')
-      .select('user_id, qualification_level')
-      .in('user_id', userIds),
-  ]);
-  if (buyersResult.error) throw buyersResult.error;
-  if (rentalsResult.error) throw rentalsResult.error;
-
   return (users || []).map((user) => {
-    const eligibility = getGiveawayEligibility({
-      user,
-      buyerReadiness: (buyersResult.data || []).filter((item) => item.buyer_user_id === user.id),
-      rentalReadiness: (rentalsResult.data || []).find((item) => item.user_id === user.id),
-      now,
-    });
+    const eligibility = getGiveawayEligibility({ user, now });
     if (!isGiveawayEligible(eligibility)) return null;
     return {
       user_id: user.id,

@@ -11,16 +11,11 @@ export function isCurrentLevelFourBuyerReadiness(assessment, now = new Date()) {
 
 export function getGiveawayEligibility({
   user,
-  buyerReadiness = [],
-  rentalReadiness,
   now = new Date(),
 }) {
   const premiumExpiry = user?.premium_service_request_expires
     ? new Date(user.premium_service_request_expires).getTime()
     : NaN;
-  const hasLevelFourReadiness =
-    buyerReadiness.some((assessment) => isCurrentLevelFourBuyerReadiness(assessment, now)) ||
-    Number(rentalReadiness?.qualification_level) === 4;
 
   return {
     isPremium: Boolean(
@@ -29,10 +24,9 @@ export function getGiveawayEligibility({
       Number.isFinite(premiumExpiry) &&
       premiumExpiry > now.getTime()
     ),
-    hasLevelFourReadiness,
   };
 }
 
 export function isGiveawayEligible(checklist) {
-  return Object.values(checklist).every(Boolean);
+  return Boolean(checklist?.isPremium);
 }

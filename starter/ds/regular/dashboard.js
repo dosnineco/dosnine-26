@@ -687,8 +687,7 @@ export default function RegularDashboard() {
                 </p>
                 <ol className="mt-3 grid gap-2 sm:grid-cols-2">
                   {[
-                    ['Premium plan active', giveaway.eligibility.isPremium, '/profile#premium-payment'],
-                    ['Level 4 buyer or rental readiness complete', giveaway.eligibility.hasLevelFourReadiness, '/buyer-prequalification'],
+                    ['Active Pro account', giveaway.eligibility.isPremium, '/profile#premium-payment'],
                   ].map(([label, complete, href], index) => (
                     <li key={label} className="flex items-center gap-2 text-sm text-gray-700">
                       <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white text-xs font-bold text-gray-700" aria-hidden="true">
@@ -709,7 +708,7 @@ export default function RegularDashboard() {
                   When the next reward opens, its prize, eligibility checklist, and countdown will appear here.
                 </p>
                 <p className="mt-3 text-sm text-gray-600">
-                  To qualify, activate a Premium plan and complete Level 4 buyer or rental readiness.
+                  To qualify, activate a Pro plan.
                 </p>
               </>
             )}

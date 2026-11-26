@@ -174,8 +174,6 @@ export default async function handler(req, res) {
 
     const eligibility = getGiveawayEligibility({
       user: userData,
-      buyerReadiness: buyerReadiness || [],
-      rentalReadiness,
       now,
     });
     const buyerLevel = Math.max(0, ...(buyerReadiness || [])
